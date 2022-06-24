@@ -2,7 +2,7 @@ package ir;
 
 import frontend.semantic.Function;
 import frontend.semantic.Initial;
-import frontend.semantic.Types;
+import frontend.semantic.Type;
 import frontend.semantic.symbol.Symbol;
 
 import java.util.HashMap;
@@ -20,13 +20,13 @@ public class IR {
     private final Map<String, Function> functions = new HashMap<>(); // 函数定义
 
     public static class ExternFunction {
-        public static final Function GET_INT = new Function("getint", List.of(), Types.BasicType.INT);
-        public static final Function PUT_INT = new Function("putint", List.of(Val.newVar(Types.BasicType.INT)), null);
-        public static final Function GET_CH = new Function("getch", List.of(), Types.BasicType.INT);
-        public static final Function PUT_CH = new Function("putch", List.of(Val.newVar(Types.BasicType.INT)), null);
-        public static final Function MEM_SET = new Function("memset", Stream.of(new Types.PointerType(Types.BasicType.INT), Types.BasicType.INT, Types.BasicType.INT).map(Val::newVar).collect(Collectors.toUnmodifiableList()), null);
-        public static final Function GET_ARR = new Function("getarray", List.of(Val.newVar(new Types.PointerType(Types.BasicType.INT))), Types.BasicType.INT);
-        public static final Function PUT_ARR = new Function("putarray", Stream.of(Types.BasicType.INT, new Types.PointerType(Types.BasicType.INT)).map(Val::newVar).collect(Collectors.toUnmodifiableList()), null);
+        public static final Function GET_INT = new Function("getint", List.of(), Type.BasicType.INT);
+        public static final Function PUT_INT = new Function("putint", List.of(Val.newVar(Type.BasicType.INT)), null);
+        public static final Function GET_CH = new Function("getch", List.of(), Type.BasicType.INT);
+        public static final Function PUT_CH = new Function("putch", List.of(Val.newVar(Type.BasicType.INT)), null);
+        public static final Function MEM_SET = new Function("memset", Stream.of(new Type.PointerType(Type.BasicType.INT), Type.BasicType.INT, Type.BasicType.INT).map(Val::newVar).collect(Collectors.toUnmodifiableList()), null);
+        public static final Function GET_ARR = new Function("getarray", List.of(Val.newVar(new Type.PointerType(Type.BasicType.INT))), Type.BasicType.INT);
+        public static final Function PUT_ARR = new Function("putarray", Stream.of(Type.BasicType.INT, new Type.PointerType(Type.BasicType.INT)).map(Val::newVar).collect(Collectors.toUnmodifiableList()), null);
     }
 
     public IR() {

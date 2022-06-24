@@ -10,14 +10,14 @@ import java.util.ArrayList;
  * 人为约束: 初始化器的种类以及数组维度/长度，必须保证和类型中的数组信息一致
  */
 public abstract class Initial {
-    private final Types type; // LLVM IR 的初始值是含有类型信息的
+    private final Type type; // LLVM IR 的初始值是含有类型信息的
 
     @Override
     public abstract String toString();
 
     public static class ArrayInit extends Initial {
     
-        public ArrayInit(Types type) {
+        public ArrayInit(Type type) {
             super(type);
         }
 
@@ -45,7 +45,7 @@ public abstract class Initial {
     public static class ValueInit extends Initial {
         private final int value;
 
-        public ValueInit(int value, Types type) {
+        public ValueInit(int value, Type type) {
             super(type);
             this.value = value;
         }
@@ -63,7 +63,7 @@ public abstract class Initial {
 
     public static class ZeroInit extends Initial {
     
-        public ZeroInit(Types type) {
+        public ZeroInit(Type type) {
             super(type);
         }
 
@@ -77,7 +77,7 @@ public abstract class Initial {
     public static class ExpInit extends Initial {
         private final Val result;
 
-        public ExpInit(Val result, Types type) {
+        public ExpInit(Val result, Type type) {
             super(type);
             this.result = result;
         }
@@ -93,11 +93,11 @@ public abstract class Initial {
         
     }
 
-    public Initial(final Types type) {
+    public Initial(final Type type) {
         this.type = type;
     }
     
-    public Types getType() {
+    public Type getType() {
         return this.type;
     }
     

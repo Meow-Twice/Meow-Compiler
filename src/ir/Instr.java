@@ -1,7 +1,7 @@
 package ir;
 
 import frontend.semantic.Function;
-import frontend.semantic.Types;
+import frontend.semantic.Type;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -11,18 +11,14 @@ import java.util.Map;
  * LLVM IR 的一条指令
  */
 public class Instr extends Value {
-    private Val.Var ret; // 指令的返回值(可以为空)
-
-    public boolean hasRet() {
-        return ret != null;
-    }
 
     public interface Terminator {
     }
     protected ArrayList<Use> useList;
     protected ArrayList<Value> useValueList;
 
-    public Instr(){
+    public Instr(Type type){
+        super(type);
         useList = new ArrayList<>();
         useValueList = new ArrayList<>();
     }
@@ -44,11 +40,6 @@ public class Instr extends Value {
         now.insertAtEnd(use);
     }
 
-    // @Override
-    public String getDescriptor() {
-        return prefix + name;
-    }
-
 
     // 二元算术运算, 结果是 i32 型
     public static class Alu extends Instr {
@@ -68,13 +59,8 @@ public class Instr extends Value {
         }
 
         private final Op op;
-        public Alu(Val.Var ret, Op op, Value op1, Value op2) {
-            super(ret);
-
-            if (ret == null) {
-                throw new NullPointerException("ret is marked non-null but is null");
-            }
-
+        public Alu(Type type, Op op, Value op1, Value op2) {
+            super(type);
             this.op = op;
             setUse(op1, 0);
             setUse(op2, 1);
@@ -82,7 +68,7 @@ public class Instr extends Value {
 
         @Override
         public String toString() {
-            return getRet().getDescriptor() + " = " + op.getName() + " " + op1 + ", " + op2.getDescriptor();
+            return this.getDescriptor() + " = " + op.getName() + " " + getRVal1().getDescriptor() + ", " + getRVal2().getDescriptor();
         }
 
         public Op getOp() {
@@ -116,40 +102,29 @@ public class Instr extends Value {
 
         }
 
-        private final Op op;
+        private Op op;
 
-        private final Val op1;
-
-        private final Val op2;
-
-        public Cmp(Val.Var ret, Op op, Val op1, Val op2) {
-            super(ret);
-
-            if (ret == null) {
-                throw new NullPointerException("ret is marked non-null but is null");
-            }
-
-            assert ret.getType().equals(Types.BasicType.BOOL);
+        public Cmp(Type type, Op op, Value op1, Value op2) {
+            super(type);
             this.op = op;
-            this.op1 = op1;
-            this.op2 = op2;
+            setUse(op1, 0);
+            setUse(op2, 1);
         }
 
-        @Override
         public String toString() {
-            return getRet().getDescriptor() + " = icmp " + op.getName() + " " + op1 + ", " + op2.getDescriptor();
+            return this.getDescriptor() + " = icmp " + op.getName() + " " + getRVal1().getDescriptor() + ", " + getRVal2().getDescriptor();
         }
 
         public Op getOp() {
             return this.op;
         }
 
-        public Val getOp1() {
-            return this.op1;
+        public Value getRVal1() {
+            return useValueList.get(0);
         }
 
-        public Val getOp2() {
-            return this.op2;
+        public Value getRVal2() {
+            return useValueList.get(1);
         }
 
     }
@@ -157,25 +132,19 @@ public class Instr extends Value {
     // 零扩展运算, 结果是 i32 型
     public static class Ext extends Instr {
 
-        private final Val src;
 
-        public Ext(Val.Var ret, Val src) {
-            super(ret);
-
-            if (ret == null) {
-                throw new NullPointerException("ret is marked non-null but is null");
-            }
-
-            this.src = src;
+        public Ext(Type type, Value src) {
+            super(type);
+            setUse(src, 0);
         }
 
-        @Override
         public String toString() {
-            return getRet().getDescriptor() + " = zext " + src + " to " + getRet().getType();
+            return this.getDescriptor() + " = zext " + getRVal1().getDescriptor() + " to " + this.getType();
         }
 
-        public Val getSrc() {
-            return this.src;
+
+        public Value getRVal1() {
+            return useValueList.get(0);
         }
 
     }
@@ -183,53 +152,39 @@ public class Instr extends Value {
     // 分配内存, 结果是指针型
     public static class Alloc extends Instr {
 
-        private final Types type;
+        private Type contentType;
 
-        public Alloc(Val.Var ret, Types type) {
-            super(ret);
-
-            if (ret == null) {
-                throw new NullPointerException("ret is marked non-null but is null");
-            }
-
-            assert ret.getType() instanceof Types.PointerType;
-            this.type = type;
+        public Alloc(Type type, Type contentType) {
+            super(type);
+            this.contentType = contentType;
         }
 
         @Override
         public String toString() {
-            return getRet().getDescriptor() + " = alloca " + type;
+            return this.getDescriptor() + " = alloca " + contentType;
         }
 
-        public Types getType() {
-            return this.type;
+        public Type getContentType() {
+            return this.contentType;
         }
 
     }
 
     // 读取内存
     public static class Load extends Instr {
-
-        private final Val address;
-
-        public Load(Val.Var ret, Val address) {
-            super(ret);
-
-            if (ret == null) {
-                throw new NullPointerException("ret is marked non-null but is null");
-            }
-
-            assert address.getType() instanceof Types.PointerType && ((Types.PointerType) address.getType()).getBase().equals(ret.getType());
-            this.address = address;
+        //TODO:修改toString()方法添加指令的Type
+        public Load(Type type, Value RVal) {
+            super(type);
+            setUse(RVal, 0);
         }
 
         @Override
         public String toString() {
-            return getRet().getDescriptor() + " = load " + getRet().getType() + ", " + address;
+            return this.getDescriptor() + " = load " + getRet().getType() + ", " + this.getRVal1().getDescriptor();
         }
 
-        public Val getAddress() {
-            return this.address;
+        public Value getRVal1() {
+            return this.useValueList.get(0);
         }
 
     }
@@ -237,39 +192,31 @@ public class Instr extends Value {
     // 写入内存
     public static class Store extends Instr {
 
-        private final Val val;
-
-        private final Val address;
-
-        public Store(Val val, Val address) {
+        //TODO:修改toString()方法添加指令的Type
+        public Store(Value value, Value address) {
             super(null);
-
-            if (val == null) {
-                throw new NullPointerException("value is marked non-null but is null");
-            }
-
-            this.val = val;
-            this.address = address;
+            setUse(value, 0);
+            setUse(address, 1);
         }
 
         @Override
         public String toString() {
-            return "store " + val + ", " + address;
+            return "store " + this.getRVal1().getDescriptor() + ", " + this.getRVal2().getDescriptor();
         }
 
-        public Val getValue() {
-            return this.val;
+        public Value getRVal1() {
+            return this.useValueList.get(0);
         }
 
-        public Val getAddress() {
-            return this.address;
+        public Value getRVal2() {
+            return this.useValueList.get(1);
         }
-
     }
 
     // 数组元素寻址, 每个该指令对指针/数组解引用一层, 返回值含义等价于 `base[offset]`
     public static class GetElementPtr extends Instr {
 
+        //TODO:学习getelementptr
         private final Val base; // 基地址
         private final boolean array; // 是否需要第一层 offset 0 来解数组
 
@@ -277,32 +224,32 @@ public class Instr extends Value {
 
         // e.g. a is [10 x i32]*: a[3] -> %v1 = getelementptr inbounds [10 x i32], [10 x i32]* %a, i32 0, i32 3 ; 第一个 i32 0 表示解引用前不偏移(固定)，第二个才是解引用后的偏移
         // e.g. a is i32*: a[3] -> %v1 = getelementptr inbounds i32, i32* %a, i32 3
-        public GetElementPtr(Val.Var ret, Val base, Val offset, boolean array) {
-            super(ret);
+        public GetElementPtr(Type type, Val base, Val offset, boolean array) {
+            super(type);
 
             if (ret == null) {
                 throw new NullPointerException("ret is marked non-null but is null");
             }
 
-            assert base.getType() instanceof Types.PointerType;
+            assert base.getType() instanceof Type.PointerType;
             this.base = base;
             this.offset = offset;
             this.array = array;
             if (array) {
-                assert ((Types.PointerType) base.getType()).getBase() instanceof Types.ArrayType;
-                assert ret.getType().equals(new Types.PointerType(((Types.ArrayType) ((Types.PointerType) base.getType()).getBase()).getBase()));
+                assert ((Type.PointerType) base.getType()).getBase() instanceof Type.ArrayType;
+                assert ret.getType().equals(new Type.PointerType(((Type.ArrayType) ((Type.PointerType) base.getType()).getBase()).getBase()));
             } else {
                 assert ret.getType().equals(base.getType());
             }
         }
 
         @Override
-        public String toString() {
-            assert base.getType() instanceof Types.PointerType;
+        public String getDescriptor() {
+            assert base.getType() instanceof Type.PointerType;
             if (array) {
-                return getRet().getDescriptor() + " = getelementptr inbounds " + ((Types.PointerType) base.getType()).getBase() + ", " + base + ", i32 0, " + offset;
+                return getRet().getDescriptor() + " = getelementptr inbounds " + ((Type.PointerType) base.getType()).getBase() + ", " + base + ", i32 0, " + offset;
             } else {
-                return getRet().getDescriptor() + " = getelementptr inbounds " + ((Types.PointerType) base.getType()).getBase() + ", " + base + ", " + offset;
+                return getRet().getDescriptor() + " = getelementptr inbounds " + ((Type.PointerType) base.getType()).getBase() + ", " + base + ", " + offset;
             }
         }
 
@@ -323,19 +270,21 @@ public class Instr extends Value {
     // 函数调用
     public static class Call extends Instr {
 
+        //TODO:考虑函数调用的user used
+
         private final Function function;
 
         private final List<Val> params;
 
-        public Call(Val.Var ret, Function function, List<Val> params) {
-            super(ret); // ret may be null
+        public Call(Type type, Function function, List<Val> params) {
+            super(type); // ret may be null
             this.function = function;
             this.params = params;
             assert (function.hasRet() && ret.getType().equals(function.getRetType())) || (!function.hasRet() && ret == null);
         }
 
         @Override
-        public String toString() {
+        public String getDescriptor() {
             String prefix = "";
             String retType = "void";
             if (getRet() != null) {
@@ -359,15 +308,16 @@ public class Instr extends Value {
     // SSA Phi 指令
     public static class Phi extends Instr {
 
+        //TODO:assign to 刘传
         private final Map<Val, BasicBlock> sources;
 
-        public Phi(Val.Var ret, Map<Val, BasicBlock> sources) {
-            super(ret);
+        public Phi(Type type, Map<Val, BasicBlock> sources) {
+            super(type);
             this.sources = sources;
         }
 
         @Override
-        public String toString() {
+        public String getDescriptor() {
             String src = sources.entrySet().stream().map(entry -> "[ " + (entry.getKey().getDescriptor()) + ", %" + entry.getValue().getLabel() + " ]").reduce((s, s2) -> s + ", " + s2).orElse("");
             return getRet().getDescriptor() + " = phi " + getRet().getType() + " " + src;
         }
@@ -388,14 +338,14 @@ public class Instr extends Value {
 
         public Branch(Val cond, BasicBlock thenTarget, BasicBlock elseTarget) {
             super(null);
-            assert cond.getType().equals(Types.BasicType.BOOL);
+            assert cond.getType().equals(Type.BasicType.BOOL);
             this.cond = cond;
             this.thenTarget = thenTarget;
             this.elseTarget = elseTarget;
         }
 
         @Override
-        public String toString() {
+        public String getDescriptor() {
             return "br " + cond + ", label %" + thenTarget.getLabel() + ", label %" + elseTarget.getLabel();
         }
 
@@ -423,7 +373,7 @@ public class Instr extends Value {
         }
 
         @Override
-        public String toString() {
+        public String getDescriptor() {
             return "br label %" + target.getLabel();
         }
 
@@ -447,7 +397,7 @@ public class Instr extends Value {
         }
 
         @Override
-        public String toString() {
+        public String getDescriptor() {
             if (hasValue()) {
                 return "ret " + val;
             } else {
@@ -461,9 +411,6 @@ public class Instr extends Value {
 
     }
 
-    public Instr(final Val.Var ret) {
-        this.ret = ret;
-    }
 
     public Val.Var getRet() {
         return this.ret;

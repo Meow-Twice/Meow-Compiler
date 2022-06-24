@@ -13,10 +13,10 @@ import java.util.*;
 public class Function {
     private final String name;
     private final List<Val.Var> params; // 形参表
-    private final Types retType; // 返回值类型, 如果为 null 则表示 param
+    private final Type retType; // 返回值类型, 如果为 null 则表示 param
     private BasicBlock body = null; // 函数体
 
-    public Function(String name, List<Val.Var> params, Types retType) {
+    public Function(String name, List<Val.Var> params, Type retType) {
         this.name = name;
         this.params = params;
         this.retType = retType;
@@ -96,7 +96,7 @@ public class Function {
         return this.params;
     }
 
-    public Types getRetType() {
+    public Type getRetType() {
         return this.retType;
     }
 

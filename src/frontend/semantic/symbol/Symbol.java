@@ -1,7 +1,7 @@
 package frontend.semantic.symbol;
 
 import frontend.semantic.Initial;
-import frontend.semantic.Types;
+import frontend.semantic.Type;
 import ir.Val;
 
 /**
@@ -9,12 +9,12 @@ import ir.Val;
  */
 public class Symbol {
     private final String name; // 变量名称
-    private final Types type; // 变量类型
+    private final Type type; // 变量类型
     private final Initial initial; // 初始值(可以为 null, 如果有则必须和变量匹配)
     private final boolean constant; // 是否为常量
     private final Val.Var pointer; // IR 中作为该变量地址的 Pointer
 
-    public Symbol(final String name, final Types type, final Initial initial, final boolean constant, final Val.Var pointer) {
+    public Symbol(final String name, final Type type, final Initial initial, final boolean constant, final Val.Var pointer) {
         this.name = name;
         this.type = type;
         this.initial = initial;
@@ -26,7 +26,7 @@ public class Symbol {
         return this.name;
     }
 
-    public Types getType() {
+    public Type getType() {
         return this.type;
     }
 

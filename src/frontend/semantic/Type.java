@@ -5,9 +5,11 @@ import java.util.Objects;
 /**
  * LLVM IR 中的变量类型系统
  */
-public interface Types {
+public interface Type {
 
-    enum BasicType implements Types {
+
+
+    enum BasicType implements Type {
         INT("i32"), FLOAT("f32"), BOOL("i1");
         private final String descriptor;
 
@@ -26,9 +28,9 @@ public interface Types {
         
     }
 
-    class ArrayType implements Types {
+    class ArrayType implements Type {
         private final int size;
-        private final Types base;
+        private final Type base;
 
         @Override
         public boolean equals(Object o) {
@@ -48,7 +50,7 @@ public interface Types {
             return String.format("[%d x %s]", size, base);
         }
 
-        public ArrayType(final int size, final Types base) {
+        public ArrayType(final int size, final Type base) {
             this.size = size;
             this.base = base;
         }
@@ -57,14 +59,14 @@ public interface Types {
             return this.size;
         }
         
-        public Types getBase() {
+        public Type getBase() {
             return this.base;
         }
         
     }
 
-    class PointerType implements Types {
-        private final Types base;
+    class PointerType implements Type {
+        private final Type base;
 
         @Override
         public boolean equals(Object o) {
@@ -84,11 +86,11 @@ public interface Types {
             return base + "*";
         }
 
-        public PointerType(final Types base) {
+        public PointerType(final Type base) {
             this.base = base;
         }
 
-        public Types getBase() {
+        public Type getBase() {
             return this.base;
         }
         

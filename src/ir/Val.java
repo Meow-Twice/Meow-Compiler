@@ -7,7 +7,7 @@ import frontend.semantic.Types;
  *
  * 分为变量和常数
  */
-public abstract class Value {
+public abstract class Val {
     public static final String GLOBAL_PREFIX = "@";
     public static final String LOCAL_PREFIX = "%";
     public static final String GLOBAL_NAME_PREFIX = "g";
@@ -21,7 +21,7 @@ public abstract class Value {
         return type + " " + getDescriptor();
     }
 
-    public static class Num extends Value {
+    public static class Num extends Val {
         private final int value;
 
         public Num(int value, Types type) {
@@ -45,7 +45,7 @@ public abstract class Value {
         
     }
 
-    public static class Var extends Value {
+    public static class Var extends Val {
         private final String name;
         private final boolean global;
         private final boolean constant; // 全局变量初始化时用
@@ -92,7 +92,7 @@ public abstract class Value {
         return new Var(VAR_NAME_PREFIX + count, type, true, false);
     }
 
-    public Value(final Types type) {
+    public Val(final Types type) {
         this.type = type;
     }
 

@@ -6,7 +6,7 @@ import frontend.lexer.TokenType;
 import ir.BasicBlock;
 import ir.IR;
 import ir.Instr;
-import ir.Value;
+import ir.Val;
 import frontend.semantic.symbol.SymTable;
 import frontend.semantic.symbol.Symbol;
 import frontend.syntax.Ast;
@@ -32,7 +32,7 @@ public class Visitor {
     public Visitor() {
     }
 
-    private Value trimTo(Value val, Types.BasicType type) throws SemanticException {
+    private Val trimTo(Val val, Types.BasicType type) throws SemanticException {
         if (val == null) {
             throw new SemanticException("Null val found!");
         }
@@ -42,9 +42,9 @@ public class Visitor {
         if (val.getType().equals(type)) {
             return val;
         }
-        Value.Var tmp = Value.newVar(type);
+        Val.Var tmp = Val.newVar(type);
         if (type.equals(Types.BasicType.BOOL)) {
-            currentBlock.append(new Instr.Cmp(tmp, Instr.Cmp.Op.NE, val, new Value.Num(0, val.getType())));
+            currentBlock.append(new Instr.Cmp(tmp, Instr.Cmp.Op.NE, val, new Val.Num(0, val.getType())));
         } else {
             currentBlock.append(new Instr.Ext(tmp, val));
         }
@@ -92,9 +92,9 @@ public class Visitor {
         }
     }
 
-    private Value visitBinaryExp(Ast.BinaryExp exp) throws SemanticException {
+    private Val visitBinaryExp(Ast.BinaryExp exp) throws SemanticException {
         // 注意短路求值!
-        Value first = visitExp(exp.getFirst());
+        Val first = visitExp(exp.getFirst());
         Iterator<Token> iterOp = exp.getOperators().listIterator();
         for (Ast.Exp nextExp : exp.getFollows()) {
             assert iterOp.hasNext();
@@ -102,27 +102,27 @@ public class Visitor {
             if (isAlu(op)) {
                 first = trimTo(first, Types.BasicType.INT);
                 Instr.Alu.Op aluOp = aluOpHelper(op);
-                Value second = visitExp(nextExp);
+                Val second = visitExp(nextExp);
                 second = trimTo(second, Types.BasicType.INT);
-                Value.Var tmp = Value.newVar(Types.BasicType.INT);
+                Val.Var tmp = Val.newVar(Types.BasicType.INT);
                 currentBlock.append(new Instr.Alu(tmp, aluOp, first, second));
                 first = tmp;
             } else if (isCmp(op)) {
                 first = trimTo(first, Types.BasicType.INT);
                 Instr.Cmp.Op cmpOp = cmpOpHelper(op);
-                Value second = visitExp(nextExp);
+                Val second = visitExp(nextExp);
                 second = trimTo(second, Types.BasicType.INT);
-                Value.Var tmp = Value.newVar(Types.BasicType.BOOL);
+                Val.Var tmp = Val.newVar(Types.BasicType.BOOL);
                 currentBlock.append(new Instr.Cmp(tmp, cmpOp, first, second));
                 first = tmp;
             } else if (isLogical(op)) {
                 // 短路求值
-                Value.Var tmp1 = Value.newVar(Types.BasicType.BOOL);
+                Val.Var tmp1 = Val.newVar(Types.BasicType.BOOL);
                 first = trimTo(first, Types.BasicType.BOOL);
                 BasicBlock from1 = currentBlock;
                 BasicBlock next = new BasicBlock();
                 BasicBlock follow = new BasicBlock();
-                currentBlock.append(new Instr.Alu(tmp1, Instr.Alu.Op.AND, first, new Value.Num(1, Types.BasicType.BOOL))); // mov first -> tmp
+                currentBlock.append(new Instr.Alu(tmp1, Instr.Alu.Op.AND, first, new Val.Num(1, Types.BasicType.BOOL))); // mov first -> tmp
                 if (op.isOf(TokenType.LAND)) {
                     // first && second
                     // if first is true, jump to follow
@@ -137,17 +137,17 @@ public class Visitor {
                 }
                 assert currentBlock.isTerminated();
                 currentBlock = next;
-                Value second = visitExp(nextExp);
+                Val second = visitExp(nextExp);
                 second = trimTo(second, Types.BasicType.BOOL);
                 BasicBlock from2 = currentBlock;
-                Value.Var tmp2 = Value.newVar(Types.BasicType.BOOL);
-                currentBlock.append(new Instr.Alu(tmp2, Instr.Alu.Op.AND, second, new Value.Num(1, Types.BasicType.BOOL))); // mov second -> tmp
+                Val.Var tmp2 = Val.newVar(Types.BasicType.BOOL);
+                currentBlock.append(new Instr.Alu(tmp2, Instr.Alu.Op.AND, second, new Val.Num(1, Types.BasicType.BOOL))); // mov second -> tmp
                 currentBlock.append(new Instr.Jump(follow));
                 assert currentBlock.isTerminated();
                 currentBlock = follow;
                 // need a Phi: from, next -> follow
-                Value.Var phi = Value.newVar(Types.BasicType.BOOL);
-                Map<Value, BasicBlock> phiSrc = new HashMap<>();
+                Val.Var phi = Val.newVar(Types.BasicType.BOOL);
+                Map<Val, BasicBlock> phiSrc = new HashMap<>();
                 phiSrc.put(tmp1, from1);
                 phiSrc.put(tmp2, from2);
                 currentBlock.append(new Instr.Phi(phi, phiSrc));
@@ -159,34 +159,34 @@ public class Visitor {
         return first;
     }
 
-    private Value visitUnaryExp(Ast.UnaryExp exp) throws SemanticException {
-        Value primary = visitPrimaryExp(exp.getPrimary());
+    private Val visitUnaryExp(Ast.UnaryExp exp) throws SemanticException {
+        Val primary = visitPrimaryExp(exp.getPrimary());
         // 从右向左结合
         ArrayList<Token> unaryOps = new ArrayList<>(exp.getUnaryOps());
         for (int i = unaryOps.size() - 1; i >= 0; i--) {
             Token op = unaryOps.get(i);
-            Value.Var tmp;
+            Val.Var tmp;
             if (op.getType().equals(TokenType.NOT)) {
                 primary = trimTo(primary, Types.BasicType.BOOL);
-                tmp = Value.newVar(Types.BasicType.BOOL);
-                currentBlock.append(new Instr.Cmp(tmp, Instr.Cmp.Op.EQ, primary, new Value.Num(0, primary.getType())));
+                tmp = Val.newVar(Types.BasicType.BOOL);
+                currentBlock.append(new Instr.Cmp(tmp, Instr.Cmp.Op.EQ, primary, new Val.Num(0, primary.getType())));
             } else {
                 assert primary.getType() instanceof Types.BasicType;
                 primary = trimTo(primary, Types.BasicType.INT);
-                tmp = Value.newVar(Types.BasicType.INT);
+                tmp = Val.newVar(Types.BasicType.INT);
                 Instr.Alu.Op aluOp = switch (op.getType()) {
                     case ADD -> Instr.Alu.Op.ADD;
                     case SUB -> Instr.Alu.Op.SUB;
                     default -> throw new AssertionError("Bad UnaryOp");
                 };
-                currentBlock.append(new Instr.Alu(tmp, aluOp, new Value.Num(0, Types.BasicType.INT), primary));
+                currentBlock.append(new Instr.Alu(tmp, aluOp, new Val.Num(0, Types.BasicType.INT), primary));
             }
             primary = tmp;
         }
         return primary;
     }
 
-    private Value visitExp(Ast.Exp exp) throws SemanticException {
+    private Val visitExp(Ast.Exp exp) throws SemanticException {
         if (exp instanceof Ast.BinaryExp) {
             return visitBinaryExp((Ast.BinaryExp) exp);
         } else if (exp instanceof Ast.UnaryExp) {
@@ -196,7 +196,7 @@ public class Visitor {
         }
     }
 
-    private Value visitPrimaryExp(Ast.PrimaryExp exp) throws SemanticException {
+    private Val visitPrimaryExp(Ast.PrimaryExp exp) throws SemanticException {
         if (exp instanceof Ast.Exp) {
             return visitExp((Ast.Exp) exp);
         } else if (exp instanceof Ast.LVal) {
@@ -211,14 +211,14 @@ public class Visitor {
     }
 
     // if left: return address, else return value (generate load instruction)
-    private Value visitLVal(Ast.LVal lVal, boolean left) throws SemanticException {
+    private Val visitLVal(Ast.LVal lVal, boolean left) throws SemanticException {
         // 去符号表拿出指向这个左值的指针
         String ident = lVal.getIdent().getContent();
         Symbol symbol = currentSymTable.get(ident, true);
         if (left && symbol.isConstant()) {
             throw new SemanticException("Modify const");
         }
-        Value address = symbol.getPointer();
+        Val address = symbol.getPointer();
         assert address.getType() instanceof Types.PointerType;
         // 处理数组的偏移寻址
         // 遍历下标，逐层 getelementptr, 每层均进行一个解引用和一个偏移
@@ -226,25 +226,25 @@ public class Visitor {
             if (!(address.getType() instanceof Types.PointerType)) {
                 throw new SemanticException("Non-Array has indexes");
             }
-            Value offset = visitExp(exp);
+            Val offset = visitExp(exp);
             if (!(offset.getType() instanceof Types.BasicType)) {
                 throw new SemanticException("Index not number");
             }
             offset = trimTo(offset, Types.BasicType.INT);
             Types nextType = ((Types.PointerType) address.getType()).getBase(); // 实体的类型
             assert !(nextType instanceof Types.BasicType);
-            Value.Var elem;
+            Val.Var elem;
             // 实体是数组, 地址是数组指针, getelementptr 要有两层
             // 实体是指针, 地址是二级指针, getelementptr 应有一层(仅在含有数组形参的函数中有), 同时还有个 load
             if (nextType instanceof Types.PointerType) {
-                Value.Var basePtr = Value.newVar(nextType);
+                Val.Var basePtr = Val.newVar(nextType);
                 currentBlock.append(new Instr.Load(basePtr, address));
-                elem = Value.newVar(nextType);
+                elem = Val.newVar(nextType);
                 currentBlock.append(new Instr.GetElementPtr(elem, basePtr, offset, false));
             } else {
                 assert nextType instanceof Types.ArrayType;
                 nextType = ((Types.ArrayType) nextType).getBase();
-                elem = Value.newVar(new Types.PointerType(nextType));
+                elem = Val.newVar(new Types.PointerType(nextType));
                 currentBlock.append(new Instr.GetElementPtr(elem, address, offset, true));
             }
             address = elem;
@@ -263,7 +263,7 @@ public class Visitor {
             // 如果是将数组指针作为参数继续传递, 也需要 load 来解引用
             Types baseType = ((Types.PointerType) address.getType()).getBase();
             if (baseType instanceof Types.BasicType || baseType instanceof Types.PointerType) {
-                Value.Var val = Value.newVar(baseType);
+                Val.Var val = Val.newVar(baseType);
                 currentBlock.append(new Instr.Load(val, address));
                 return val;
             } else if (baseType instanceof Types.ArrayType) {
@@ -272,8 +272,8 @@ public class Visitor {
                 // [3 x [4 x i32]] b: b[3] -> int p[][4]
                 // &b: [3 x [4 x i32]]*, &(b[3]): [4 x i32]*, p: i32*
                 // 数组解引用
-                Value.Var ptr = Value.newVar(new Types.PointerType(((Types.ArrayType) baseType).getBase()));
-                currentBlock.append(new Instr.GetElementPtr(ptr, address, new Value.Num(0, Types.BasicType.INT), true)); // ???
+                Val.Var ptr = Val.newVar(new Types.PointerType(((Types.ArrayType) baseType).getBase()));
+                currentBlock.append(new Instr.GetElementPtr(ptr, address, new Val.Num(0, Types.BasicType.INT), true)); // ???
                 return ptr;
             } else {
                 throw new AssertionError("Bad baseType");
@@ -281,23 +281,23 @@ public class Visitor {
         }
     }
 
-    private Value visitNumber(Ast.Number number) {
-        return new Value.Num(new Evaluate(currentSymTable, false).evalNumber(number), Types.BasicType.INT);
+    private Val visitNumber(Ast.Number number) {
+        return new Val.Num(new Evaluate(currentSymTable, false).evalNumber(number), Types.BasicType.INT);
     }
 
     // returns the return value if function call, null if function is void
-    private Value visitCall(Ast.Call call) throws SemanticException {
+    private Val visitCall(Ast.Call call) throws SemanticException {
         String ident = call.getIdent().getContent();
         Function function = ir.getFunctions().get(ident);
         if (function == null) {
             throw new SemanticException("Function " + ident + " not declared.");
         }
-        ArrayList<Value> params = new ArrayList<>();
+        ArrayList<Val> params = new ArrayList<>();
         for (Ast.Exp exp : call.getParams()) {
             params.add(visitExp(exp));
         }
         if (function.hasRet()) {
-            Value.Var ret = Value.newVar(function.getRetType());
+            Val.Var ret = Val.newVar(function.getRetType());
             currentBlock.append(new Instr.Call(ret, function, params));
             return ret;
         } else {
@@ -307,8 +307,8 @@ public class Visitor {
     }
 
     private void visitAssign(Ast.Assign assign) throws SemanticException {
-        Value left = visitLVal(assign.getLeft(), true);
-        Value right = trimTo(visitExp(assign.getRight()), Types.BasicType.INT);
+        Val left = visitLVal(assign.getLeft(), true);
+        Val right = trimTo(visitExp(assign.getRight()), Types.BasicType.INT);
         assert left.getType() instanceof Types.PointerType; // 分析出来的左值一定是指针类型
         assert right.getType().equals(((Types.PointerType) left.getType()).getBase()); // 分析出来的右值一定是左值指针解引用的类型
         currentBlock.append(new Instr.Store(right, left));
@@ -322,7 +322,7 @@ public class Visitor {
     }
 
     private void visitIfStmt(Ast.IfStmt ifStmt) throws SemanticException {
-        Value cond = visitExp(ifStmt.getCond());
+        Val cond = visitExp(ifStmt.getCond());
         cond = trimTo(cond, Types.BasicType.BOOL);
         Ast.Stmt thenTarget = ifStmt.getThenTarget();
         Ast.Stmt elseTarget = ifStmt.getElseTarget();
@@ -349,7 +349,7 @@ public class Visitor {
         BasicBlock head = new BasicBlock();
         currentBlock.append(new Instr.Jump(head));
         currentBlock = head;
-        Value cond = visitExp(whileStmt.getCond());
+        Val cond = visitExp(whileStmt.getCond());
         cond = trimTo(cond, Types.BasicType.BOOL);
         BasicBlock body = new BasicBlock();
         BasicBlock follow = new BasicBlock();
@@ -450,27 +450,27 @@ public class Visitor {
         }
     }
 
-    private void initZeroHelper(Value.Var pointer) {
+    private void initZeroHelper(Val.Var pointer) {
         // 将一整个局部数组利用 memset 全部初始化为零
         // 一层一层拆类型并得到总大小
         assert pointer.getType() instanceof Types.PointerType;
         Types baseType = ((Types.PointerType) pointer.getType()).getBase();
-        Value.Var ptr = pointer;
+        Val.Var ptr = pointer;
         int size = 1;
         while (baseType instanceof Types.ArrayType) {
             size *= ((Types.ArrayType) baseType).getSize();
             Types innerType = ((Types.ArrayType) baseType).getBase();
-            Value.Var innerPtr = Value.newVar(new Types.PointerType(innerType));
-            currentBlock.append(new Instr.GetElementPtr(innerPtr, ptr, new Value.Num(0), true));
+            Val.Var innerPtr = Val.newVar(new Types.PointerType(innerType));
+            currentBlock.append(new Instr.GetElementPtr(innerPtr, ptr, new Val.Num(0), true));
             ptr = innerPtr;
             baseType = innerType;
         }
         size *= 4; // sizeof int
         assert ptr.getType() instanceof Types.PointerType && ((Types.PointerType) ptr.getType()).getBase().equals(Types.BasicType.INT);
-        currentBlock.append(new Instr.Call(null, IR.ExternFunction.MEM_SET, List.of(ptr, new Value.Num(0), new Value.Num(size))));
+        currentBlock.append(new Instr.Call(null, IR.ExternFunction.MEM_SET, List.of(ptr, new Val.Num(0), new Val.Num(size))));
     }
 
-    private void initHelper(Value.Var pointer, Initial init) {
+    private void initHelper(Val.Var pointer, Initial init) {
         assert currentBlock != null && currentFunc != null;
         Types type = pointer.getType();
         assert type instanceof Types.PointerType;
@@ -478,14 +478,14 @@ public class Visitor {
         if (init instanceof Initial.ExpInit) {
             currentBlock.append(new Instr.Store(((Initial.ExpInit) init).getResult(), pointer));
         } else if (init instanceof Initial.ValueInit) {
-            currentBlock.append(new Instr.Store(new Value.Num(((Initial.ValueInit) init).getValue()), pointer));
+            currentBlock.append(new Instr.Store(new Val.Num(((Initial.ValueInit) init).getValue()), pointer));
         } else if (init instanceof Initial.ArrayInit) {
             Initial.ArrayInit arrayInit = (Initial.ArrayInit) init;
             assert baseType instanceof Types.ArrayType;
             int len = arrayInit.length();
             for (int i = 0; i < len; i++) {
-                Value.Var ptr = Value.newVar(new Types.PointerType(((Types.ArrayType) baseType).getBase()));
-                currentBlock.append(new Instr.GetElementPtr(ptr, pointer, new Value.Num(i), true));
+                Val.Var ptr = Val.newVar(new Types.PointerType(((Types.ArrayType) baseType).getBase()));
+                currentBlock.append(new Instr.GetElementPtr(ptr, pointer, new Val.Num(i), true));
                 initHelper(ptr, arrayInit.get(i));
             }
         }
@@ -507,11 +507,11 @@ public class Visitor {
             type = new Types.ArrayType(len, type);
         }
         // 构造该类型的指针
-        Value.Var pointer;
+        Val.Var pointer;
         if (!isGlobal()) {
-            pointer = Value.newVar(new Types.PointerType(type)); // 局部变量
+            pointer = Val.newVar(new Types.PointerType(type)); // 局部变量
         } else {
-            pointer = new Value.Var(ident, new Types.PointerType(type), true, constant); // 全局变量
+            pointer = new Val.Var(ident, new Types.PointerType(type), true, constant); // 全局变量
         }
         // 解析其初始化内容
         Ast.Init astInit = def.getInit();
@@ -605,7 +605,7 @@ public class Visitor {
     }
 
     private Initial.ExpInit visitInitExp(Ast.Exp exp) throws SemanticException {
-        Value eval = visitExp(exp); // 运行期才计算
+        Val eval = visitExp(exp); // 运行期才计算
         return new Initial.ExpInit(eval, Types.BasicType.INT);
     }
 
@@ -623,14 +623,14 @@ public class Visitor {
         // 构造形参层符号表
         currentSymTable = new SymTable(currentSymTable);
         // 形参表
-        ArrayList<Value.Var> params = new ArrayList<>();
+        ArrayList<Val.Var> params = new ArrayList<>();
         for (Ast.FuncFParam fParam : def.getFParams()) {
             Symbol paramSymbol = visitFuncFParam(fParam);
             currentSymTable.add(paramSymbol);
-            Value.Var paramPtr = paramSymbol.getPointer(); // not assigned yet
+            Val.Var paramPtr = paramSymbol.getPointer(); // not assigned yet
             assert paramPtr.getType() instanceof Types.PointerType;
             Types paramType = ((Types.PointerType) paramPtr.getType()).getBase();
-            Value.Var param = Value.Var.newVar(paramType);
+            Val.Var param = Val.Var.newVar(paramType);
             params.add(param); // 形参变量
             currentBlock.append(new Instr.Alloc(paramPtr, paramType));
             currentBlock.append(new Instr.Store(param, paramPtr));
@@ -645,7 +645,7 @@ public class Visitor {
             if (retType == null) {
                 currentBlock.append(new Instr.Return(null));
             } else {
-                currentBlock.append(new Instr.Return(new Value.Num(0)));
+                currentBlock.append(new Instr.Return(new Val.Num(0)));
             }
         }
         currentSymTable = currentSymTable.getParent();
@@ -657,7 +657,7 @@ public class Visitor {
         // 常数, 常数指针或者数组指针(注意降维)
         String ident = param.getIdent().getContent();
         if (!param.isArray()) {
-            Value.Var ptr = Value.newVar(new Types.PointerType(Types.BasicType.INT));
+            Val.Var ptr = Val.newVar(new Types.PointerType(Types.BasicType.INT));
             return new Symbol(ident, Types.BasicType.INT, null, false, ptr);
         } else {
             ArrayList<Integer> lengths = new ArrayList<>();
@@ -671,7 +671,7 @@ public class Visitor {
                 paramType = new Types.ArrayType(len, paramType);
             }
             paramType = new Types.PointerType(paramType); // 降维数组, 在整数/数组上套一层指针
-            Value.Var ptr = Value.newVar(new Types.PointerType(paramType)); // 再套一层指针用来 getelementptr
+            Val.Var ptr = Val.newVar(new Types.PointerType(paramType)); // 再套一层指针用来 getelementptr
             return new Symbol(ident, paramType, null, false, ptr);
         }
     }

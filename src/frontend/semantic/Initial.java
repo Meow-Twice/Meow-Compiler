@@ -1,6 +1,6 @@
 package frontend.semantic;
 
-import ir.Value;
+import ir.Val;
 
 import java.util.ArrayList;
 
@@ -75,9 +75,9 @@ public abstract class Initial {
 
     // 用于编译期不可求值的初始化
     public static class ExpInit extends Initial {
-        private final Value result;
+        private final Val result;
 
-        public ExpInit(Value result, Types type) {
+        public ExpInit(Val result, Types type) {
             super(type);
             this.result = result;
         }
@@ -87,7 +87,7 @@ public abstract class Initial {
             throw new AssertionError("non-evaluable initializer should never be output");
         }
 
-        public Value getResult() {
+        public Val getResult() {
             return this.result;
         }
         

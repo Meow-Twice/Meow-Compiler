@@ -3,7 +3,7 @@ package frontend.semantic;
 import ir.BasicBlock;
 import util.ILinkNode;
 import ir.Instr;
-import ir.Value;
+import ir.Val;
 
 import java.util.*;
 
@@ -12,11 +12,11 @@ import java.util.*;
  */
 public class Function {
     private final String name;
-    private final List<Value.Var> params; // 形参表
+    private final List<Val.Var> params; // 形参表
     private final Types retType; // 返回值类型, 如果为 null 则表示 param
     private BasicBlock body = null; // 函数体
 
-    public Function(String name, List<Value.Var> params, Types retType) {
+    public Function(String name, List<Val.Var> params, Types retType) {
         this.name = name;
         this.params = params;
         this.retType = retType;
@@ -49,7 +49,7 @@ public class Function {
         if (this.body == null) {
             throw new AssertionError("Function without body");
         }
-        String paramList = params.stream().map(Value::toString).reduce((s, s2) -> s + ", " + s2).orElse("");
+        String paramList = params.stream().map(Val::toString).reduce((s, s2) -> s + ", " + s2).orElse("");
         StringBuilder body = new StringBuilder();
         Queue<BasicBlock> queue = new LinkedList<>();
         Set<BasicBlock> enqueued = new HashSet<>();
@@ -92,7 +92,7 @@ public class Function {
         return this.name;
     }
 
-    public List<Value.Var> getParams() {
+    public List<Val.Var> getParams() {
         return this.params;
     }
 

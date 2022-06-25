@@ -18,13 +18,25 @@ public class Type {
         }
 
         @Override
+        public boolean equals(Object obj) {
+            if(obj == null)return false;
+            return obj instanceof BasicType && ((BasicType) obj).dataType == dataType;
+        }
+
+        @Override
         public String toString() {
             return dataType.toString();
         }
     }
 
+    // 函数调用(Call)时需要此Type
     public static class VoidType extends Type {
         public VoidType(){}
+
+        @Override
+        public boolean equals(Object obj) {
+            return obj instanceof VoidType;
+        }
 
         @Override
         public String toString(){

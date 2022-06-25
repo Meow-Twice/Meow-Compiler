@@ -3,16 +3,17 @@ package ir;
 import ir.type.Type;
 
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 
 /**
  * LLVM IR 的一条指令
  */
 public class Instr extends Value {
+    private BasicBlock bb;
 
     public interface Terminator {
     }
+
     protected ArrayList<Use> useList;
     protected ArrayList<Value> useValueList;
 
@@ -21,8 +22,25 @@ public class Instr extends Value {
         super();
     }
 
-    public Instr(Type type){
+    // public Instr(Type type){
+    //     super(type);
+    //     useList = new ArrayList<>();
+    //     useValueList = new ArrayList<>();
+    // }
+
+    public Instr(Type type, BasicBlock curBB) {
         super(type);
+        bb = curBB;
+        bb.insertAtEnd(this);
+        useList = new ArrayList<>();
+        useValueList = new ArrayList<>();
+    }
+
+    public Instr(Type type, Instr instr) {
+        super(type);
+        bb = instr.bb;
+        // 在instr前面插入this (->this->instr->)
+        instr.insertBefore(this);
         useList = new ArrayList<>();
         useValueList = new ArrayList<>();
     }
@@ -62,9 +80,17 @@ public class Instr extends Value {
 
         }
 
-        private final Op op;
-        public Alu(Type type, Op op, Value op1, Value op2) {
-            super(type);
+        private Op op;
+
+        public Alu(Type type, Op op, Value op1, Value op2, BasicBlock basicBlock) {
+            super(type, basicBlock);
+            this.op = op;
+            setUse(op1, 0);
+            setUse(op2, 1);
+        }
+
+        public Alu(Type type, Op op, Value op1, Value op2, Instr insertBefore) {
+            super(type, insertBefore);
             this.op = op;
             setUse(op1, 0);
             setUse(op2, 1);
@@ -77,6 +103,10 @@ public class Instr extends Value {
 
         public Op getOp() {
             return this.op;
+        }
+
+        public void setOp(Op op) {
+            this.op = op;
         }
 
         public Value getRVal1() {
@@ -108,8 +138,15 @@ public class Instr extends Value {
 
         private Op op;
 
-        public Cmp(Type type, Op op, Value op1, Value op2) {
-            super(type);
+        public Cmp(Type type, Op op, Value op1, Value op2, BasicBlock curBB) {
+            super(type, curBB);
+            this.op = op;
+            setUse(op1, 0);
+            setUse(op2, 1);
+        }
+
+        public Cmp(Type type, Op op, Value op1, Value op2, Instr insertBefore) {
+            super(type, insertBefore);
             this.op = op;
             setUse(op1, 0);
             setUse(op2, 1);
@@ -130,15 +167,19 @@ public class Instr extends Value {
         public Value getRVal2() {
             return useValueList.get(1);
         }
-
     }
 
     // 零扩展运算, 结果是 i32 型
     public static class Ext extends Instr {
 
 
-        public Ext(Type type, Value src) {
-            super(type);
+        public Ext(Type type, Value src, BasicBlock parentBB) {
+            super(type, parentBB);
+            setUse(src, 0);
+        }
+
+        public Ext(Type type, Value src, Instr insertBefore) {
+            super(type, insertBefore);
             setUse(src, 0);
         }
 
@@ -150,7 +191,6 @@ public class Instr extends Value {
         public Value getRVal1() {
             return useValueList.get(0);
         }
-
     }
 
     // 分配内存, 结果是指针型
@@ -158,8 +198,13 @@ public class Instr extends Value {
 
         private Type contentType;
 
-        public Alloc(Type type, Type contentType) {
-            super(type);
+        public Alloc(Type type, Type contentType, BasicBlock parentBB) {
+            super(type, parentBB);
+            this.contentType = contentType;
+        }
+
+        public Alloc(Type type, Type contentType, Instr insertBefore) {
+            super(type, insertBefore);
             this.contentType = contentType;
         }
 
@@ -177,14 +222,21 @@ public class Instr extends Value {
     // 读取内存
     public static class Load extends Instr {
         //TODO:修改toString()方法添加指令的Type
-        public Load(Type type, Value RVal) {
-            super(type);
+        public Load(Type type, Value RVal, BasicBlock parentBB) {
+            super(type, parentBB);
+            assert type.equals(RVal.type);
+            setUse(RVal, 0);
+        }
+
+        public Load(Type type, Value RVal, Instr insertBefore) {
+            super(type, insertBefore);
+            assert RVal.type.getClass() == type.getClass();
             setUse(RVal, 0);
         }
 
         @Override
         public String toString() {
-            return this.getDescriptor() + " = load " + getRet().getType() + ", " + this.getRVal1().getDescriptor();
+            return this.getDescriptor() + " = load " + type.toString() + ", " + getRVal1().getDescriptor();
         }
 
         public Value getRVal1() {
@@ -197,8 +249,17 @@ public class Instr extends Value {
     public static class Store extends Instr {
 
         //TODO:修改toString()方法添加指令的Type
-        public Store(Value value, Value address) {
-            super(null);
+        public Store(Value value, Value address, BasicBlock parent) {
+            super(value.type, parent);
+            assert ((Type.PointerType)address.getType()).getBase().equals(value.type);
+            setUse(value, 0);
+            setUse(address, 1);
+        }
+
+        //TODO:修改toString()方法添加指令的Type
+        public Store(Value value, Value address, Instr insertBefore) {
+            super(value.type, insertBefore);
+            assert ((Type.PointerType)address.getType()).getBase().equals(value.type);
             setUse(value, 0);
             setUse(address, 1);
         }
@@ -276,15 +337,19 @@ public class Instr extends Value {
 
         //TODO:考虑函数调用的user used
 
-        private final Function function;
+        private final Function func;
+        private final ArrayList<Value> paramList;
 
-        private final List<Val> params;
-
-        public Call(Type type, Function function, List<Val> params) {
-            super(type); // ret may be null
-            this.function = function;
-            this.params = params;
-            assert (function.hasRet() && ret.getType().equals(function.getRetType())) || (!function.hasRet() && ret == null);
+        public Call(Type type, Function func, ArrayList<Value> paramList, BasicBlock parent) {
+            super(type, parent); // ret may be null
+            this.func = func;
+            this.paramList = paramList;
+            int i = 0;
+            setUse(func, i++);
+            for(Value value: paramList){
+                setUse(value, i++);
+            }
+            assert (func.hasRet() && type.equals(this.func.getRetType())) || (!this.func.hasRet() && ret == null);
         }
 
         @Override
@@ -295,16 +360,16 @@ public class Instr extends Value {
                 prefix = getRet().getDescriptor() + " = ";
                 retType = getRet().getType().toString();
             }
-            String paramList = getParams().stream().map(Val::toString).reduce((s, s2) -> s + ", " + s2).orElse("");
-            return prefix + "call " + retType + " @" + function.getName() + "(" + paramList + ")";
+            String paramList = getParamList().stream().map(Val::toString).reduce((s, s2) -> s + ", " + s2).orElse("");
+            return prefix + "call " + retType + " @" + func.getName() + "(" + paramList + ")";
         }
 
-        public Function getFunction() {
-            return this.function;
+        public Function getFunc() {
+            return this.func;
         }
 
-        public List<Val> getParams() {
-            return this.params;
+        public ArrayList<Value> getParamList() {
+            return this.paramList;
         }
 
     }
@@ -389,11 +454,12 @@ public class Instr extends Value {
 
     // 返回
     public static class Return extends Instr implements Terminator {
-        private final Val val;
+        private Value retValue;
+        public boolean inMain = false;
 
-        public Return(Val val) {
+        public Return(Value retValue) {
             super(null);
-            this.val = val;
+            this.retValue = retValue;
         }
 
         public boolean hasValue() {

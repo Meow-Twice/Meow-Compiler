@@ -18,7 +18,7 @@ public class Value extends ILinkNode {
     private Use begin = new Use();
     private Use end = begin;
 
-    private Type type;
+    protected Type type;
 
     public Value() {
         super();

@@ -9,7 +9,7 @@ import java.util.*;
 /**
  * 函数声明 (+ 函数体 = 函数定义)
  */
-public class Function {
+public class Function extends Value{
     private final String name;
 
     public static class Param extends Value{

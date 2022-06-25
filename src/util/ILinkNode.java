@@ -38,6 +38,7 @@ public abstract class ILinkNode {
     }
 
     // insert another node before this
+    // -> node -> this->
     public void insertBefore(ILinkNode node) {
         node.setNext(this);
         node.setPrev(getPrev());

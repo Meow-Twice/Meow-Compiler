@@ -7,30 +7,73 @@ import java.util.Objects;
  */
 public class Type {
 
+    public static VoidType getVoidType(){
+        return VoidType.getVoidType();
+    }
+
+    // public static BasicType getInt1Type(){
+    //     return BasicType.getInt1Type();
+    // }
+    //
+    // public static BasicType getInt32Type(){
+    //     return BasicType.getInt32Type();
+    // }
 
     public boolean isVoidType() {
         return this == VoidType.VOID_TYPE;
     }
 
+    // public boolean isInt1Type() {
+    //     return this instanceof BasicType && ((BasicType) this).dataType == DataType.BOOL;
+    // }
+    //
+    // public boolean isInt32Type() {
+    //     return this instanceof BasicType && ((BasicType) this).dataType == DataType.INT;
+    // }
+
     public boolean isInt1Type() {
-        return this instanceof BasicType && ((BasicType) this).dataType == DataType.BOOL;
+        return this == BasicType.getI1Type();
     }
 
     public boolean isInt32Type() {
-        return this instanceof BasicType && ((BasicType) this).dataType == DataType.INT;
+        return this == BasicType.getI32Type();
+    }
+
+    public boolean isFloatType() {
+        return this == BasicType.getI32Type();
     }
 
     public static class BasicType extends Type {
         private DataType dataType;
+        private static final BasicType I32_TYPE = new BasicType(DataType.INT);
+        private static final BasicType I1_TYPE = new BasicType(DataType.BOOL);
+        private static final BasicType F32_TYPE = new BasicType(DataType.FLOAT);
 
-        public BasicType(DataType dataType) {
+        public static BasicType getF32Type() {
+            return F32_TYPE;
+        }
+
+        public static BasicType getI1Type() {
+            return I1_TYPE;
+        }
+
+        public static BasicType getI32Type() {
+            return I32_TYPE;
+        }
+
+        private BasicType(DataType dataType) {
             this.dataType = dataType;
         }
 
+        // @Override
+        // public boolean equals(Object obj) {
+        //     if(obj == null)return false;
+        //     return obj instanceof BasicType && ((BasicType) obj).dataType == dataType;
+        // }
+
         @Override
         public boolean equals(Object obj) {
-            if(obj == null)return false;
-            return obj instanceof BasicType && ((BasicType) obj).dataType == dataType;
+            return this == obj;
         }
 
         @Override
@@ -39,7 +82,9 @@ public class Type {
         }
     }
 
-    // 函数调用(Call)时需要此Type
+    // Call可能是VoidType
+    // 认为Store是VoidType
+    // Terminator(Return, Jump, Branch)都是VoidType
     public static class VoidType extends Type {
         private final static VoidType VOID_TYPE = new VoidType();
         private VoidType(){}
@@ -119,32 +164,32 @@ public class Type {
     }
 
     public static class PointerType extends Type {
-        private final Type base;
+        private final Type innerType;
 
         @Override
         public boolean equals(Object o) {
             if (this == o) return true;
             if (o == null || getClass() != o.getClass()) return false;
             PointerType that = (PointerType) o;
-            return Objects.equals(base, that.base);
+            return Objects.equals(innerType, that.innerType);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(base);
+            return Objects.hash(innerType);
         }
 
         @Override
         public String toString() {
-            return base + "*";
+            return innerType + "*";
         }
 
-        public PointerType(final Type base) {
-            this.base = base;
+        public PointerType(Type innerType) {
+            this.innerType = innerType;
         }
 
-        public Type getBase() {
-            return this.base;
+        public Type getInnerType() {
+            return this.innerType;
         }
 
     }

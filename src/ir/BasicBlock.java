@@ -29,11 +29,15 @@ public class BasicBlock extends Value {
     // 全局计数器, 记录下一个生成基本块的编号
     private static int bb_count = 0;
 
+    public BasicBlock(){
+        super(Type.BBType.getBBType());
+    }
 
     // 自动命名基本块, 从 "b1" 开始
     public BasicBlock(Function function) {
         super(Type.BBType.getBBType());
         this.label = "b" + (++bb_count);
+        this.function = function;
         begin.setNext(end);
         end.setPrev(begin);
         if (ENABLE_DEBUG) {

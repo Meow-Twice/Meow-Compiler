@@ -44,7 +44,7 @@ public class Visitor {
         if (type.equals(Type.BasicType.BOOL)) {
             currentBlock.insertAtEnd(new Instr.Cmp(tmp, Instr.Cmp.Op.NE, val, new Val.Num(0, val.getType())));
         } else {
-            currentBlock.insertAtEnd(new Instr.Ext(tmp, val));
+            currentBlock.insertAtEnd(new Instr.Zext(tmp, val));
         }
         return tmp;
     }
@@ -229,7 +229,7 @@ public class Visitor {
                 throw new SemanticException("Index not number");
             }
             offset = trimTo(offset, Type.BasicType.INT);
-            Type nextType = ((Type.PointerType) address.getType()).getBase(); // 实体的类型
+            Type nextType = ((Type.PointerType) address.getType()).getInnerType(); // 实体的类型
             assert !(nextType instanceof Type.BasicType);
             Val.Var elem;
             // 实体是数组, 地址是数组指针, getelementptr 要有两层
@@ -251,15 +251,15 @@ public class Visitor {
         if (left) {
             // 如果作为左值, 一定不能是部分数组
             // 是数组元素的条件: address
-            if (!(((Type.PointerType) address.getType()).getBase() instanceof Type.BasicType)) {
+            if (!(((Type.PointerType) address.getType()).getInnerType() instanceof Type.BasicType)) {
                 throw new SemanticException("Part-array cannot be left value");
             }
-            assert ((Type.PointerType) address.getType()).getBase() instanceof Type.BasicType;
+            assert ((Type.PointerType) address.getType()).getInnerType() instanceof Type.BasicType;
             return address; // 返回一个可以直接 store i32 值的指针
         } else {
             // 如果是数组元素或者普通的值, 就 load; 如果是部分数组(仅用于函数传参), 应该得到一个降维的数组指针;
             // 如果是将数组指针作为参数继续传递, 也需要 load 来解引用
-            Type baseType = ((Type.PointerType) address.getType()).getBase();
+            Type baseType = ((Type.PointerType) address.getType()).getInnerType();
             if (baseType instanceof Type.BasicType || baseType instanceof Type.PointerType) {
                 Val.Var val = Val.newVar(baseType);
                 currentBlock.insertAtEnd(new Instr.Load(val, address));
@@ -308,7 +308,7 @@ public class Visitor {
         Val left = visitLVal(assign.getLeft(), true);
         Val right = trimTo(visitExp(assign.getRight()), Type.BasicType.INT);
         assert left.getType() instanceof Type.PointerType; // 分析出来的左值一定是指针类型
-        assert right.getType().equals(((Type.PointerType) left.getType()).getBase()); // 分析出来的右值一定是左值指针解引用的类型
+        assert right.getType().equals(((Type.PointerType) left.getType()).getInnerType()); // 分析出来的右值一定是左值指针解引用的类型
         currentBlock.insertAtEnd(new Instr.Store(right, left));
     }
 
@@ -452,7 +452,7 @@ public class Visitor {
         // 将一整个局部数组利用 memset 全部初始化为零
         // 一层一层拆类型并得到总大小
         assert pointer.getType() instanceof Type.PointerType;
-        Type baseType = ((Type.PointerType) pointer.getType()).getBase();
+        Type baseType = ((Type.PointerType) pointer.getType()).getInnerType();
         Val.Var ptr = pointer;
         int size = 1;
         while (baseType instanceof Type.ArrayType) {
@@ -464,7 +464,7 @@ public class Visitor {
             baseType = innerType;
         }
         size *= 4; // sizeof int
-        assert ptr.getType() instanceof Type.PointerType && ((Type.PointerType) ptr.getType()).getBase().equals(Type.BasicType.INT);
+        assert ptr.getType() instanceof Type.PointerType && ((Type.PointerType) ptr.getType()).getInnerType().equals(Type.BasicType.INT);
         currentBlock.insertAtEnd(new Instr.Call(null, IR.ExternFunction.MEM_SET, List.of(ptr, new Val.Num(0), new Val.Num(size))));
     }
 
@@ -472,7 +472,7 @@ public class Visitor {
         assert currentBlock != null && currentFunc != null;
         Type type = pointer.getType();
         assert type instanceof Type.PointerType;
-        Type baseType = ((Type.PointerType) type).getBase();
+        Type baseType = ((Type.PointerType) type).getInnerType();
         if (init instanceof Initial.ExpInit) {
             currentBlock.insertAtEnd(new Instr.Store(((Initial.ExpInit) init).getResult(), pointer));
         } else if (init instanceof Initial.ValueInit) {
@@ -627,7 +627,7 @@ public class Visitor {
             currentSymTable.add(paramSymbol);
             Val.Var paramPtr = paramSymbol.getPointer(); // not assigned yet
             assert paramPtr.getType() instanceof Type.PointerType;
-            Type paramType = ((Type.PointerType) paramPtr.getType()).getBase();
+            Type paramType = ((Type.PointerType) paramPtr.getType()).getInnerType();
             Val.Var param = Val.Var.newVar(paramType);
             params.add(param); // 形参变量
             currentBlock.insertAtEnd(new Instr.Alloc(paramPtr, paramType));

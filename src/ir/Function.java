@@ -36,8 +36,8 @@ public class Function extends Value{
     //TODO: entry是否需要保留
     private BasicBlock entry = null; // 函数体
 
-    private BasicBlock begin = new BasicBlock();
-    private BasicBlock end = new BasicBlock();
+    private BasicBlock begin = new BasicBlock(this);
+    private BasicBlock end = new BasicBlock(this);
 
     //TODO: assign to 刘传
     private Map<BasicBlock, HashSet<BasicBlock>> edge;

@@ -12,8 +12,8 @@ public class Value extends ILinkNode {
 //    private static int BB_COUNT = 0;
     private static int LOCAL_COUNT = 0;
     private static int GLOBAL_COUNT = 0;
-    public String prefix = this instanceof GlobalVar ? GLOBAL_PREFIX : LOCAL_PREFIX;
-    public String name = this instanceof GlobalVar ? GLOBAL_NAME_PREFIX + GLOBAL_COUNT++ : LOCAL_NAME_PREFIX + LOCAL_COUNT++;
+    public String prefix = this instanceof GlobalVal ? GLOBAL_PREFIX : LOCAL_PREFIX;
+    public String name = this instanceof GlobalVal ? GLOBAL_NAME_PREFIX + GLOBAL_COUNT++ : LOCAL_NAME_PREFIX + LOCAL_COUNT++;
 
     private Use begin = new Use();
     private Use end = begin;

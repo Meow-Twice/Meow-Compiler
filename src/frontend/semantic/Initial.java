@@ -1,5 +1,6 @@
 package frontend.semantic;
 
+import ir.type.Type;
 import ir.Val;
 
 import java.util.ArrayList;

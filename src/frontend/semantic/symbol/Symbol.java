@@ -1,7 +1,7 @@
 package frontend.semantic.symbol;
 
 import frontend.semantic.Initial;
-import frontend.semantic.Type;
+import ir.type.Type;
 import ir.Val;
 
 /**

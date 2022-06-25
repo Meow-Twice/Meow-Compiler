@@ -1,34 +1,55 @@
-package frontend.semantic;
+package ir.type;
+
+import ir.BasicBlock;
 
 import java.util.Objects;
 
 /**
  * LLVM IR 中的变量类型系统
  */
-public interface Type {
+public class Type {
 
 
+    public static class BasicType extends Type {
+        private DataType dataType;
 
-    enum BasicType implements Type {
-        INT("i32"), FLOAT("f32"), BOOL("i1");
-        private final String descriptor;
+        public BasicType(DataType dataType) {
+            this.dataType = dataType;
+        }
 
         @Override
         public String toString() {
-            return descriptor;
+            return dataType.toString();
         }
-
-        private BasicType(final String descriptor) {
-            this.descriptor = descriptor;
-        }
-
-        public String getDescriptor() {
-            return this.descriptor;
-        }
-        
     }
 
-    class ArrayType implements Type {
+    public static class VoidType extends Type {
+        public VoidType(){}
+
+        @Override
+        public String toString(){
+            return "void";
+        }
+    }
+
+
+    public static class BBType extends Type {
+        private static BBType type = new BBType();
+
+        private BBType() {
+        }
+
+        public static BBType getType() {
+            return type;
+        }
+
+        @Override
+        public String toString() {
+            return "b ";
+        }
+    }
+
+    public static class ArrayType extends Type {
         private final int size;
         private final Type base;
 
@@ -54,18 +75,18 @@ public interface Type {
             this.size = size;
             this.base = base;
         }
-        
+
         public int getSize() {
             return this.size;
         }
-        
+
         public Type getBase() {
             return this.base;
         }
-        
+
     }
 
-    class PointerType implements Type {
+    public static class PointerType extends Type {
         private final Type base;
 
         @Override
@@ -93,6 +114,6 @@ public interface Type {
         public Type getBase() {
             return this.base;
         }
-        
+
     }
 }

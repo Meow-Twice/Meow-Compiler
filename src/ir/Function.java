@@ -1,9 +1,8 @@
-package frontend.semantic;
+package ir;
 
-import ir.BasicBlock;
+import ir.type.DataType;
+import ir.type.Type;
 import util.ILinkNode;
-import ir.Instr;
-import ir.Val;
 
 import java.util.*;
 
@@ -12,29 +11,96 @@ import java.util.*;
  */
 public class Function {
     private final String name;
-    private final List<Val.Var> params; // 形参表
-    private final Type retType; // 返回值类型, 如果为 null 则表示 param
-    private BasicBlock body = null; // 函数体
 
-    public Function(String name, List<Val.Var> params, Type retType) {
+    public static class Param extends Value{
+        private int idx;
+        private Type type;
+        public Param(Type type, int idx){
+            this.type = type;
+            this.idx = idx;
+        }
+
+        @Override
+        public String toString(){
+            return type.toString() + " " + name;
+        }
+    }
+
+//    private final List<Val.Var> params; // 形参表
+//    private final Type retType; // 返回值类型, 如果为 null 则表示 param
+
+
+    private Type retType;
+    private ArrayList<Param> params;
+
+    //TODO: entry是否需要保留
+    private BasicBlock entry = null; // 函数体
+
+    private BasicBlock begin = new BasicBlock();
+    private BasicBlock end = new BasicBlock();
+
+    //TODO: assign to 刘传
+    private Map<BasicBlock, HashSet<BasicBlock>> edge;
+
+
+    public Function(String name, ArrayList<Param> params, Type retType) {
+        begin.setNext(end);
+        end.setPrev(begin);
         this.name = name;
         this.params = params;
         this.retType = retType;
     }
 
     public boolean hasBody() {
-        return body != null;
+        return entry != null;
     }
 
     public boolean hasRet() {
         return retType != null;
     }
 
+    //优化所需方法
+    public void insertAtBegin(BasicBlock in) {
+        in.setPrev(begin);
+        in.setNext(begin.getNext());
+        begin.getNext().setPrev(in);
+        begin.setNext(in);
+    }
+
+    public void insertAtEnd(BasicBlock in) {
+        in.setPrev(end.getPrev());
+        in.setNext(end);
+        end.getPrev().setNext(in);
+        end.setPrev(in);
+    }
+
+    public BasicBlock getBegin() {
+        return (BasicBlock) begin.getNext();
+    }
+
+    public BasicBlock getEnd() {
+        return (BasicBlock) end.getPrev();
+    }
+
+    public boolean isEmpty() {
+        return begin.getNext().equals(end);
+    }
+
+
+//    private String getTypeStr() {
+//        if (hasRet()) {
+//            return retType.toString();
+//        } else {
+//            return "void";
+//        }
+//    }
+
     private String getTypeStr() {
-        if (hasRet()) {
+        if (retType instanceof Type.BasicType || retType instanceof Type.VoidType) {
             return retType.toString();
         } else {
-            return "void";
+            System.err.println("func ret type error!!!");
+            return null;
         }
     }
 
@@ -46,15 +112,15 @@ public class Function {
 
     // 输出函数定义
     public String getDefinition() {
-        if (this.body == null) {
+        if (this.entry == null) {
             throw new AssertionError("Function without body");
         }
         String paramList = params.stream().map(Val::toString).reduce((s, s2) -> s + ", " + s2).orElse("");
         StringBuilder body = new StringBuilder();
         Queue<BasicBlock> queue = new LinkedList<>();
         Set<BasicBlock> enqueued = new HashSet<>();
-        queue.offer(this.body);
-        enqueued.add(this.body);
+        queue.offer(this.entry);
+        enqueued.add(this.entry);
         while (!queue.isEmpty()) {
             BasicBlock block = queue.poll();
             ILinkNode node = block.getEntry();
@@ -92,8 +158,8 @@ public class Function {
         return this.name;
     }
 
-    public List<Val.Var> getParams() {
-        return this.params;
+    public ArrayList<Param> getParams() {
+        return params;
     }
 
     public Type getRetType() {
@@ -101,11 +167,11 @@ public class Function {
     }
 
     public BasicBlock getBody() {
-        return this.body;
+        return this.entry;
     }
 
     public void setBody(final BasicBlock body) {
-        this.body = body;
+        this.entry = body;
     }
     
 }

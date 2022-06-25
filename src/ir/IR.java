@@ -1,9 +1,8 @@
 package ir;
 
-import frontend.semantic.Function;
 import frontend.semantic.Initial;
-import frontend.semantic.Type;
 import frontend.semantic.symbol.Symbol;
+import ir.type.Type;
 
 import java.util.HashMap;
 import java.util.List;

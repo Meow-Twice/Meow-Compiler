@@ -65,5 +65,10 @@ public abstract class ILinkNode {
     public void setNext(final ILinkNode next) {
         this.next = next;
     }
+
+    public static class EmptyNode extends ILinkNode {
+
+    }
+
     
 }

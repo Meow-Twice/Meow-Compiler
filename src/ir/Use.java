@@ -9,9 +9,12 @@ public class Use extends ILinkNode {
     private Value used;
     private int idx;
 
-    public Use(){}
+    public Use(){
+        super();
+    }
 
     public Use(Instr user, Value used, int idx) {
+        super();
         this.user = user;
         this.used = used;
         this.idx = idx;

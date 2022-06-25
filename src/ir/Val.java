@@ -1,6 +1,6 @@
 package ir;
 
-import frontend.semantic.Type;
+import ir.type.Type;
 
 /**
  * IR 中的操作数 Value
@@ -99,5 +99,8 @@ public abstract class Val {
     public Type getType() {
         return this.type;
     }
-    
+    public Type getType() {
+        return this.type;
+    }
+
 }

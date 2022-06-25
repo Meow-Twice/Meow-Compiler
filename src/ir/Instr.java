@@ -1,7 +1,6 @@
 package ir;
 
-import frontend.semantic.Function;
-import frontend.semantic.Type;
+import ir.type.Type;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -16,6 +15,11 @@ public class Instr extends Value {
     }
     protected ArrayList<Use> useList;
     protected ArrayList<Value> useValueList;
+
+    //空指令用于在BB中做链表头/尾
+    public Instr() {
+        super();
+    }
 
     public Instr(Type type){
         super(type);

@@ -9,7 +9,7 @@ import java.util.Map;
  * LLVM IR 的一条指令
  */
 public class Instr extends Value {
-    private BasicBlock bb;
+    public BasicBlock bb;
 
     public interface Terminator {
     }
@@ -32,6 +32,14 @@ public class Instr extends Value {
         super(type);
         bb = curBB;
         bb.insertAtEnd(this);
+        useList = new ArrayList<>();
+        useValueList = new ArrayList<>();
+    }
+
+    public Instr(Type type, BasicBlock curBB, boolean Lipsum) {
+        super(type);
+        bb = curBB;
+        bb.insertAtHead(this);
         useList = new ArrayList<>();
         useValueList = new ArrayList<>();
     }
@@ -84,6 +92,7 @@ public class Instr extends Value {
 
         public Alu(Type type, Op op, Value op1, Value op2, BasicBlock basicBlock) {
             super(type, basicBlock);
+            assert type.equals(op1.type) && op1.type.equals(op2.type);
             this.op = op;
             setUse(op1, 0);
             setUse(op2, 1);
@@ -91,6 +100,7 @@ public class Instr extends Value {
 
         public Alu(Type type, Op op, Value op1, Value op2, Instr insertBefore) {
             super(type, insertBefore);
+            assert type.equals(op1.type) && op1.type.equals(op2.type);
             this.op = op;
             setUse(op1, 0);
             setUse(op2, 1);
@@ -140,6 +150,7 @@ public class Instr extends Value {
 
         public Cmp(Type type, Op op, Value op1, Value op2, BasicBlock curBB) {
             super(type, curBB);
+            assert type.isInt1Type() && op1.type.isInt32Type() && op2.type.isInt32Type();
             this.op = op;
             setUse(op1, 0);
             setUse(op2, 1);
@@ -147,6 +158,7 @@ public class Instr extends Value {
 
         public Cmp(Type type, Op op, Value op1, Value op2, Instr insertBefore) {
             super(type, insertBefore);
+            assert type.isInt1Type() && op1.type.isInt32Type() && op2.type.isInt32Type();
             this.op = op;
             setUse(op1, 0);
             setUse(op2, 1);
@@ -198,13 +210,9 @@ public class Instr extends Value {
 
         private Type contentType;
 
+        // Alloc一定插在基本块的开始(Phi之后)
         public Alloc(Type type, Type contentType, BasicBlock parentBB) {
-            super(type, parentBB);
-            this.contentType = contentType;
-        }
-
-        public Alloc(Type type, Type contentType, Instr insertBefore) {
-            super(type, insertBefore);
+            super(type, parentBB, true);
             this.contentType = contentType;
         }
 
@@ -251,7 +259,7 @@ public class Instr extends Value {
         //TODO:修改toString()方法添加指令的Type
         public Store(Value value, Value address, BasicBlock parent) {
             super(value.type, parent);
-            assert ((Type.PointerType)address.getType()).getBase().equals(value.type);
+            assert ((Type.PointerType) address.getType()).getBase().equals(value.type);
             setUse(value, 0);
             setUse(address, 1);
         }
@@ -259,7 +267,7 @@ public class Instr extends Value {
         //TODO:修改toString()方法添加指令的Type
         public Store(Value value, Value address, Instr insertBefore) {
             super(value.type, insertBefore);
-            assert ((Type.PointerType)address.getType()).getBase().equals(value.type);
+            assert ((Type.PointerType) address.getType()).getBase().equals(value.type);
             setUse(value, 0);
             setUse(address, 1);
         }
@@ -337,39 +345,51 @@ public class Instr extends Value {
 
         //TODO:考虑函数调用的user used
 
-        private final Function func;
-        private final ArrayList<Value> paramList;
+        // private final Function func;
+        // private final ArrayList<Value> paramList;
 
         public Call(Type type, Function func, ArrayList<Value> paramList, BasicBlock parent) {
             super(type, parent); // ret may be null
-            this.func = func;
-            this.paramList = paramList;
+            assert type.isVoidType() || (type.equals(func.getRetType()));
+            // this.func = func;
+            // this.paramList = paramList;
             int i = 0;
             setUse(func, i++);
-            for(Value value: paramList){
+            for (Value value : paramList) {
                 setUse(value, i++);
             }
-            assert (func.hasRet() && type.equals(this.func.getRetType())) || (!this.func.hasRet() && ret == null);
+        }
+
+        public Call(Type type, Function func, ArrayList<Value> paramList, Instr insertBefore) {
+            super(type, insertBefore); // ret may be null
+            assert type.isVoidType() || (type.equals(func.getRetType()));
+            // this.func = func;
+            // this.paramList = paramList;
+            int i = 0;
+            setUse(func, i++);
+            for (Value value : paramList) {
+                setUse(value, i++);
+            }
         }
 
         @Override
-        public String getDescriptor() {
+        public String toString() {
             String prefix = "";
             String retType = "void";
-            if (getRet() != null) {
-                prefix = getRet().getDescriptor() + " = ";
-                retType = getRet().getType().toString();
+            if (!type.isVoidType()) {
+                prefix = getDescriptor() + " = ";
+                retType = type.toString();
             }
-            String paramList = getParamList().stream().map(Val::toString).reduce((s, s2) -> s + ", " + s2).orElse("");
-            return prefix + "call " + retType + " @" + func.getName() + "(" + paramList + ")";
+            String paramList = getParamList().stream().map(Value::toString).reduce((s, s2) -> s + ", " + s2).orElse("");
+            return prefix + "call " + retType + " @" + getFunc().getName() + "(" + paramList + ")";
         }
 
         public Function getFunc() {
-            return this.func;
+            return (Function) useValueList.get(0);
         }
 
         public ArrayList<Value> getParamList() {
-            return this.paramList;
+            return (ArrayList<Value>) useValueList.subList(1, useValueList.size());
         }
 
     }
@@ -377,57 +397,61 @@ public class Instr extends Value {
     // SSA Phi 指令
     public static class Phi extends Instr {
 
-        //TODO:assign to 刘传
-        private final Map<Val, BasicBlock> sources;
+        //TODO:assign to 刘传, xry已改
+        private final ArrayList<Instr> optionalValues;
 
-        public Phi(Type type, Map<Val, BasicBlock> sources) {
-            super(type);
-            this.sources = sources;
+        public Phi(Type type, ArrayList<Instr> optionalValues, BasicBlock parent) {
+            // Phi一定插在基本块的开始, Alloc之前
+            super(type, parent, true);
+            for (Instr instr : optionalValues) {
+                assert type.equals(instr.type);
+            }
+            this.optionalValues = optionalValues;
+            int idx = 0;
+            for (Instr inst : optionalValues) {
+                setUse(inst, idx++);
+            }
         }
 
         @Override
-        public String getDescriptor() {
-            String src = sources.entrySet().stream().map(entry -> "[ " + (entry.getKey().getDescriptor()) + ", %" + entry.getValue().getLabel() + " ]").reduce((s, s2) -> s + ", " + s2).orElse("");
-            return getRet().getDescriptor() + " = phi " + getRet().getType() + " " + src;
+        public String toString() {
+            String src = optionalValues.stream().map(entry -> "[ " + (entry.getDescriptor()) + ", " + entry.bb.getDescriptor() + " ]").reduce((s, s2) -> s + ", " + s2).orElse("");
+            // TODO: 这里的type.toString不知道是不是能直接调用到BasicType的toString方法
+            return getRet().getDescriptor() + " = phi " + type.toString() + " " + src;
         }
 
-        public Map<Val, BasicBlock> getSources() {
-            return this.sources;
+        public ArrayList<Instr> getOptionalValues() {
+            return this.optionalValues;
         }
     }
 
+    // Terminator的type都是Void
     // 分支
     public static class Branch extends Instr implements Terminator {
 
-        private final Val cond;
-
-        private final BasicBlock thenTarget;
-
-        private final BasicBlock elseTarget;
-
-        public Branch(Val cond, BasicBlock thenTarget, BasicBlock elseTarget) {
-            super(null);
-            assert cond.getType().equals(Type.BasicType.BOOL);
-            this.cond = cond;
-            this.thenTarget = thenTarget;
-            this.elseTarget = elseTarget;
+        public Branch(Instr cond, BasicBlock thenTarget, BasicBlock elseTarget, BasicBlock parent) {
+            super(Type.VoidType.getVoidType(), parent);
+            assert cond.getType().isInt1Type();
+            setUse(cond, 0);
+            setUse(thenTarget, 1);
+            setUse(elseTarget, 2);
         }
 
         @Override
         public String getDescriptor() {
-            return "br " + cond + ", label %" + thenTarget.getLabel() + ", label %" + elseTarget.getLabel();
+            return "br " + getCond() + ", label %" + getThenTarget().getLabel() + ", label %" + getElseTarget().getLabel();
         }
 
-        public Val getCond() {
-            return this.cond;
+        public Instr getCond() {
+            return (Instr) useValueList.get(0);
         }
 
         public BasicBlock getThenTarget() {
-            return this.thenTarget;
+            return (BasicBlock) useValueList.get(1);
         }
 
         public BasicBlock getElseTarget() {
-            return this.elseTarget;
+            return (BasicBlock) useValueList.get(2);
         }
 
     }
@@ -436,8 +460,8 @@ public class Instr extends Value {
     public static class Jump extends Instr implements Terminator {
         private final BasicBlock target;
 
-        public Jump(BasicBlock target) {
-            super(null);
+        public Jump(BasicBlock target, BasicBlock parent) {
+            super(Type.VoidType.getVoidType(), parent);
             this.target = target;
         }
 
@@ -454,36 +478,36 @@ public class Instr extends Value {
 
     // 返回
     public static class Return extends Instr implements Terminator {
-        private Value retValue;
         public boolean inMain = false;
 
-        public Return(Value retValue) {
-            super(null);
-            this.retValue = retValue;
+        // Return 的类型是Void, 与返回值无关
+        public Return(BasicBlock parent) {
+            super(Type.VoidType.getVoidType(), parent);
+        }
+
+        public Return(Value retValue, BasicBlock parent) {
+            super(Type.VoidType.getVoidType(), parent);
+            assert retValue.type.equals(parent.function.getRetType());
+            setUse(retValue, 0);
         }
 
         public boolean hasValue() {
-            return val != null;
+            return useValueList.isEmpty();
         }
 
         @Override
         public String getDescriptor() {
             if (hasValue()) {
-                return "ret " + val;
+                return "ret " + getRetValue().getDescriptor();
             } else {
                 return "ret void";
             }
         }
 
-        public Val getValue() {
-            return this.val;
+        public Value getRetValue() {
+            return useValueList.get(0);
         }
 
-    }
-
-
-    public Val.Var getRet() {
-        return this.ret;
     }
 
 }

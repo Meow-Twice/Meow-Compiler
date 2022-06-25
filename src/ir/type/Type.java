@@ -1,7 +1,5 @@
 package ir.type;
 
-import ir.BasicBlock;
-
 import java.util.Objects;
 
 /**
@@ -9,6 +7,18 @@ import java.util.Objects;
  */
 public class Type {
 
+
+    public boolean isVoidType() {
+        return this == VoidType.VOID_TYPE;
+    }
+
+    public boolean isInt1Type() {
+        return this instanceof BasicType && ((BasicType) this).dataType == DataType.BOOL;
+    }
+
+    public boolean isInt32Type() {
+        return this instanceof BasicType && ((BasicType) this).dataType == DataType.INT;
+    }
 
     public static class BasicType extends Type {
         private DataType dataType;
@@ -31,11 +41,16 @@ public class Type {
 
     // 函数调用(Call)时需要此Type
     public static class VoidType extends Type {
-        public VoidType(){}
+        private final static VoidType VOID_TYPE = new VoidType();
+        private VoidType(){}
+
+        public static VoidType getVoidType(){
+            return VOID_TYPE;
+        }
 
         @Override
         public boolean equals(Object obj) {
-            return obj instanceof VoidType;
+            return obj == VOID_TYPE;
         }
 
         @Override
@@ -46,13 +61,18 @@ public class Type {
 
 
     public static class BBType extends Type {
-        private static BBType type = new BBType();
+        private final static BBType BB_TYPE = new BBType();
 
         private BBType() {
         }
 
-        public static BBType getType() {
-            return type;
+        public static BBType getBBType() {
+            return BB_TYPE;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            return obj == BB_TYPE;
         }
 
         @Override

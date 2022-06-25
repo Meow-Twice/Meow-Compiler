@@ -3,14 +3,13 @@ package ir;
 import ir.type.Type;
 
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
 
 /**
  * 基本块, 具有标签名属性, 内部的代码以链表形式组织
  */
 public class BasicBlock extends Value {
     private static final boolean ENABLE_DEBUG = true;
+    public Function function;
 //    private ILinkNode head = new EmptyNode();
 //    private ILinkNode tail = new EmptyNode();
 
@@ -32,13 +31,9 @@ public class BasicBlock extends Value {
 
 
     // 自动命名基本块, 从 "b1" 开始
-    public BasicBlock() {
-        this("b" + (++bb_count));
-    }
-
-    public BasicBlock(String label) {
-        super(Type.BBType.getType());
-        this.label = label;
+    public BasicBlock(Function function) {
+        super(Type.BBType.getBBType());
+        this.label = "b" + (++bb_count);
         begin.setNext(end);
         end.setPrev(begin);
         if (ENABLE_DEBUG) {

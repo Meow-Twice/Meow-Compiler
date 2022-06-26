@@ -16,14 +16,14 @@ public enum TokenType {
     RETURN("return", true),
     // ident
     IDENT("[A-Za-z_][A-Za-z0-9_]*"),
+    // float const
+    HEX_FLOAT("0(x|X)[0-9A-Fa-f]*[\\.]?[0-9A-Fa-f]*((p|P|e|E)(\\+|\\-)?[0-9A-Fa-f]*)?"),
+    // OCT_FLOAT("0[0-7]+[\\.]?[0-7]*((p|P|e|E)(\\+|\\-)?[0-9A-Fa-f]+)?"),
+    DEC_FLOAT("(0|([1-9][0-9]*))[\\.]?[0-9]*((p|P|e|E)(\\+|\\-)?[0-9]+)?"), // decimal
     // int const
     HEX_INT("0(x|X)[0-9A-Fa-f]+"),
     OCT_INT("0[0-7]+"),
-    NUM_INT("0|([1-9][0-9]*)"), // decimal
-    // float const
-    HEX_FLOAT("0(x|X)[0-9A-Fa-f]*[\\.]?[0-9A-Fa-f]*((p|P|e|E)(\\+|\\-)?[0-9A-Fa-f]*)?"),
-    OCT_FLOAT("0[0-7]+[\\.]?[0-7]*((p|P|e|E)(\\+|\\-)?[0-9A-Fa-f]+)?"),
-    NUM_FLOAT("(0|([1-9][0-9]*))[\\.]?[0-9]*((p|P|e|E)(\\+|\\-)?[0-9]+)?"), // decimal
+    DEC_INT("0|([1-9][0-9]*)"), // decimal
     // operator (double char)
     LAND("&&"),
     LOR("\\|\\|"),
@@ -32,13 +32,13 @@ public enum TokenType {
     EQ("=="),
     NE("!="),
     // operator (single char)
+    LT("<"),
+    GT(">"),
     ADD("\\+"), // regex
     SUB("-"),
     MUL("\\*"),
     DIV("/"),
     MOD("%"),
-    LT("<"),
-    GT(">"),
     NOT("!"),
     ASSIGN("="),
     SEMI(";"),

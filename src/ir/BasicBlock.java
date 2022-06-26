@@ -9,12 +9,15 @@ import java.util.ArrayList;
  */
 public class BasicBlock extends Value {
     private static final boolean ENABLE_DEBUG = true;
-    public Function function;
+    private Function function;
 //    private ILinkNode head = new EmptyNode();
 //    private ILinkNode tail = new EmptyNode();
 
-    private Instr begin = new Instr();
-    private Instr end = new Instr();
+    // private Instr begin = new Instr();
+    // private Instr end = new Instr();
+
+    private Instr begin = new Instr(this);
+    private Instr end = new Instr(this);
 
     //TODO: 前驱和后继相关方法
     public ArrayList<BasicBlock> precBBs = new ArrayList<>();//前驱
@@ -97,4 +100,12 @@ public class BasicBlock extends Value {
         return this.label;
     }
 
+    public Function getFunction() {
+        return function;
+    }
+
+    public void setFunction(Function function) {
+        this.function = function;
+        function.insertAtBegin(this);
+    }
 }

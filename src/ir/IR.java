@@ -15,7 +15,7 @@ import java.util.stream.Stream;
  */
 public class IR {
     private static final String MAIN_FUNCTION = "main";
-    private final Map<Val, Initial> globals = new HashMap<>();
+    private final Map<Value, Initial> globals = new HashMap<>();
     private final Map<String, Function> functions = new HashMap<>(); // 函数定义
 
     public static class ExternFunction {
@@ -53,7 +53,7 @@ public class IR {
 
     public void output() {
         // 全局变量
-        for (Map.Entry<Val, Initial> entry : globals.entrySet()) {
+        for (Map.Entry<Value, Initial> entry : globals.entrySet()) {
             System.out.println(entry.getKey().getDescriptor() + " = dso_local global " + entry.getValue());
         }
         // 函数声明
@@ -70,9 +70,7 @@ public class IR {
         }
     }
 
-    
-    
-    public Map<Val, Initial> getGlobals() {
+    public Map<Value, Initial> getGlobals() {
         return this.globals;
     }
 

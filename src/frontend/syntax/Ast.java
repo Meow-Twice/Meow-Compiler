@@ -9,8 +9,8 @@ import java.util.List;
  * 为简化编译器实现难度, 对文法进行了改写(不影响语义)
  */
 public class Ast {
-    
-    private final List<CompUnit> units;
+
+    public List<CompUnit> units;
 
     // CompUnit -> Decl | FuncDef
     public interface CompUnit {
@@ -18,19 +18,14 @@ public class Ast {
 
     // Decl -> ['const'] 'int' Def {',' Def} ';'
     public static class Decl implements CompUnit, BlockItem {
-        private final boolean constant;
-        
-        private final Token bType;
-        
-        private final List<Def> defs;
 
-        public Decl(final boolean constant,  final Token bType,  final List<Def> defs) {
-            if (bType == null) {
-                throw new NullPointerException("bType is marked non-null but is null");
-            }
-            if (defs == null) {
-                throw new NullPointerException("defs is marked non-null but is null");
-            }
+        public boolean constant;
+        public Token bType;
+        public List<Def> defs;
+
+        public Decl(boolean constant, Token bType, List<Def> defs) {
+            assert bType != null;
+            assert defs != null;
             this.constant = constant;
             this.bType = bType;
             this.defs = defs;
@@ -41,29 +36,25 @@ public class Ast {
         }
 
         public Token getBType() {
-            return this.bType;
+            return bType;
         }
 
         public List<Def> getDefs() {
-            return this.defs;
+            return defs;
         }
     }
 
     // Def -> Ident {'[' Exp ']'} ['=' Init]
     public static class Def {
-        
-        private final Token ident;
-        
-        private final List<Exp> indexes;
-        private final Init init;
 
-        public Def( final Token ident,  final List<Exp> indexes, final Init init) {
-            if (ident == null) {
-                throw new NullPointerException("ident is marked non-null but is null");
-            }
-            if (indexes == null) {
-                throw new NullPointerException("indexes is marked non-null but is null");
-            }
+        public Token ident;
+        public List<Exp> indexes;
+        public Init init;
+
+        public Def(Token ident, List<Exp> indexes, Init init) {
+            assert ident != null;
+            assert indexes != null;
+            assert init != null;
             this.ident = ident;
             this.indexes = indexes;
             this.init = init;
@@ -88,9 +79,10 @@ public class Ast {
 
     // InitArray -> '{' [ Init { ',' Init } ] '}'
     public static class InitArray implements Init {
-        private final List<Init> init;
+        public List<Init> init;
 
-        public InitArray(final List<Init> init) {
+        public InitArray(List<Init> init) {
+            assert init != null;
             this.init = init;
         }
 
@@ -102,25 +94,17 @@ public class Ast {
     // FuncDef -> FuncType Ident '(' [FuncFParams] ')' Block
     // FuncFParams -> FuncFParam {',' FuncFParam}
     public static class FuncDef implements CompUnit {
-        
-        private final Token type; // FuncType
-        private final Token ident; // name
-        private final List<FuncFParam> fParams;
-        private final Block body;
 
-        public FuncDef( final Token type,  final Token ident,  final List<FuncFParam> fParams,  final Block body) {
-            if (type == null) {
-                throw new NullPointerException("type is marked non-null but is null");
-            }
-            if (ident == null) {
-                throw new NullPointerException("ident is marked non-null but is null");
-            }
-            if (fParams == null) {
-                throw new NullPointerException("fParams is marked non-null but is null");
-            }
-            if (body == null) {
-                throw new NullPointerException("body is marked non-null but is null");
-            }
+        public Token type; // FuncType
+        public Token ident; // name
+        public List<FuncFParam> fParams;
+        public Block body;
+
+        public FuncDef(Token type, Token ident, List<FuncFParam> fParams, Block body) {
+            assert type != null;
+            assert ident != null;
+            assert fParams != null;
+            assert body != null;
             this.type = type;
             this.ident = ident;
             this.fParams = fParams;
@@ -146,22 +130,16 @@ public class Ast {
 
     // FuncFParam -> BType Ident ['[' ']' { '[' Exp ']' }]
     public static class FuncFParam {
-        
-        private final Token bType;
-        private final Token ident;
-        private final boolean array; // whether it is an array
-        private final List<Exp> sizes; // array sizes of each dim
 
-        public FuncFParam( final Token bType,  final Token ident, final boolean array,  final List<Exp> sizes) {
-            if (bType == null) {
-                throw new NullPointerException("bType is marked non-null but is null");
-            }
-            if (ident == null) {
-                throw new NullPointerException("ident is marked non-null but is null");
-            }
-            if (sizes == null) {
-                throw new NullPointerException("sizes is marked non-null but is null");
-            }
+        public Token bType;
+        public Token ident;
+        public boolean array; // whether it is an array
+        public List<Exp> sizes; // array sizes of each dim
+
+        public FuncFParam(Token bType, Token ident, boolean array, List<Exp> sizes) {
+            assert bType != null;
+            assert ident != null;
+            assert sizes != null;
             this.bType = bType;
             this.ident = ident;
             this.array = array;
@@ -187,13 +165,11 @@ public class Ast {
 
     // Block
     public static class Block implements Stmt {
-        
-        private final List<BlockItem> items;
 
-        public Block( final List<BlockItem> items) {
-            if (items == null) {
-                throw new NullPointerException("items is marked non-null but is null");
-            }
+        public List<BlockItem> items;
+
+        public Block(List<BlockItem> items) {
+            assert items != null;
             this.items = items;
         }
 
@@ -212,18 +188,13 @@ public class Ast {
 
     // Assign
     public static class Assign implements Stmt {
-        
-        private final LVal left;
-        
-        private final Exp right;
 
-        public Assign( final LVal left,  final Exp right) {
-            if (left == null) {
-                throw new NullPointerException("left is marked non-null but is null");
-            }
-            if (right == null) {
-                throw new NullPointerException("right is marked non-null but is null");
-            }
+        public LVal left;
+        public Exp right;
+
+        public Assign(LVal left, Exp right) {
+            assert left != null;
+            assert right != null;
             this.left = left;
             this.right = right;
         }
@@ -239,9 +210,10 @@ public class Ast {
 
     // ExpStmt
     public static class ExpStmt implements Stmt {
-        private final Exp exp; // nullable, empty stmt if null
+        public Exp exp; // nullable, empty stmt if null
 
-        public ExpStmt(final Exp exp) {
+        public ExpStmt(Exp exp) {
+            // assert exp != null;
             this.exp = exp;
         }
 
@@ -252,19 +224,15 @@ public class Ast {
 
     // IfStmt
     public static class IfStmt implements Stmt {
-        
-        private final Exp cond;
-        
-        private final Stmt thenTarget;
-        private final Stmt elseTarget;
 
-        public IfStmt( final Exp cond,  final Stmt thenTarget, final Stmt elseTarget) {
-            if (cond == null) {
-                throw new NullPointerException("cond is marked non-null but is null");
-            }
-            if (thenTarget == null) {
-                throw new NullPointerException("thenTarget is marked non-null but is null");
-            }
+        public Exp cond;
+        public Stmt thenTarget;
+        public Stmt elseTarget;
+
+        public IfStmt(Exp cond, Stmt thenTarget, Stmt elseTarget) {
+            assert cond != null;
+            assert thenTarget != null;
+            assert elseTarget != null;
             this.cond = cond;
             this.thenTarget = thenTarget;
             this.elseTarget = elseTarget;
@@ -285,18 +253,13 @@ public class Ast {
 
     // WhileStmt
     public static class WhileStmt implements Stmt {
-        
-        private final Exp cond;
-        
-        private final Stmt body;
 
-        public WhileStmt( final Exp cond,  final Stmt body) {
-            if (cond == null) {
-                throw new NullPointerException("cond is marked non-null but is null");
-            }
-            if (body == null) {
-                throw new NullPointerException("body is marked non-null but is null");
-            }
+        public Exp cond;
+        public Stmt body;
+
+        public WhileStmt(Exp cond, Stmt body) {
+            assert cond != null;
+            assert body != null;
             this.cond = cond;
             this.body = body;
         }
@@ -312,33 +275,32 @@ public class Ast {
 
     // Break
     public static class Break implements Stmt {
-        
         public Break() {
         }
     }
 
     // Continue
     public static class Continue implements Stmt {
-        
         public Continue() {
         }
     }
 
     // Return
     public static class Return implements Stmt {
-        private final Exp value;
+        public Exp value;
 
-        
-        public Return(final Exp value) {
+        public Return(Exp value) {
+            assert value != null;
             this.value = value;
         }
 
-        
-        public Exp getValue() {
+        public Exp getRetExp() {
             return this.value;
         }
     }
 
+    // PrimaryExp -> Call | '(' Exp ')' | LVal | Number
+    // Init -> Exp | InitArray
     // Exp -> BinaryExp | UnaryExp
     public interface Exp extends Init, PrimaryExp {
     }
@@ -346,24 +308,15 @@ public class Ast {
     // BinaryExp: Arithmetic, Relation, Logical
     // BinaryExp -> Exp { Op Exp }, calc from left to right
     public static class BinaryExp implements Exp {
-        
-        private final Exp first;
-        
-        private final List<Token> operators;
-        
-        private final List<Exp> follows;
 
-        
-        public BinaryExp( final Exp first,  final List<Token> operators,  final List<Exp> follows) {
-            if (first == null) {
-                throw new NullPointerException("first is marked non-null but is null");
-            }
-            if (operators == null) {
-                throw new NullPointerException("operators is marked non-null but is null");
-            }
-            if (follows == null) {
-                throw new NullPointerException("follows is marked non-null but is null");
-            }
+        public Exp first;
+        public List<Token> operators;
+        public List<Exp> follows;
+
+        public BinaryExp(Exp first, List<Token> operators, List<Exp> follows) {
+            assert first != null;
+            assert operators != null;
+            assert follows != null;
             this.first = first;
             this.operators = operators;
             this.follows = follows;
@@ -384,18 +337,13 @@ public class Ast {
 
     // UnaryExp -> {UnaryOp} PrimaryExp
     public static class UnaryExp implements Exp {
-        
-        private final List<Token> unaryOps;
-        
-        private final PrimaryExp primary;
 
-        public UnaryExp( final List<Token> unaryOps,  final PrimaryExp primary) {
-            if (unaryOps == null) {
-                throw new NullPointerException("unaryOps is marked non-null but is null");
-            }
-            if (primary == null) {
-                throw new NullPointerException("primary is marked non-null but is null");
-            }
+        public List<Token> unaryOps;
+        public PrimaryExp primary;
+
+        public UnaryExp(List<Token> unaryOps, PrimaryExp primary) {
+            assert unaryOps != null;
+            assert primary != null;
             this.unaryOps = unaryOps;
             this.primary = primary;
         }
@@ -415,19 +363,13 @@ public class Ast {
 
     // LVal -> Ident {'[' Exp ']'}
     public static class LVal implements PrimaryExp {
-        
-        private final Token ident;
-        
-        private final List<Exp> indexes;
 
-        
-        public LVal( final Token ident,  final List<Exp> indexes) {
-            if (ident == null) {
-                throw new NullPointerException("ident is marked non-null but is null");
-            }
-            if (indexes == null) {
-                throw new NullPointerException("indexes is marked non-null but is null");
-            }
+        public Token ident;
+        public List<Exp> indexes;
+
+        public LVal(Token ident, List<Exp> indexes) {
+            assert ident != null;
+            assert indexes != null;
             this.ident = ident;
             this.indexes = indexes;
         }
@@ -443,36 +385,71 @@ public class Ast {
 
     // Number
     public static class Number implements PrimaryExp {
-        
-        private final Token number;
 
-        public Number( final Token number) {
-            if (number == null) {
-                throw new NullPointerException("number is marked non-null but is null");
-            }
+        public Token number;
+        public boolean isIntConst = false;
+        public boolean isFloatConst = false;
+        public int intConstVal = 0;
+        public float floatConstVal = (float) 0.0;
+
+        public Number(Token number) {
+            assert number != null;
             this.number = number;
+
+            if (number.isIntConst()) {
+                isIntConst = true;
+                intConstVal = switch (number.getType()) {
+                    case HEX_INT -> Integer.parseInt(number.getContent().substring(2), 16);
+                    case OCT_INT -> Integer.parseInt(number.getContent().substring(1), 8);
+                    case DEC_INT -> Integer.parseInt(number.getContent());
+                    default -> throw new AssertionError("Bad Number!");
+                };
+                floatConstVal = (float) intConstVal;
+            } else if (number.isFloatConst()) {
+                isFloatConst = true;
+                floatConstVal = Float.parseFloat(number.getContent());
+                intConstVal = (int) floatConstVal;
+            } else {
+                assert isIntConst || isFloatConst;
+            }
         }
 
         public Token getNumber() {
             return this.number;
+        }
+
+        public boolean isFloatConst() {
+            return isFloatConst;
+        }
+
+        public boolean isIntConst() {
+            return isIntConst;
+        }
+
+        public float getFloatConstVal() {
+            return floatConstVal;
+        }
+
+        public int getIntConstVal() {
+            return intConstVal;
+        }
+
+        @Override
+        public String toString() {
+            return isIntConst ? "int " + intConstVal : isFloatConst ? "float" + floatConstVal : "???" + number;
         }
     }
 
     // Call -> Ident '(' [ Exp {',' Exp} ] ')'
     // FuncRParams -> Exp {',' Exp}, already inlined in Call
     public static class Call implements PrimaryExp {
-        
-        private final Token ident;
-        
-        private final List<Exp> params;
 
-        public Call( final Token ident,  final List<Exp> params) {
-            if (ident == null) {
-                throw new NullPointerException("ident is marked non-null but is null");
-            }
-            if (params == null) {
-                throw new NullPointerException("params is marked non-null but is null");
-            }
+        public Token ident;
+        public List<Exp> params;
+
+        public Call(Token ident, List<Exp> params) {
+            assert ident != null;
+            assert params != null;
             this.ident = ident;
             this.params = params;
         }
@@ -486,15 +463,13 @@ public class Ast {
         }
     }
 
-    public Ast( final List<CompUnit> units) {
-        if (units == null) {
-            throw new NullPointerException("units is marked non-null but is null");
-        }
+    public Ast(List<CompUnit> units) {
+        assert units != null;
         this.units = units;
     }
-    
+
     public List<CompUnit> getUnits() {
         return this.units;
     }
-    
+
 }

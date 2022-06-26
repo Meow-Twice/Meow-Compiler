@@ -41,17 +41,29 @@ public class Constant extends Value {
 
     public static class ConstantFloat extends Constant {
         float constFloatVal;
+        private static final HashMap<Float, ConstantFloat> constFloatMap = new HashMap<>();
+        public static final ConstantFloat CONST_0F/* = new ConstantInt(0)*/;
+        public static final ConstantFloat CONST_1F/* = new ConstantInt(1)*/;
 
-        public ConstantFloat(int val) {
+        static {
+            CONST_0F = new ConstantFloat(0);
+            CONST_1F = new ConstantFloat(1);
+            constFloatMap.put((float) 0.0, CONST_0F);
+            constFloatMap.put((float) 1.0, CONST_1F);
+        }
+
+        public ConstantFloat(float val) {
             super(Type.BasicType.getF32Type());
             constFloatVal = val;
         }
+
+
     }
 
     public static class ConstantArray extends Constant {
         private ArrayList<Constant> constArray;
-        private ArrayList<Integer> arrayInt1D = new ArrayList<>();
-        private ArrayList<Float> arrayFloat1D = new ArrayList<>();
+        // private ArrayList<Integer> arrayInt1D = new ArrayList<>();
+        // private ArrayList<Float> arrayFloat1D = new ArrayList<>();
         private Type eleType;
 
         public ConstantArray(Type type, Type eleType, ArrayList<Constant> arrayList) {

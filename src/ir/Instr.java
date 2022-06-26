@@ -11,6 +11,10 @@ import java.util.ArrayList;
 public class Instr extends Value {
     public BasicBlock bb;
 
+    public BasicBlock parentBB(){
+        return bb;
+    }
+
     public interface Terminator {
     }
 
@@ -21,6 +25,13 @@ public class Instr extends Value {
     public Instr() {
         super();
     }
+
+
+    public Instr(BasicBlock curBB) {
+        super();
+        bb = curBB;
+    }
+
 
     // public Instr(Type type){
     //     super(type);
@@ -141,10 +152,15 @@ public class Instr extends Value {
     }
 
     // 比较运算, 结果是 i1 型
-    public static class Cmp extends Instr {
+    public static class Icmp extends Instr {
 
         public enum Op {
-            EQ("eq"), NE("ne"), SGT("sgt"), SGE("sge"), SLT("slt"), SLE("sle");
+            EQ("eq"),
+            NE("ne"),
+            SGT("sgt"),
+            SGE("sge"),
+            SLT("slt"),
+            SLE("sle");
             private final String name;
 
             private Op(final String name) {
@@ -157,17 +173,17 @@ public class Instr extends Value {
 
         }
 
-        private Op op;
+        private final Op op;
 
-        public Cmp(Op op, Value op1, Value op2, BasicBlock curBB) {
+        public Icmp(Op op, Value op1, Value op2, BasicBlock curBB) {
             super(BasicType.getI1Type(), curBB);
-            assert type.isInt1Type() && op1.type.isInt32Type() && op2.type.isInt32Type();
+            assert op1.type.isInt32Type() && op2.type.isInt32Type();
             this.op = op;
             setUse(op1, 0);
             setUse(op2, 1);
         }
 
-        public Cmp(Op op, Value op1, Value op2, Instr insertBefore) {
+        public Icmp(Op op, Value op1, Value op2, Instr insertBefore) {
             super(BasicType.getI1Type(), insertBefore);
             assert op1.type.isInt32Type() && op2.type.isInt32Type();
             this.op = op;
@@ -177,6 +193,88 @@ public class Instr extends Value {
 
         public String toString() {
             return this.getDescriptor() + " = icmp " + op.getName() + " " + getRVal1().getDescriptor() + ", " + getRVal2().getDescriptor();
+        }
+
+        public Op getOp() {
+            return this.op;
+        }
+
+        public Value getRVal1() {
+            return useValueList.get(0);
+        }
+
+        public Value getRVal2() {
+            return useValueList.get(1);
+        }
+    }
+
+    public static class Fneg extends Instr {
+
+        public Fneg(Value src, BasicBlock parentBB) {
+            super(BasicType.getF32Type(), parentBB);
+            assert src.type.isFloatType();
+            setUse(src, 0);
+        }
+
+        public Fneg(Value src, Instr insertBefore) {
+            super(BasicType.getF32Type(), insertBefore);
+            assert src.type.isFloatType();
+            setUse(src, 0);
+        }
+
+        public String toString() {
+            return this.getDescriptor() + " = fneg "+ getRVal1().getType() + " " + getRVal1().getDescriptor();
+        }
+
+
+        public Value getRVal1() {
+            return useValueList.get(0);
+        }
+    }
+
+    // 比较运算, 结果是 i1 型
+    public static class Fcmp extends Instr {
+
+        public enum Op {
+            OEQ("oeq"),
+            OGT("ogt"),
+            ONE("one"),
+            OGE("oge"),
+            OLT("olt"),
+            OLE("ole");
+
+            private final String name;
+
+            private Op(final String name) {
+                this.name = name;
+            }
+
+            public String getName() {
+                return this.name;
+            }
+
+        }
+
+        private final Op op;
+
+        public Fcmp(Op op, Value op1, Value op2, BasicBlock curBB) {
+            super(BasicType.getI1Type(), curBB);
+            assert op1.type.isInt32Type() && op2.type.isInt32Type();
+            this.op = op;
+            setUse(op1, 0);
+            setUse(op2, 1);
+        }
+
+        public Fcmp(Op op, Value op1, Value op2, Instr insertBefore) {
+            super(BasicType.getI1Type(), insertBefore);
+            assert op1.type.isInt32Type() && op2.type.isInt32Type();
+            this.op = op;
+            setUse(op1, 0);
+            setUse(op2, 1);
+        }
+
+        public String toString() {
+            return this.getDescriptor() + " = fcmp " + op.getName() + " " + getRVal1().getDescriptor() + ", " + getRVal2().getDescriptor();
         }
 
         public Op getOp() {
@@ -210,7 +308,6 @@ public class Instr extends Value {
         public String toString() {
             return this.getDescriptor() + " = zext " + getRVal1().getDescriptor() + " to " + this.type;
         }
-
 
         public Value getRVal1() {
             return useValueList.get(0);
@@ -489,7 +586,7 @@ public class Instr extends Value {
     // 分支
     public static class Branch extends Instr implements Terminator {
 
-        public Branch(Instr cond, BasicBlock thenTarget, BasicBlock elseTarget, BasicBlock parent) {
+        public Branch(Value cond, BasicBlock thenTarget, BasicBlock elseTarget, BasicBlock parent) {
             super(VoidType.getVoidType(), parent);
             assert cond.getType().isInt1Type();
             setUse(cond, 0);
@@ -502,8 +599,8 @@ public class Instr extends Value {
             return "br " + getCond() + ", label %" + getThenTarget().getLabel() + ", label %" + getElseTarget().getLabel();
         }
 
-        public Instr getCond() {
-            return (Instr) useValueList.get(0);
+        public Value getCond() {
+            return useValueList.get(0);
         }
 
         public BasicBlock getThenTarget() {
@@ -546,7 +643,7 @@ public class Instr extends Value {
 
         public Return(Value retValue, BasicBlock parent) {
             super(VoidType.getVoidType(), parent);
-            assert retValue.type.equals(parent.function.getRetType());
+            assert retValue.type.equals(parent.getFunction().getRetType());
             setUse(retValue, 0);
         }
 

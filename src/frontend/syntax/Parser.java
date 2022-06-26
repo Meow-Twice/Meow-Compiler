@@ -232,7 +232,7 @@ public class Parser {
             Ast.Exp exp = parseAddExp();
             tokenList.consumeExpected(TokenType.RPARENT);
             return exp;
-        } else if (temp.isOf(TokenType.HEX_INT, TokenType.OCT_INT, TokenType.NUM_INT)) {
+        } else if (temp.isOf(TokenType.HEX_INT, TokenType.OCT_INT, TokenType.DEC_INT)) {
             Token number = tokenList.consume();
             return new Ast.Number(number);
         } else if (temp.isOf(TokenType.IDENT)
@@ -288,7 +288,6 @@ public class Parser {
             case REL -> parseBinaryExp(BinaryExpType.ADD);
             case ADD -> parseBinaryExp(BinaryExpType.MUL);
             case MUL -> parseUnaryExp();
-            default -> throw new AssertionError("Bad BinaryExpType");
         };
     }
 

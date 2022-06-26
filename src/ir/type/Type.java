@@ -44,10 +44,10 @@ public class Type {
     }
 
     public static class BasicType extends Type {
-        private DataType dataType;
-        private static final BasicType I32_TYPE = new BasicType(DataType.INT);
-        private static final BasicType I1_TYPE = new BasicType(DataType.BOOL);
-        private static final BasicType F32_TYPE = new BasicType(DataType.FLOAT);
+        public DataType dataType;
+        public static final BasicType I32_TYPE = new BasicType(DataType.I32);
+        public static final BasicType I1_TYPE = new BasicType(DataType.I1);
+        public static final BasicType F32_TYPE = new BasicType(DataType.F32);
 
         public static BasicType getF32Type() {
             return F32_TYPE;

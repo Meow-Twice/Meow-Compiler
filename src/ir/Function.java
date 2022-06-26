@@ -15,6 +15,7 @@ public class Function extends Value{
     public static class Param extends Value{
         private int idx;
         private Type type;
+        private Function parentFunc;
         public Param(Type type, int idx){
             this.type = type;
             this.idx = idx;
@@ -48,6 +49,9 @@ public class Function extends Value{
         end.setPrev(begin);
         this.name = name;
         this.params = params;
+        for(Param param: params){
+            param.parentFunc = this;
+        }
         this.retType = retType;
     }
 
@@ -115,7 +119,7 @@ public class Function extends Value{
         if (this.entry == null) {
             throw new AssertionError("Function without body");
         }
-        String paramList = params.stream().map(Val::toString).reduce((s, s2) -> s + ", " + s2).orElse("");
+        String paramList = params.stream().map(Value::toString).reduce((s, s2) -> s + ", " + s2).orElse("");
         StringBuilder body = new StringBuilder();
         Queue<BasicBlock> queue = new LinkedList<>();
         Set<BasicBlock> enqueued = new HashSet<>();

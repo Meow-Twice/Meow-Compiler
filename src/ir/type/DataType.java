@@ -1,7 +1,7 @@
 package ir.type;
 
 public enum DataType{
-    INT("i32"), FLOAT("f32"), BOOL("i1");
+    I32("i32"), F32("f32"), I1("i1");
 
     private String dataTypeName;
 

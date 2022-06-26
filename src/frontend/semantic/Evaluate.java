@@ -130,7 +130,7 @@ public class Evaluate {
         return switch (num.getType()) {
             case HEX_INT -> Integer.parseInt(content.substring(2), 16);
             case OCT_INT -> Integer.parseInt(content.substring(1), 8);
-            case NUM_INT -> Integer.parseInt(content);
+            case DEC_INT -> Integer.parseInt(content);
             default -> throw new AssertionError("Bad Number!");
         };
     }

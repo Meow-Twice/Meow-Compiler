@@ -4,6 +4,7 @@ import ir.type.Type;
 import ir.type.Type.*;
 
 import java.util.ArrayList;
+import java.util.Objects;
 
 /**
  * LLVM IR 的一条指令
@@ -21,10 +22,10 @@ public class Instr extends Value {
     protected ArrayList<Use> useList;
     protected ArrayList<Value> useValueList;
 
-    //空指令用于在BB中做链表头/尾
-    public Instr() {
-        super();
-    }
+//    //空指令用于在BB中做链表头/尾
+//    public Instr() {
+//        super();
+//    }
 
 
     public Instr(BasicBlock curBB) {
@@ -79,6 +80,15 @@ public class Instr extends Value {
         this.useList.set(index, use);
         this.useValueList.set(index, now);
         now.insertAtEnd(use);
+    }
+
+    public boolean isDefInstr() {
+        return !(this instanceof Alloc || this instanceof Store || this instanceof Call
+                    || this instanceof Branch || this instanceof Return);
+    }
+
+    public boolean isEnd() {
+        return this.getNext() == null;
     }
 
 
@@ -380,6 +390,10 @@ public class Instr extends Value {
 
         public Type getContentType() {
             return this.contentType;
+        }
+
+        public boolean isArrayAlloc() {
+            return contentType instanceof ArrayType;
         }
 
     }

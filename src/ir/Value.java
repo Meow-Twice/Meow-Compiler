@@ -41,4 +41,9 @@ public class Value extends ILinkNode {
     public Type getType() {
         return type;
     }
+
+    public Use getBeginUse() {
+        assert begin.getNext() instanceof Use;
+        return (Use) begin.getNext();
+    }
 }

@@ -17,8 +17,8 @@ public class MidEndRunner {
         MakeDFG makeDFG = new MakeDFG(functions);
         makeDFG.Run();
 
-        InsertPhi insertPhi = new InsertPhi(functions);
-        insertPhi.Run();
+        Mem2Reg mem2Reg = new Mem2Reg(functions);
+        mem2Reg.Run();
     }
 
 }

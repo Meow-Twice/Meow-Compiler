@@ -134,6 +134,14 @@ public class BasicBlock extends Value {
         return (Instr) end.getPrev();
     }
 
+    public Instr getBegin() {
+        return begin;
+    }
+
+    public Instr getEnd() {
+        return end;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;

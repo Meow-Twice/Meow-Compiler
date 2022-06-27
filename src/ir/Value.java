@@ -16,17 +16,21 @@ public class Value extends ILinkNode {
     public String name = this instanceof GlobalVal ? GLOBAL_NAME_PREFIX + GLOBAL_COUNT++ : LOCAL_NAME_PREFIX + LOCAL_COUNT++;
 
     private Use begin = new Use();
-    private Use end = begin;
+    private Use end = new Use();
 
     protected Type type;
 
     public Value() {
         super();
+        begin.setNext(end);
+        end.setPrev(begin);
     }
 
     public Value(Type type) {
         super();
         this.type = type;
+        begin.setNext(end);
+        end.setPrev(begin);
     }
 
     public void insertAtEnd(Use use) {
@@ -45,5 +49,16 @@ public class Value extends ILinkNode {
     public Use getBeginUse() {
         assert begin.getNext() instanceof Use;
         return (Use) begin.getNext();
+    }
+
+    public void modifyUsedToA(Value A) {
+        Use use = (Use) begin.getNext();
+        while (use.getNext() != null) {
+            Instr user = use.getUser();
+            user.modifyUse(this, A, use.getIdx());
+
+            Use update = new Use(use.getUser(), A, use.getIdx());
+            A.insertAtEnd(update);
+        }
     }
 }

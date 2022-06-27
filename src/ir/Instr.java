@@ -12,6 +12,7 @@ import java.util.Objects;
 public class Instr extends Value {
     public BasicBlock bb;
 
+
     public BasicBlock parentBB(){
         return bb;
     }

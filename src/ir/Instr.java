@@ -10,8 +10,13 @@ import java.util.Objects;
  * LLVM IR 的一条指令
  */
 public class Instr extends Value {
+
+    public static int instr_cnt = 0;
+
     public BasicBlock bb;
 
+    //TODO:添加一个hash标记,是否比比较arraylist的equal方法快且保险(正确性)
+    public String hash = "Instr " + instr_cnt++;
 
     public BasicBlock parentBB(){
         return bb;
@@ -92,6 +97,18 @@ public class Instr extends Value {
         return this.getNext() == null;
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Instr instr = (Instr) o;
+        return hash.equals(instr.hash);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(hash);
+    }
 
     // 二元算术运算, 结果是 i32 型
     public static class Alu extends Instr {

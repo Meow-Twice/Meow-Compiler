@@ -2,7 +2,7 @@ import frontend.lexer.Lexer;
 import frontend.lexer.Token;
 import frontend.lexer.TokenList;
 import frontend.semantic.Visitor;
-import ir.IR;
+import ir.FuncManager;
 import frontend.syntax.Ast;
 import frontend.syntax.Parser;
 
@@ -39,8 +39,8 @@ public class MeowCompiler {
             Ast ast = new Parser(tokenList).parseAst();
             Visitor visitor = new Visitor();
             visitor.visitAst(ast);
-            IR ir = visitor.getIr();
-            ir.output();
+            FuncManager funcManager = visitor.getIr();
+            funcManager.output();
         } catch (Exception e) {
             e.printStackTrace();
             System.exit(1);

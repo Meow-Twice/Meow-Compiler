@@ -2,7 +2,7 @@ package frontend.syntax;
 
 import frontend.lexer.Token;
 
-import java.util.List;
+import java.util.ArrayList;
 
 /**
  * 所有的语法树节点
@@ -10,7 +10,7 @@ import java.util.List;
  */
 public class Ast {
 
-    public List<CompUnit> units;
+    public ArrayList<CompUnit> units;
 
     // CompUnit -> Decl | FuncDef
     public interface CompUnit {
@@ -21,9 +21,9 @@ public class Ast {
 
         public boolean constant;
         public Token bType;
-        public List<Def> defs;
+        public ArrayList<Def> defs;
 
-        public Decl(boolean constant, Token bType, List<Def> defs) {
+        public Decl(boolean constant, Token bType, ArrayList<Def> defs) {
             assert bType != null;
             assert defs != null;
             this.constant = constant;
@@ -39,7 +39,7 @@ public class Ast {
             return bType;
         }
 
-        public List<Def> getDefs() {
+        public ArrayList<Def> getDefs() {
             return defs;
         }
     }
@@ -48,10 +48,10 @@ public class Ast {
     public static class Def {
 
         public Token ident;
-        public List<Exp> indexes;
+        public ArrayList<Exp> indexes;
         public Init init;
 
-        public Def(Token ident, List<Exp> indexes, Init init) {
+        public Def(Token ident, ArrayList<Exp> indexes, Init init) {
             assert ident != null;
             assert indexes != null;
             assert init != null;
@@ -64,7 +64,7 @@ public class Ast {
             return this.ident;
         }
 
-        public List<Exp> getIndexes() {
+        public ArrayList<Exp> getIndexes() {
             return this.indexes;
         }
 
@@ -79,14 +79,14 @@ public class Ast {
 
     // InitArray -> '{' [ Init { ',' Init } ] '}'
     public static class InitArray implements Init {
-        public List<Init> init;
+        public ArrayList<Init> init;
 
-        public InitArray(List<Init> init) {
+        public InitArray(ArrayList<Init> init) {
             assert init != null;
             this.init = init;
         }
 
-        public List<Init> getInit() {
+        public ArrayList<Init> getInit() {
             return this.init;
         }
     }
@@ -97,10 +97,10 @@ public class Ast {
 
         public Token type; // FuncType
         public Token ident; // name
-        public List<FuncFParam> fParams;
+        public ArrayList<FuncFParam> fParams;
         public Block body;
 
-        public FuncDef(Token type, Token ident, List<FuncFParam> fParams, Block body) {
+        public FuncDef(Token type, Token ident, ArrayList<FuncFParam> fParams, Block body) {
             assert type != null;
             assert ident != null;
             assert fParams != null;
@@ -119,7 +119,7 @@ public class Ast {
             return this.ident;
         }
 
-        public List<FuncFParam> getFParams() {
+        public ArrayList<FuncFParam> getFParams() {
             return this.fParams;
         }
 
@@ -134,9 +134,9 @@ public class Ast {
         public Token bType;
         public Token ident;
         public boolean array; // whether it is an array
-        public List<Exp> sizes; // array sizes of each dim
+        public ArrayList<Exp> sizes; // array sizes of each dim
 
-        public FuncFParam(Token bType, Token ident, boolean array, List<Exp> sizes) {
+        public FuncFParam(Token bType, Token ident, boolean array, ArrayList<Exp> sizes) {
             assert bType != null;
             assert ident != null;
             assert sizes != null;
@@ -158,7 +158,7 @@ public class Ast {
             return this.array;
         }
 
-        public List<Exp> getSizes() {
+        public ArrayList<Exp> getSizes() {
             return this.sizes;
         }
     }
@@ -166,14 +166,14 @@ public class Ast {
     // Block
     public static class Block implements Stmt {
 
-        public List<BlockItem> items;
+        public ArrayList<BlockItem> items;
 
-        public Block(List<BlockItem> items) {
+        public Block(ArrayList<BlockItem> items) {
             assert items != null;
             this.items = items;
         }
 
-        public List<BlockItem> getItems() {
+        public ArrayList<BlockItem> getItems() {
             return this.items;
         }
     }
@@ -310,10 +310,10 @@ public class Ast {
     public static class BinaryExp implements Exp {
 
         public Exp first;
-        public List<Token> operators;
-        public List<Exp> follows;
+        public ArrayList<Token> operators;
+        public ArrayList<Exp> follows;
 
-        public BinaryExp(Exp first, List<Token> operators, List<Exp> follows) {
+        public BinaryExp(Exp first, ArrayList<Token> operators, ArrayList<Exp> follows) {
             assert first != null;
             assert operators != null;
             assert follows != null;
@@ -326,11 +326,11 @@ public class Ast {
             return this.first;
         }
 
-        public List<Token> getOperators() {
+        public ArrayList<Token> getOperators() {
             return this.operators;
         }
 
-        public List<Exp> getFollows() {
+        public ArrayList<Exp> getFollows() {
             return this.follows;
         }
     }
@@ -338,17 +338,17 @@ public class Ast {
     // UnaryExp -> {UnaryOp} PrimaryExp
     public static class UnaryExp implements Exp {
 
-        public List<Token> unaryOps;
+        public ArrayList<Token> unaryOps;
         public PrimaryExp primary;
 
-        public UnaryExp(List<Token> unaryOps, PrimaryExp primary) {
+        public UnaryExp(ArrayList<Token> unaryOps, PrimaryExp primary) {
             assert unaryOps != null;
             assert primary != null;
             this.unaryOps = unaryOps;
             this.primary = primary;
         }
 
-        public List<Token> getUnaryOps() {
+        public ArrayList<Token> getUnaryOps() {
             return this.unaryOps;
         }
 
@@ -365,9 +365,9 @@ public class Ast {
     public static class LVal implements PrimaryExp {
 
         public Token ident;
-        public List<Exp> indexes;
+        public ArrayList<Exp> indexes;
 
-        public LVal(Token ident, List<Exp> indexes) {
+        public LVal(Token ident, ArrayList<Exp> indexes) {
             assert ident != null;
             assert indexes != null;
             this.ident = ident;
@@ -378,7 +378,7 @@ public class Ast {
             return this.ident;
         }
 
-        public List<Exp> getIndexes() {
+        public ArrayList<Exp> getIndexes() {
             return this.indexes;
         }
     }
@@ -445,9 +445,9 @@ public class Ast {
     public static class Call implements PrimaryExp {
 
         public Token ident;
-        public List<Exp> params;
+        public ArrayList<Exp> params;
 
-        public Call(Token ident, List<Exp> params) {
+        public Call(Token ident, ArrayList<Exp> params) {
             assert ident != null;
             assert params != null;
             this.ident = ident;
@@ -458,17 +458,17 @@ public class Ast {
             return this.ident;
         }
 
-        public List<Exp> getParams() {
+        public ArrayList<Exp> getParams() {
             return this.params;
         }
     }
 
-    public Ast(List<CompUnit> units) {
+    public Ast(ArrayList<CompUnit> units) {
         assert units != null;
         this.units = units;
     }
 
-    public List<CompUnit> getUnits() {
+    public ArrayList<CompUnit> getUnits() {
         return this.units;
     }
 

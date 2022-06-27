@@ -22,6 +22,15 @@ public class Function extends Value{
             this.idx = idx;
         }
 
+        public static ArrayList<Param> wrapParam(Type... types){
+            ArrayList<Param> params = new ArrayList<>();
+            int i = 0;
+            for(Type type: types){
+                params.add(new Param(type, i++));
+            }
+            return params;
+        }
+
         @Override
         public String toString(){
             return type.toString() + " " + name;

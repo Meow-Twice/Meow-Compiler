@@ -479,53 +479,34 @@ public class Instr extends Value {
     // 数组元素寻址, 每个该指令对指针/数组解引用一层, 返回值含义等价于 `base[offset]`
     public static class GetElementPtr extends Instr {
 
-        //TODO:学习getelementptr
-        private final Val base; // 基地址
-        private final boolean array; // 是否需要第一层 offset 0 来解数组
-
-        private final Val offset; // (解引用后的)偏移量
-
         // e.g. a is [10 x i32]*: a[3] -> %v1 = getelementptr inbounds [10 x i32], [10 x i32]* %a, i32 0, i32 3 ; 第一个 i32 0 表示解引用前不偏移(固定)，第二个才是解引用后的偏移
         // e.g. a is i32*: a[3] -> %v1 = getelementptr inbounds i32, i32* %a, i32 3
-        public GetElementPtr(Type type, Val base, Val offset, boolean array) {
-            super(type);
-
-            if (ret == null) {
-                throw new NullPointerException("ret is marked non-null but is null");
-            }
-
-            assert base.getType() instanceof PointerType;
-            this.base = base;
-            this.offset = offset;
-            this.array = array;
-            if (array) {
-                assert ((PointerType) base.getType()).getInnerType() instanceof ArrayType;
-                assert ret.getType().equals(new PointerType(((ArrayType) ((PointerType) base.getType()).getInnerType()).getBase()));
-            } else {
-                assert ret.getType().equals(base.getType());
+        public GetElementPtr(Type pointeeType, Value ptr, ArrayList<Value> idxList, boolean array, BasicBlock basicBlock) {
+            super(pointeeType, basicBlock);
+            setUse(ptr, 0);
+            int i = 1;
+            for(Value idxValue: idxList){
+                setUse(idxValue, i++);
             }
         }
 
         @Override
-        public String getDescriptor() {
-            assert base.getType() instanceof PointerType;
-            if (array) {
-                return getRet().getDescriptor() + " = getelementptr inbounds " + ((PointerType) base.getType()).getInnerType() + ", " + base + ", i32 0, " + offset;
-            } else {
-                return getRet().getDescriptor() + " = getelementptr inbounds " + ((PointerType) base.getType()).getInnerType() + ", " + base + ", " + offset;
+        public String toString() {
+            StringBuilder strBD = new StringBuilder();
+            strBD.append(getDescriptor()).append(" = getelementptr inbounds ").
+                    append(((PointerType) getPtr().getType()).getInnerType()).append(", ").append(getPtr());
+            for(Value idxValue: getIdxList()){
+                strBD.append(", ").append(idxValue.getType()).append(" ").append(idxValue.getDescriptor());
             }
+            return strBD.toString();
         }
 
-        public Val getBase() {
-            return this.base;
+        public Value getPtr() {
+            return useValueList.get(0);
         }
 
-        public boolean isArray() {
-            return this.array;
-        }
-
-        public Val getOffset() {
-            return this.offset;
+        public ArrayList<Value> getIdxList() {
+            return (ArrayList<Value>) useValueList.subList(0, useValueList.size());
         }
 
     }

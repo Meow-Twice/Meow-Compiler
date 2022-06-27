@@ -21,7 +21,7 @@ import static ir.type.Type.BasicType.*;
  * 遍历语法树, 生成 IR 代码
  */
 public class Visitor {
-    private final IR ir = new IR(); // 最终生成的 IR
+    private final FuncManager funcManager = new FuncManager(); // 最终生成的 IR
     private SymTable currentSymTable = new SymTable(); // 当前符号表, 初始时是全局符号表
     private Function curFunc = null; // 当前正在分析的函数
     private BasicBlock curBB = null; // 当前所在的基本块
@@ -137,25 +137,9 @@ public class Visitor {
         return v1.getType().isInt32Type() || v2.getType().isInt32Type();
     }
 
+    private BasicBlock curNextBlock;
+
     private Value visitBinaryExp(BinaryExp exp) throws SemanticException {
-        // 注意短路求值!
-        // boolean flagAllNotLogical = true;
-        // boolean flagAllLogical = true;
-        // for (Token token : exp.getOperators()) {
-        //     flagAllLogical = flagAllLogical && isLogical(token);
-        //     flagAllNotLogical = flagAllNotLogical && !isLogical(token);
-        // }
-        // assert flagAllLogical || flagAllNotLogical;
-        // BasicBlock trueBlock;
-        // BasicBlock falseBlock;
-        // BasicBlock nextBlock;
-        // if(flagAllLogical){
-        //     trueBlock = new BasicBlock(curFunc);
-        //     falseBlock = new BasicBlock(curFunc);
-        //     nextBlock = new BasicBlock(curFunc);
-        //     new Jump(nextBlock, falseBlock);
-        //     new Jump(nextBlock, trueBlock);
-        // }
         Value first = visitExp(exp.getFirst());
         Iterator<Token> iterOp = exp.getOperators().listIterator();
         for (Exp nextExp : exp.getFollows()) {
@@ -188,24 +172,7 @@ public class Visitor {
                     first = new Icmp(icmpOp, first, second, curBB);
                 }
             } else if (isLogical(op)) {
-                first = trimTo(first, I1_TYPE);
-                BasicBlock followBB = new BasicBlock(curFunc); // 实为trueBlock的前驱
-                BasicBlock falseBB = new BasicBlock(curFunc); // 实为falseBlock
-                if (op.getType() == TokenType.LAND) {
-                    // first && second
-                    // if first is true, jump to follow
-                    // else jump to next
-                    new Branch(first, falseBB, followBB, curBB);
-                } else if (op.getType() == TokenType.LOR) {
-                    // if first is false, jump to follow
-                    // else jump to next
-                    new Branch(first, followBB, falseBB, curBB);
-                } else {
-                    throw new AssertionError("Bad Logical Op");
-                }
-                assert curBB.isTerminated();
-                curBB = followBB;
-                first = visitExp(nextExp);
+                throw new AssertionError("Wrong code branch");
             } else {
                 throw new AssertionError("Bad Binary Op");
             }
@@ -277,46 +244,35 @@ public class Visitor {
     }
 
     // if left: return address, else return value (generate load instruction)
-    private Value visitLVal(LVal lVal, boolean left) throws SemanticException {
+    private Value visitLVal(LVal lVal, boolean isRetPointer) throws SemanticException {
         // 去符号表拿出指向这个左值的指针
         String ident = lVal.getIdent().getContent();
         Symbol symbol = currentSymTable.get(ident, true);
-        if (left && symbol.isConstant()) {
-            throw new SemanticException("Modify const");
-        }
-        Value address = symbol.getPointer();
-        assert address.getType() instanceof PointerType;
+        Value address = symbol.getAllocInst();
+        assert address instanceof Alloc;
         // 处理数组的偏移寻址
         // 遍历下标，逐层 getelementptr, 每层均进行一个解引用和一个偏移
         for (Exp exp : lVal.getIndexes()) {
-            if (!(address.getType() instanceof PointerType)) {
-                throw new SemanticException("Non-Array has indexes");
-            }
             Value offset = visitExp(exp);
-            if (!(offset.getType() instanceof BasicType)) {
-                throw new SemanticException("Index not number");
-            }
             offset = trimTo(offset, I32_TYPE);
-            Type nextType = ((PointerType) address.getType()).getInnerType(); // 实体的类型
-            assert !(nextType instanceof BasicType);
+            Type innerType = ((PointerType) address.getType()).getInnerType(); // 实体的类型
+            assert !(innerType instanceof BasicType);
             Value elem;
             // 实体是数组, 地址是数组指针, getelementptr 要有两层
             // 实体是指针, 地址是二级指针, getelementptr 应有一层(仅在含有数组形参的函数中有), 同时还有个 load
-            if (nextType instanceof PointerType) {
-                Value basePtr = Value.newVar(nextType);
-                curBB.insertAtEnd(new Load(basePtr, address));
-                elem = Value.newVar(nextType);
-                curBB.insertAtEnd(new GetElementPtr(elem, basePtr, offset, false));
+            if (innerType instanceof PointerType) {
+                Instr loadInst = new Load(address, curBB);
+                new GetElementPtr(loadInst, offset, false);
             } else {
-                assert nextType instanceof ArrayType;
-                nextType = ((ArrayType) nextType).getBase();
-                elem = Value.newVar(new PointerType(nextType));
+                assert innerType instanceof ArrayType;
+                innerType = ((ArrayType) innerType).getBase();
+                elem = Value.newVar(new PointerType(innerType));
                 curBB.insertAtEnd(new GetElementPtr(elem, address, offset, true));
             }
             address = elem;
         }
         assert address.getType() instanceof PointerType;
-        if (left) {
+        if (isRetPointer) {
             // 如果作为左值, 一定不能是部分数组
             // 是数组元素的条件: address
             if (!(((PointerType) address.getType()).getInnerType() instanceof BasicType)) {
@@ -350,10 +306,8 @@ public class Visitor {
     // returns the return value if function call, null if function is void
     private Value visitCall(Ast.Call call) throws SemanticException {
         String ident = call.getIdent().getContent();
-        Function function = ir.getFunctions().get(ident);
-        if (function == null) {
-            throw new SemanticException("Function " + ident + " not declared.");
-        }
+        Function function = funcManager.getFunctions().get(ident);
+        assert function != null;
         ArrayList<Value> params = new ArrayList<>();
         for (Exp exp : call.getParams()) {
             params.add(visitExp(exp));
@@ -379,46 +333,105 @@ public class Visitor {
         }
     }
 
+    /***
+     * 出来的时候保证curBB为最后一个条件所在的块，不用Jump
+     * @param exp
+     * @param falseBlock
+     * @return 保证返回Int1Type
+     * @throws SemanticException
+     */
+    private Value visitCondLAnd(Exp exp, BasicBlock falseBlock) throws SemanticException {
+        if (!(exp instanceof BinaryExp)) {
+            return trimTo(visitExp(exp), I1_TYPE);
+        }
+        BinaryExp lAndExp = (BinaryExp) exp;
+        Value first = trimTo(visitExp(lAndExp.getFirst()), I1_TYPE);
+        Iterator<Token> iterOp = lAndExp.getOperators().listIterator();
+        for (Exp nextExp : lAndExp.getFollows()) {
+            assert iterOp.hasNext();
+            Token op = iterOp.next();
+            assert op.getType() == TokenType.LAND;
+            BasicBlock nextBlock = new BasicBlock(curFunc); // 实为trueBlock的前驱
+            new Branch(first, nextBlock, falseBlock, curBB);
+            curBB = nextBlock;
+            first = trimTo(visitExp(nextExp), I1_TYPE);
+        }
+        return first;
+    }
+
+    /***
+     * 出来的时候保证curBB为最后一个条件所在的块，不用Jump
+     * @param exp
+     * @param trueBlock
+     * @param falseBlock
+     * @return 保证返回Int1Type
+     * @throws SemanticException
+     */
+    private Value visitCondLOr(Exp exp, BasicBlock trueBlock, BasicBlock falseBlock) throws SemanticException {
+        if (!(exp instanceof BinaryExp)) {
+            return trimTo(visitExp(exp), I1_TYPE);
+        }
+        BinaryExp lOrExp = (BinaryExp) exp;
+        Value first = visitCondLAnd(lOrExp.getFirst(), falseBlock);
+        assert first.getType().isInt1Type();
+        Iterator<Token> iterOp = lOrExp.getOperators().listIterator();
+        for (Exp nextExp : lOrExp.getFollows()) {
+            assert iterOp.hasNext();
+            Token op = iterOp.next();
+            assert op.getType() == TokenType.LOR;
+            BasicBlock nextBlock = new BasicBlock(curFunc); // 实为trueBlock的前驱
+            new Branch(first, trueBlock, nextBlock, curBB);
+            curBB = nextBlock;
+            first = visitCondLAnd(nextExp, falseBlock);
+            assert first.getType().isInt1Type();
+        }
+        return first;
+    }
+
     private void visitIfStmt(IfStmt ifStmt) throws SemanticException {
-        Value cond = visitExp(ifStmt.getCond());
-        cond = trimTo(cond, I32_TYPE);
         Stmt thenTarget = ifStmt.getThenTarget();
         Stmt elseTarget = ifStmt.getElseTarget();
+        boolean hasElseBlock = elseTarget != null;
         BasicBlock thenBlock = new BasicBlock(curFunc);
-        BasicBlock follow = new BasicBlock(curFunc);
-        if (elseTarget == null) {
-            new Branch(cond, thenBlock, follow, curBB);
-            curBB = thenBlock;
-            visitStmt(thenTarget); // currentBlock may be modified
-        } else {
-            BasicBlock elseBlock = new BasicBlock(curFunc);
+        BasicBlock elseBlock = null;
+        if (hasElseBlock) {
+            elseBlock = new BasicBlock(curFunc);
+        }
+        BasicBlock followBlock = new BasicBlock(curFunc);
+        Value cond = visitCondLOr(ifStmt.getCond(), thenBlock, elseBlock);
+        assert cond.getType().isInt1Type();
+        if (hasElseBlock) {
             new Branch(cond, thenBlock, elseBlock, curBB);
             curBB = thenBlock;
             visitStmt(thenTarget);
-            new Jump(follow, curBB);
+            new Jump(followBlock, curBB);
             curBB = elseBlock;
             visitStmt(elseTarget);
+        } else {
+            new Branch(cond, thenBlock, followBlock, curBB);
+            curBB = thenBlock;
+            visitStmt(thenTarget); // currentBlock may be modified
         }
-        new Jump(follow, curBB);
-        curBB = follow;
+        new Jump(followBlock, curBB);
+        curBB = followBlock;
     }
 
     private void visitWhileStmt(WhileStmt whileStmt) throws SemanticException {
-        BasicBlock head = new BasicBlock();
-        new Jump(head, curBB);
-        curBB = head;
-        Value cond = visitExp(whileStmt.getCond());
-        cond = trimTo(cond, I1_TYPE);
-        BasicBlock body = new BasicBlock();
-        BasicBlock follow = new BasicBlock();
+        BasicBlock condBlock = new BasicBlock();
+        new Jump(condBlock, curBB);
+        curBB = condBlock;
+        BasicBlock body = new BasicBlock(curFunc);
+        BasicBlock follow = new BasicBlock(curFunc);
+        Value cond = visitCondLOr(whileStmt.getCond(), body, follow);
+        assert cond.getType().isInt1Type();
         new Branch(cond, body, follow, curBB);
         curBB = body;
-        loopHeads.push(head);
+        loopHeads.push(condBlock);
         loopFollows.push(follow);
         visitStmt(whileStmt.getBody());
         loopHeads.pop();
         loopFollows.pop();
-        new Jump(head, curBB);
+        new Jump(condBlock, curBB);
         curBB = follow;
     }
 
@@ -520,8 +533,12 @@ public class Visitor {
             baseType = innerType;
         }
         size *= 4; // sizeof int
-        assert ptr.getType() instanceof PointerType && ((PointerType) ptr.getType()).getInnerType().equals(BasicType.INT);
-        new Instr.Call(IR.ExternFunction.MEM_SET, List.of(ptr, new Value.Num(0), new Value.Num(size)), curBB);
+        // assert ptr.getType() instanceof PointerType && ((PointerType) ptr.getType()).getInnerType().equals(BasicType.INT);
+        new Instr.Call(FuncManager.ExternFunction.MEM_SET, wrap(CONST_0, new Constant.ConstantInt(size)), curBB);
+    }
+
+    public ArrayList<Value> wrap(Value... values){
+        return new ArrayList<>(List.of(values));
     }
 
     private void initHelper(Value pointer, Initial init) {
@@ -602,7 +619,7 @@ public class Visitor {
         // 全局: 直接给出初始化结果, 局部: 分配空间, store + memset 初始化的值
         if (curFunc == null) {
             // 全局
-            ir.addGlobal(symbol);
+            funcManager.addGlobal(symbol);
         } else {
             // 局部
             // 分配的空间指向 pointer
@@ -653,27 +670,27 @@ public class Visitor {
         return arrayInit;
     }
 
-    private Initial.ValueInit visitInitVal(Exp exp, boolean constant) throws SemanticException {
+    private Initial.ValueInit visitInitVal(BasicType basicType, Exp exp, boolean constant) throws SemanticException {
         int eval = new Evaluate(currentSymTable, constant).evalIntExp(exp);
-        return new Initial.ValueInit(eval, BasicType.INT);
+        return new Initial.ValueInit(eval, basicType);
     }
 
-    private Initial.ExpInit visitInitExp(Exp exp) throws SemanticException {
+    private Initial.ExpInit visitInitExp(BasicType basicType, Exp exp) throws SemanticException {
         Value eval = visitExp(exp); // 运行期才计算
-        return new Initial.ExpInit(eval, BasicType.INT);
+        return new Initial.ExpInit(eval, basicType);
     }
 
     // 由于编译器采用 Load-Store 形式，变量符号全部对应指针，所以在函数入口一开始先把形参全存到栈上 hhh
     private void visitFuncDef(FuncDef def) throws SemanticException {
         TokenType funcTypeTk = def.getType().getType();
-        Type retType = switch (funcTypeTk){
+        Type retType = switch (funcTypeTk) {
             case VOID -> VoidType.getVoidType();
             case INT -> I32_TYPE;
             case FLOAT -> F32_TYPE;
             default -> throw new SemanticException("Wrong func ret type: " + funcTypeTk);
         };
         String ident = def.getIdent().getContent();
-        if (ir.getFunctions().containsKey(ident)) {
+        if (funcManager.getFunctions().containsKey(ident)) {
             throw new SemanticException("Duplicated function defined");
         }
         // 入口基本块
@@ -693,14 +710,14 @@ public class Visitor {
             currentSymTable.add(new Symbol(fParam.ident.getContent(), paramType, null, false, paramPointer));
         }
         Function function = new Function(ident, params, retType);
-        ir.addFunction(function);
+        funcManager.addFunction(function);
         function.setBody(entry);
         curFunc = function;
         entry.setFunction(curFunc);
         visitBlock(def.getBody(), false); // 分析函数体
         if (!curBB.isTerminated()) {
             // 如果没有 return 补上一条
-            switch (funcTypeTk){
+            switch (funcTypeTk) {
                 case VOID -> new Instr.Return(curBB);
                 case INT -> new Instr.Return(CONST_0, curBB);
                 case FLOAT -> new Instr.Return(CONST_0F, curBB);
@@ -750,8 +767,8 @@ public class Visitor {
         }
     }
 
-    public IR getIr() {
-        return this.ir;
+    public FuncManager getIr() {
+        return this.funcManager;
     }
 
 }

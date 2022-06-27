@@ -12,6 +12,7 @@ import java.util.*;
 public class Function extends Value{
     private final String name;
 
+
     public static class Param extends Value{
         private int idx;
         private Type type;
@@ -41,7 +42,9 @@ public class Function extends Value{
     private BasicBlock end = new BasicBlock(this);
 
     //TODO: assign to 刘传
-    private Map<BasicBlock, HashSet<BasicBlock>> edge;
+    private HashMap<BasicBlock, ArrayList<BasicBlock>> preMap;
+    private HashMap<BasicBlock, ArrayList<BasicBlock>> sucMap;
+    private HashSet<BasicBlock> BBs;
 
 
     public Function(String name, ArrayList<Param> params, Type retType) {
@@ -78,12 +81,25 @@ public class Function extends Value{
         end.setPrev(in);
     }
 
-    public BasicBlock getBegin() {
+
+    //获取第一个基本块,不是空的链表头
+    public BasicBlock getBeginBB() {
+        assert begin.getNext() instanceof BasicBlock;
         return (BasicBlock) begin.getNext();
     }
 
-    public BasicBlock getEnd() {
+    //获取最后一个基本块,不是空的链表尾
+    public BasicBlock getEndBB() {
+        assert end.getPrev() instanceof BasicBlock;
         return (BasicBlock) end.getPrev();
+    }
+
+    public BasicBlock getEnd() {
+        return end;
+    }
+
+    public BasicBlock getBegin() {
+        return begin;
     }
 
     public boolean isEmpty() {
@@ -177,5 +193,28 @@ public class Function extends Value{
     public void setBody(final BasicBlock body) {
         this.entry = body;
     }
-    
+
+    public void setSucMap(HashMap<BasicBlock, ArrayList<BasicBlock>> sucMap) {
+        this.sucMap = sucMap;
+    }
+
+    public void setPreMap(HashMap<BasicBlock, ArrayList<BasicBlock>> preMap) {
+        this.preMap = preMap;
+    }
+
+    public HashMap<BasicBlock, ArrayList<BasicBlock>> getPreMap() {
+        return preMap;
+    }
+
+    public HashMap<BasicBlock, ArrayList<BasicBlock>> getSucMap() {
+        return sucMap;
+    }
+
+    public void setBBs(HashSet<BasicBlock> BBs) {
+        this.BBs = BBs;
+    }
+
+    public HashSet<BasicBlock> getBBs() {
+        return BBs;
+    }
 }

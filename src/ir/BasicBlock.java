@@ -3,6 +3,9 @@ package ir;
 import ir.type.Type;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Objects;
 
 /**
  * 基本块, 具有标签名属性, 内部的代码以链表形式组织
@@ -20,10 +23,21 @@ public class BasicBlock extends Value {
     private Instr end = new Instr(this);
 
     //TODO: 前驱和后继相关方法
-    public ArrayList<BasicBlock> precBBs = new ArrayList<>();//前驱
-    public ArrayList<BasicBlock> succBBs = new ArrayList<>();//后继
-    //private ArrayList<BasicBlock> pre;
-    //private ArrayList<BasicBlock> pre;
+    private ArrayList<BasicBlock> precBBs = new ArrayList<>();//前驱
+    private ArrayList<BasicBlock> succBBs = new ArrayList<>();//后继
+
+    // 支配关系
+    private HashSet<BasicBlock> doms = new HashSet<>();
+    // 在支配树上的边关系,根据定义:
+    // A dominator tree is a tree where
+    // the children of each node are those nodes it immediately dominates.
+    private HashSet<BasicBlock> idoms = new HashSet<>();
+    // 支配边界,根据定义:
+    // By definition,
+    // there is a DF-edge (a, b) between every CFG nodes a, b such that a dominates
+    // a predecessor of b , but does not strictly dominate b
+    private HashSet<BasicBlock> DF = new HashSet<>();
+
 
 
 
@@ -107,5 +121,69 @@ public class BasicBlock extends Value {
     public void setFunction(Function function) {
         this.function = function;
         function.insertAtBegin(this);
+    }
+
+
+    public Instr getBeginInstr() {
+        assert begin.getNext() instanceof Instr;
+        return (Instr) begin.getNext();
+    }
+
+    public Instr getEndInstr() {
+        assert end.getPrev() instanceof Instr;
+        return (Instr) end.getPrev();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        BasicBlock that = (BasicBlock) o;
+        return label.equals(that.label);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(label);
+    }
+
+    public void setPrecBBs(ArrayList<BasicBlock> precBBs) {
+        this.precBBs = precBBs;
+    }
+
+    public void setSuccBBs(ArrayList<BasicBlock> succBBs) {
+        this.succBBs = succBBs;
+    }
+
+    public ArrayList<BasicBlock> getPrecBBs() {
+        return precBBs;
+    }
+
+    public ArrayList<BasicBlock> getSuccBBs() {
+        return succBBs;
+    }
+
+    public void setDoms(HashSet<BasicBlock> doms) {
+        this.doms = doms;
+    }
+
+    public void setIdoms(HashSet<BasicBlock> idoms) {
+        this.idoms = idoms;
+    }
+
+    public HashSet<BasicBlock> getDoms() {
+        return doms;
+    }
+
+    public HashSet<BasicBlock> getIdoms() {
+        return idoms;
+    }
+
+    public void setDF(HashSet<BasicBlock> DF) {
+        this.DF = DF;
+    }
+
+    public HashSet<BasicBlock> getDF() {
+        return DF;
     }
 }

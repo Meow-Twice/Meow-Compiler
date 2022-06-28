@@ -48,6 +48,9 @@ public class BasicBlock extends Value {
 
     public BasicBlock(){
         super(Type.BBType.getBBType());
+        this.label = "b" + (++bb_count);
+        begin.setNext(end);
+        end.setPrev(begin);
     }
 
     // 自动命名基本块, 从 "b1" 开始
@@ -78,12 +81,12 @@ public class BasicBlock extends Value {
     // 向基本块末尾追加指令, 当且仅当该基本块未结束
     public void insertAtEnd(Instr in) {
         if (isTerminated()) {
-            System.err.println("append after terminator: " + in);
-            return;
+            System.err.println("append after terminator: " + in.getDescriptor());
+            // return;
         }
-        if (ENABLE_DEBUG) {
-            System.err.println("append to (" + label + "): " + in);
-        }
+        // if (ENABLE_DEBUG) {
+        //     System.err.println("append to (" + label + "): " + in);
+        // }
 //        Instr last = getLast();
 //        last.setNext(follow);
 //        follow.setPrev(last);

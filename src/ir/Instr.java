@@ -355,6 +355,7 @@ public class Instr extends Value {
 
         public FPtosi(Value src, BasicBlock parentBB) {
             super(BasicType.getI32Type(), parentBB);
+
             assert src.type.isFloatType();
             setUse(src, 0);
         }
@@ -621,7 +622,7 @@ public class Instr extends Value {
         }
 
         @Override
-        public String getDescriptor() {
+        public String toString() {
             return "br " + getCond() + ", label %" + getThenTarget().getLabel() + ", label %" + getElseTarget().getLabel();
         }
 
@@ -647,8 +648,14 @@ public class Instr extends Value {
             setUse(target, 0);
         }
 
+        // @Override
+        // public String getDescriptor() {
+        //     return "br label %" + (useValueList == null ? "null" :getTarget().getLabel());
+        //     // return "br label %" + getTarget().getLabel();
+        // }
+
         @Override
-        public String getDescriptor() {
+        public String toString() {
             return "br label %" + getTarget().getLabel();
         }
 
@@ -668,17 +675,17 @@ public class Instr extends Value {
         }
 
         public Return(Value retValue, BasicBlock parent) {
-            super(VoidType.getVoidType(), parent);
+            super(retValue.getType(), parent);
             assert retValue.type.equals(parent.getFunction().getRetType());
             setUse(retValue, 0);
         }
 
         public boolean hasValue() {
-            return useValueList.isEmpty();
+            return !useValueList.isEmpty();
         }
 
         @Override
-        public String getDescriptor() {
+        public String toString() {
             if (hasValue()) {
                 return "ret " + getRetValue().getDescriptor();
             } else {

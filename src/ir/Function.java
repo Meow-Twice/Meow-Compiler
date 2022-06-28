@@ -15,7 +15,7 @@ public class Function extends Value{
 
     public static class Param extends Value{
         private int idx;
-        private Type type;
+        // private Type type;
         private Function parentFunc;
         public Param(Type type, int idx){
             this.type = type;
@@ -35,6 +35,7 @@ public class Function extends Value{
         public String toString(){
             return type.toString() + " " + name;
         }
+
     }
 
 //    private final List<Val.Var> params; // 形参表

@@ -25,7 +25,7 @@ public class Constant extends Value {
         }
 
         public ConstantInt(int val) {
-            super(Type.BasicType.getF32Type());
+            super(Type.BasicType.getI32Type());
             constIntVal = val;
         }
 
@@ -36,6 +36,21 @@ public class Constant extends Value {
                 constIntMap.put(intVal, ret);
             }
             return ret;
+        }
+
+        @Override
+        public String getDescriptor() {
+            return String.valueOf(constIntVal);
+        }
+
+        @Override
+        public String toString() {
+            return "ConstantInt{" +
+                    "constIntVal=" + constIntVal +
+                    ", prefix='" + prefix + '\'' +
+                    ", name='" + name + '\'' +
+                    ", type=" + type +
+                    '}';
         }
     }
 
@@ -57,7 +72,10 @@ public class Constant extends Value {
             constFloatVal = val;
         }
 
-
+        @Override
+        public String getDescriptor() {
+            return String.valueOf(constFloatVal);
+        }
     }
 
     public static class ConstantArray extends Constant {

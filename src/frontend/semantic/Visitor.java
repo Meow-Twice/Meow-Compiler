@@ -43,8 +43,7 @@ public class Visitor {
         assert value.getType() instanceof BasicType;
         // Value res = value;
         if (value.getType().equals(targetType)) {
-            System.err.printf("Try to trim %s to %s in Func(%s), %s", value, targetType,
-                    ((Instr) value).parentBB().getFunction().getName(), ((Instr) value).parentBB().getLabel());
+            System.err.printf("Try to trim %s to %s\n", value, targetType);
             // return value;
         }
         return switch (((BasicType) value.getType()).dataType) {
@@ -413,7 +412,7 @@ public class Visitor {
     }
 
     private void visitWhileStmt(WhileStmt whileStmt) throws SemanticException {
-        BasicBlock condBlock = new BasicBlock();
+        BasicBlock condBlock = new BasicBlock(curFunc);
         new Jump(condBlock, curBB);
         curBB = condBlock;
         BasicBlock body = new BasicBlock(curFunc);
@@ -489,8 +488,8 @@ public class Visitor {
     // sym: 是否需要新开一层符号表
     private void visitBlock(Block block, boolean sym) throws SemanticException {
         assert curBB != null;
-        BasicBlock inner = new BasicBlock();
-        BasicBlock follow = new BasicBlock();
+        BasicBlock inner = new BasicBlock(curFunc);
+        BasicBlock follow = new BasicBlock(curFunc);
         new Jump(inner, curBB);
         curBB = inner;
         if (sym) {
@@ -594,7 +593,7 @@ public class Visitor {
                 //     throw new SemanticException("Value variable not init by value");
                 // }
                 if (eval) {
-                    init = visitInitVal((BasicType) pointeeType, (Exp) astInit, true);
+                    init = visitInitVal((BasicType) pointeeType, (Exp) astInit);
                 } else {
                     init = visitInitExp((BasicType) pointeeType, (Exp) astInit);
                 }
@@ -649,7 +648,7 @@ public class Visitor {
                 }
                 if (eval) {
                     // 必须编译期计算
-                    arrayInit.add(visitInitVal(baseEleType, (Exp) init, true));
+                    arrayInit.add(visitInitVal(baseEleType, (Exp) init));
                 } else {
                     assert !constant;
                     arrayInit.add(visitInitExp(baseEleType, (Exp) init));
@@ -675,7 +674,7 @@ public class Visitor {
         return arrayInit;
     }
 
-    private Initial.ValueInit visitInitVal(BasicType basicType, Exp exp, boolean constant) throws SemanticException {
+    private Initial.ValueInit visitInitVal(BasicType basicType, Exp exp) throws SemanticException {
         Object eval = Evaluate.evalConstExp(exp);
         switch (basicType.dataType) {
             case I32 -> {

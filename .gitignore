@@ -2,5 +2,6 @@
 out
 Meow-Compiler.iml
 test.sy
+output.ll
 /src/test
 /src/timeTest

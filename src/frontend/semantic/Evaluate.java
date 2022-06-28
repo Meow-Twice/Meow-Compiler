@@ -31,13 +31,18 @@ public class Evaluate {
 
     // 编译期求值
     public static Object evalConstExp(Ast.Exp exp) throws SemanticException {
+        Object ret;
         if (exp instanceof Ast.BinaryExp) {
-            return evalBinaryConstExp((Ast.BinaryExp) exp);
+            ret =  evalBinaryConstExp((Ast.BinaryExp) exp);
         } else if (exp instanceof Ast.UnaryExp) {
-            return evalUnaryConstExp((Ast.UnaryExp) exp);
+            ret =  evalUnaryConstExp((Ast.UnaryExp) exp);
         } else {
             throw new AssertionError("Bad Exp:" + exp);
         }
+        boolean isFloat = ret instanceof Float;
+        boolean isInt =  ret instanceof Integer;
+        assert ret instanceof Float || ret instanceof Integer;
+        return ret;
     }
 
     // 二元运算
@@ -130,14 +135,15 @@ public class Evaluate {
         }
     }
 
-    public static int evalNumber(Ast.Number number) {
+    public static Object evalNumber(Ast.Number number) {
         Token num = number.getNumber();
         String content = num.getContent();
         return switch (num.getType()) {
             case HEX_INT -> Integer.parseInt(content.substring(2), 16);
             case OCT_INT -> Integer.parseInt(content.substring(1), 8);
             case DEC_INT -> Integer.parseInt(content);
-            default -> throw new AssertionError("Bad Number!");
+            case HEX_FLOAT, DEC_FLOAT -> Float.parseFloat(content);
+            default -> throw new AssertionError("Bad Number: " + number);
         };
     }
 

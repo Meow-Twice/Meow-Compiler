@@ -37,7 +37,7 @@ public class Parser {
             constant = true;
         }
         else { constant = false; }
-        Token bType = tokenList.consumeExpected(TokenType.INT);
+        Token bType = tokenList.consumeExpected(TokenType.INT, TokenType.FLOAT);
         defs.add(parseDef(bType, constant));
         while (tokenList.get().isOf(TokenType.COMMA)) {
             tokenList.consume();
@@ -93,7 +93,7 @@ public class Parser {
     }
 
     private Ast.FuncDef parseFuncDef() throws SyntaxException {
-        Token type = tokenList.consumeExpected(TokenType.VOID, TokenType.INT);
+        Token type = tokenList.consumeExpected(TokenType.VOID, TokenType.INT, TokenType.FLOAT);
         Token ident = tokenList.consumeExpected(TokenType.IDENT);
         ArrayList<Ast.FuncFParam> fParams = new ArrayList<>();
         tokenList.consumeExpected(TokenType.LPARENT);
@@ -116,7 +116,7 @@ public class Parser {
     }
 
     private Ast.FuncFParam parseFuncFParam() throws SyntaxException {
-        Token bType = tokenList.consumeExpected(TokenType.INT);
+        Token bType = tokenList.consumeExpected(TokenType.INT, TokenType.FLOAT);
         Token ident = tokenList.consumeExpected(TokenType.IDENT);
         boolean array = false;
         ArrayList<Ast.Exp> sizes = new ArrayList<>();
@@ -145,7 +145,8 @@ public class Parser {
 
     private Ast.BlockItem parseBlockItem() throws SyntaxException {
         if (tokenList.get().getContent().equals("const") ||
-                tokenList.get().getContent().equals("int")) {
+                tokenList.get().getContent().equals("int") ||
+                tokenList.get().getContent().equals("float")) {
             return parseDecl();
         } else {
             return parseStmt();
@@ -232,7 +233,7 @@ public class Parser {
             Ast.Exp exp = parseAddExp();
             tokenList.consumeExpected(TokenType.RPARENT);
             return exp;
-        } else if (temp.isOf(TokenType.HEX_INT, TokenType.OCT_INT, TokenType.DEC_INT)) {
+        } else if (temp.isOf(TokenType.HEX_INT, TokenType.OCT_INT, TokenType.DEC_INT, TokenType.DEC_FLOAT, TokenType.HEX_FLOAT)) {
             Token number = tokenList.consume();
             return new Ast.Number(number);
         } else if (temp.isOf(TokenType.IDENT)

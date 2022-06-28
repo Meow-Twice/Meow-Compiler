@@ -54,6 +54,9 @@ public class TokenList {
                 return token;
             }
         }
+        for (int i = 0 ; i < index; i++){
+            System.err.println(tokens.get(i));
+        }
         throw new SyntaxException("Expected " + Arrays.toString(types) + " but got " + token);
     }
 }

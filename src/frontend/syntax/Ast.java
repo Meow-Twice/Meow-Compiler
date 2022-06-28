@@ -236,7 +236,7 @@ public class Ast {
         public IfStmt(Exp cond, Stmt thenTarget, Stmt elseTarget) {
             assert cond != null;
             assert thenTarget != null;
-            assert elseTarget != null;
+            // assert elseTarget != null;
             this.cond = cond;
             this.thenTarget = thenTarget;
             this.elseTarget = elseTarget;

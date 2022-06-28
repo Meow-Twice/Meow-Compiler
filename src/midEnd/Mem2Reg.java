@@ -1,6 +1,7 @@
 package midEnd;
 
 import ir.*;
+import ir.type.Type;
 
 import java.lang.reflect.Array;
 import java.util.ArrayList;
@@ -131,6 +132,21 @@ public class Mem2Reg {
                 //useInstrs.add(phi);
                 //defInstrs.add(phi);
                 //bb.insertAtEnd();
+                assert instr.getType() instanceof Type.PointerType;
+                Instr PHI = null;
+                ArrayList<Instr> optionalValues = new ArrayList<>();
+                for (int i = 0; i < bb.getPrecBBs().size(); i++) {
+                    //空指令
+                    optionalValues.add(new Instr(bb));
+                }
+                if (((Type.PointerType) instr.getType()).getInnerType().isFloatType()) {
+                    PHI = new Instr.Phi(Type.BasicType.getF32Type(), optionalValues, bb);
+                } else {
+                    PHI = new Instr.Phi(Type.BasicType.getI32Type(), optionalValues, bb);
+                }
+                useInstrs.add(PHI);
+                defInstrs.add(PHI);
+                bb.insertAtHead(PHI);
             }
 
             //TODO:Rename
@@ -154,7 +170,11 @@ public class Mem2Reg {
             }
             if (defInstrs.contains(A)) {
                 assert A instanceof Instr.Store || A instanceof Instr.Phi;
-                S.push(A);
+                if (A instanceof Instr.Store) {
+                    S.push(((Instr.Store) A).getValue());
+                } else {
+                    S.push(A);
+                }
                 cnt++;
             }
         }
@@ -165,8 +185,8 @@ public class Mem2Reg {
                 if (!(instr instanceof Instr.Phi)) {
                     break;
                 }
-                if (defInstrs.contains(instr)) {
-                    instr.modifyUse(instr, i);
+                if (useInstrs.contains(instr)) {
+                    instr.modifyUse(S.peek(), i);
                 }
             }
         }

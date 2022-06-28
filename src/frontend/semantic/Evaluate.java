@@ -75,7 +75,7 @@ public class Evaluate {
             return switch (op.getType()) {
                 case ADD -> intConst;
                 case SUB -> -intConst;
-                case NOT -> intConst == 0.0 ? 1.0 : 0.0;
+                case NOT -> intConst == 0 ? 1 : 0;
                 default -> throw new AssertionError("Bad Unary Operator");
             };
         } else if (src instanceof Float) {
@@ -133,7 +133,6 @@ public class Evaluate {
     public static int evalNumber(Ast.Number number) {
         Token num = number.getNumber();
         String content = num.getContent();
-        // return 1;
         return switch (num.getType()) {
             case HEX_INT -> Integer.parseInt(content.substring(2), 16);
             case OCT_INT -> Integer.parseInt(content.substring(1), 8);
@@ -142,7 +141,7 @@ public class Evaluate {
         };
     }
 
-    public static int evalLVal(Ast.LVal lVal) throws SemanticException {
+    public static Object evalLVal(Ast.LVal lVal) throws SemanticException {
         String ident = lVal.getIdent().getContent();
         // 查找符号表
         Symbol symbol = Visitor.currentSymTable.get(ident, true);

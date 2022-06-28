@@ -129,6 +129,7 @@ public class Type {
     public static class ArrayType extends Type {
         private final int size;
         private final Type base;
+        private BasicType baseEleType = null;
 
         @Override
         public boolean equals(Object o) {
@@ -167,6 +168,17 @@ public class Type {
 
         public Type getBase() {
             return this.base;
+        }
+
+        public BasicType getBaseEleType(){
+            if(baseEleType != null){
+                return baseEleType;
+            }
+            if(base instanceof BasicType){
+                return (BasicType) base;
+            }
+            assert base instanceof ArrayType;
+            return ((ArrayType)base).getBaseEleType();
         }
 
     }

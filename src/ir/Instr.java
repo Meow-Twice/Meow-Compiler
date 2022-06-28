@@ -4,6 +4,7 @@ import ir.type.Type;
 import ir.type.Type.*;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Objects;
 
 /**
@@ -573,7 +574,7 @@ public class Instr extends Value {
         }
 
         public ArrayList<Value> getParamList() {
-            return (ArrayList<Value>) useValueList.subList(1, useValueList.size());
+            return new ArrayList<>(useValueList.subList(1, useValueList.size()));
         }
 
     }

@@ -3,6 +3,7 @@ package ir;
 import frontend.semantic.Initial;
 import frontend.semantic.symbol.Symbol;
 import ir.type.Type;
+import util.FileDealer;
 
 import java.util.*;
 
@@ -60,20 +61,21 @@ public class FuncManager {
     public void output() {
         // 全局变量
         for (Map.Entry<Value, Initial> entry : globals.entrySet()) {
-            System.out.println(entry.getKey().getDescriptor() + " = dso_local global " + entry.getValue());
+            FileDealer.addOutputString(entry.getKey().getDescriptor() + " = dso_local global " + entry.getValue());
         }
         // 函数声明
         for (Function function : functions.values()) {
             if (!function.hasBody()) {
-                System.out.println(function.getDeclare());
+                FileDealer.addOutputString(function.getDeclare());
             }
         }
         // 函数定义
         for (Function function : functions.values()) {
             if (function.hasBody()) {
-                System.out.println(function.getDefinition());
+                FileDealer.addOutputString(function.getDefinition());
             }
         }
+        FileDealer.outputStringList();
     }
 
     public Map<Value, Initial> getGlobals() {

@@ -40,7 +40,7 @@ public class Type {
     }
 
     public boolean isFloatType() {
-        return this == BasicType.getI32Type();
+        return this == BasicType.getF32Type();
     }
 
     public static class BasicType extends Type {

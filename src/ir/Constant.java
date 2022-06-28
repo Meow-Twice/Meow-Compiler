@@ -45,12 +45,7 @@ public class Constant extends Value {
 
         @Override
         public String toString() {
-            return "ConstantInt{" +
-                    "constIntVal=" + constIntVal +
-                    ", prefix='" + prefix + '\'' +
-                    ", name='" + name + '\'' +
-                    ", type=" + type +
-                    '}';
+            return String.valueOf(constIntVal);
         }
     }
 
@@ -74,6 +69,11 @@ public class Constant extends Value {
 
         @Override
         public String getDescriptor() {
+            return String.valueOf(constFloatVal);
+        }
+
+        @Override
+        public String toString() {
             return String.valueOf(constFloatVal);
         }
     }

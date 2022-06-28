@@ -131,7 +131,7 @@ public class Visitor {
     }
 
     private boolean hasFloatType(Value v1, Value v2) {
-        return v1.getType().isFloatType() || v2.getType().isFloatType();
+        return v1.getType().isFloatType() || v1.getType().isFloatType();
     }
 
     private boolean hasIntType(Value v1, Value v2) {
@@ -488,10 +488,6 @@ public class Visitor {
     // sym: 是否需要新开一层符号表
     private void visitBlock(Block block, boolean sym) throws SemanticException {
         assert curBB != null;
-        BasicBlock inner = new BasicBlock(curFunc);
-        BasicBlock follow = new BasicBlock(curFunc);
-        new Jump(inner, curBB);
-        curBB = inner;
         if (sym) {
             currentSymTable = new SymTable(currentSymTable);
         } // 新开一层符号表
@@ -501,8 +497,6 @@ public class Visitor {
         if (sym) {
             currentSymTable = currentSymTable.getParent();
         } // 退出一层符号表
-        new Jump(follow, curBB);
-        curBB = follow;
     }
 
     private void visitDecl(Decl decl) throws SemanticException {

@@ -391,7 +391,7 @@ public class Instr extends Value {
         }
 
         public String toString() {
-            return this.getDescriptor() + " = fptosi " + getRVal1().getDescriptor() + " to " + this.getType();
+            return this.getDescriptor() + " = sitofp " + getRVal1().getDescriptor() + " to " + this.getType();
         }
 
 

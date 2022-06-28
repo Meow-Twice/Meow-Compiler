@@ -64,12 +64,13 @@ public class Constant extends Value {
         private ArrayList<Constant> constArray;
         // private ArrayList<Integer> arrayInt1D = new ArrayList<>();
         // private ArrayList<Float> arrayFloat1D = new ArrayList<>();
-        private Type eleType;
+        private Type baseEleType;
 
-        public ConstantArray(Type type, Type eleType, ArrayList<Constant> arrayList) {
+        public ConstantArray(Type type, Type baseEleType, ArrayList<Constant> arrayList) {
             super(type);
             assert type instanceof Type.ArrayType;
-            this.eleType = eleType;
+            this.baseEleType = baseEleType;
+            constArray = arrayList;
         }
 
         public Constant getBaseConst(ArrayList<Integer> dims) {

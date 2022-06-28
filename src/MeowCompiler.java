@@ -38,6 +38,7 @@ public class MeowCompiler {
             }
             Ast ast = new Parser(tokenList).parseAst();
             Visitor visitor = new Visitor();
+            visitor.__ONLY_PARSE_OUTSIDE_DIM = true;
             visitor.visitAst(ast);
             FuncManager funcManager = visitor.getIr();
             funcManager.output();

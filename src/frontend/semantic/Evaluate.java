@@ -21,86 +21,93 @@ public class Evaluate {
         this.requireConst = requireConst;
     }
 
-    // 编译期求值
-    public int evalIntExp(Ast.Exp exp) throws SemanticException {
-        if (exp instanceof Ast.BinaryExp) { return evalBinaryExp((Ast.BinaryExp) exp); }
-        else if (exp instanceof Ast.UnaryExp) { return evalUnaryExp((Ast.UnaryExp) exp); }
-        else { throw new AssertionError("Bad Exp"); }
+    public static int evalConstIntExp(Ast.Exp exp) throws SemanticException {
+        return (int) evalConstExp(exp);
     }
 
-    public float evalFloatExp(Ast.Exp exp) throws SemanticException {
-        if (exp instanceof Ast.BinaryExp) { return evalBinaryExp((Ast.BinaryExp) exp); }
-        else if (exp instanceof Ast.UnaryExp) { return evalUnaryExp((Ast.UnaryExp) exp); }
-        else { throw new AssertionError("Bad Exp"); }
+    public static float evalConstFloatExp(Ast.Exp exp) throws SemanticException {
+        return (float) evalConstExp(exp);
+    }
+
+    // 编译期求值
+    public static Object evalConstExp(Ast.Exp exp) throws SemanticException {
+        if (exp instanceof Ast.BinaryExp) {
+            return evalBinaryConstExp((Ast.BinaryExp) exp);
+        } else if (exp instanceof Ast.UnaryExp) {
+            return evalUnaryConstExp((Ast.UnaryExp) exp);
+        } else {
+            throw new AssertionError("Bad Exp:" + exp);
+        }
     }
 
     // 二元运算
-    private static int binaryCalcHelper(Token op, int src1, int src2) {
-        return switch (op.getType()) {
-            case ADD -> src1 + src2;
-            case SUB -> src1 - src2;
-            case MUL -> src1 * src2;
-            case DIV -> src1 / src2;
-            case MOD -> src1 % src2;
-            case LT -> src1 < src2 ? 1 : 0;
-            case GT -> src1 > src2 ? 1 : 0;
-            case LE -> src1 <= src2 ? 1 : 0;
-            case GE -> src1 >= src2 ? 1 : 0;
-            case EQ -> src1 == src2 ? 1 : 0;
-            case NE -> src1 != src2 ? 1 : 0;
-            case LAND -> ((src1 != 0) && (src2 != 0)) ? 1 : 0;
-            case LOR -> ((src1 != 0) || (src2 != 0)) ? 1 : 0;
-            default -> throw new AssertionError("Bad Binary Operator");
-        };
-    }
-
-    private static float binaryCalcHelper(Token op, float src1, float src2) {
-        // union
-        return switch (op.getType()) {
-            case ADD -> src1 + src2;
-            case SUB -> src1 - src2;
-            case MUL -> src1 * src2;
-            case DIV -> src1 / src2;
-            case MOD -> src1 % src2;
-            case LT -> src1 < src2 ? 1 : 0;
-            case GT -> src1 > src2 ? 1 : 0;
-            case LE -> src1 <= src2 ? 1 : 0;
-            case GE -> src1 >= src2 ? 1 : 0;
-            case EQ -> src1 == src2 ? 1 : 0;
-            case NE -> src1 != src2 ? 1 : 0;
-            case LAND -> ((src1 != 0) && (src2 != 0)) ? 1 : 0;
-            case LOR -> ((src1 != 0) || (src2 != 0)) ? 1 : 0;
-            default -> throw new AssertionError("Bad Binary Operator");
-        };
+    private static Object binaryCalcHelper(Token op, Object src1, Object src2) {
+        if (src1 instanceof Float || src2 instanceof Float) {
+            Float f1 = (float) src1;
+            Float f2 = (float) src2;
+            return switch (op.getType()) {
+                case ADD -> f1 + f2;
+                case SUB -> f1 - f2;
+                case MUL -> f1 * f2;
+                case DIV -> f1 / f2;
+                case MOD -> f1 % f2;
+                default -> throw new AssertionError("Bad Binary Operator");
+            };
+        } else {
+            assert src1 instanceof Integer && src2 instanceof Integer;
+            Integer i1 = (int) src1;
+            Integer i2 = (int) src2;
+            return switch (op.getType()) {
+                case ADD -> i1 + i2;
+                case SUB -> i1 - i2;
+                case MUL -> i1 * i2;
+                case DIV -> i1 / i2;
+                case MOD -> i1 % i2;
+                default -> throw new AssertionError("Bad Binary Operator");
+            };
+        }
     }
 
     // 一元运算
-    private static int unaryCalcHelper(Token op, int src) {
-        return switch (op.getType()) {
-            case ADD -> src;
-            case SUB -> -src;
-            case NOT -> src == 0 ? 1 : 0;
-            default -> throw new AssertionError("Bad Unary Operator");
-        };
+    private static Object unaryCalcHelper(Token op, Object src) {
+        if (src instanceof Integer) {
+            int intConst = (int) src;
+            return switch (op.getType()) {
+                case ADD -> intConst;
+                case SUB -> -intConst;
+                case NOT -> intConst == 0.0 ? 1.0 : 0.0;
+                default -> throw new AssertionError("Bad Unary Operator");
+            };
+        } else if (src instanceof Float) {
+            float floatConst = (float) src;
+            return switch (op.getType()) {
+                case ADD -> floatConst;
+                case SUB -> -floatConst;
+                case NOT -> floatConst == 0.0 ? 1.0 : 0.0;
+                default -> throw new AssertionError("Bad Unary Operator");
+            };
+        } else {
+            throw new AssertionError("Bad src: " + src);
+        }
     }
 
     // 从左到右按顺序计算即可
-    public int evalBinaryExp(Ast.BinaryExp exp) throws SemanticException {
+    public static Object evalBinaryConstExp(Ast.BinaryExp exp) throws SemanticException {
         Ast.Exp first = exp.getFirst();
         Iterator<Token> iterOp = exp.getOperators().listIterator();
         Iterator<Ast.Exp> iterExp = exp.getFollows().listIterator();
-        int result = evalIntExp(first);
+        Object result = evalConstExp(first);
         while (iterExp.hasNext()) {
             assert iterOp.hasNext();
             Token op = iterOp.next();
             Ast.Exp follow = iterExp.next();
-            result = binaryCalcHelper(op, result, evalIntExp(follow));
+            result = binaryCalcHelper(op, result, evalConstExp(follow));
         }
         return result;
     }
 
-    public int evalUnaryExp(Ast.UnaryExp exp) throws SemanticException {
-        int primary = evalPrimaryExp(exp.getPrimary());
+    public static Object evalUnaryConstExp(Ast.UnaryExp exp) throws SemanticException {
+        Object primary = evalPrimaryExp(exp.getPrimary());
         // 从右向左结合
         ArrayList<Token> unaryOps = new ArrayList<>(exp.getUnaryOps());
         for (int i = unaryOps.size() - 1; i >= 0; i--) {
@@ -110,11 +117,11 @@ public class Evaluate {
         return primary;
     }
 
-    public int evalPrimaryExp(Ast.PrimaryExp exp) throws SemanticException {
+    public static Object evalPrimaryExp(Ast.PrimaryExp exp) throws SemanticException {
         if (exp instanceof Ast.Number) {
             return evalNumber((Ast.Number) exp);
         } else if (exp instanceof Ast.Exp) {
-            return evalIntExp((Ast.Exp) exp);
+            return evalConstExp((Ast.Exp) exp);
         } else if (exp instanceof Ast.LVal) {
             return evalLVal((Ast.LVal) exp);
         } else {
@@ -123,7 +130,7 @@ public class Evaluate {
         }
     }
 
-    public int evalNumber(Ast.Number number) {
+    public static int evalNumber(Ast.Number number) {
         Token num = number.getNumber();
         String content = num.getContent();
         // return 1;
@@ -135,13 +142,13 @@ public class Evaluate {
         };
     }
 
-    public int evalLVal(Ast.LVal lVal) throws SemanticException {
+    public static int evalLVal(Ast.LVal lVal) throws SemanticException {
         String ident = lVal.getIdent().getContent();
         // 查找符号表
-        Symbol symbol = symTable.get(ident, true);
-        if (requireConst && !symbol.isConstant()) {
-            throw new SemanticException("Expected Const but got not Const.");
-        }
+        Symbol symbol = Visitor.currentSymTable.get(ident, true);
+        // if (requireConst && !symbol.isConstant()) {
+        //     throw new SemanticException("Expected Const but got not Const.");
+        // }
         // 必须初始化过，才可以编译期求值
         if (symbol.getInitial() == null) {
             throw new SemanticException("Symbol not initialized");
@@ -150,7 +157,7 @@ public class Evaluate {
         Initial init = symbol.getInitial();
         ArrayList<Integer> indexes = new ArrayList<>(); // eval indexes
         for (Ast.Exp index : lVal.getIndexes()) {
-            indexes.add(evalIntExp(index));
+            indexes.add((int) evalConstExp(index));
         }
         for (Integer index : indexes) {
             if (init instanceof Initial.ValueInit) {

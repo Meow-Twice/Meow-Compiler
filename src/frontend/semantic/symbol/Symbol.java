@@ -38,7 +38,7 @@ public class Symbol {
         return this.constant;
     }
 
-    public Value getAllocInst() {
+    public Value getValue() {
         return this.allocInst;
     }
     

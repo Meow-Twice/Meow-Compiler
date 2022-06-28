@@ -21,10 +21,12 @@ import static ir.type.Type.BasicType.*;
  * 遍历语法树, 生成 IR 代码
  */
 public class Visitor {
+    public boolean __ONLY_PARSE_OUTSIDE_DIM = true;
     private final FuncManager funcManager = new FuncManager(); // 最终生成的 IR
-    private SymTable currentSymTable = new SymTable(); // 当前符号表, 初始时是全局符号表
+    public static SymTable currentSymTable = new SymTable(); // 当前符号表, 初始时是全局符号表
     private Function curFunc = null; // 当前正在分析的函数
     private BasicBlock curBB = null; // 当前所在的基本块
+    private boolean isGlobal = true;
 
     private boolean isGlobal() {
         return curFunc == null && curBB == null && !currentSymTable.hasParent();
@@ -137,8 +139,6 @@ public class Visitor {
         return v1.getType().isInt32Type() || v2.getType().isInt32Type();
     }
 
-    private BasicBlock curNextBlock;
-
     private Value visitBinaryExp(BinaryExp exp) throws SemanticException {
         Value first = visitExp(exp.getFirst());
         Iterator<Token> iterOp = exp.getOperators().listIterator();
@@ -155,7 +155,7 @@ public class Visitor {
                 } else {
                     first = trimTo(first, I32_TYPE);
                     second = trimTo(second, I32_TYPE);
-                    Alu.Op aluOp = aluOpHelper(op, false);
+                    Alu.Op aluOp = aluOpHelper(op);
                     first = new Alu(I32_TYPE, aluOp, first, second, curBB);
                 }
             } else if (isCmp(op)) {
@@ -244,62 +244,56 @@ public class Visitor {
     }
 
     // if left: return address, else return value (generate load instruction)
-    private Value visitLVal(LVal lVal, boolean isRetPointer) throws SemanticException {
+    private Value visitLVal(LVal lVal, boolean needPointer) throws SemanticException {
         // 去符号表拿出指向这个左值的指针
         String ident = lVal.getIdent().getContent();
         Symbol symbol = currentSymTable.get(ident, true);
-        Value address = symbol.getAllocInst();
-        assert address instanceof Alloc;
-        // 处理数组的偏移寻址
-        // 遍历下标，逐层 getelementptr, 每层均进行一个解引用和一个偏移
+        Value pointer = symbol.getValue();
+        assert pointer instanceof Alloc;
+        assert pointer.getType() instanceof PointerType;
+        ArrayList<Value> idxList = new ArrayList<>();
+        idxList.add(CONST_0);
+        Type innerType = ((PointerType) pointer.getType()).getInnerType(); // 实体的类型
         for (Exp exp : lVal.getIndexes()) {
-            Value offset = visitExp(exp);
-            offset = trimTo(offset, I32_TYPE);
-            Type innerType = ((PointerType) address.getType()).getInnerType(); // 实体的类型
+            Value offset = trimTo(visitExp(exp), I32_TYPE);
             assert !(innerType instanceof BasicType);
-            Value elem;
-            // 实体是数组, 地址是数组指针, getelementptr 要有两层
-            // 实体是指针, 地址是二级指针, getelementptr 应有一层(仅在含有数组形参的函数中有), 同时还有个 load
             if (innerType instanceof PointerType) {
-                Instr loadInst = new Load(address, curBB);
-                new GetElementPtr(loadInst, offset, false);
-            } else {
-                assert innerType instanceof ArrayType;
+                // 参数, 如int a[][...][...]...
+                Instr loadInst = new Load(pointer, curBB);
+                if (__ONLY_PARSE_OUTSIDE_DIM) {
+                    pointer = new GetElementPtr(loadInst.getType(), loadInst, wrapImmutable(CONST_0, offset), curBB);
+                } else {
+                    idxList.add(offset);
+                }
+                innerType = ((PointerType) innerType).getInnerType();
+            } else if (innerType instanceof ArrayType) {
+                // 数组
                 innerType = ((ArrayType) innerType).getBase();
-                elem = Value.newVar(new PointerType(innerType));
-                curBB.insertAtEnd(new GetElementPtr(elem, address, offset, true));
-            }
-            address = elem;
-        }
-        assert address.getType() instanceof PointerType;
-        if (isRetPointer) {
-            // 如果作为左值, 一定不能是部分数组
-            // 是数组元素的条件: address
-            if (!(((PointerType) address.getType()).getInnerType() instanceof BasicType)) {
-                throw new SemanticException("Part-array cannot be left value");
-            }
-            assert ((PointerType) address.getType()).getInnerType() instanceof BasicType;
-            return address; // 返回一个可以直接 store i32 值的指针
-        } else {
-            // 如果是数组元素或者普通的值, 就 load; 如果是部分数组(仅用于函数传参), 应该得到一个降维的数组指针;
-            // 如果是将数组指针作为参数继续传递, 也需要 load 来解引用
-            Type baseType = ((PointerType) address.getType()).getInnerType();
-            if (baseType instanceof BasicType || baseType instanceof PointerType) {
-                Value val = Value.newVar(baseType);
-                curBB.insertAtEnd(new Load(val, address));
-                return val;
-            } else if (baseType instanceof ArrayType) {
-                // [2 x [3 x [4 x i32]]] a: a[2] -> int p[][4]
-                // &a: [2 x [3 x [4 x i32]]]*, &(a[2]): [3 x [4 x i32]]*, p: [4 x i32]*
-                // [3 x [4 x i32]] b: b[3] -> int p[][4]
-                // &b: [3 x [4 x i32]]*, &(b[3]): [4 x i32]*, p: i32*
-                // 数组解引用
-                Value ptr = Value.newVar(new PointerType(((ArrayType) baseType).getBase()));
-                curBB.insertAtEnd(new GetElementPtr(ptr, address, new Value.Num(0, BasicType.INT), true)); // ???
-                return ptr;
+                if (__ONLY_PARSE_OUTSIDE_DIM) {
+                    pointer = new GetElementPtr(new PointerType(innerType), pointer, wrapImmutable(CONST_0, offset), curBB);
+                } else {
+                    idxList.add(offset);
+                }
             } else {
-                throw new AssertionError("Bad baseType");
+                throw new AssertionError(String.format("lVal:(%s) visit fail", lVal));
             }
+        }
+        if (!__ONLY_PARSE_OUTSIDE_DIM && idxList.size() > 1) {
+            pointer = new GetElementPtr(new PointerType(innerType), pointer, idxList, curBB);
+        }
+        assert pointer.getType() instanceof PointerType;
+        if (needPointer) {
+            assert ((PointerType) pointer.getType()).getInnerType() instanceof BasicType;
+            return pointer; // 返回一个可以直接 store的指针
+        }
+        // 如果是数组元素或者普通的值, 就 load; 如果是部分数组(仅用于函数传参), 应该得到一个降维的数组指针;
+        // 如果是将数组指针作为参数继续传递, 也需要 load 来解引用
+        if (innerType instanceof BasicType || innerType instanceof PointerType) {
+            return new Load(pointer, curBB);
+        } else if (innerType instanceof ArrayType) {
+            return new GetElementPtr(new PointerType(((ArrayType) innerType).getBase()), pointer, wrapImmutable(CONST_0, CONST_0), curBB);
+        } else {
+            throw new AssertionError("Bad baseType");
         }
     }
 
@@ -512,88 +506,93 @@ public class Visitor {
 
     private void visitDecl(Decl decl) throws SemanticException {
         for (Def def : decl.getDefs()) {
-            boolean eval = (decl.isConstant()) || (curFunc == null); // 局部变量,可以运行时初始化
-            visitDef(def, decl.isConstant(), eval);
+            visitDef(def, decl.isConstant());
         }
     }
+
+    // private static final ArrayList<Value> const0Pair = new ArrayList<>(Collections.nCopies(2, CONST_0));
 
     private void initZeroHelper(Value pointer) {
-        // 将一整个局部数组利用 memset 全部初始化为零
-        // 一层一层拆类型并得到总大小
         assert pointer.getType() instanceof PointerType;
-        Type baseType = ((PointerType) pointer.getType()).getInnerType();
+        Type pointeeType = ((PointerType) pointer.getType()).getInnerType();
         Value ptr = pointer;
-        int size = 1;
-        while (baseType instanceof ArrayType) {
-            size *= ((ArrayType) baseType).getSize();
-            Type innerType = ((ArrayType) baseType).getBase();
-            Value innerPtr = Value.newVar(new PointerType(innerType));
-            curBB.insertAtEnd(new GetElementPtr(innerPtr, ptr, new Value.Num(0), true));
-            ptr = innerPtr;
-            baseType = innerType;
+        int size = 4;
+        ArrayList<Value> idxList = new ArrayList<>();
+        idxList.add(CONST_0);
+        while (pointeeType instanceof ArrayType) {
+            size *= ((ArrayType) pointeeType).getSize();
+            pointeeType = ((ArrayType) pointeeType).getBase();
+            if (__ONLY_PARSE_OUTSIDE_DIM) {
+                ptr = new GetElementPtr(new PointerType(pointeeType), ptr, wrapImmutable(CONST_0, CONST_0), curBB);
+            } else {
+                idxList.add(CONST_0);
+            }
         }
-        size *= 4; // sizeof int
-        // assert ptr.getType() instanceof PointerType && ((PointerType) ptr.getType()).getInnerType().equals(BasicType.INT);
-        new Instr.Call(FuncManager.ExternFunction.MEM_SET, wrap(CONST_0, new Constant.ConstantInt(size)), curBB);
+        if (!__ONLY_PARSE_OUTSIDE_DIM) {
+            ptr = new GetElementPtr(new PointerType(pointeeType), ptr, idxList, curBB);
+        }
+        new Instr.Call(FuncManager.ExternFunction.MEM_SET, wrapImmutable(ptr, CONST_0, new Constant.ConstantInt(size)), curBB);
     }
 
-    public ArrayList<Value> wrap(Value... values){
-        return new ArrayList<>(List.of(values));
+    public ArrayList<Value> wrapImmutable(Value... values) {
+        // return new ArrayList<>(List.of(values));
+        // 据说可add的写法里最高效
+        ArrayList<Value> arrayList = new ArrayList<>(values.length);
+        Collections.addAll(arrayList, values);
+        return arrayList;
     }
 
-    private void initHelper(Value pointer, Initial init) {
+    private void initLocalVarHelper(Value pointer, Initial init) {
         assert curBB != null && curFunc != null;
         Type type = pointer.getType();
         assert type instanceof PointerType;
         Type baseType = ((PointerType) type).getInnerType();
         if (init instanceof Initial.ExpInit) {
-            curBB.insertAtEnd(new Store(((Initial.ExpInit) init).getResult(), pointer));
+            new Store(((Initial.ExpInit) init).getResult(), pointer, curBB);
         } else if (init instanceof Initial.ValueInit) {
-            curBB.insertAtEnd(new Store(new Value.Num(((Initial.ValueInit) init).getValue()), pointer));
+            new Store(((Initial.ValueInit) init).getValue(), pointer, curBB);
         } else if (init instanceof Initial.ArrayInit) {
             Initial.ArrayInit arrayInit = (Initial.ArrayInit) init;
             assert baseType instanceof ArrayType;
             int len = arrayInit.length();
             for (int i = 0; i < len; i++) {
-                Value ptr = Value.newVar(new PointerType(((ArrayType) baseType).getBase()));
-                curBB.insertAtEnd(new GetElementPtr(ptr, pointer, new Value.Num(i), true));
-                initHelper(ptr, arrayInit.get(i));
+                PointerType pointeeType = new PointerType(((ArrayType) baseType).getBase());
+                ptr = new GetElementPtr(pointeeType, ptr, pointer, new Constant.ConstantInt(i), curBB);
+                initLocalVarHelper(ptr, arrayInit.get(i));
             }
         }
     }
 
-    private void visitDef(Def def, boolean constant, boolean eval) throws SemanticException {
+    private void visitDef(Def def, boolean constant) throws SemanticException {
+        boolean eval = constant || isGlobal;
         String ident = def.getIdent().getContent();
         if (currentSymTable.contains(ident, false)) {
             throw new SemanticException("Duplicated variable definition");
         }
-        Type type = I32_TYPE;
+        Type pointeeType = switch (def.bType) {
+            case INT -> I32_TYPE;
+            case FLOAT -> F32_TYPE;
+            default -> throw new SemanticException(String.format("Wrong bType: %s", def.bType));
+        };
         // 编译期计算数组每一维的长度，然后从右向左"组装"成数组类型
         ArrayList<Integer> lengths = new ArrayList<>();
         for (Exp len : def.getIndexes()) {
-            lengths.add(new Evaluate(currentSymTable, true).evalIntExp(len));
+            lengths.add(Evaluate.evalConstIntExp(len));
         }
         for (int i = lengths.size() - 1; i >= 0; i--) {
             int len = lengths.get(i);
-            type = new ArrayType(len, type);
-        }
-        // 构造该类型的指针
-        Value pointer;
-        if (!isGlobal()) {
-            pointer = Value.newVar(new PointerType(type)); // 局部变量
-        } else {
-            pointer = new Value(ident, new PointerType(type), true, constant); // 全局变量
+            pointeeType = new ArrayType(len, pointeeType);
         }
         // 解析其初始化内容
         Init astInit = def.getInit();
         Initial init = null;
         if (astInit != null) {
-            if (type instanceof BasicType) {
+            if (pointeeType instanceof BasicType) {
                 if (!(astInit instanceof Exp)) {
                     throw new SemanticException("Value variable not init by value");
                 }
                 if (eval) {
-                    init = visitInitVal((Exp) astInit, constant || isGlobal());
+                    init = visitInitVal((Exp) astInit, eval);
                 } else {
                     init = visitInitExp((Exp) astInit);
                 }
@@ -602,33 +601,36 @@ public class Visitor {
                 if (!(astInit instanceof InitArray)) {
                     throw new SemanticException("Array variable not init by a list");
                 }
-                init = visitInitArray((InitArray) astInit, (ArrayType) type, constant, eval);
+                init = visitInitArray((InitArray) astInit, (ArrayType) pointeeType, constant, eval);
             }
         }
         // 如果是全局变量且没有初始化，则初始化为零
-        if (isGlobal() && init == null) {
-            if (type instanceof BasicType) {
-                init = new Initial.ValueInit(0, type);
+        if (isGlobal && init == null) {
+            if (pointeeType instanceof BasicType) {
+                init = new Initial.ValueInit(CONST_0, pointeeType);
             } else {
-                init = new Initial.ZeroInit(type);
+                init = new Initial.ZeroInit(pointeeType);
             }
         }
-        // 构建符号表项并插入符号表
-        Symbol symbol = new Symbol(ident, type, init, constant, pointer);
-        currentSymTable.add(symbol);
         // 全局: 直接给出初始化结果, 局部: 分配空间, store + memset 初始化的值
-        if (curFunc == null) {
-            // 全局
-            funcManager.addGlobal(symbol);
-        } else {
+        Value pointer;
+        if (!isGlobal) {
             // 局部
             // 分配的空间指向 pointer
             assert curBB != null;
-            curBB.insertAtEnd(new Alloc(pointer, type));
-            if (type instanceof ArrayType) {
+            pointer = new Alloc(pointeeType, curBB);
+            if (pointeeType instanceof ArrayType) {
                 initZeroHelper(pointer);
             }
-            initHelper(pointer, init); // 生成初始化
+            initLocalVarHelper(pointer, init); // 生成初始化
+        } else {
+            pointer = new GlobalVal.GlobalValue(pointeeType, def, init);
+        }
+        // 构建符号表项并插入符号表
+        Symbol symbol = new Symbol(ident, pointeeType, init, constant, pointer);
+        currentSymTable.add(symbol);
+        if (isGlobal) {
+            funcManager.addGlobal(symbol);
         }
     }
 
@@ -671,7 +673,7 @@ public class Visitor {
     }
 
     private Initial.ValueInit visitInitVal(BasicType basicType, Exp exp, boolean constant) throws SemanticException {
-        int eval = new Evaluate(currentSymTable, constant).evalIntExp(exp);
+        int eval = Evaluate.evalConstExp(exp);
         return new Initial.ValueInit(eval, basicType);
     }
 
@@ -693,6 +695,7 @@ public class Visitor {
         if (funcManager.getFunctions().containsKey(ident)) {
             throw new SemanticException("Duplicated function defined");
         }
+        isGlobal = false;
         // 入口基本块
         BasicBlock entry = new BasicBlock();
         curBB = entry;
@@ -727,6 +730,7 @@ public class Visitor {
         currentSymTable = currentSymTable.getParent();
         curBB = null;
         curFunc = null;
+        isGlobal = true;
     }
 
     private Type visitFuncFParam(FuncFParam funcFParam) throws SemanticException {
@@ -736,7 +740,7 @@ public class Visitor {
         } else {
             ArrayList<Integer> lengths = new ArrayList<>();
             for (Exp index : funcFParam.getSizes()) {
-                int len = new Evaluate(currentSymTable, true).evalIntExp(index);
+                int len = Evaluate.evalConstIntExp(index);
                 lengths.add(len);
             }
             Type paramType = getBasicType(funcFParam);

@@ -45,9 +45,9 @@ public abstract class Initial {
     }
 
     public static class ValueInit extends Initial {
-        private final int value;
+        private final Value value;
 
-        public ValueInit(int value, Type type) {
+        public ValueInit(Value value, Type type) {
             super(type);
             this.value = value;
         }
@@ -57,12 +57,13 @@ public abstract class Initial {
             return getType() + " " + value;
         }
 
-        public int getValue() {
+        public Value getValue() {
             return this.value;
         }
         
     }
 
+    // 初值为0的初始化
     public static class ZeroInit extends Initial {
     
         public ZeroInit(Type type) {

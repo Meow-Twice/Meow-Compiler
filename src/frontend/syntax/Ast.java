@@ -1,6 +1,7 @@
 package frontend.syntax;
 
 import frontend.lexer.Token;
+import frontend.lexer.TokenType;
 
 import java.util.ArrayList;
 
@@ -47,14 +48,17 @@ public class Ast {
     // Def -> Ident {'[' Exp ']'} ['=' Init]
     public static class Def {
 
+        public TokenType bType;
         public Token ident;
         public ArrayList<Exp> indexes;
         public Init init;
 
-        public Def(Token ident, ArrayList<Exp> indexes, Init init) {
+        public Def(TokenType bType, Token ident, ArrayList<Exp> indexes, Init init) {
+            assert bType != null;
             assert ident != null;
             assert indexes != null;
             assert init != null;
+            this.bType = bType;
             this.ident = ident;
             this.indexes = indexes;
             this.init = init;

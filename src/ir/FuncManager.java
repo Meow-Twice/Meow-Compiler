@@ -5,11 +5,8 @@ import frontend.semantic.symbol.Symbol;
 import ir.type.Type;
 
 import java.util.*;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static ir.Function.Param.wrapParam;
-import static ir.type.DataType.I32;
 import static ir.type.Type.BasicType.F32_TYPE;
 import static ir.type.Type.BasicType.I32_TYPE;
 
@@ -49,7 +46,7 @@ public class FuncManager {
 
     public void addGlobal(Symbol symbol) {
         assert symbol.getInitial() != null;
-        globals.putIfAbsent(symbol.getAllocInst(), symbol.getInitial());
+        globals.putIfAbsent(symbol.getValue(), symbol.getInitial());
     }
 
     public void addFunction(Function function) {

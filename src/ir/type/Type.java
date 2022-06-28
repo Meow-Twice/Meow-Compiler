@@ -157,10 +157,22 @@ public class Type {
             return this.size;
         }
 
+        public int getFlattenSize(){
+            if(base instanceof BasicType){
+                return size;
+            }
+            assert base.isArrType();
+            return ((ArrayType) base).getFlattenSize();
+        }
+
         public Type getBase() {
             return this.base;
         }
 
+    }
+
+    private boolean isArrType() {
+        return this instanceof ArrayType;
     }
 
     public static class PointerType extends Type {

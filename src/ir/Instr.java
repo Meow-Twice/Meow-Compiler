@@ -490,7 +490,7 @@ public class Instr extends Value {
 
         // e.g. a is [10 x i32]*: a[3] -> %v1 = getelementptr inbounds [10 x i32], [10 x i32]* %a, i32 0, i32 3 ; 第一个 i32 0 表示解引用前不偏移(固定)，第二个才是解引用后的偏移
         // e.g. a is i32*: a[3] -> %v1 = getelementptr inbounds i32, i32* %a, i32 3
-        public GetElementPtr(Type pointeeType, Value ptr, ArrayList<Value> idxList, boolean array, BasicBlock basicBlock) {
+        public GetElementPtr(Type pointeeType, Value ptr, ArrayList<Value> idxList, BasicBlock basicBlock) {
             super(pointeeType, basicBlock);
             setUse(ptr, 0);
             int i = 1;

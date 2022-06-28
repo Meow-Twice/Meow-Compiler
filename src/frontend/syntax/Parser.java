@@ -38,16 +38,16 @@ public class Parser {
         }
         else { constant = false; }
         Token bType = tokenList.consumeExpected(TokenType.INT);
-        defs.add(parseDef(constant));
+        defs.add(parseDef(bType, constant));
         while (tokenList.get().isOf(TokenType.COMMA)) {
             tokenList.consume();
-            defs.add(parseDef(constant));
+            defs.add(parseDef(bType, constant));
         }
         tokenList.consumeExpected(TokenType.SEMI);
         return new Ast.Decl(constant, bType, defs);
     }
 
-    private Ast.Def parseDef(boolean constant) throws SyntaxException {
+    private Ast.Def parseDef(Token bType, boolean constant) throws SyntaxException {
         Token ident = tokenList.consumeExpected(TokenType.IDENT);
         ArrayList<Ast.Exp> indexes = new ArrayList<>();
         Ast.Init init = null;
@@ -66,7 +66,7 @@ public class Parser {
                 init = parseInitVal();
             }
         }
-        return new Ast.Def(ident, indexes, init);
+        return new Ast.Def(bType.getType(), ident, indexes, init);
     }
 
     private Ast.Init parseInitVal() throws SyntaxException {

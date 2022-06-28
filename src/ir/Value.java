@@ -51,14 +51,11 @@ public class Value extends ILinkNode {
         return (Use) begin.getNext();
     }
 
-    public void modifyUsedToA(Value A) {
+    public void modifyAllUseThisToUseA(Value A) {
         Use use = (Use) begin.getNext();
         while (use.getNext() != null) {
             Instr user = use.getUser();
             user.modifyUse(this, A, use.getIdx());
-
-            Use update = new Use(use.getUser(), A, use.getIdx());
-            A.insertAtEnd(update);
         }
     }
 }

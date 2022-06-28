@@ -1,10 +1,11 @@
 package midEnd;
 
 import ir.*;
-import ir.type.Type;
 
+import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Stack;
 
 //插phi并重命名
 public class Mem2Reg {
@@ -42,6 +43,7 @@ public class Mem2Reg {
     }
 
     public void remove(Instr instr) {
+        //def 和 use 是指 定义/使用了 alloc出的那块内存地址
         HashSet<BasicBlock> defBBs = new HashSet<>();
         HashSet<BasicBlock> useBBs = new HashSet<>();
         HashSet<Instr> defInstrs = new HashSet<>();
@@ -72,7 +74,7 @@ public class Mem2Reg {
                     def = temp;
                 }
                 for (Instr use: useInstrs) {
-                    use.modifyUsedToA(((Instr.Store) def).getValue());
+                    use.modifyAllUseThisToUseA(((Instr.Store) def).getValue());
                 }
             } else {
                 BasicBlock defBB = null;
@@ -86,14 +88,14 @@ public class Mem2Reg {
                     if (defInstrs.contains(BB_pos)) {
                         reachDef = BB_pos;
                     } else if (useInstrs.contains(BB_pos)) {
-                        BB_pos.modifyUsedToA(reachDef);
+                        BB_pos.modifyAllUseThisToUseA(reachDef);
                     }
                 }
 
-                //TODO:对于未定义的使用,是否不必要进行定义
+                //TODO:对于未定义的使用,是否不必要进行定义,当前实现方法为所有其他BB的use认为使用了唯一的reachDef
                 for (Instr userInstr: useInstrs) {
                     if (!userInstr.parentBB().equals(defBB)) {
-                        userInstr.modifyUsedToA(reachDef);
+                        userInstr.modifyAllUseThisToUseA(reachDef);
                     }
                 }
             }
@@ -105,7 +107,35 @@ public class Mem2Reg {
             }
         } else {
             //TODO:多个块store 此Alloc指令申请的空间
+            HashSet<BasicBlock> F = new HashSet<>();
+            HashSet<BasicBlock> W = new HashSet<>();
 
+            W.addAll(defBBs);
+
+            while (!W.isEmpty()) {
+                BasicBlock X = getRandFromHashSet(W);
+                W.remove(X);
+                for (BasicBlock Y: X.getDF()) {
+                    if (!F.contains(Y)) {
+                        F.add(Y);
+                        if (!defBBs.contains(Y)) {
+                            W.add(Y);
+                        }
+                    }
+                }
+            }
+
+            for (BasicBlock bb: F) {
+                //TODO:添加phi指令
+                //new phi
+                //useInstrs.add(phi);
+                //defInstrs.add(phi);
+                //bb.insertAtEnd();
+            }
+
+            //TODO:Rename
+            Stack<Value> S = new Stack<>();
+            RenameDFS(S, instr.parentBB().getFunction().getBeginBB(), useInstrs, defInstrs);
         }
 
 
@@ -114,7 +144,48 @@ public class Mem2Reg {
         instr.remove();
     }
 
+    public void RenameDFS(Stack<Value> S, BasicBlock X, HashSet<Instr> useInstrs, HashSet<Instr> defInstrs) {
+        int cnt = 0;
+        Instr A = X.getBeginInstr();
+        while (A.getNext() != null) {
+            if (!(A instanceof Instr.Phi) && useInstrs.contains(A)) {
+                assert A instanceof Instr.Load;
+                A.modifyAllUseThisToUseA(S.peek());
+            }
+            if (defInstrs.contains(A)) {
+                assert A instanceof Instr.Store || A instanceof Instr.Phi;
+                S.push(A);
+                cnt++;
+            }
+        }
+        ArrayList<BasicBlock> Succ = X.getSuccBBs();
+        for (int i = 0; i < Succ.size(); i++) {
+            Instr instr = Succ.get(i).getBeginInstr();
+            while (instr.getNext() != null) {
+                if (!(instr instanceof Instr.Phi)) {
+                    break;
+                }
+                if (defInstrs.contains(instr)) {
+                    instr.modifyUse(instr, i);
+                }
+            }
+        }
 
+        for (BasicBlock next: X.getIdoms()) {
+            RenameDFS(S, next, useInstrs, defInstrs);
+        }
+
+        for (int i = 0; i < cnt; i++) {
+            S.pop();
+        }
+    }
+
+    public BasicBlock getRandFromHashSet(HashSet<BasicBlock> hashSet) {
+        for (BasicBlock bb: hashSet) {
+            return bb;
+        }
+        return null;
+    }
 
 
 }

@@ -88,6 +88,15 @@ public class Instr extends Value {
         now.insertAtEnd(use);
     }
 
+    public void modifyUse(Value now, int index) {
+        Value old = useValueList.get(index);
+        old.remove();
+        Use use = new Use(this, now, index);
+        this.useList.set(index, use);
+        this.useValueList.set(index, now);
+        now.insertAtEnd(use);
+    }
+
     public boolean isDefInstr() {
         return !(this instanceof Alloc || this instanceof Store || this instanceof Call
                     || this instanceof Branch || this instanceof Return);

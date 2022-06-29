@@ -5,6 +5,7 @@ import frontend.semantic.Visitor;
 import ir.FuncManager;
 import frontend.syntax.Ast;
 import frontend.syntax.Parser;
+import midEnd.MidEndRunner;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -41,6 +42,8 @@ public class MeowCompiler {
             visitor.__ONLY_PARSE_OUTSIDE_DIM = true;
             visitor.visitAst(ast);
             FuncManager funcManager = visitor.getIr();
+            MidEndRunner midEndRunner = new MidEndRunner(funcManager.getFunctionList());
+            midEndRunner.Run();
             funcManager.output();
         } catch (Exception e) {
             e.printStackTrace();

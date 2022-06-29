@@ -19,6 +19,16 @@ public class FuncManager {
     private final Map<Value, Initial> globals = new HashMap<>();
     private final Map<String, Function> functions = new HashMap<>(); // 函数定义
 
+    public ArrayList<Function> getFunctionList() {
+        ArrayList<Function> list = new ArrayList<>();
+        for (Function function : functions.values()) {
+            if (function.hasBody()) {
+                list.add(function);
+            }
+        }
+        return list;
+    }
+
     public static class ExternFunction {
         public static final Function GET_INT = new Function("getint", new ArrayList<>(), I32_TYPE);
         public static final Function GET_CH = new Function("getch", new ArrayList<>(), I32_TYPE);
@@ -82,9 +92,9 @@ public class FuncManager {
         return this.globals;
     }
 
-    
+
     public Map<String, Function> getFunctions() {
         return this.functions;
     }
-    
+
 }

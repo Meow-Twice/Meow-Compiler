@@ -37,6 +37,7 @@ public class FuncManager {
         public static final Function GET_FARR = new Function("getfarray", wrapParam(new Type.PointerType(F32_TYPE)), I32_TYPE);
         public static final Function PUT_INT = new Function("putint", wrapParam(I32_TYPE), Type.VoidType.getVoidType());
         public static final Function PUT_CH = new Function("putch", wrapParam(I32_TYPE), Type.VoidType.getVoidType());
+        public static final Function PUT_FLOAT = new Function("putfloat", wrapParam(F32_TYPE), Type.VoidType.getVoidType());
         public static final Function PUT_ARR = new Function("putarray", wrapParam(I32_TYPE, new Type.PointerType(I32_TYPE)), Type.VoidType.getVoidType());
         public static final Function PUT_FARR = new Function("putfarray", wrapParam(I32_TYPE, new Type.PointerType(F32_TYPE)), Type.VoidType.getVoidType());
         public static final Function MEM_SET = new Function("memset", wrapParam(new Type.PointerType(I32_TYPE), I32_TYPE, I32_TYPE), Type.VoidType.getVoidType());
@@ -50,6 +51,7 @@ public class FuncManager {
         addFunction(ExternFunction.GET_FARR);
         addFunction(ExternFunction.PUT_INT);
         addFunction(ExternFunction.PUT_CH);
+        addFunction(ExternFunction.PUT_FLOAT);
         addFunction(ExternFunction.PUT_ARR);
         addFunction(ExternFunction.PUT_FARR);
         addFunction(ExternFunction.MEM_SET);

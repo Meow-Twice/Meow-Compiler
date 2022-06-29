@@ -2,16 +2,15 @@ import frontend.lexer.Lexer;
 import frontend.lexer.Token;
 import frontend.lexer.TokenList;
 import frontend.semantic.Visitor;
-import ir.FuncManager;
 import frontend.syntax.Ast;
 import frontend.syntax.Parser;
-import midEnd.MidEndRunner;
+import ir.FuncManager;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 
-public class MeowCompiler {
+public class Compiler {
 
     public static final boolean OUTPUT_LEX = false;
 

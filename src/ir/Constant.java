@@ -10,6 +10,10 @@ public class Constant extends Value {
         this.type = type;
     }
 
+    public Object getConstVal() {
+        return null;
+    }
+
     public static class ConstantInt extends Constant {
         int constIntVal;
 
@@ -39,6 +43,11 @@ public class Constant extends Value {
         }
 
         @Override
+        public Object getConstVal() {
+            return constIntVal;
+        }
+
+        @Override
         public String getDescriptor() {
             return String.valueOf(constIntVal);
         }
@@ -65,6 +74,11 @@ public class Constant extends Value {
         public ConstantFloat(float val) {
             super(Type.BasicType.getF32Type());
             constFloatVal = val;
+        }
+
+        @Override
+        public Object getConstVal() {
+            return constFloatVal;
         }
 
         @Override

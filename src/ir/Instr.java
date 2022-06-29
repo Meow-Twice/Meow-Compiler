@@ -211,7 +211,7 @@ public class Instr extends Value {
 
         }
 
-        private final Op op;
+        private Op op;
 
         public Icmp(Op op, Value op1, Value op2, BasicBlock curBB) {
             super(BasicType.getI1Type(), curBB);
@@ -237,6 +237,9 @@ public class Instr extends Value {
             return this.op;
         }
 
+        public Op setOp(Op op) {
+            return this.op = op;
+        }
         public Value getRVal1() {
             return useValueList.get(0);
         }
@@ -297,7 +300,7 @@ public class Instr extends Value {
 
         public Fcmp(Op op, Value op1, Value op2, BasicBlock curBB) {
             super(BasicType.getI1Type(), curBB);
-            assert op1.type.isInt32Type() && op2.type.isInt32Type();
+            assert op1.type.isFloatType() && op2.type.isFloatType();
             this.op = op;
             setUse(op1, 0);
             setUse(op2, 1);
@@ -305,7 +308,7 @@ public class Instr extends Value {
 
         public Fcmp(Op op, Value op1, Value op2, Instr insertBefore) {
             super(BasicType.getI1Type(), insertBefore);
-            assert op1.type.isInt32Type() && op2.type.isInt32Type();
+            assert op1.type.isFloatType() && op2.type.isFloatType();
             this.op = op;
             setUse(op1, 0);
             setUse(op2, 1);
@@ -432,13 +435,11 @@ public class Instr extends Value {
         //TODO:修改toString()方法添加指令的Type
         public Load(Value pointer, BasicBlock parentBB) {
             super(((PointerType) pointer.getType()).getInnerType(), parentBB);
-            assert type.equals(pointer.type);
             setUse(pointer, 0);
         }
 
         public Load(Value pointer, Instr insertBefore) {
             super(((PointerType) pointer.getType()).getInnerType(), insertBefore);
-            assert type.equals(pointer.type);
             setUse(pointer, 0);
         }
 

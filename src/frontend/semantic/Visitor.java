@@ -191,8 +191,22 @@ public class Visitor {
                     primary = new Fcmp(Fcmp.Op.OEQ, primary, CONST_0F, curBB);
                 else if (primary.getType().isInt32Type())
                     primary = new Icmp(Icmp.Op.EQ, primary, CONST_0, curBB);
-                else
-                    throw new AssertionError(String.format("Bad primary ! %s", primary));
+                else {
+                    assert primary.getType().isInt1Type();
+                    primary = trimTo(primary, I32_TYPE);
+                    primary = new Icmp(Icmp.Op.NE, primary, CONST_0, curBB);
+                    // TODO: 大胆而激进的做法
+                    // 有非仅下面一条指令调用的风险
+                    // if(primary instanceof Icmp){
+                    //     Icmp icmp = (Icmp) primary;
+                    //     switch (icmp.getOp()){
+                    //         case EQ -> icmp.setOp(Icmp.Op.NE);
+                    //         case NE -> icmp.setOp(Icmp.Op.EQ);
+                    //         case SGE -> icmp.setOp()
+                    //     }
+                    // }
+                    // throw new AssertionError(String.format("Bad primary ! %s", primary));
+                }
             } else {
                 if (op.getType() == TokenType.SUB) {
                     if (primary.getType().isFloatType())
@@ -248,7 +262,7 @@ public class Visitor {
         String ident = lVal.getIdent().getContent();
         Symbol symbol = currentSymTable.get(ident, true);
         Value pointer = symbol.getValue();
-        assert pointer instanceof Alloc;
+        // assert pointer instanceof Alloc;
         assert pointer.getType() instanceof PointerType;
         ArrayList<Value> idxList = new ArrayList<>();
         idxList.add(CONST_0);
@@ -393,9 +407,9 @@ public class Visitor {
             elseBlock = new BasicBlock(curFunc);
         }
         BasicBlock followBlock = new BasicBlock(curFunc);
-        Value cond = visitCondLOr(ifStmt.getCond(), thenBlock, elseBlock);
-        assert cond.getType().isInt1Type();
         if (hasElseBlock) {
+            Value cond = visitCondLOr(ifStmt.getCond(), thenBlock, elseBlock);
+            assert cond.getType().isInt1Type();
             new Branch(cond, thenBlock, elseBlock, curBB);
             curBB = thenBlock;
             visitStmt(thenTarget);
@@ -403,6 +417,8 @@ public class Visitor {
             curBB = elseBlock;
             visitStmt(elseTarget);
         } else {
+            Value cond = visitCondLOr(ifStmt.getCond(), thenBlock, followBlock);
+            assert cond.getType().isInt1Type();
             new Branch(cond, thenBlock, followBlock, curBB);
             curBB = thenBlock;
             visitStmt(thenTarget); // currentBlock may be modified
@@ -670,14 +686,27 @@ public class Visitor {
 
     private Initial.ValueInit visitInitVal(BasicType basicType, Exp exp) throws SemanticException {
         Object eval = Evaluate.evalConstExp(exp);
-        switch (basicType.dataType) {
-            case I32 -> {
-                return new Initial.ValueInit(new Constant.ConstantInt((int) eval), I32_TYPE);
+        if (eval instanceof Integer) {
+            switch (basicType.dataType) {
+                case I32 -> {
+                    return new Initial.ValueInit(new Constant.ConstantInt((int) eval), I32_TYPE);
+                }
+                case F32 -> {
+                    return new Initial.ValueInit(new Constant.ConstantFloat((float) ((int) eval)), F32_TYPE);
+                }
+                default -> throw new SemanticException("Wrong init type: " + basicType);
             }
-            case F32 -> {
-                return new Initial.ValueInit(new Constant.ConstantFloat((float) eval), F32_TYPE);
+        } else {
+            assert eval instanceof Float;
+            switch (basicType.dataType) {
+                case I32 -> {
+                    return new Initial.ValueInit(new Constant.ConstantInt((int) ((float) eval)), I32_TYPE);
+                }
+                case F32 -> {
+                    return new Initial.ValueInit(new Constant.ConstantFloat((float) eval), F32_TYPE);
+                }
+                default -> throw new SemanticException("Wrong init type: " + basicType);
             }
-            default -> throw new SemanticException("Wrong init type: " + basicType);
         }
     }
 

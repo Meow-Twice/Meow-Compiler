@@ -5,6 +5,8 @@ import frontend.lexer.Token;
 import frontend.semantic.symbol.SymTable;
 import frontend.semantic.symbol.Symbol;
 import frontend.syntax.Ast;
+import ir.Constant;
+import ir.Value;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -33,23 +35,30 @@ public class Evaluate {
     public static Object evalConstExp(Ast.Exp exp) throws SemanticException {
         Object ret;
         if (exp instanceof Ast.BinaryExp) {
-            ret =  evalBinaryConstExp((Ast.BinaryExp) exp);
+            ret = evalBinaryConstExp((Ast.BinaryExp) exp);
         } else if (exp instanceof Ast.UnaryExp) {
-            ret =  evalUnaryConstExp((Ast.UnaryExp) exp);
+            ret = evalUnaryConstExp((Ast.UnaryExp) exp);
         } else {
             throw new AssertionError("Bad Exp:" + exp);
         }
         boolean isFloat = ret instanceof Float;
-        boolean isInt =  ret instanceof Integer;
+        boolean isInt = ret instanceof Integer;
         assert ret instanceof Float || ret instanceof Integer;
         return ret;
     }
 
+    /***
+     * src1或src2中只要有Float，就将其提升为float运算，否则按照int运算
+     * @param op
+     * @param src1
+     * @param src2
+     * @return Integer或Float对象
+     */
     // 二元运算
     private static Object binaryCalcHelper(Token op, Object src1, Object src2) {
         if (src1 instanceof Float || src2 instanceof Float) {
-            Float f1 = (float) src1;
-            Float f2 = (float) src2;
+            float f1 = src1 instanceof Integer ? (float) ((int) src1) : (float) src1;
+            float f2 = src2 instanceof Integer ? (float) ((int) src2) : (float) src2;
             return switch (op.getType()) {
                 case ADD -> f1 + f2;
                 case SUB -> f1 - f2;
@@ -60,8 +69,8 @@ public class Evaluate {
             };
         } else {
             assert src1 instanceof Integer && src2 instanceof Integer;
-            Integer i1 = (int) src1;
-            Integer i2 = (int) src2;
+            int i1 = (int) src1;
+            int i2 = (int) src2;
             return switch (op.getType()) {
                 case ADD -> i1 + i2;
                 case SUB -> i1 - i2;
@@ -177,6 +186,8 @@ public class Evaluate {
         if (!(init instanceof Initial.ValueInit)) {
             throw new SemanticException("Should be Value Init");
         }
-        return ((Initial.ValueInit) init).getValue(); // 取出初始值
+        Value ret = ((Initial.ValueInit) init).getValue(); // 取出初始值
+        assert ret instanceof Constant;
+        return ((Constant) ret).getConstVal();
     }
 }

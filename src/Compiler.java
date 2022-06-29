@@ -4,7 +4,7 @@ import frontend.lexer.TokenList;
 import frontend.semantic.Visitor;
 import frontend.syntax.Ast;
 import frontend.syntax.Parser;
-import ir.FuncManager;
+import mir.FuncManager;
 
 import java.io.BufferedReader;
 import java.io.IOException;

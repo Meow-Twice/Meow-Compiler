@@ -1,6 +1,6 @@
-package midEnd;
+package midend;
 
-import ir.Function;
+import mir.Function;
 
 import java.util.ArrayList;
 

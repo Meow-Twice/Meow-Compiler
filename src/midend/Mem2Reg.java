@@ -1,9 +1,8 @@
-package midEnd;
+package midend;
 
-import ir.*;
-import ir.type.Type;
+import mir.*;
+import mir.type.Type;
 
-import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Stack;

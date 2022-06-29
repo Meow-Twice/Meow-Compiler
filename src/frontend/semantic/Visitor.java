@@ -7,15 +7,15 @@ import frontend.lexer.TokenType;
 import frontend.semantic.symbol.SymTable;
 import frontend.semantic.symbol.Symbol;
 import frontend.syntax.Ast;
-import ir.*;
-import ir.Instr.*;
-import ir.type.Type;
+import mir.*;
+import mir.Instr.*;
+import mir.type.Type;
 
 import java.util.*;
 
-import static ir.Constant.ConstantFloat.CONST_0F;
-import static ir.Constant.ConstantInt.CONST_0;
-import static ir.type.Type.BasicType.*;
+import static mir.Constant.ConstantFloat.CONST_0F;
+import static mir.Constant.ConstantInt.CONST_0;
+import static mir.type.Type.BasicType.*;
 
 /**
  * 遍历语法树, 生成 IR 代码

@@ -1,4 +1,4 @@
-package ir;
+package mir;
 
 import util.ILinkNode;
 

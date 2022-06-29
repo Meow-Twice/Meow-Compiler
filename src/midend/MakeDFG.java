@@ -1,8 +1,8 @@
-package midEnd;
+package midend;
 
-import ir.BasicBlock;
-import ir.Function;
-import ir.Instr;
+import mir.BasicBlock;
+import mir.Function;
+import mir.Instr;
 
 import java.util.ArrayList;
 import java.util.HashMap;

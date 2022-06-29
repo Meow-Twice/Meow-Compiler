@@ -1,15 +1,15 @@
-package ir;
+package mir;
 
 import frontend.semantic.Initial;
 import frontend.semantic.symbol.Symbol;
-import ir.type.Type;
+import mir.type.Type;
 import util.FileDealer;
 
 import java.util.*;
 
-import static ir.Function.Param.wrapParam;
-import static ir.type.Type.BasicType.F32_TYPE;
-import static ir.type.Type.BasicType.I32_TYPE;
+import static mir.Function.Param.wrapParam;
+import static mir.type.Type.BasicType.F32_TYPE;
+import static mir.type.Type.BasicType.I32_TYPE;
 
 /**
  * LLVM IR

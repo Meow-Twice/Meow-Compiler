@@ -5,8 +5,8 @@ import frontend.lexer.Token;
 import frontend.semantic.symbol.SymTable;
 import frontend.semantic.symbol.Symbol;
 import frontend.syntax.Ast;
-import ir.Constant;
-import ir.Value;
+import mir.Constant;
+import mir.Value;
 
 import java.util.ArrayList;
 import java.util.Iterator;

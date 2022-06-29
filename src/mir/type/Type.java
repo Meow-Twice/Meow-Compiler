@@ -1,4 +1,4 @@
-package ir.type;
+package mir.type;
 
 import java.util.Objects;
 

@@ -1,8 +1,8 @@
 package frontend.semantic.symbol;
 
 import frontend.semantic.Initial;
-import ir.Value;
-import ir.type.Type;
+import mir.Value;
+import mir.type.Type;
 
 /**
  * 符号表中的一条符号信息

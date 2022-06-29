@@ -1,4 +1,4 @@
-package midEnd;
+package midend;
 
 public class Rename {
 }

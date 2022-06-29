@@ -1,7 +1,7 @@
-package ir;
+package mir;
 
-import ir.type.Type;
-import ir.type.Type.*;
+import mir.type.Type;
+import mir.type.Type.*;
 
 import java.util.ArrayList;
 import java.util.Objects;

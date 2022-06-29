@@ -1,4 +1,4 @@
-package ir.type;
+package mir.type;
 
 public enum DataType{
     I32("i32"), F32("float"), I1("i1");

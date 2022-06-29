@@ -1,6 +1,6 @@
-package ir;
+package mir;
 
-import ir.type.Type;
+import mir.type.Type;
 import util.ILinkNode;
 
 public class Value extends ILinkNode {

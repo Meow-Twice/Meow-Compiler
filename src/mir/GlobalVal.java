@@ -1,8 +1,8 @@
-package ir;
+package mir;
 
 import frontend.semantic.Initial;
 import frontend.syntax.Ast;
-import ir.type.Type;
+import mir.type.Type;
 
 public class GlobalVal extends Value {
     public GlobalVal(Type type) {

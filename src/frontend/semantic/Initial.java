@@ -1,8 +1,7 @@
 package frontend.semantic;
 
-import ir.Value;
-import ir.type.Type;
-import ir.Value;
+import mir.Value;
+import mir.type.Type;
 
 import java.util.ArrayList;
 

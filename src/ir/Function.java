@@ -1,6 +1,5 @@
 package ir;
 
-import ir.type.DataType;
 import ir.type.Type;
 import util.ILinkNode;
 
@@ -184,6 +183,7 @@ public class Function extends Value{
         return "define dso_local " + getTypeStr() + " @" + name + "(" + paramList + ") {\n" + body + "}\n";
     }
 
+    @Override
     public String getName() {
         return this.name;
     }

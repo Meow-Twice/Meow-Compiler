@@ -558,19 +558,25 @@ public class Visitor {
         Type type = pointer.getType();
         assert type instanceof PointerType;
         Type baseType = ((PointerType) type).getInnerType();
-        if (init instanceof Initial.ExpInit) {
-            new Store(((Initial.ExpInit) init).getResult(), pointer, curBB);
-        } else if (init instanceof Initial.ValueInit) {
-            new Store(((Initial.ValueInit) init).getValue(), pointer, curBB);
-        } else if (init instanceof Initial.ArrayInit) {
+        if (init instanceof Initial.ArrayInit) {
             Initial.ArrayInit arrayInit = (Initial.ArrayInit) init;
             assert baseType instanceof ArrayType;
             int len = arrayInit.length();
             for (int i = 0; i < len; i++) {
                 // PointerType pointeeType = new PointerType(((ArrayType) baseType).getBase());
-                Value ptr = new GetElementPtr(baseType, pointer, wrapImmutable(CONST_0, new Constant.ConstantInt(i)), curBB);
+                Value ptr = new GetElementPtr(((ArrayType) baseType).getBaseEleType(), pointer, wrapImmutable(CONST_0, new Constant.ConstantInt(i)), curBB);
                 initLocalVarHelper(ptr, arrayInit.get(i));
             }
+        } else {
+            Value v;
+            if (init instanceof Initial.ExpInit) {
+                v = trimTo(((Initial.ExpInit) init).getResult(), (BasicType) baseType);
+            } else if (init instanceof Initial.ValueInit) {
+                v = trimTo(((Initial.ValueInit) init).getValue(), (BasicType) baseType);
+            } else {
+                throw new AssertionError("wrong init: " + init + "\nfor: " + pointer);
+            }
+            new Store(v, pointer, curBB);
         }
     }
 

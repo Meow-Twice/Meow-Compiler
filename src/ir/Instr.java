@@ -4,7 +4,6 @@ import ir.type.Type;
 import ir.type.Type.*;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Objects;
 
 /**
@@ -19,7 +18,7 @@ public class Instr extends Value {
     //TODO:添加一个hash标记,是否比比较arraylist的equal方法快且保险(正确性)
     public String hash = "Instr " + instr_cnt++;
 
-    public BasicBlock parentBB(){
+    public BasicBlock parentBB() {
         return bb;
     }
 
@@ -100,7 +99,7 @@ public class Instr extends Value {
 
     public boolean isDefInstr() {
         return !(this instanceof Alloc || this instanceof Store || this instanceof Call
-                    || this instanceof Branch || this instanceof Return);
+                || this instanceof Branch || this instanceof Return);
     }
 
     public boolean isEnd() {
@@ -168,7 +167,7 @@ public class Instr extends Value {
 
         @Override
         public String toString() {
-            return this.getDescriptor() + " = " + op.getName() + " " + getRVal1().getDescriptor() + ", " + getRVal2().getDescriptor();
+            return this.getName() + " = " + op.getName() + " " + getRVal1().getName() + ", " + getRVal2().getName();
         }
 
         public Op getOp() {
@@ -230,7 +229,7 @@ public class Instr extends Value {
         }
 
         public String toString() {
-            return this.getDescriptor() + " = icmp " + op.getName() + " " + getRVal1().getDescriptor() + ", " + getRVal2().getDescriptor();
+            return this.getName() + " = icmp " + op.getName() + " " + getRVal1().getName() + ", " + getRVal2().getName();
         }
 
         public Op getOp() {
@@ -240,6 +239,7 @@ public class Instr extends Value {
         public Op setOp(Op op) {
             return this.op = op;
         }
+
         public Value getRVal1() {
             return useValueList.get(0);
         }
@@ -264,7 +264,7 @@ public class Instr extends Value {
         }
 
         public String toString() {
-            return this.getDescriptor() + " = fneg "+ getRVal1().getType() + " " + getRVal1().getDescriptor();
+            return this.getName() + " = fneg " + getRVal1().getType() + " " + getRVal1().getName();
         }
 
 
@@ -315,7 +315,7 @@ public class Instr extends Value {
         }
 
         public String toString() {
-            return this.getDescriptor() + " = fcmp " + op.getName() + " " + getRVal1().getDescriptor() + ", " + getRVal2().getDescriptor();
+            return this.getName() + " = fcmp " + op.getName() + " " + getRVal1().getName() + ", " + getRVal2().getName();
         }
 
         public Op getOp() {
@@ -347,7 +347,7 @@ public class Instr extends Value {
         }
 
         public String toString() {
-            return this.getDescriptor() + " = zext " + getRVal1().getDescriptor() + " to " + this.type;
+            return this.getName() + " = zext " + getRVal1().getType() + " " + getRVal1().getName() + " to " + this.type;
         }
 
         public Value getRVal1() {
@@ -371,7 +371,7 @@ public class Instr extends Value {
         }
 
         public String toString() {
-            return this.getDescriptor() + " = fptosi " + getRVal1().getDescriptor() + " to " + this.getType();
+            return this.getName() + " = fptosi " + getRVal1().getType() + " " + getRVal1().getName() + " to " + this.getType();
         }
 
 
@@ -395,7 +395,7 @@ public class Instr extends Value {
         }
 
         public String toString() {
-            return this.getDescriptor() + " = sitofp " + getRVal1().getDescriptor() + " to " + this.getType();
+            return this.getName() + " = sitofp " + getRVal1().getType() + " " + getRVal1().getName() + " to " + this.getType();
         }
 
 
@@ -417,7 +417,7 @@ public class Instr extends Value {
 
         @Override
         public String toString() {
-            return this.getDescriptor() + " = alloca " + contentType;
+            return this.getName() + " = alloca " + contentType;
         }
 
         public Type getContentType() {
@@ -445,7 +445,7 @@ public class Instr extends Value {
 
         @Override
         public String toString() {
-            return this.getDescriptor() + " = load " + type.toString() + ", " + getPointer().getDescriptor();
+            return this.getName() + " = load " + type.toString() + ", " + getPointer().getType() + " " + getPointer().getName();
         }
 
         public Value getPointer() {
@@ -476,7 +476,7 @@ public class Instr extends Value {
 
         @Override
         public String toString() {
-            return "store " + this.getValue().getDescriptor() + ", " + this.getPointer().getDescriptor();
+            return "store " + getValue().getType() + " " + this.getValue().getName() + ", " + getPointer().getType() + " " + this.getPointer().getName();
         }
 
         public Value getValue() {
@@ -497,7 +497,7 @@ public class Instr extends Value {
             super(new PointerType(pointeeType), basicBlock);
             setUse(ptr, 0);
             int i = 1;
-            for(Value idxValue: idxList){
+            for (Value idxValue : idxList) {
                 setUse(idxValue, i++);
             }
         }
@@ -505,16 +505,16 @@ public class Instr extends Value {
         @Override
         public String toString() {
             StringBuilder strBD = new StringBuilder();
-            strBD.append(getDescriptor()).append(" = getelementptr inbounds ").
-                    append(((PointerType) getPtr().getType()).getInnerType()).append(", ").append(getPtr());
-            for(Value idxValue: getIdxList()){
-                strBD.append(", ").append(idxValue.getType()).append(" ").append(idxValue.getDescriptor());
+            strBD.append(getName()).append(" = getelementptr inbounds ").
+                    append(((PointerType) getPtr().getType()).getInnerType()).append(", ").append(getPtr().getType()).append(" ").append(getPtr().getName());
+            for (Value idxValue : getIdxList()) {
+                strBD.append(", ").append(idxValue.getType()).append(" ").append(idxValue.getName());
             }
             return strBD.toString();
         }
 
-        public Type getBaseType(){
-            return ((PointerType)type).getInnerType();
+        public Type getBaseType() {
+            return ((PointerType) type).getInnerType();
         }
 
         public Value getPtr() {
@@ -522,7 +522,7 @@ public class Instr extends Value {
         }
 
         public ArrayList<Value> getIdxList() {
-            return (ArrayList<Value>) useValueList.subList(0, useValueList.size());
+            return new ArrayList<>(useValueList.subList(1, useValueList.size()));
         }
 
     }
@@ -563,10 +563,10 @@ public class Instr extends Value {
             String prefix = "";
             String retType = "void";
             if (!type.isVoidType()) {
-                prefix = getDescriptor() + " = ";
+                prefix = getName() + " = ";
                 retType = type.toString();
             }
-            String paramList = getParamList().stream().map(Value::toString).reduce((s, s2) -> s + ", " + s2).orElse("");
+            String paramList = getParamList().stream().map(Value::getDescriptor).reduce((s, s2) -> s + ", " + s2).orElse("");
             return prefix + "call " + retType + " @" + getFunc().getName() + "(" + paramList + ")";
         }
 
@@ -601,9 +601,9 @@ public class Instr extends Value {
 
         @Override
         public String toString() {
-            String src = optionalValues.stream().map(entry -> "[ " + (entry.getDescriptor()) + ", " + entry.bb.getDescriptor() + " ]").reduce((s, s2) -> s + ", " + s2).orElse("");
+            String src = optionalValues.stream().map(entry -> "[ " + (entry.getName()) + ", " + entry.bb.getName() + " ]").reduce((s, s2) -> s + ", " + s2).orElse("");
             // TODO: 这里的type.toString不知道是不是能直接调用到BasicType的toString方法
-            return getDescriptor() + " = phi " + type.toString() + " " + src;
+            return getName() + " = phi " + type.toString() + " " + src;
         }
 
         public ArrayList<Instr> getOptionalValues() {

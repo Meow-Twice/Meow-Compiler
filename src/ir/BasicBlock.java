@@ -3,7 +3,6 @@ package ir;
 import ir.type.Type;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Objects;
 
@@ -81,7 +80,7 @@ public class BasicBlock extends Value {
     // 向基本块末尾追加指令, 当且仅当该基本块未结束
     public void insertAtEnd(Instr in) {
         if (isTerminated()) {
-            System.err.println("append after terminator: " + in.getDescriptor());
+            System.err.println("append after terminator: " + in.getName());
             // return;
         }
         // if (ENABLE_DEBUG) {

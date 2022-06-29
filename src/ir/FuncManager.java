@@ -28,7 +28,7 @@ public class FuncManager {
         public static final Function PUT_INT = new Function("putint", wrapParam(I32_TYPE), Type.VoidType.getVoidType());
         public static final Function PUT_CH = new Function("putch", wrapParam(I32_TYPE), Type.VoidType.getVoidType());
         public static final Function PUT_ARR = new Function("putarray", wrapParam(I32_TYPE, new Type.PointerType(I32_TYPE)), Type.VoidType.getVoidType());
-        public static final Function PUT_FARR = new Function("putarray", wrapParam(I32_TYPE, new Type.PointerType(F32_TYPE)), Type.VoidType.getVoidType());
+        public static final Function PUT_FARR = new Function("putfarray", wrapParam(I32_TYPE, new Type.PointerType(F32_TYPE)), Type.VoidType.getVoidType());
         public static final Function MEM_SET = new Function("memset", wrapParam(new Type.PointerType(I32_TYPE), I32_TYPE, I32_TYPE), Type.VoidType.getVoidType());
     }
 
@@ -61,7 +61,7 @@ public class FuncManager {
     public void output() {
         // 全局变量
         for (Map.Entry<Value, Initial> entry : globals.entrySet()) {
-            FileDealer.addOutputString(entry.getKey().getDescriptor() + " = dso_local global " + entry.getValue());
+            FileDealer.addOutputString(entry.getKey().getName() + " = dso_local global " + entry.getValue());
         }
         // 函数声明
         for (Function function : functions.values()) {

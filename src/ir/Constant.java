@@ -48,7 +48,7 @@ public class Constant extends Value {
         }
 
         @Override
-        public String getDescriptor() {
+        public String getName() {
             return String.valueOf(constIntVal);
         }
 
@@ -82,7 +82,7 @@ public class Constant extends Value {
         }
 
         @Override
-        public String getDescriptor() {
+        public String getName() {
             return String.valueOf(constFloatVal);
         }
 

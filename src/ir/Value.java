@@ -6,10 +6,10 @@ import util.ILinkNode;
 public class Value extends ILinkNode {
     public static final String GLOBAL_PREFIX = "@";
     public static final String LOCAL_PREFIX = "%";
-//    public static final String BB_NAME_PREFIX = "b";
+    //    public static final String BB_NAME_PREFIX = "b";
     public static final String GLOBAL_NAME_PREFIX = "g";
     public static final String LOCAL_NAME_PREFIX = "v";
-//    private static int BB_COUNT = 0;
+    //    private static int BB_COUNT = 0;
     private static int LOCAL_COUNT = 0;
     private static int GLOBAL_COUNT = 0;
     public String prefix = this instanceof GlobalVal ? GLOBAL_PREFIX : LOCAL_PREFIX;
@@ -38,7 +38,7 @@ public class Value extends ILinkNode {
         end = use;
     }
 
-    public String getDescriptor() {
+    public String getName() {
         return prefix + name;
     }
 
@@ -57,5 +57,9 @@ public class Value extends ILinkNode {
             Instr user = use.getUser();
             user.modifyUse(this, A, use.getIdx());
         }
+    }
+
+    public String getDescriptor() {
+        return getType() + " " + getName();
     }
 }

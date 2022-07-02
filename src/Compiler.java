@@ -1,3 +1,4 @@
+import arg.Arg;
 import frontend.lexer.Lexer;
 import frontend.lexer.Token;
 import frontend.lexer.TokenList;
@@ -8,14 +9,15 @@ import mir.FuncManager;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 
 public class Compiler {
 
     public static final boolean OUTPUT_LEX = false;
 
-    private static String input() throws IOException {
-        BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+    private static String input(InputStream in) throws IOException {
+        BufferedReader reader = new BufferedReader(new InputStreamReader(in));
         StringBuilder builder = new StringBuilder();
         String line;
         while ((line = reader.readLine()) != null) {
@@ -26,14 +28,15 @@ public class Compiler {
     }
 
     public static void main(String[] args) {
+        Arg arg = Arg.parse(args);
         try {
-            String source = input();
+            String source = input(arg.srcStream);
             System.err.println(source); // output source code via stderr;
             TokenList tokenList = Lexer.lex(source);
             if (OUTPUT_LEX) {
                 while (tokenList.hasNext()) {
                     Token token = tokenList.consume();
-                    System.out.println(token.getType() + " " + token.getContent());
+                    System.err.println(token.getType() + " " + token.getContent());
                 }
             }
             Ast ast = new Parser(tokenList).parseAst();
@@ -43,7 +46,7 @@ public class Compiler {
             FuncManager funcManager = visitor.getIr();
             // MidEndRunner midEndRunner = new MidEndRunner(funcManager.getFunctionList());
             // midEndRunner.Run();
-            funcManager.output();
+            funcManager.output(arg.llvmStream);
         } catch (Exception e) {
             e.printStackTrace();
             System.exit(1);

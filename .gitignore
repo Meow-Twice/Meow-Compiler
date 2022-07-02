@@ -1,7 +1,11 @@
 .idea
 out
-Meow-Compiler.iml
-test.sy
-output.ll
+*.iml
+*.MF
+*.sy
+*.ll
+*.s
+*.S
+*.elf
 /src/test
 /src/timeTest

@@ -97,20 +97,11 @@ public class FileDealer {
     // public  void output(String s){
     //
     // }
-    public static void outputStringList() {
-        File f = new File("output.ll");
-        FileOutputStream fop = null;
-        try {
-            fop = new FileOutputStream(f);
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        }
-
-        OutputStreamWriter writer;
-        streamOutput(fop, outputStringList);
+    public static void outputStringList(OutputStream out) {
+        streamOutput(out, outputStringList);
     }
 
-    private static void streamOutput(FileOutputStream fop, ArrayList<String> outputStringList) {
+    private static void streamOutput(OutputStream fop, ArrayList<String> outputStringList) {
         OutputStreamWriter writer;
         writer = new OutputStreamWriter(fop, StandardCharsets.UTF_8);
         for (String t : outputStringList) {

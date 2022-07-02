@@ -5,6 +5,8 @@ import frontend.semantic.symbol.Symbol;
 import mir.type.Type;
 import util.FileDealer;
 
+import java.io.OutputStream;
+import java.io.PrintStream;
 import java.util.*;
 
 import static mir.Function.Param.wrapParam;
@@ -70,7 +72,7 @@ public class FuncManager {
         return functions.containsKey(MAIN_FUNCTION);
     }
 
-    public void output() {
+    public void output(OutputStream out) {
         // 全局变量
         for (Map.Entry<Value, Initial> entry : globals.entrySet()) {
             FileDealer.addOutputString(entry.getKey().getName() + " = dso_local global " + entry.getValue());
@@ -87,7 +89,7 @@ public class FuncManager {
                 FileDealer.addOutputString(function.getDefinition());
             }
         }
-        FileDealer.outputStringList();
+        FileDealer.outputStringList(out);
     }
 
     public Map<Value, Initial> getGlobals() {

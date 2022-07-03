@@ -176,7 +176,8 @@ public class Instr extends Value {
 
         @Override
         public String toString() {
-            return this.getName() + " = " + op.getName() + " " + getRVal1().getDescriptor() + ", " + getRVal2().getDescriptor();
+            // assert getRVal1().getType().equals(getRVal2().getType());
+            return this.getName() + " = " + op.getName() + " " + getRVal1().getDescriptor() + ", " + getRVal2().getName();
         }
 
         public Op getOp() {
@@ -238,7 +239,8 @@ public class Instr extends Value {
         }
 
         public String toString() {
-            return this.getName() + " = icmp " + op.getName() + " " + getRVal1().getDescriptor() + ", " + getRVal2().getDescriptor();
+            // assert getRVal1().getType().equals(getRVal2().getType());
+            return this.getName() + " = icmp " + op.getName() + " " + getRVal1().getDescriptor() + ", " + getRVal2().getName();
         }
 
         public Op getOp() {
@@ -324,7 +326,8 @@ public class Instr extends Value {
         }
 
         public String toString() {
-            return this.getName() + " = fcmp " + op.getName() + " " + getRVal1().getDescriptor() + ", " + getRVal2().getDescriptor();
+            // assert getRVal1().getType().equals(getRVal2().getType());
+            return this.getName() + " = fcmp " + op.getName() + " " + getRVal1().getDescriptor() + ", " + getRVal2().getName();
         }
 
         public Op getOp() {

@@ -116,6 +116,9 @@ public class MakeDFG {
     }
 
     private void dfs(BasicBlock bb, BasicBlock not,HashSet<BasicBlock> know) {
+        if (bb.equals(not)) {
+            return;
+        }
         if (know.contains(bb)) {
             return;
         }

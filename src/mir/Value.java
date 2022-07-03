@@ -57,6 +57,7 @@ public class Value extends ILinkNode {
         while (use.getNext() != null) {
             Instr user = use.getUser();
             user.modifyUse(this, A, use.getIdx());
+            use = (Use) use.getNext();
         }
     }
 

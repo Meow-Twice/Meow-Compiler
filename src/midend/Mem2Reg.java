@@ -134,7 +134,7 @@ public class Mem2Reg {
                 //bb.insertAtEnd();
                 assert instr.getType() instanceof Type.PointerType;
                 Instr PHI = null;
-                ArrayList<Instr> optionalValues = new ArrayList<>();
+                ArrayList<Value> optionalValues = new ArrayList<>();
                 for (int i = 0; i < bb.getPrecBBs().size(); i++) {
                     //空指令
                     optionalValues.add(new Instr(bb));
@@ -172,22 +172,26 @@ public class Mem2Reg {
                 assert A instanceof Instr.Store || A instanceof Instr.Phi;
                 if (A instanceof Instr.Store) {
                     S.push(((Instr.Store) A).getValue());
+                    A.remove();
                 } else {
                     S.push(A);
                 }
                 cnt++;
             }
+            A = (Instr) A.getNext();
         }
         ArrayList<BasicBlock> Succ = X.getSuccBBs();
         for (int i = 0; i < Succ.size(); i++) {
+            BasicBlock bb = Succ.get(i);
             Instr instr = Succ.get(i).getBeginInstr();
             while (instr.getNext() != null) {
                 if (!(instr instanceof Instr.Phi)) {
                     break;
                 }
                 if (useInstrs.contains(instr)) {
-                    instr.modifyUse(S.peek(), i);
+                    instr.modifyUse(S.peek(), bb.getPrecBBs().indexOf(X));
                 }
+                instr = (Instr) instr.getNext();
             }
         }
 

@@ -596,29 +596,43 @@ public class Instr extends Value {
     public static class Phi extends Instr {
 
         //TODO:assign to 刘传, xry已改
-        private final ArrayList<Instr> optionalValues;
+        private final ArrayList<Value> optionalValues;
 
-        public Phi(Type type, ArrayList<Instr> optionalValues, BasicBlock parent) {
+        public Phi(Type type, ArrayList<Value> optionalValues, BasicBlock parent) {
             // Phi一定插在基本块的开始, Alloc之前
             super(type, parent, true);
-            for (Instr instr : optionalValues) {
+            for (Value instr : optionalValues) {
                 assert type.equals(instr.type);
             }
             this.optionalValues = optionalValues;
             int idx = 0;
-            for (Instr inst : optionalValues) {
+            for (Value inst : optionalValues) {
                 setUse(inst, idx++);
             }
         }
 
+//        @Override
+//        public String toString() {
+//            String src = optionalValues.stream().map(entry -> "[ " + (entry.getName()) + ", " + entry.bb.getName() + " ]").reduce((s, s2) -> s + ", " + s2).orElse("");
+//            // TODO: 这里的type.toString不知道是不是能直接调用到BasicType的toString方法
+//            return getName() + " = phi " + type.toString() + " " + src;
+//        }
+
+
         @Override
         public String toString() {
-            String src = optionalValues.stream().map(entry -> "[ " + (entry.getName()) + ", " + entry.bb.getName() + " ]").reduce((s, s2) -> s + ", " + s2).orElse("");
-            // TODO: 这里的type.toString不知道是不是能直接调用到BasicType的toString方法
-            return getName() + " = phi " + type.toString() + " " + src;
+            String ret = getName() + " = phi " + type.toString() + " ";
+            int len = useValueList.size();
+            for (int i = 0; i < len; i++) {
+                ret += "[ " + useValueList.get(i).getName() + ", %" + parentBB().getPrecBBs().get(i).getLabel() + " ]";
+                if (i < len - 1) {
+                    ret += ", ";
+                }
+            }
+            return ret;
         }
 
-        public ArrayList<Instr> getOptionalValues() {
+        public ArrayList<Value> getOptionalValues() {
             return this.optionalValues;
         }
     }

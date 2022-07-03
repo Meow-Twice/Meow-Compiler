@@ -47,8 +47,8 @@ public class Function extends Value{
     //TODO: entry是否需要保留
     private BasicBlock entry = null; // 函数体
 
-    private BasicBlock begin = new BasicBlock(this);
-    private BasicBlock end = new BasicBlock(this);
+    private BasicBlock begin;
+    private BasicBlock end;
 
     //TODO: assign to 刘传
     private HashMap<BasicBlock, ArrayList<BasicBlock>> preMap;
@@ -57,6 +57,8 @@ public class Function extends Value{
 
 
     public Function(String name, ArrayList<Param> params, Type retType) {
+        this.begin = new BasicBlock();
+        this.end = new BasicBlock();
         begin.setNext(end);
         end.setPrev(begin);
         this.name = name;
@@ -65,6 +67,8 @@ public class Function extends Value{
             param.parentFunc = this;
         }
         this.retType = retType;
+
+
     }
 
     public boolean hasBody() {

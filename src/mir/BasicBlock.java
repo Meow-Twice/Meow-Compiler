@@ -18,24 +18,24 @@ public class BasicBlock extends Value {
     // private Instr begin = new Instr();
     // private Instr end = new Instr();
 
-    private Instr begin = new Instr(this);
-    private Instr end = new Instr(this);
+    private Instr begin;
+    private Instr end;
 
     //TODO: 前驱和后继相关方法
-    private ArrayList<BasicBlock> precBBs = new ArrayList<>();//前驱
-    private ArrayList<BasicBlock> succBBs = new ArrayList<>();//后继
+    private ArrayList<BasicBlock> precBBs;//前驱
+    private ArrayList<BasicBlock> succBBs;//后继
 
     // 支配关系
-    private HashSet<BasicBlock> doms = new HashSet<>();
+    private HashSet<BasicBlock> doms;
     // 在支配树上的边关系,根据定义:
     // A dominator tree is a tree where
     // the children of each node are those nodes it immediately dominates.
-    private HashSet<BasicBlock> idoms = new HashSet<>();
+    private HashSet<BasicBlock> idoms;
     // 支配边界,根据定义:
     // By definition,
     // there is a DF-edge (a, b) between every CFG nodes a, b such that a dominates
     // a predecessor of b , but does not strictly dominate b
-    private HashSet<BasicBlock> DF = new HashSet<>();
+    private HashSet<BasicBlock> DF;
 
 
 
@@ -45,9 +45,12 @@ public class BasicBlock extends Value {
     // 全局计数器, 记录下一个生成基本块的编号
     private static int bb_count = 0;
 
+    private static int empty_bb_cnt = 0;
+
     public BasicBlock(){
         super(Type.BBType.getBBType());
-        this.label = "b" + (++bb_count);
+        init();
+        this.label = "EMPTY_BB" + (empty_bb_cnt++);
         begin.setNext(end);
         end.setPrev(begin);
     }
@@ -55,6 +58,7 @@ public class BasicBlock extends Value {
     // 自动命名基本块, 从 "b1" 开始
     public BasicBlock(Function function) {
         super(Type.BBType.getBBType());
+        init();
         this.label = "b" + (++bb_count);
         this.function = function;
         begin.setNext(end);
@@ -62,12 +66,24 @@ public class BasicBlock extends Value {
         if (ENABLE_DEBUG) {
             System.err.println("new Basic block (" + label + ")");
         }
+        function.insertAtEnd(this);
     }
 
 //    @Override
 //    public String getDescriptor() {
 //        return super.getDescriptor();
 //    }
+
+    //TODO:构造函数开始调用!!!
+    private void init() {
+        this.begin = new Instr();
+        this.end = new Instr();
+        this.precBBs = new ArrayList<>();
+        this.succBBs = new ArrayList<>();
+        this.doms = new HashSet<>();
+        this.idoms = new HashSet<>();
+        this.DF = new HashSet<>();
+    }
 
     public Instr getEntry() {
         return (Instr) begin.getNext();

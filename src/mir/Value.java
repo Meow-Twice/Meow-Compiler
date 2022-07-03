@@ -34,8 +34,9 @@ public class Value extends ILinkNode {
     }
 
     public void insertAtEnd(Use use) {
-        end.insertAfter(use);
-        end = use;
+        //end.insertAfter(use);
+        //end = use;
+        end.insertBefore(use);
     }
 
     public String getName() {

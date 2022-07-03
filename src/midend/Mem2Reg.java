@@ -91,6 +91,7 @@ public class Mem2Reg {
                     } else if (useInstrs.contains(BB_pos)) {
                         BB_pos.modifyAllUseThisToUseA(reachDef);
                     }
+                    BB_pos = (Instr) BB_pos.getNext();
                 }
 
                 //TODO:对于未定义的使用,是否不必要进行定义,当前实现方法为所有其他BB的use认为使用了唯一的reachDef

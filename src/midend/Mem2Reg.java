@@ -137,7 +137,7 @@ public class Mem2Reg {
                 ArrayList<Value> optionalValues = new ArrayList<>();
                 for (int i = 0; i < bb.getPrecBBs().size(); i++) {
                     //空指令
-                    optionalValues.add(new Instr(bb));
+                    optionalValues.add(new Instr(((Type.PointerType) instr.getType()).getInnerType(), bb));
                 }
                 if (((Type.PointerType) instr.getType()).getInnerType().isFloatType()) {
                     PHI = new Instr.Phi(Type.BasicType.getF32Type(), optionalValues, bb);

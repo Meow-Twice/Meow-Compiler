@@ -5,7 +5,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 
 public class FileDealer {
-    private static final File inputFile = new File("test.sy");
+    // private static final File inputFile = new File("testcase.sy");
     private static InputStream inputStream;
     private static BufferedInputStream bufferedInputStream;
     private static final FileDealer fileDealer = new FileDealer();
@@ -16,12 +16,12 @@ public class FileDealer {
     private static ArrayList<String> ansTxtList = new ArrayList<>();
 
     private FileDealer(){
-        try {
-            inputStream = new FileInputStream(inputFile);
-            bufferedInputStream = new BufferedInputStream(inputStream);
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        }
+        // try {
+        //     inputStream = new FileInputStream(inputFile);
+        //     bufferedInputStream = new BufferedInputStream(inputStream);
+        // } catch (FileNotFoundException e) {
+        //     e.printStackTrace();
+        // }
 
         // try {
         //     bufferedReader = new BufferedReader(new InputStreamReader(new FileInputStream("testfile.txt")));
@@ -33,9 +33,9 @@ public class FileDealer {
         return fileDealer;
     }
 
-    public static File getInputFile() {
-        return inputFile;
-    }
+    // public static File getInputFile() {
+    //     return inputFile;
+    // }
 
     public static InputStream getInputStream(){
         return inputStream;

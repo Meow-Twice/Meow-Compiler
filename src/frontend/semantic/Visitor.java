@@ -639,7 +639,9 @@ public class Visitor {
             if (pointeeType instanceof ArrayType) {
                 initZeroHelper(pointer);
             }
-            initLocalVarHelper(pointer, init); // 生成初始化
+            if(init!=null){
+                initLocalVarHelper(pointer, init); // 生成初始化
+            }
         } else {
             pointer = new GlobalVal.GlobalValue(pointeeType, def, init);
         }

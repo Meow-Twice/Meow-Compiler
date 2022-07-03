@@ -57,7 +57,7 @@ public class Ast {
             assert bType != null;
             assert ident != null;
             assert indexes != null;
-            assert init != null;
+            // assert init != null;
             this.bType = bType;
             this.ident = ident;
             this.indexes = indexes;

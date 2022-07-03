@@ -39,6 +39,7 @@ public class Mem2Reg {
             if (temp instanceof Instr.Alloc && !((Instr.Alloc) temp).isArrayAlloc()) {
                 remove(temp);
             }
+            temp = (Instr) temp.getNext();
         }
     }
 

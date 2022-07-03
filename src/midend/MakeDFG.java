@@ -61,7 +61,7 @@ public class MakeDFG {
         BasicBlock pos = beginBB;
         while (!pos.equals(end)) {
             preMap.put(pos, new ArrayList<>());
-            sucMap.put(end, new ArrayList<>());
+            sucMap.put(pos, new ArrayList<>());
             BBs.add(pos);
             pos = (BasicBlock) pos.getNext();
         }
@@ -82,6 +82,7 @@ public class MakeDFG {
                 sucMap.get(pos).add(target);
                 preMap.get(target).add(pos);
             }
+            pos = (BasicBlock) pos.getNext();
         }
 
         //回写基本块和函数

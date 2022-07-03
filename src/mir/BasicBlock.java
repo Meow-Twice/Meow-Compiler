@@ -158,11 +158,19 @@ public class BasicBlock extends Value {
     }
 
     public void setPrecBBs(ArrayList<BasicBlock> precBBs) {
-        this.precBBs = precBBs;
+        if (precBBs == null) {
+            this.precBBs = new ArrayList<>();
+        } else {
+            this.precBBs = precBBs;
+        }
     }
 
     public void setSuccBBs(ArrayList<BasicBlock> succBBs) {
-        this.succBBs = succBBs;
+        if (succBBs == null) {
+            this.succBBs = new ArrayList<>();
+        } else {
+            this.succBBs = succBBs;
+        }
     }
 
     public ArrayList<BasicBlock> getPrecBBs() {

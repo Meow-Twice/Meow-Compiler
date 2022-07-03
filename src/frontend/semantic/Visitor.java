@@ -564,16 +564,18 @@ public class Visitor {
             int len = arrayInit.length();
             for (int i = 0; i < len; i++) {
                 // PointerType pointeeType = new PointerType(((ArrayType) baseType).getBase());
-                Value ptr = new GetElementPtr(((ArrayType) baseType).getBaseEleType(), pointer, wrapImmutable(CONST_0, new Constant.ConstantInt(i)), curBB);
+                Value ptr = new GetElementPtr(((ArrayType) baseType).getBase(), pointer, wrapImmutable(CONST_0, new Constant.ConstantInt(i)), curBB);
                 initLocalVarHelper(ptr, arrayInit.get(i));
             }
+        }else if(init instanceof Initial.ZeroInit) {
+            initZeroHelper(pointer);
         } else {
             Value v;
             if (init instanceof Initial.ExpInit) {
                 v = trimTo(((Initial.ExpInit) init).getResult(), (BasicType) baseType);
             } else if (init instanceof Initial.ValueInit) {
                 v = trimTo(((Initial.ValueInit) init).getValue(), (BasicType) baseType);
-            } else {
+            } else{
                 throw new AssertionError("wrong init: " + init + "\nfor: " + pointer);
             }
             new Store(v, pointer, curBB);

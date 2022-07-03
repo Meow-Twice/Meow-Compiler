@@ -651,7 +651,7 @@ public class Instr extends Value {
 
         @Override
         public String toString() {
-            return "br " + getCond() + ", label %" + getThenTarget().getLabel() + ", label %" + getElseTarget().getLabel();
+            return "br " + getCond().getName() + ", label %" + getThenTarget().getLabel() + ", label %" + getElseTarget().getLabel();
         }
 
         public Value getCond() {

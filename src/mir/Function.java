@@ -32,7 +32,7 @@ public class Function extends Value{
 
         @Override
         public String toString(){
-            return type.toString() + " " + name;
+            return type.toString() + " " + getName();
         }
 
     }

@@ -21,7 +21,13 @@ public class Arm {
     }
 
     public enum Cond {
-        Any("Any"), Eq("eq"), Ne("ne"), Ge("ge"), Gt("gt"), Le("le"), Lt("lt");
+        Any("!Any"),
+        Eq("eq"),
+        Ne("ne"),
+        Ge("ge"),
+        Gt("gt"),
+        Le("le"),
+        Lt("lt");
 
         Cond(String cond) {
         }
@@ -29,7 +35,7 @@ public class Arm {
 
     public enum Shift {
         // no shifting
-        None("None"),
+        None("!None"),
         // arithmetic right
         Asr("asr"),
         // logic left
@@ -39,7 +45,7 @@ public class Arm {
         // rotate right
         Ror("ror"),
         // rotate right one bit with extend
-        Rrx("rtx");
+        Rrx("rrx");
 
         Shift(String shift) {
         }

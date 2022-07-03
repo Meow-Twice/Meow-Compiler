@@ -19,7 +19,7 @@ public class Machine {
 
     public static class Function {
         ArrayList<MachineInst> instList;
-        ArrayList<MachineBlock> blockList;
+        ArrayList<Block> blockList;
 
         int virRegNum = 0;
         int stackSize = 0;
@@ -29,7 +29,7 @@ public class Machine {
         public Function(){
         }
     }
-    public static class MachineBlock{
+    public static class Block {
         HashSet<Operand> liveUseSet;
         HashSet<Operand> defSet;
         HashSet<Operand> liveInSet;

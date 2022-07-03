@@ -176,7 +176,7 @@ public class Instr extends Value {
 
         @Override
         public String toString() {
-            return this.getName() + " = " + op.getName() + " " + getRVal1().getName() + ", " + getRVal2().getName();
+            return this.getName() + " = " + op.getName() + " " + getRVal1().getDescriptor() + ", " + getRVal2().getDescriptor();
         }
 
         public Op getOp() {
@@ -238,7 +238,7 @@ public class Instr extends Value {
         }
 
         public String toString() {
-            return this.getName() + " = icmp " + op.getName() + " " + getRVal1().getName() + ", " + getRVal2().getName();
+            return this.getName() + " = icmp " + op.getName() + " " + getRVal1().getDescriptor() + ", " + getRVal2().getDescriptor();
         }
 
         public Op getOp() {
@@ -273,7 +273,7 @@ public class Instr extends Value {
         }
 
         public String toString() {
-            return this.getName() + " = fneg " + getRVal1().getType() + " " + getRVal1().getName();
+            return this.getName() + " = fneg " + getRVal1().getDescriptor();
         }
 
 
@@ -324,7 +324,7 @@ public class Instr extends Value {
         }
 
         public String toString() {
-            return this.getName() + " = fcmp " + op.getName() + " " + getRVal1().getName() + ", " + getRVal2().getName();
+            return this.getName() + " = fcmp " + op.getName() + " " + getRVal1().getDescriptor() + ", " + getRVal2().getDescriptor();
         }
 
         public Op getOp() {
@@ -356,7 +356,7 @@ public class Instr extends Value {
         }
 
         public String toString() {
-            return this.getName() + " = zext " + getRVal1().getType() + " " + getRVal1().getName() + " to " + this.type;
+            return this.getName() + " = zext " + getRVal1().getDescriptor() + " to " + this.type;
         }
 
         public Value getRVal1() {
@@ -380,7 +380,7 @@ public class Instr extends Value {
         }
 
         public String toString() {
-            return this.getName() + " = fptosi " + getRVal1().getType() + " " + getRVal1().getName() + " to " + this.getType();
+            return this.getName() + " = fptosi " + getRVal1().getDescriptor() + " to " + this.getType();
         }
 
 
@@ -404,7 +404,7 @@ public class Instr extends Value {
         }
 
         public String toString() {
-            return this.getName() + " = sitofp " + getRVal1().getType() + " " + getRVal1().getName() + " to " + this.getType();
+            return this.getName() + " = sitofp " + getRVal1().getDescriptor() + " to " + this.getType();
         }
 
 
@@ -454,7 +454,7 @@ public class Instr extends Value {
 
         @Override
         public String toString() {
-            return this.getName() + " = load " + type.toString() + ", " + getPointer().getType() + " " + getPointer().getName();
+            return this.getName() + " = load " + type.toString() + ", " + getPointer().getDescriptor();
         }
 
         public Value getPointer() {
@@ -485,7 +485,7 @@ public class Instr extends Value {
 
         @Override
         public String toString() {
-            return "store " + getValue().getType() + " " + this.getValue().getName() + ", " + getPointer().getType() + " " + this.getPointer().getName();
+            return "store " + getValue().getDescriptor() + ", " + getPointer().getDescriptor();
         }
 
         public Value getValue() {

@@ -13,6 +13,8 @@ public class Instr extends Value {
 
     public static int instr_cnt = 0;
 
+    public static int empty_instr_cnt = 0;
+
     public BasicBlock bb;
 
     //TODO:添加一个hash标记,是否比比较arraylist的equal方法快且保险(正确性)
@@ -31,6 +33,7 @@ public class Instr extends Value {
     //空指令用于在BB中做链表头/尾
     public Instr() {
         super();
+        this.hash = "EMPTY_INSTR_" + (empty_instr_cnt++);
     }
 
 
@@ -118,6 +121,11 @@ public class Instr extends Value {
     @Override
     public int hashCode() {
         return Objects.hash(hash);
+    }
+
+    @Override
+    public String toString() {
+        return this.hash;
     }
 
     // 二元算术运算, 结果是 i32 型

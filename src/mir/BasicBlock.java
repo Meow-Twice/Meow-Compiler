@@ -220,4 +220,9 @@ public class BasicBlock extends Value {
     public HashSet<BasicBlock> getDF() {
         return DF;
     }
+
+    @Override
+    public String toString() {
+        return this.label;
+    }
 }

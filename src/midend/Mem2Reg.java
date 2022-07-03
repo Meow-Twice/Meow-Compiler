@@ -146,7 +146,7 @@ public class Mem2Reg {
                 }
                 useInstrs.add(PHI);
                 defInstrs.add(PHI);
-                bb.insertAtHead(PHI);
+                //bb.insertAtHead(PHI);
             }
 
             //TODO:Rename

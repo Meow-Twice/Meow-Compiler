@@ -24,6 +24,10 @@ public class Instr extends Value {
         return bb;
     }
 
+    public void setBb(BasicBlock bb) {
+        this.bb = bb;
+    }
+
     public interface Terminator {
     }
 
@@ -83,8 +87,10 @@ public class Instr extends Value {
     }
 
     public void modifyUse(Value old, Value now, int index) {
-        // remove old
-        old.remove();
+        // remove old used by this
+        //old.remove();
+        useList.get(index).remove();
+
         // add now
         Use use = new Use(this, now, index);
         this.useList.set(index, use);
@@ -94,7 +100,9 @@ public class Instr extends Value {
 
     public void modifyUse(Value now, int index) {
         Value old = useValueList.get(index);
-        old.remove();
+        //old.remove();
+        useList.get(index).remove();
+
         Use use = new Use(this, now, index);
         this.useList.set(index, use);
         this.useValueList.set(index, now);
@@ -637,9 +645,46 @@ public class Instr extends Value {
         }
     }
 
+    public static class PCopy extends Instr {
+        private ArrayList<Value> LHS;
+        private ArrayList<Value> RHS;
+
+        public PCopy(ArrayList<Value> LHS, ArrayList<Value> RHS, BasicBlock parent) {
+            super(Type.getVoidType(), parent);
+            this.LHS = LHS;
+            this.RHS = RHS;
+        }
+
+        @Override
+        public String toString() {
+            String ret = "PCopy ";
+            int len = RHS.size();
+            for (int i = 0; i < len; i++) {
+                ret += LHS.get(i).getName() + " <-- " + RHS.get(i).getName();
+                if (i < len - 1) {
+                    ret += ", ";
+                }
+            }
+            return ret;
+        }
+
+        public void addToPC(Value tag, Value src) {
+            this.LHS.add(tag);
+            this.RHS.add(src);
+        }
+
+    }
+
+    public static class Move extends Instr {
+
+    }
+
     // Terminator的type都是Void
     // 分支
     public static class Branch extends Instr implements Terminator {
+
+        private BasicBlock thenTarget;
+        private BasicBlock elseTarget;
 
         public Branch(Value cond, BasicBlock thenTarget, BasicBlock elseTarget, BasicBlock parent) {
             super(VoidType.getVoidType(), parent);
@@ -647,6 +692,9 @@ public class Instr extends Value {
             setUse(cond, 0);
             setUse(thenTarget, 1);
             setUse(elseTarget, 2);
+
+            this.thenTarget = thenTarget;
+            this.elseTarget = elseTarget;
         }
 
         @Override
@@ -665,6 +713,17 @@ public class Instr extends Value {
         public BasicBlock getElseTarget() {
             return (BasicBlock) useValueList.get(2);
         }
+
+        public void setThenTarget(BasicBlock thenTarget) {
+            this.thenTarget = thenTarget;
+            modifyUse(thenTarget, 1);
+        }
+
+        public void setElseTarget(BasicBlock elseTarget) {
+            this.elseTarget = elseTarget;
+            modifyUse(elseTarget, 2);
+        }
+
 
     }
 

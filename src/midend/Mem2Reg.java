@@ -18,7 +18,6 @@ public class Mem2Reg {
 
     public void Run() {
         removeAlloc();
-
     }
 
     public void removeAlloc() {
@@ -102,12 +101,7 @@ public class Mem2Reg {
                     }
                 }
             }
-            for (Instr instr1: defInstrs) {
-                instr1.remove();
-            }
-            for (Instr instr1: useInstrs) {
-                instr1.remove();
-            }
+
         } else {
             //TODO:多个块store 此Alloc指令申请的空间
             HashSet<BasicBlock> F = new HashSet<>();
@@ -160,6 +154,12 @@ public class Mem2Reg {
 
         //
         instr.remove();
+        for (Instr instr1: defInstrs) {
+            instr1.remove();
+        }
+        for (Instr instr1: useInstrs) {
+            instr1.remove();
+        }
     }
 
     public void RenameDFS(Stack<Value> S, BasicBlock X, HashSet<Instr> useInstrs, HashSet<Instr> defInstrs) {
@@ -174,7 +174,7 @@ public class Mem2Reg {
                 assert A instanceof Instr.Store || A instanceof Instr.Phi;
                 if (A instanceof Instr.Store) {
                     S.push(((Instr.Store) A).getValue());
-                    A.remove();
+                    //A.remove();
                 } else {
                     S.push(A);
                 }
@@ -192,6 +192,7 @@ public class Mem2Reg {
                 }
                 if (useInstrs.contains(instr)) {
                     instr.modifyUse(S.peek(), bb.getPrecBBs().indexOf(X));
+                    //instr.remove();
                 }
                 instr = (Instr) instr.getNext();
             }

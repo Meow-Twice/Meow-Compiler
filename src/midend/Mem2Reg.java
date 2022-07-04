@@ -67,7 +67,7 @@ public class Mem2Reg {
             for (Instr temp: defInstrs) {
                 temp.remove();
             }
-        } else if (defBBs.size() == 1) {
+        } else if (defBBs.size() == 1 && check(defBBs, useBBs)) {
             if (defInstrs.size() == 1) {
                 Instr def = null;
                 for (Instr temp: defInstrs) {
@@ -165,6 +165,20 @@ public class Mem2Reg {
                 instr1.remove();
             }
         }
+    }
+
+    private boolean check(HashSet<BasicBlock> defBBs, HashSet<BasicBlock> useBBs) {
+        BasicBlock defBB = null;
+        assert defBBs.size() == 1;
+        for (BasicBlock bb: defBBs) {
+            defBB = bb;
+        }
+        for (BasicBlock bb: useBBs) {
+            if (!defBB.getDoms().contains(bb)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     public void RenameDFS(Stack<Value> S, BasicBlock X, HashSet<Instr> useInstrs, HashSet<Instr> defInstrs, Type type) {

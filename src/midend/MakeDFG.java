@@ -18,6 +18,7 @@ public class MakeDFG {
     }
 
     public void Run() {
+        RemoveDeadBB();
         MakeCFG();
         MakeDom();
         MakeIDom();
@@ -48,8 +49,13 @@ public class MakeDFG {
         }
     }
 
-    //计算单个函数的控制流图
-    private void makeSingleFuncCFG(Function function) {
+    private void RemoveDeadBB() {
+        for (Function function: functions) {
+            removeFuncDeadBB(function);
+        }
+    }
+
+    private void removeFuncDeadBB(Function function) {
         BasicBlock beginBB = function.getBeginBB();
         BasicBlock end = function.getEnd();
 
@@ -72,6 +78,65 @@ public class MakeDFG {
                 temp.remove();
                 instr = (Instr) instr.getPrev();
             }
+        }
+
+        //添加前驱和后继
+        pos = beginBB;
+        while (!pos.equals(end)) {
+            Instr lastInstr = pos.getEndInstr();
+            if (lastInstr instanceof Instr.Branch) {
+                BasicBlock elseTarget = ((Instr.Branch) lastInstr).getElseTarget();
+                BasicBlock thenTarget = ((Instr.Branch) lastInstr).getThenTarget();
+                sucMap.get(pos).add(thenTarget);
+                sucMap.get(pos).add(elseTarget);
+                preMap.get(thenTarget).add(pos);
+                preMap.get(elseTarget).add(pos);
+            } else if (lastInstr instanceof Instr.Jump) {
+                BasicBlock target = ((Instr.Jump) lastInstr).getTarget();
+                sucMap.get(pos).add(target);
+                preMap.get(target).add(pos);
+            }
+            pos = (BasicBlock) pos.getNext();
+        }
+
+        //回写基本块和函数
+        pos = beginBB;
+        HashSet<BasicBlock> needRemove = new HashSet<>();
+        while (!pos.equals(end)) {
+            pos.setPrecBBs(preMap.get(pos));
+            pos.setSuccBBs(sucMap.get(pos));
+            if (pos.getPrecBBs().size() == 0 && pos != beginBB) {
+                needRemove.add(pos);
+                preMap.remove(pos);
+                sucMap.remove(pos);
+            }
+            pos = (BasicBlock) pos.getNext();
+        }
+        function.setPreMap(preMap);
+        function.setSucMap(sucMap);
+        function.setBBs(BBs);
+
+        for (BasicBlock bb: needRemove) {
+            bb.remove();
+        }
+    }
+
+    //计算单个函数的控制流图
+    private void makeSingleFuncCFG(Function function) {
+        BasicBlock beginBB = function.getBeginBB();
+        BasicBlock end = function.getEnd();
+
+        HashMap<BasicBlock, ArrayList<BasicBlock>> preMap = new HashMap<>();
+        HashMap<BasicBlock, ArrayList<BasicBlock>> sucMap = new HashMap<>();
+        HashSet<BasicBlock> BBs = new HashSet<>();
+
+        //初始化前驱后继图
+        BasicBlock pos = beginBB;
+        while (!pos.equals(end)) {
+            preMap.put(pos, new ArrayList<>());
+            sucMap.put(pos, new ArrayList<>());
+            BBs.add(pos);
+            pos = (BasicBlock) pos.getNext();
         }
 
         //添加前驱和后继

@@ -213,8 +213,11 @@ public class Visitor {
                         primary = new Alu(getF32Type(), Alu.Op.FSUB, CONST_0F, primary, curBB);
                     else if (primary.getType().isInt32Type())
                         primary = new Alu(getI32Type(), Alu.Op.SUB, CONST_0, primary, curBB);
-                    else
+                    else if (primary.getType().isInt1Type()) {
+
+                    } else{
                         throw new AssertionError(String.format("Bad primary - %s", primary));
+                    }
                 }
             }
         }
@@ -274,10 +277,10 @@ public class Visitor {
                 // 参数, 如int a[][...][...]...
                 Instr loadInst = new Load(pointer, curBB);
                 innerType = ((PointerType) innerType).getInnerType();
-                assert innerType instanceof ArrayType;
-                innerType = ((ArrayType) innerType).getBase();
+                // assert innerType instanceof ArrayType;
+                // innerType = ((ArrayType) innerType).getBase();
                 if (__ONLY_PARSE_OUTSIDE_DIM) {
-                    pointer = new GetElementPtr(innerType, loadInst, wrapImmutable(CONST_0, offset), curBB);
+                    pointer = new GetElementPtr(innerType, loadInst, wrapImmutable(offset), curBB);
                 } else {
                     idxList.add(offset);
                 }

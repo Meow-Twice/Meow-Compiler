@@ -214,6 +214,9 @@ public class Instr extends Value {
     // 比较运算, 结果是 i1 型
     public static class Icmp extends Instr {
 
+        public void setFalseBlock(BasicBlock nextBlock) {
+        }
+
         public enum Op {
             EQ("eq"),
             NE("ne"),

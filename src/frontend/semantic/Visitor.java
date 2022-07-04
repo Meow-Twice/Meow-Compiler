@@ -215,7 +215,7 @@ public class Visitor {
                         primary = new Alu(getI32Type(), Alu.Op.SUB, CONST_0, primary, curBB);
                     else if (primary.getType().isInt1Type()) {
 
-                    } else{
+                    } else {
                         throw new AssertionError(String.format("Bad primary - %s", primary));
                     }
                 }
@@ -384,14 +384,24 @@ public class Visitor {
             return trimTo(visitExp(exp), I1_TYPE);
         }
         BinaryExp lOrExp = (BinaryExp) exp;
-        Value first = visitCondLAnd(lOrExp.getFirst(), falseBlock);
+        boolean flag = false;
+        BasicBlock nextBlock = falseBlock;
+        if (!((BinaryExp) exp).getFollows().isEmpty()) {
+            nextBlock = new BasicBlock(curFunc); // 实为trueBlock的前驱
+            flag = true;
+        }
+        Value first = visitCondLAnd(lOrExp.getFirst(), nextBlock);
         assert first.getType().isInt1Type();
         Iterator<Token> iterOp = lOrExp.getOperators().listIterator();
         for (Exp nextExp : lOrExp.getFollows()) {
             assert iterOp.hasNext();
             Token op = iterOp.next();
             assert op.getType() == TokenType.LOR;
-            BasicBlock nextBlock = new BasicBlock(curFunc); // 实为trueBlock的前驱
+            if (flag) {
+                flag = false;
+            } else {
+                nextBlock = new BasicBlock(curFunc); // 实为trueBlock的前驱
+            }
             new Branch(first, trueBlock, nextBlock, curBB);
             curBB = nextBlock;
             first = visitCondLAnd(nextExp, falseBlock);

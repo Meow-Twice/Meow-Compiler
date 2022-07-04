@@ -658,43 +658,43 @@ public class Visitor {
     private Initial.ArrayInit visitInitArray(InitArray initial, ArrayType type, boolean constant, boolean eval) throws SemanticException {
         Initial.ArrayInit arrayInit = new Initial.ArrayInit(type);
         BasicType baseEleType = type.getBaseEleType();
+        Type baseType = type.getBase();
+        int needSize = type.getSize();
         int count = 0;
-        if (type.getBase() instanceof BasicType) {
-            for (Init init : initial.getInit()) {
-                count++; // 统计已经初始化了多少个
+        while (count < needSize && initial.hasInit(count)) {
+            Init init = initial.getInit();
+            if (baseType instanceof ArrayType) {
+                Initial innerInit;
+                if (init instanceof InitArray) {
+                    innerInit = visitInitArray((InitArray) init, (ArrayType) baseType, constant, eval);
+                    initial.nowIdx++;
+                } else {
+                    innerInit = visitInitArray(initial, (ArrayType) baseType, constant, eval);
+                }
+                arrayInit.add(innerInit);
+            } else {
+                assert init instanceof Exp;
+                assert baseType instanceof BasicType;
+                if (eval) {
+                    // 必须编译期计算
+                    arrayInit.add(visitInitVal(baseEleType, (Exp) init));
+                } else {
+                    assert !constant;
+                    arrayInit.add(visitInitExp(baseEleType, (Exp) init));
+                }
                 initial.nowIdx++;
-                if (init instanceof Exp) {
-                    // 是单个数
-                    if (!(type.getBase() instanceof BasicType)) {
-                        throw new SemanticException("Array initializer to a value type");
-                    }
-                    if (eval) {
-                        // 必须编译期计算
-                        arrayInit.add(visitInitVal(baseEleType, (Exp) init));
-                    } else {
-                        assert !constant;
-                        arrayInit.add(visitInitExp(baseEleType, (Exp) init));
-                    }
-                } else {
-                    // 子数组的初始化
-                    // 类型拆一层
-                    assert type.getBase() instanceof ArrayType;
-                    Initial innerInit = visitInitArray((InitArray) init, type, constant, eval);
-                    arrayInit.add(innerInit);
-                }
             }
-            while (count < type.getSize()) {
-                // 初始化个数小于当前维度的长度，补零
-                count++;
-                if (type.getBase() instanceof BasicType) {
-                    arrayInit.add(new Initial.ValueInit(CONST_0, I32_TYPE));
-                } else {
-                    assert type.getBase() instanceof ArrayType;
-                    arrayInit.add(new Initial.ZeroInit(type.getBase()));
-                }
+            count++; // 统计已经初始化了多少个
+        }
+        while (count < type.getSize()) {
+            // 初始化个数小于当前维度的长度，补零
+            count++;
+            if (type.getBase() instanceof BasicType) {
+                arrayInit.add(new Initial.ValueInit(CONST_0, I32_TYPE));
+            } else {
+                assert type.getBase() instanceof ArrayType;
+                arrayInit.add(new Initial.ZeroInit(type.getBase()));
             }
-        } else {
-            arrayInit.add(visitInitArray((InitArray) initial, (ArrayType) type.getBase(), constant, eval));
         }
         return arrayInit;
     }

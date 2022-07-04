@@ -92,8 +92,16 @@ public class Ast {
             this.init = init;
         }
 
-        public List<Init> getInit() {
-            return this.init.subList(nowIdx, this.init.size());
+        public Init getInit() {
+            // if(nowIdx > this.init.size()){
+            //     throw new AssertionError("fuck idx wrong");
+            // }
+            // assert nowIdx < this.init.size();
+            return this.init.get(nowIdx);
+        }
+
+        public boolean hasInit(int count){
+            return nowIdx < this.init.size();
         }
     }
 

@@ -60,7 +60,9 @@ public class Instr extends Value {
     public Instr(Type type, BasicBlock curBB) {
         super(type);
         bb = curBB;
-        bb.insertAtEnd(this);
+        if(!bb.isTerminated()){
+            bb.insertAtEnd(this);
+        }
         useList = new ArrayList<>();
         useValueList = new ArrayList<>();
     }

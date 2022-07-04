@@ -4,7 +4,6 @@ import frontend.lexer.Token;
 import frontend.lexer.TokenType;
 
 import java.util.ArrayList;
-import java.util.List;
 
 /**
  * 所有的语法树节点
@@ -92,7 +91,7 @@ public class Ast {
             this.init = init;
         }
 
-        public Init getInit() {
+        public Init getNowInit() {
             // if(nowIdx > this.init.size()){
             //     throw new AssertionError("fuck idx wrong");
             // }

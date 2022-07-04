@@ -675,7 +675,7 @@ public class Visitor {
         int needSize = type.getSize();
         int count = 0;
         while (count < needSize && initial.hasInit(count)) {
-            Init init = initial.getInit();
+            Init init = initial.getNowInit();
             if (baseType instanceof ArrayType) {
                 Initial innerInit;
                 if (init instanceof InitArray) {
@@ -686,15 +686,24 @@ public class Visitor {
                 }
                 arrayInit.add(innerInit);
             } else {
-                assert init instanceof Exp;
                 assert baseType instanceof BasicType;
+                Exp singleInit;
+                if(init instanceof Exp){
+                    singleInit = (Exp) init;
+                }else{
+                    assert init instanceof InitArray && ((InitArray) init).init.size() == 1;
+                    Ast.Init preInit = ((Ast.InitArray) init).init.get(0);
+                    assert preInit instanceof Exp;
+                    singleInit = (Exp) preInit;
+                }
                 if (eval) {
                     // 必须编译期计算
-                    arrayInit.add(visitInitVal(baseEleType, (Exp) init));
+                    arrayInit.add(visitInitVal(baseEleType, singleInit));
                 } else {
                     assert !constant;
-                    arrayInit.add(visitInitExp(baseEleType, (Exp) init));
+                    arrayInit.add(visitInitExp(baseEleType, singleInit));
                 }
+
                 initial.nowIdx++;
             }
             count++; // 统计已经初始化了多少个

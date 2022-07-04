@@ -214,7 +214,7 @@ public class Visitor {
                     else if (primary.getType().isInt32Type())
                         primary = new Alu(getI32Type(), Alu.Op.SUB, CONST_0, primary, curBB);
                     else if (primary.getType().isInt1Type()) {
-
+                        primary = new Alu(getI32Type(), Alu.Op.SUB, CONST_0, trimTo(primary, I32_TYPE), curBB);
                     } else {
                         throw new AssertionError(String.format("Bad primary - %s", primary));
                     }

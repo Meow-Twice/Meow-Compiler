@@ -20,8 +20,8 @@ public class MidEndRunner {
         Mem2Reg mem2Reg = new Mem2Reg(functions);
         mem2Reg.Run();
 
-        RemovePhi removePhi = new RemovePhi(functions);
-        removePhi.Run();
+        //RemovePhi removePhi = new RemovePhi(functions);
+        //removePhi.Run();
     }
 
 }

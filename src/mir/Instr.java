@@ -45,6 +45,9 @@ public class Instr extends Value {
     public Instr(BasicBlock curBB) {
         super();
         bb = curBB;
+        if (instr_cnt == 80) {
+            System.err.println("error");
+        }
     }
 
 
@@ -609,9 +612,9 @@ public class Instr extends Value {
         public Phi(Type type, ArrayList<Value> optionalValues, BasicBlock parent) {
             // Phi一定插在基本块的开始, Alloc之前
             super(type, parent, true);
-            for (Value instr : optionalValues) {
-                assert type.equals(instr.type);
-            }
+//            for (Value instr : optionalValues) {
+//                assert type.equals(instr.type);
+//            }
             this.optionalValues = optionalValues;
             int idx = 0;
             for (Value inst : optionalValues) {
@@ -632,7 +635,14 @@ public class Instr extends Value {
             String ret = getName() + " = phi " + type.toString() + " ";
             int len = useValueList.size();
             for (int i = 0; i < len; i++) {
-                ret += "[ " + useValueList.get(i).getName() + ", %" + parentBB().getPrecBBs().get(i).getLabel() + " ]";
+                Value value = useValueList.get(i);
+//                if (value instanceof Constant) {
+                ret += "[ " + value.getName() + ", %" + parentBB().getPrecBBs().get(i).getLabel() + " ]";
+//                } else if (value instanceof Instr) {
+//                    ret += "[ " + value.getName() + ", %" + ((Instr) value).parentBB() + " ]";
+//                } else {
+//                    System.err.println("panic when phi to string");
+//                }
                 if (i < len - 1) {
                     ret += ", ";
                 }

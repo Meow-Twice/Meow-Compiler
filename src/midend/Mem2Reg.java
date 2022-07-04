@@ -133,7 +133,7 @@ public class Mem2Reg {
                 ArrayList<Value> optionalValues = new ArrayList<>();
                 for (int i = 0; i < bb.getPrecBBs().size(); i++) {
                     //空指令
-                    optionalValues.add(new Instr(((Type.PointerType) instr.getType()).getInnerType(), bb));
+                    optionalValues.add(new Instr());
                 }
                 if (((Type.PointerType) instr.getType()).getInnerType().isFloatType()) {
                     PHI = new Instr.Phi(Type.BasicType.getF32Type(), optionalValues, bb);
@@ -147,7 +147,8 @@ public class Mem2Reg {
 
             //TODO:Rename
             Stack<Value> S = new Stack<>();
-            RenameDFS(S, instr.parentBB().getFunction().getBeginBB(), useInstrs, defInstrs);
+            Type type = ((Type.PointerType) instr.getType()).getInnerType();
+            RenameDFS(S, instr.parentBB().getFunction().getBeginBB(), useInstrs, defInstrs, type);
         }
 
 
@@ -155,20 +156,25 @@ public class Mem2Reg {
         //
         instr.remove();
         for (Instr instr1: defInstrs) {
-            instr1.remove();
+            if (!(instr1 instanceof Instr.Phi)) {
+                instr1.remove();
+            }
         }
         for (Instr instr1: useInstrs) {
-            instr1.remove();
+            if (!(instr1 instanceof Instr.Phi)) {
+                instr1.remove();
+            }
         }
     }
 
-    public void RenameDFS(Stack<Value> S, BasicBlock X, HashSet<Instr> useInstrs, HashSet<Instr> defInstrs) {
+    public void RenameDFS(Stack<Value> S, BasicBlock X, HashSet<Instr> useInstrs, HashSet<Instr> defInstrs, Type type) {
         int cnt = 0;
         Instr A = X.getBeginInstr();
         while (A.getNext() != null) {
             if (!(A instanceof Instr.Phi) && useInstrs.contains(A)) {
                 assert A instanceof Instr.Load;
-                A.modifyAllUseThisToUseA(S.peek());
+                //A.modifyAllUseThisToUseA(S.peek());
+                A.modifyAllUseThisToUseA(getStackTopValue(S, type));
             }
             if (defInstrs.contains(A)) {
                 assert A instanceof Instr.Store || A instanceof Instr.Phi;
@@ -191,7 +197,9 @@ public class Mem2Reg {
                     break;
                 }
                 if (useInstrs.contains(instr)) {
-                    instr.modifyUse(S.peek(), bb.getPrecBBs().indexOf(X));
+                    //instr.modifyUse(S.peek(), bb.getPrecBBs().indexOf(X));
+                    instr.modifyUse(getStackTopValue(S, type), bb.getPrecBBs().indexOf(X));
+
                     //instr.remove();
                 }
                 instr = (Instr) instr.getNext();
@@ -199,7 +207,7 @@ public class Mem2Reg {
         }
 
         for (BasicBlock next: X.getIdoms()) {
-            RenameDFS(S, next, useInstrs, defInstrs);
+            RenameDFS(S, next, useInstrs, defInstrs, type);
         }
 
         for (int i = 0; i < cnt; i++) {
@@ -212,6 +220,17 @@ public class Mem2Reg {
             return bb;
         }
         return null;
+    }
+
+    public Value getStackTopValue(Stack<Value> S, Type type) {
+        if (S.empty()) {
+            if (type.isFloatType()) {
+                return new Constant.ConstantFloat(0);
+            } else {
+                return new Constant.ConstantInt(0);
+            }
+        }
+        return S.peek();
     }
 
 

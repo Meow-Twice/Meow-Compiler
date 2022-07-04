@@ -64,6 +64,14 @@ public class MakeDFG {
             sucMap.put(pos, new ArrayList<>());
             BBs.add(pos);
             pos = (BasicBlock) pos.getNext();
+
+            //remove useless br
+            Instr instr = pos.getEndInstr();
+            while (instr.getPrev() instanceof Instr.Branch || instr.getPrev() instanceof Instr.Jump) {
+                Instr temp = instr;
+                temp.remove();
+                instr = (Instr) instr.getPrev();
+            }
         }
 
         //添加前驱和后继

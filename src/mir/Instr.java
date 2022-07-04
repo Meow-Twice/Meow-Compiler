@@ -11,14 +11,14 @@ import java.util.Objects;
  */
 public class Instr extends Value {
 
-    public static int instr_cnt = 0;
+    public static int LOCAL_COUNT = 0;
 
     public static int empty_instr_cnt = 0;
 
     public BasicBlock bb;
 
     //TODO:添加一个hash标记,是否比比较arraylist的equal方法快且保险(正确性)
-    public String hash = "Instr " + instr_cnt++;
+    public String hash;
 
     public BasicBlock parentBB() {
         return bb;
@@ -40,25 +40,15 @@ public class Instr extends Value {
         this.hash = "EMPTY_INSTR_" + (empty_instr_cnt++);
     }
 
-
-
-    public Instr(BasicBlock curBB) {
-        super();
-        bb = curBB;
-        if (instr_cnt == 80) {
-            System.err.println("error");
-        }
+    private void init(){
+        hash = "Instr " + LOCAL_COUNT;
+        prefix = LOCAL_PREFIX;
+        name = LOCAL_NAME_PREFIX + LOCAL_COUNT++;
     }
-
-
-    // public Instr(Type type){
-    //     super(type);
-    //     useList = new ArrayList<>();
-    //     useValueList = new ArrayList<>();
-    // }
 
     public Instr(Type type, BasicBlock curBB) {
         super(type);
+        init();
         bb = curBB;
         if(!bb.isTerminated()){
             bb.insertAtEnd(this);
@@ -69,6 +59,7 @@ public class Instr extends Value {
 
     public Instr(Type type, BasicBlock curBB, boolean Lipsum) {
         super(type);
+        init();
         bb = curBB;
         bb.insertAtHead(this);
         useList = new ArrayList<>();
@@ -77,6 +68,7 @@ public class Instr extends Value {
 
     public Instr(Type type, Instr instr) {
         super(type);
+        init();
         bb = instr.bb;
         // 在instr前面插入this (->this->instr->)
         instr.insertBefore(this);
@@ -634,22 +626,22 @@ public class Instr extends Value {
 
         @Override
         public String toString() {
-            String ret = getName() + " = phi " + type.toString() + " ";
+            StringBuilder ret = new StringBuilder(getName() + " = phi " + type.toString() + " ");
             int len = useValueList.size();
             for (int i = 0; i < len; i++) {
                 Value value = useValueList.get(i);
 //                if (value instanceof Constant) {
-                ret += "[ " + value.getName() + ", %" + parentBB().getPrecBBs().get(i).getLabel() + " ]";
+                ret.append("[ ").append(value.getName()).append(", %").append(parentBB().getPrecBBs().get(i).getLabel()).append(" ]");
 //                } else if (value instanceof Instr) {
 //                    ret += "[ " + value.getName() + ", %" + ((Instr) value).parentBB() + " ]";
 //                } else {
 //                    System.err.println("panic when phi to string");
 //                }
                 if (i < len - 1) {
-                    ret += ", ";
+                    ret.append(", ");
                 }
             }
-            return ret;
+            return ret.toString();
         }
 
         public ArrayList<Value> getOptionalValues() {
@@ -669,15 +661,15 @@ public class Instr extends Value {
 
         @Override
         public String toString() {
-            String ret = "PCopy ";
+            StringBuilder ret = new StringBuilder("PCopy ");
             int len = RHS.size();
             for (int i = 0; i < len; i++) {
-                ret += LHS.get(i).getName() + " <-- " + RHS.get(i).getName();
+                ret.append(LHS.get(i).getName()).append(" <-- ").append(RHS.get(i).getName());
                 if (i < len - 1) {
-                    ret += ", ";
+                    ret.append(", ");
                 }
             }
-            return ret;
+            return ret.toString();
         }
 
         public void addToPC(Value tag, Value src) {

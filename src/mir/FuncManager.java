@@ -18,6 +18,7 @@ import static mir.type.Type.BasicType.I32_TYPE;
  */
 public class FuncManager {
     private static final String MAIN_FUNCTION = "main";
+    public static boolean external = false;
     private final Map<Value, Initial> globals = new HashMap<>();
     private final Map<String, Function> functions = new HashMap<>(); // 函数定义
 
@@ -46,6 +47,7 @@ public class FuncManager {
     }
 
     public FuncManager() {
+        external = true;
         addFunction(ExternFunction.GET_INT);
         addFunction(ExternFunction.GET_CH);
         addFunction(ExternFunction.GET_FLOAT);
@@ -57,6 +59,7 @@ public class FuncManager {
         addFunction(ExternFunction.PUT_ARR);
         addFunction(ExternFunction.PUT_FARR);
         addFunction(ExternFunction.MEM_SET);
+        external = false;
     }
 
     public void addGlobal(Symbol symbol) {

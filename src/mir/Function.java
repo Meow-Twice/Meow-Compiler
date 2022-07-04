@@ -13,10 +13,16 @@ public class Function extends Value{
 
 
     public static class Param extends Value{
+
+        private static int FPARAM_COUNT = 0;
         private int idx;
         // private Type type;
         private Function parentFunc;
         public Param(Type type, int idx){
+            if(!FuncManager.external){
+                prefix = LOCAL_PREFIX;
+                name = FPARAM_NAME_PREFIX + FPARAM_COUNT++;
+            }
             this.type = type;
             this.idx = idx;
         }

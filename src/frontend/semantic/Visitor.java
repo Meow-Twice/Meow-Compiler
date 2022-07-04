@@ -567,7 +567,7 @@ public class Visitor {
                 Value ptr = new GetElementPtr(((ArrayType) baseType).getBase(), pointer, wrapImmutable(CONST_0, new Constant.ConstantInt(i)), curBB);
                 initLocalVarHelper(ptr, arrayInit.get(i));
             }
-        }else if(init instanceof Initial.ZeroInit) {
+        } else if (init instanceof Initial.ZeroInit) {
             initZeroHelper(pointer);
         } else {
             Value v;
@@ -575,7 +575,7 @@ public class Visitor {
                 v = trimTo(((Initial.ExpInit) init).getResult(), (BasicType) baseType);
             } else if (init instanceof Initial.ValueInit) {
                 v = trimTo(((Initial.ValueInit) init).getValue(), (BasicType) baseType);
-            } else{
+            } else {
                 throw new AssertionError("wrong init: " + init + "\nfor: " + pointer);
             }
             new Store(v, pointer, curBB);
@@ -641,7 +641,7 @@ public class Visitor {
             if (pointeeType instanceof ArrayType) {
                 initZeroHelper(pointer);
             }
-            if(init!=null){
+            if (init != null) {
                 initLocalVarHelper(pointer, init); // 生成初始化
             }
         } else {
@@ -659,37 +659,42 @@ public class Visitor {
         Initial.ArrayInit arrayInit = new Initial.ArrayInit(type);
         BasicType baseEleType = type.getBaseEleType();
         int count = 0;
-        for (Init init : initial.getInit()) {
-            count++; // 统计已经初始化了多少个
-            if (init instanceof Exp) {
-                // 是单个数
-                if (!(type.getBase() instanceof BasicType)) {
-                    throw new SemanticException("Array initializer to a value type");
-                }
-                if (eval) {
-                    // 必须编译期计算
-                    arrayInit.add(visitInitVal(baseEleType, (Exp) init));
+        if (type.getBase() instanceof BasicType) {
+            for (Init init : initial.getInit()) {
+                count++; // 统计已经初始化了多少个
+                initial.nowIdx++;
+                if (init instanceof Exp) {
+                    // 是单个数
+                    if (!(type.getBase() instanceof BasicType)) {
+                        throw new SemanticException("Array initializer to a value type");
+                    }
+                    if (eval) {
+                        // 必须编译期计算
+                        arrayInit.add(visitInitVal(baseEleType, (Exp) init));
+                    } else {
+                        assert !constant;
+                        arrayInit.add(visitInitExp(baseEleType, (Exp) init));
+                    }
                 } else {
-                    assert !constant;
-                    arrayInit.add(visitInitExp(baseEleType, (Exp) init));
+                    // 子数组的初始化
+                    // 类型拆一层
+                    assert type.getBase() instanceof ArrayType;
+                    Initial innerInit = visitInitArray((InitArray) init, type, constant, eval);
+                    arrayInit.add(innerInit);
                 }
-            } else {
-                // 子数组的初始化
-                // 类型拆一层
-                assert type.getBase() instanceof ArrayType;
-                Initial innerInit = visitInitArray((InitArray) init, (ArrayType) type.getBase(), constant, eval);
-                arrayInit.add(innerInit);
             }
-        }
-        while (count < type.getSize()) {
-            // 初始化个数小于当前维度的长度，补零
-            count++;
-            if (type.getBase() instanceof BasicType) {
-                arrayInit.add(new Initial.ValueInit(CONST_0, I32_TYPE));
-            } else {
-                assert type.getBase() instanceof ArrayType;
-                arrayInit.add(new Initial.ZeroInit(type.getBase()));
+            while (count < type.getSize()) {
+                // 初始化个数小于当前维度的长度，补零
+                count++;
+                if (type.getBase() instanceof BasicType) {
+                    arrayInit.add(new Initial.ValueInit(CONST_0, I32_TYPE));
+                } else {
+                    assert type.getBase() instanceof ArrayType;
+                    arrayInit.add(new Initial.ZeroInit(type.getBase()));
+                }
             }
+        } else {
+            arrayInit.add(visitInitArray((InitArray) initial, (ArrayType) type.getBase(), constant, eval));
         }
         return arrayInit;
     }

@@ -4,6 +4,7 @@ import frontend.lexer.Token;
 import frontend.lexer.TokenType;
 
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 所有的语法树节点
@@ -84,14 +85,15 @@ public class Ast {
     // InitArray -> '{' [ Init { ',' Init } ] '}'
     public static class InitArray implements Init {
         public ArrayList<Init> init;
+        public int nowIdx = 0;
 
         public InitArray(ArrayList<Init> init) {
             assert init != null;
             this.init = init;
         }
 
-        public ArrayList<Init> getInit() {
-            return this.init;
+        public List<Init> getInit() {
+            return this.init.subList(nowIdx, this.init.size());
         }
     }
 

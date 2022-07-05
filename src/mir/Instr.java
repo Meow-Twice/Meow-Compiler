@@ -46,6 +46,17 @@ public class Instr extends Value {
         name = LOCAL_NAME_PREFIX + LOCAL_COUNT++;
     }
 
+    //新建指令,但是不插入基本块,仅在消除PCopy时使用,
+    //好像不需要?
+    //TODO:del after review
+    public Instr(Type type, BasicBlock bb, int bit) {
+        super(type);
+        init();
+        this.bb = bb;
+        useList = new ArrayList<>();
+        useValueList = new ArrayList<>();
+    }
+
     public Instr(Type type, BasicBlock curBB) {
         super(type);
         init();
@@ -681,10 +692,29 @@ public class Instr extends Value {
             this.RHS.add(src);
         }
 
+        public ArrayList<Value> getLHS() {
+            return LHS;
+        }
+
+        public ArrayList<Value> getRHS() {
+            return RHS;
+        }
     }
 
     public static class Move extends Instr {
+        private Value src;
 
+        public Move(Type type,Value src, BasicBlock parent) {
+            super(type, parent);
+            this.src = src;
+        }
+
+        @Override
+        public String toString() {
+            String ret = "Move ";
+            ret += type.toString() + " " + src.getName() + " --> " + this.getName();
+            return ret;
+        }
     }
 
     // Terminator的type都是Void

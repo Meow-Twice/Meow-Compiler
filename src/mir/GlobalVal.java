@@ -9,6 +9,10 @@ public class GlobalVal extends Value {
         super(type);
     }
 
+    public GlobalVal() {
+
+    }
+
     public static class GlobalValue extends GlobalVal {
         private static int GLOBAL_COUNT = 0;
         public Ast.Def def;
@@ -23,9 +27,34 @@ public class GlobalVal extends Value {
         }
     }
 
-    public static class UndefValue {
-        public UndefValue() {
+    public static class UndefValue extends GlobalVal {
+        private static int undefValueCnt = 0;
 
+        private String label;
+        private String name;
+
+        public UndefValue() {
+            super();
+        }
+
+
+        @Override
+        public String getName() {
+            return "undef";
+        }
+
+        public String getLabel() {
+            return label;
+        }
+    }
+
+    public static class VirtualValue extends GlobalVal{
+        private static int virtual_value_cnt = 0;
+
+        public VirtualValue(Type type) {
+            super(type);
+            prefix = LOCAL_PREFIX;
+            name = GLOBAL_NAME_PREFIX + virtual_value_cnt++;
         }
     }
 }

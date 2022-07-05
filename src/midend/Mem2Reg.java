@@ -243,7 +243,7 @@ public class Mem2Reg {
 //            } else {
 //                return new Constant.ConstantInt(0);
 //            }
-            return new UndefValue();
+            return new GlobalVal.UndefValue();
         }
         return S.peek();
     }

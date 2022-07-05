@@ -16,10 +16,22 @@ public class RemovePhi {
     }
 
     public void Run() {
+        RemovePhiAddPCopy();
+        ReplacePCopy();
+    }
+
+    private void RemovePhiAddPCopy() {
         for (Function function: functions) {
             removeFuncPhi(function);
         }
     }
+
+    private void ReplacePCopy() {
+        for (Function function: functions) {
+
+        }
+    }
+
 
     private void removeFuncPhi(Function function) {
         BasicBlock bb = function.getBeginBB();
@@ -85,6 +97,35 @@ public class RemovePhi {
             System.err.println("Panic At Remove PHI addMidBB");
         }
 
+    }
 
+    private void replacePCopyForFunc(Function function) {
+        BasicBlock bb = function.getBeginBB();
+        while (bb.getNext() != null) {
+            Instr instr = bb.getBeginInstr();
+            while (instr.getNext() != null) {
+                if (!(instr instanceof Instr.PCopy)) {
+                    continue;
+                }
+                ArrayList<Value> tags = ((Instr.PCopy) instr).getLHS();
+                ArrayList<Value> srcs = ((Instr.PCopy) instr).getRHS();
+                while (!checkPCopy(tags, srcs)) {
+
+                }
+                instr = (Instr) instr.getNext();
+            }
+
+
+            bb = (BasicBlock) bb.getNext();
+        }
+    }
+
+    private boolean checkPCopy(ArrayList<Value> tag, ArrayList<Value> src) {
+        for (int i = 0; i < tag.size(); i++) {
+            if (!tag.get(i).getName().equals(src.get(i).getName())) {
+                return false;
+            }
+        }
+        return true;
     }
 }

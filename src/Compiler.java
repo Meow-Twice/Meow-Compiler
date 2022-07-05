@@ -42,7 +42,7 @@ public class Compiler {
             }
             Ast ast = new Parser(tokenList).parseAst();
             Visitor visitor = new Visitor();
-            visitor.__ONLY_PARSE_OUTSIDE_DIM = true;
+            visitor.__ONLY_PARSE_OUTSIDE_DIM = false;
             visitor.visitAst(ast);
             FuncManager funcManager = visitor.getIr();
             MidEndRunner midEndRunner = new MidEndRunner(funcManager.getFunctionList());

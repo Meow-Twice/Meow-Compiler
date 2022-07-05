@@ -44,6 +44,8 @@ public class FuncManager {
         public static final Function PUT_ARR = new Function("putarray", wrapParam(I32_TYPE, new Type.PointerType(I32_TYPE)), Type.VoidType.getVoidType());
         public static final Function PUT_FARR = new Function("putfarray", wrapParam(I32_TYPE, new Type.PointerType(F32_TYPE)), Type.VoidType.getVoidType());
         public static final Function MEM_SET = new Function("memset", wrapParam(new Type.PointerType(I32_TYPE), I32_TYPE, I32_TYPE), Type.VoidType.getVoidType());
+        public static final Function START_TIME = new Function("starttime", wrapParam(I32_TYPE), Type.VoidType.getVoidType());
+        public static final Function STOP_TIME = new Function("stoptime", wrapParam(I32_TYPE), Type.VoidType.getVoidType());
     }
 
     public FuncManager() {
@@ -59,6 +61,10 @@ public class FuncManager {
         addFunction(ExternFunction.PUT_ARR);
         addFunction(ExternFunction.PUT_FARR);
         addFunction(ExternFunction.MEM_SET);
+        addFunction(ExternFunction.START_TIME);
+        ExternFunction.START_TIME.isTimeFunc = true;
+        addFunction(ExternFunction.STOP_TIME);
+        ExternFunction.STOP_TIME.isTimeFunc = true;
         external = false;
     }
 

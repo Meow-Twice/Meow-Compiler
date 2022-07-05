@@ -9,7 +9,7 @@ public class Arg {
     public final String asmFilename; // 目标汇编代码文件名 e.g. "testcase.s"
     public final String llvmFilename; // LLVM IR 文件名 e.g. "testcase.ll"
 
-    public final InputStream srcStream; // 源代码输入流
+    public final FileInputStream srcStream; // 源代码输入流
     public final OutputStream asmStream; // 汇编代码输出流
     public final OutputStream llvmStream; // LLVM IR 中间代码输出流
 

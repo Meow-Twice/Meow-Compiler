@@ -8,10 +8,7 @@ import frontend.syntax.Parser;
 import midend.MidEndRunner;
 import mir.FuncManager;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
+import java.io.*;
 
 public class Compiler {
 
@@ -31,14 +28,16 @@ public class Compiler {
     public static void main(String[] args) {
         Arg arg = Arg.parse(args);
         try {
-            String source = input(arg.srcStream);
-            System.err.println(source); // output source code via stderr;
-            TokenList tokenList = Lexer.lex(source);
+            BufferedInputStream source = new BufferedInputStream(arg.srcStream);
+            // System.err.println(source); // output source code via stderr;
+            TokenList tokenList = new TokenList();
+            Lexer.getInstance().lex(source, tokenList);
             if (OUTPUT_LEX) {
                 while (tokenList.hasNext()) {
                     Token token = tokenList.consume();
                     System.err.println(token.getType() + " " + token.getContent());
                 }
+                System.err.println("AST out");
             }
             Ast ast = new Parser(tokenList).parseAst();
             Visitor visitor = new Visitor();

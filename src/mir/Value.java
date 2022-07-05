@@ -12,6 +12,8 @@ public class Value extends ILinkNode {
     public String prefix;
     public String name;
 
+    public static boolean debug = true;
+
     private Use begin = new Use();
     private Use end = new Use();
 
@@ -19,12 +21,18 @@ public class Value extends ILinkNode {
 
     public Value() {
         super();
+        // if(debug){
+        //     System.err.println("fuck");
+        // }
         begin.setNext(end);
         end.setPrev(begin);
     }
 
     public Value(Type type) {
         super();
+        // if(debug){
+        //     System.err.println("fuck");
+        // }
         this.type = type;
         begin.setNext(end);
         end.setPrev(begin);

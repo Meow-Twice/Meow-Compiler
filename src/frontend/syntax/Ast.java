@@ -303,7 +303,7 @@ public class Ast {
         public Exp value;
 
         public Return(Exp value) {
-            assert value != null;
+            // assert value != null;
             this.value = value;
         }
 
@@ -459,6 +459,8 @@ public class Ast {
 
         public Token ident;
         public ArrayList<Exp> params;
+
+        public int lineno = 0;
 
         public Call(Token ident, ArrayList<Exp> params) {
             assert ident != null;

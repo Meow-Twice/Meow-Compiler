@@ -1,5 +1,8 @@
 package frontend.lexer;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.regex.Pattern;
 
 public enum TokenType {
@@ -19,7 +22,8 @@ public enum TokenType {
     // float const
     HEX_FLOAT("(0(x|X)[0-9A-Fa-f]*\\.[0-9A-Fa-f]*((p|P|e|E)(\\+|\\-)?[0-9A-Fa-f]*)?)|" +
             "(0(x|X)[0-9A-Fa-f]*[\\.]?[0-9A-Fa-f]*(p|P|e|E)((\\+|\\-)?[0-9A-Fa-f]*)?)"),
-    DEC_FLOAT("([0-9]*\\.[0-9]*((p|P|e|E)(\\+|\\-)?[0-9]+)?)|([0-9]*[\\.]?[0-9]*(p|P|e|E)((\\+|\\-)?[0-9]+)?)"), // decimal
+    DEC_FLOAT("([0-9]*\\.[0-9]*((p|P|e|E)(\\+|\\-)?[0-9]+)?)|" +
+            "([0-9]*[\\.]?[0-9]*(p|P|e|E)((\\+|\\-)?[0-9]+)?)"), // decimal
     // DEC_FLOAT("(0|([1-9][0-9]*))\\.[0-9]*((p|P|e|E)(\\+|\\-)?[0-9]+)?"), // decimal
     // int const
     HEX_INT("0(x|X)[0-9A-Fa-f]+"),
@@ -50,13 +54,16 @@ public enum TokenType {
     RBRACK("]"),
     LBRACE("\\{"),
     RBRACE("}"),
+    STR_CON(""),
     ;
+
+    public static final ArrayList<TokenType> NUM_CON_LIST = new ArrayList<>(Arrays.asList(HEX_INT, DEC_INT, OCT_INT, HEX_FLOAT, DEC_FLOAT));
 
     private final String pattern;   // regex pattern
 
     private final boolean keyword;  // keyword
 
-    private TokenType(final String pattern, final boolean keyword) {
+    TokenType(final String pattern, final boolean keyword) {
         this.pattern = pattern;
         this.keyword = keyword;
     }

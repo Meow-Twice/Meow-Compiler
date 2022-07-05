@@ -8,10 +8,11 @@ import java.util.Arrays;
 public class TokenList {
     private static final boolean ENABLE_DEBUG = false;
 
-    private final ArrayList<Token> tokens = new ArrayList<>();
+    public final ArrayList<Token> tokens = new ArrayList<>();
     private int index = 0;
 
     public void append(Token token) {
+        // System.err.println(token);
         tokens.add(token);
     }
 

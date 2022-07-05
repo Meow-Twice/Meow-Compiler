@@ -7,6 +7,8 @@ public class Token {
     private final TokenType type;
     private final String content;
 
+    public int lineNum = 0;
+
     private static final boolean[] IS_ALU_TYPE = new boolean[100];
     private static final boolean[] IS_CMP_TYPE = new boolean[100];
 

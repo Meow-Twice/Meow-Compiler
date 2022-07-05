@@ -8,18 +8,19 @@ import java.util.*;
 /**
  * 函数声明 (+ 函数体 = 函数定义)
  */
-public class Function extends Value{
+public class Function extends Value {
     private final String name;
 
 
-    public static class Param extends Value{
+    public static class Param extends Value {
 
         private static int FPARAM_COUNT = 0;
         private int idx;
         // private Type type;
         private Function parentFunc;
-        public Param(Type type, int idx){
-            if(!FuncManager.external){
+
+        public Param(Type type, int idx) {
+            if (!FuncManager.external) {
                 prefix = LOCAL_PREFIX;
                 name = FPARAM_NAME_PREFIX + FPARAM_COUNT++;
             }
@@ -27,17 +28,17 @@ public class Function extends Value{
             this.idx = idx;
         }
 
-        public static ArrayList<Param> wrapParam(Type... types){
+        public static ArrayList<Param> wrapParam(Type... types) {
             ArrayList<Param> params = new ArrayList<>();
             int i = 0;
-            for(Type type: types){
+            for (Type type : types) {
                 params.add(new Param(type, i++));
             }
             return params;
         }
 
         @Override
-        public String toString(){
+        public String toString() {
             return type.toString() + " " + getName();
         }
 
@@ -69,7 +70,7 @@ public class Function extends Value{
         end.setPrev(begin);
         this.name = name;
         this.params = params;
-        for(Param param: params){
+        for (Param param : params) {
             param.parentFunc = this;
         }
         this.retType = retType;
@@ -143,10 +144,12 @@ public class Function extends Value{
         }
     }
 
+    public boolean isTimeFunc = false;
+
     // 输出函数声明
     public String getDeclare() {
         String paramList = params.stream().map(var -> var.getType().toString()).reduce((s, s2) -> s + ", " + s2).orElse("");
-        return "declare " + getTypeStr() + " @" + name + "(" + paramList + ")";
+        return "declare " + getTypeStr() + " @" + (isTimeFunc ? "_sysy_" : "") + name + "(" + paramList + ")";
     }
 
     // 输出函数定义
@@ -189,7 +192,7 @@ public class Function extends Value{
             }
             body.append("\n");
         }
-        
+
         return "define dso_local " + getTypeStr() + " @" + name + "(" + paramList + ") {\n" + body + "}\n";
     }
 

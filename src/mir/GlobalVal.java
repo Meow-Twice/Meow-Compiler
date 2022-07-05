@@ -37,6 +37,10 @@ public class GlobalVal extends Value {
             super();
         }
 
+        public UndefValue(Type type) {
+            super(type);
+        }
+
 
         @Override
         public String getName() {

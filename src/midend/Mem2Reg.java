@@ -49,6 +49,7 @@ public class Mem2Reg {
         HashSet<Instr> defInstrs = new HashSet<>();
         HashSet<Instr> useInstrs = new HashSet<>();
         Use pos = instr.getBeginUse();
+        Type InnerType = ((Instr.Alloc) instr).getContentType();
         while (pos.getNext() != null) {
             Instr userInstr = pos.getUser();
             if (userInstr instanceof Instr.Store) {
@@ -68,37 +69,44 @@ public class Mem2Reg {
                 temp.remove();
             }
         } else if (defBBs.size() == 1 && check(defBBs, useBBs)) {
-            if (defInstrs.size() == 1) {
-                Instr def = null;
-                for (Instr temp: defInstrs) {
-                    def = temp;
-                }
-                for (Instr use: useInstrs) {
-                    use.modifyAllUseThisToUseA(((Instr.Store) def).getValue());
-                }
-            } else {
-                BasicBlock defBB = null;
-                for (BasicBlock bb: defBBs) {
-                    defBB = bb;
-                }
+            //fixme:本来我认为如果只有一个定义指令 就可以直接进行替换,即如下代码
+            //          但是 实际上这样替换的前提还需要定义指令支配所有使用指令,
+            //          当存在未定义的使用的时候会直接生成不符合llvm的语法,所以直接删除这一分支
+            //if (defInstrs.size() == 1) {
+            //                Instr def = null;
+            //                for (Instr temp: defInstrs) {
+            //                    def = temp;
+            //                }
+            //                for (Instr use: useInstrs) {
+            //                    use.modifyAllUseThisToUseA(((Instr.Store) def).getValue());
+            //                }
+            //            }
 
-                Instr reachDef = null;
-                Instr BB_pos = defBB.getBeginInstr();
-                while (BB_pos.getNext() != null) {
-                    if (defInstrs.contains(BB_pos)) {
-                        reachDef = BB_pos;
-                    } else if (useInstrs.contains(BB_pos)) {
+            BasicBlock defBB = null;
+            for (BasicBlock bb: defBBs) {
+                defBB = bb;
+            }
+
+            Instr reachDef = null;
+            Instr BB_pos = defBB.getBeginInstr();
+            while (BB_pos.getNext() != null) {
+                if (defInstrs.contains(BB_pos)) {
+                    reachDef = BB_pos;
+                } else if (useInstrs.contains(BB_pos)) {
+                    if (reachDef == null) {
+                        BB_pos.modifyAllUseThisToUseA(new GlobalVal.UndefValue(InnerType));
+                    } else {
                         BB_pos.modifyAllUseThisToUseA(((Instr.Store) reachDef).getValue());
                     }
-                    BB_pos = (Instr) BB_pos.getNext();
                 }
+                BB_pos = (Instr) BB_pos.getNext();
+            }
 
-                //TODO:对于未定义的使用,是否不必要进行定义,当前实现方法为所有其他BB的use认为使用了唯一的reachDef
-                for (Instr userInstr: useInstrs) {
-                    if (!userInstr.parentBB().equals(defBB)) {
-                        assert reachDef != null;
-                        userInstr.modifyAllUseThisToUseA(reachDef);
-                    }
+            //TODO:对于未定义的使用,是否不必要进行定义,当前实现方法为所有其他BB的use认为使用了唯一的reachDef
+            for (Instr userInstr: useInstrs) {
+                if (!userInstr.parentBB().equals(defBB)) {
+                    assert reachDef != null;
+                    userInstr.modifyAllUseThisToUseA(((Instr.Store) reachDef).getValue());
                 }
             }
 

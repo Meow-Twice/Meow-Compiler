@@ -238,11 +238,12 @@ public class Mem2Reg {
 
     public Value getStackTopValue(Stack<Value> S, Type type) {
         if (S.empty()) {
-            if (type.isFloatType()) {
-                return new Constant.ConstantFloat(0);
-            } else {
-                return new Constant.ConstantInt(0);
-            }
+//            if (type.isFloatType()) {
+//                return new Constant.ConstantFloat(0);
+//            } else {
+//                return new Constant.ConstantInt(0);
+//            }
+            return new UndefValue();
         }
         return S.peek();
     }

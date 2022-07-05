@@ -133,6 +133,10 @@ public class Instr extends Value {
         return this.hash;
     }
 
+    public ArrayList<Value> getUseValueList() {
+        return useValueList;
+    }
+
     // 二元算术运算, 结果是 i32 型
     public static class Alu extends Instr {
 

@@ -25,15 +25,38 @@ public class RemovePhi {
         BasicBlock bb = function.getBeginBB();
         while (bb.getNext() != null) {
             ArrayList<BasicBlock> pres = bb.getPrecBBs();
-            ArrayList<Value> PCopys = new ArrayList<>();
+            ArrayList<Instr.PCopy> PCopys = new ArrayList<>();
             for (BasicBlock incomeBB: pres) {
-                Instr.PCopy pCopy = new Instr.PCopy(new ArrayList<>(), new ArrayList<>(), incomeBB);
-                PCopys.add(pCopy);
+
+
                 if (incomeBB.getSuccBBs().size() > 1) {
                     BasicBlock mid = new BasicBlock(function);
-                    pCopy.setBb(mid);
+                    Instr.PCopy pCopy = new Instr.PCopy(new ArrayList<>(), new ArrayList<>(), mid);
+                    PCopys.add(pCopy);
+                    addMidBB(incomeBB, mid, bb);
+                } else {
+                    Instr endInstr = incomeBB.getEndInstr();
+                    Instr.PCopy pCopy = new Instr.PCopy(new ArrayList<>(), new ArrayList<>(), incomeBB);
+                    endInstr.insertBefore(pCopy);
+                    PCopys.add(pCopy);
                 }
 
+            }
+
+            Instr instr = bb.getBeginInstr();
+            while (instr instanceof Instr.Phi) {
+                ArrayList<Value> phiRHS = instr.getUseValueList();
+                for (int i = 0; i < phiRHS.size(); i++) {
+                    PCopys.get(i).addToPC(instr, phiRHS.get(i));
+                }
+                instr = (Instr) instr.getNext();
+            }
+
+            instr = bb.getBeginInstr();
+            while (instr instanceof Instr.Phi) {
+                Instr temp = instr;
+                instr = (Instr) instr.getNext();
+                temp.remove();
             }
 
             bb = (BasicBlock) bb.getNext();
@@ -47,18 +70,21 @@ public class RemovePhi {
         tag.getPrecBBs().remove(src);
         tag.getPrecBBs().add(mid);
 
-        int oldEdgeType = edgeType(src, tag);
-        if (oldEdgeType != 0) {
+        Instr instr = src.getEndInstr();
+        assert instr instanceof Instr.Branch;
+        BasicBlock thenBB = ((Instr.Branch) instr).getThenTarget();
+        BasicBlock elseBB = ((Instr.Branch) instr).getElseTarget();
 
-        }
-    }
-
-    private int edgeType(BasicBlock src, BasicBlock tag) {
-        BasicBlock srcNxt = (BasicBlock) src.getNext();
-        if (srcNxt.equals(tag)) {
-            return 0;
+        if (tag.equals(thenBB)) {
+            ((Instr.Branch) instr).setThenTarget(mid);
+            Instr.Jump jump = new Instr.Jump(tag, mid);
+        } else if (tag.equals(elseBB)) {
+            ((Instr.Branch) instr).setElseTarget(mid);
+            Instr.Jump jump = new Instr.Jump(tag, mid);
         } else {
-            return 1;
+            System.err.println("Panic At Remove PHI addMidBB");
         }
+
+
     }
 }

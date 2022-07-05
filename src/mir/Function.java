@@ -42,6 +42,11 @@ public class Function extends Value {
             return type.toString() + " " + getName();
         }
 
+        @Override
+        public Type getType(){
+            return type;
+        }
+
     }
 
 //    private final List<Val.Var> params; // 形参表

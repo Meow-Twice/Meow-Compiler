@@ -83,12 +83,12 @@ public class Constant extends Value {
 
         @Override
         public String getName() {
-            return String.valueOf(constFloatVal);
+            return String.format("0x%x",Double.doubleToRawLongBits((constFloatVal)));
         }
 
         @Override
         public String toString() {
-            return String.valueOf(constFloatVal);
+            return String.format("0x%x",Double.doubleToRawLongBits((constFloatVal)));
         }
     }
 

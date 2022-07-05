@@ -14,14 +14,15 @@ public class GlobalVal extends Value {
     }
 
     public static class GlobalValue extends GlobalVal {
-        private static int GLOBAL_COUNT = 0;
+        // private static int GLOBAL_COUNT = 0;
         public Ast.Def def;
         public Initial initial;
 
         public GlobalValue(Type pointeeType, Ast.Def def, Initial initial) {
             super(new Type.PointerType(pointeeType));
             prefix = GLOBAL_PREFIX;
-            name = GLOBAL_NAME_PREFIX + GLOBAL_COUNT++;
+            name = def.ident.getContent();
+            // name = GLOBAL_NAME_PREFIX + GLOBAL_COUNT++;
             this.def = def;
             this.initial = initial;
         }

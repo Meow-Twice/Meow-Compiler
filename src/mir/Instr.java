@@ -559,6 +559,23 @@ public class Instr extends Value {
 
     }
 
+    public static class Bitcast extends Instr {
+
+        public Bitcast(Value srcValue, Type dstType, BasicBlock parent) {
+            super(dstType, parent);
+            setUse(srcValue, 0);
+        }
+
+        public Value getSrcValue() {
+            return useValueList.get(0);
+        }
+
+        @Override
+        public String toString() {
+            return getName() + " = bitcast " + getSrcValue().getDescriptor() + " to " + getType();
+        }
+    }
+
     // 函数调用
     public static class Call extends Instr {
 

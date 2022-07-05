@@ -133,7 +133,7 @@ public class Visitor {
     }
 
     private boolean hasFloatType(Value v1, Value v2) {
-        return v1.getType().isFloatType() || v1.getType().isFloatType();
+        return v1.getType().isFloatType() || v2.getType().isFloatType();
     }
 
     private boolean hasIntType(Value v1, Value v2) {
@@ -196,7 +196,7 @@ public class Visitor {
                 else {
                     assert primary.getType().isInt1Type();
                     primary = trimTo(primary, I32_TYPE);
-                    primary = new Icmp(Icmp.Op.NE, primary, CONST_0, curBB);
+                    primary = new Icmp(Icmp.Op.EQ, primary, CONST_0, curBB);
                     // TODO: 大胆而激进的做法
                     // 有非仅下面一条指令调用的风险
                     // if(primary instanceof Icmp){
@@ -331,8 +331,14 @@ public class Visitor {
             return new Instr.Call(function, new ArrayList<>(Collections.singleton(new Constant.ConstantInt(call.lineno))), curBB);
         } else {
             ArrayList<Value> params = new ArrayList<>();
+            int idx = 0;
             for (Exp exp : call.getParams()) {
-                params.add(visitExp(exp));
+                Function.Param p = function.getParams().get(idx++);
+                Value expValue = visitExp(exp);
+                if(p.getType() instanceof BasicType){
+                    expValue = trimTo(expValue, (BasicType) p.getType());
+                }
+                params.add(expValue);
             }
             return new Instr.Call(function, params, curBB);
         }
@@ -489,7 +495,8 @@ public class Visitor {
         if (retExp == null) {
             new Instr.Return(curBB);
         } else {
-            new Instr.Return(visitExp(retExp), curBB);
+            Value retValue = visitExp(retExp);
+            new Instr.Return(trimTo(retValue, (BasicType) curBB.getFunction().getRetType()), curBB);
         }
     }
 
@@ -565,6 +572,11 @@ public class Visitor {
         }
         if (!__ONLY_PARSE_OUTSIDE_DIM) {
             ptr = new GetElementPtr(pointeeType, ptr, idxList, curBB);
+        }
+        assert ptr.getType() instanceof PointerType;
+        assert ((PointerType) ptr.getType()).getInnerType() instanceof BasicType;
+        if(((PointerType) ptr.getType()).getInnerType().isFloatType()){
+            ptr = new Bitcast(ptr, new PointerType(I32_TYPE), curBB);
         }
         new Instr.Call(FuncManager.ExternFunction.MEM_SET, wrapImmutable(ptr, CONST_0, new Constant.ConstantInt(size)), curBB);
     }

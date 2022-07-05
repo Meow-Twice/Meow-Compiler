@@ -137,6 +137,7 @@ public class BasicBlock extends Value {
     }
 
     public void setFunction(Function function) {
+        this.label = "b" + (bb_count);
         this.function = function;
         function.insertAtBegin(this);
     }

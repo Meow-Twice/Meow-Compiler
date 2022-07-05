@@ -12,7 +12,7 @@ import java.io.*;
 
 public class Compiler {
 
-    public static final boolean OUTPUT_LEX = false;
+    public static boolean OUTPUT_LEX = false;
 
     private static String input(InputStream in) throws IOException {
         BufferedReader reader = new BufferedReader(new InputStreamReader(in));
@@ -32,13 +32,14 @@ public class Compiler {
             // System.err.println(source); // output source code via stderr;
             TokenList tokenList = new TokenList();
             Lexer.getInstance().lex(source, tokenList);
+            // OUTPUT_LEX = true;
             if (OUTPUT_LEX) {
                 while (tokenList.hasNext()) {
                     Token token = tokenList.consume();
                     System.err.println(token.getType() + " " + token.getContent());
                 }
-                System.err.println("AST out");
             }
+            System.err.println("AST out");
             Ast ast = new Parser(tokenList).parseAst();
             Visitor visitor = new Visitor();
             visitor.__ONLY_PARSE_OUTSIDE_DIM = false;

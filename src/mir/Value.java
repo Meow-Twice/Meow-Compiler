@@ -69,4 +69,8 @@ public class Value extends ILinkNode {
     public String getDescriptor() {
         return getType() + " " + getName();
     }
+
+    public boolean isNoUse(){
+        return begin.getNext().equals(end);
+    }
 }

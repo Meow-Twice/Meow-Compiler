@@ -28,6 +28,14 @@ public class Instr extends Value {
         this.bb = bb;
     }
 
+    public void removeUserUse() {
+        for (Use use : useList) {
+            use.remove();
+        }
+        useValueList.clear();
+        useList.clear();
+    }
+
     public interface Terminator {
     }
 

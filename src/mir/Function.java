@@ -57,7 +57,7 @@ public class Function extends Value {
     private ArrayList<Param> params;
 
     //TODO: entry是否需要保留
-    private BasicBlock entry = null; // 函数体
+    public BasicBlock entry = null; // 函数体
 
     private BasicBlock begin;
     private BasicBlock end;
@@ -245,4 +245,9 @@ public class Function extends Value {
     public HashSet<BasicBlock> getBBs() {
         return BBs;
     }
+
+    // @Override
+    // public boolean equals(Object obj) {
+    //     return ;
+    // }
 }

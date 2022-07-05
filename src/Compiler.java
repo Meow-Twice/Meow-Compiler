@@ -5,6 +5,8 @@ import frontend.lexer.TokenList;
 import frontend.semantic.Visitor;
 import frontend.syntax.Ast;
 import frontend.syntax.Parser;
+import midend.DeadCodeDelete;
+import midend.GlobalValueLocalize;
 import midend.MidEndRunner;
 import mir.FuncManager;
 
@@ -45,8 +47,12 @@ public class Compiler {
             visitor.__ONLY_PARSE_OUTSIDE_DIM = false;
             visitor.visitAst(ast);
             FuncManager funcManager = visitor.getIr();
-            MidEndRunner midEndRunner = new MidEndRunner(funcManager.getFunctionList());
-            midEndRunner.Run();
+            GlobalValueLocalize globalValueLocalize = new GlobalValueLocalize(funcManager.globals);
+            globalValueLocalize.Run();
+            // MidEndRunner midEndRunner = new MidEndRunner(funcManager.getFunctionList());
+            // midEndRunner.Run();
+            DeadCodeDelete deadCodeDelete = new DeadCodeDelete(funcManager.getFunctionList());
+            deadCodeDelete.Run();
             funcManager.output(arg.llvmStream);
         } catch (Exception e) {
             e.printStackTrace();

@@ -703,16 +703,17 @@ public class Instr extends Value {
 
     public static class Move extends Instr {
         private Value src;
-
-        public Move(Type type,Value src, BasicBlock parent) {
+        private Value tag;
+        public Move(Type type, Value tag, Value src, BasicBlock parent) {
             super(type, parent);
+            this.tag = tag;
             this.src = src;
         }
 
         @Override
         public String toString() {
             String ret = "Move ";
-            ret += type.toString() + " " + src.getName() + " --> " + this.getName();
+            ret += type.toString() + " " + src.getName() + " --> " + tag.getName();
             return ret;
         }
     }

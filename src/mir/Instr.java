@@ -40,7 +40,7 @@ public class Instr extends Value {
         this.hash = "EMPTY_INSTR_" + (empty_instr_cnt++);
     }
 
-    private void init() {
+    private void init(){
         hash = "Instr " + LOCAL_COUNT;
         prefix = LOCAL_PREFIX;
         name = LOCAL_NAME_PREFIX + LOCAL_COUNT++;
@@ -61,7 +61,7 @@ public class Instr extends Value {
         super(type);
         init();
         bb = curBB;
-        if (!bb.isTerminated()) {
+        if(!bb.isTerminated()){
             bb.insertAtEnd(this);
         }
         useList = new ArrayList<>();
@@ -599,7 +599,7 @@ public class Instr extends Value {
                 retType = type.toString();
             }
             String paramList = getParamList().stream().map(Value::getDescriptor).reduce((s, s2) -> s + ", " + s2).orElse("");
-            return prefix + "call " + retType + " @" + (getFunc().isTimeFunc ? "_sysy_" : "") + getFunc().getName() + "(" + paramList + ")";
+            return prefix + "call " + retType + " @" + getFunc().getName() + "(" + paramList + ")";
         }
 
         public Function getFunc() {
@@ -703,16 +703,17 @@ public class Instr extends Value {
 
     public static class Move extends Instr {
         private Value src;
-
-        public Move(Type type, Value src, BasicBlock parent) {
+        private Value tag;
+        public Move(Type type, Value tag, Value src, BasicBlock parent) {
             super(type, parent);
+            this.tag = tag;
             this.src = src;
         }
 
         @Override
         public String toString() {
             String ret = "Move ";
-            ret += type.toString() + " " + src.getName() + " --> " + this.getName();
+            ret += type.toString() + " " + src.getName() + " --> " + tag.getName();
             return ret;
         }
     }

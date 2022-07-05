@@ -41,7 +41,7 @@ public class Visitor {
     private Value trimTo(Value value, BasicType targetType) /*throws SemanticException*/ {
         assert value != null;
         if (!(value.getType() instanceof BasicType)) {
-            throw new AssertionError("fuck trimTo "+targetType);
+            throw new AssertionError("Wrong trimTo "+targetType);
         }
         // Value res = value;
         if (value.getType().equals(targetType)) {

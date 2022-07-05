@@ -40,7 +40,9 @@ public class Visitor {
 
     private Value trimTo(Value value, BasicType targetType) /*throws SemanticException*/ {
         assert value != null;
-        assert value.getType() instanceof BasicType;
+        if (!(value.getType() instanceof BasicType)) {
+            throw new AssertionError("fuck");
+        }
         // Value res = value;
         if (value.getType().equals(targetType)) {
             System.err.printf("Try to trim %s to %s\n", value, targetType);
@@ -269,6 +271,7 @@ public class Visitor {
         assert pointer.getType() instanceof PointerType;
         ArrayList<Value> idxList = new ArrayList<>();
         idxList.add(CONST_0);
+        boolean flag = false;
         Type innerType = ((PointerType) pointer.getType()).getInnerType(); // 实体的类型
         for (Exp exp : lVal.getIndexes()) {
             Value offset = trimTo(visitExp(exp), I32_TYPE);
@@ -282,6 +285,9 @@ public class Visitor {
                 if (__ONLY_PARSE_OUTSIDE_DIM) {
                     pointer = new GetElementPtr(innerType, loadInst, wrapImmutable(offset), curBB);
                 } else {
+                    pointer = loadInst;
+                    flag = true;
+                    idxList.clear();
                     idxList.add(offset);
                 }
             } else if (innerType instanceof ArrayType) {
@@ -290,13 +296,14 @@ public class Visitor {
                 if (__ONLY_PARSE_OUTSIDE_DIM) {
                     pointer = new GetElementPtr(innerType, pointer, wrapImmutable(CONST_0, offset), curBB);
                 } else {
+                    flag = true;
                     idxList.add(offset);
                 }
             } else {
                 throw new AssertionError(String.format("lVal:(%s) visit fail", lVal));
             }
         }
-        if (!__ONLY_PARSE_OUTSIDE_DIM && idxList.size() > 1) {
+        if (!__ONLY_PARSE_OUTSIDE_DIM && flag) {
             pointer = new GetElementPtr(innerType, pointer, idxList, curBB);
         }
         assert pointer.getType() instanceof PointerType;
@@ -688,9 +695,9 @@ public class Visitor {
             } else {
                 assert baseType instanceof BasicType;
                 Exp singleInit;
-                if(init instanceof Exp){
+                if (init instanceof Exp) {
                     singleInit = (Exp) init;
-                }else{
+                } else {
                     assert init instanceof InitArray && ((InitArray) init).init.size() == 1;
                     Ast.Init preInit = ((Ast.InitArray) init).init.get(0);
                     assert preInit instanceof Exp;

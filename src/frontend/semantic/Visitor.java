@@ -41,7 +41,7 @@ public class Visitor {
     private Value trimTo(Value value, BasicType targetType) /*throws SemanticException*/ {
         assert value != null;
         if (!(value.getType() instanceof BasicType)) {
-            throw new AssertionError("Wrong trimTo "+targetType);
+            throw new AssertionError("Wrong trimTo " + targetType);
         }
         // Value res = value;
         if (value.getType().equals(targetType)) {
@@ -327,9 +327,9 @@ public class Visitor {
         String ident = call.getIdent().getContent();
         Function function = funcManager.getFunctions().get(ident);
         assert function != null;
-        if(function.isTimeFunc){
+        if (function.isTimeFunc) {
             return new Instr.Call(function, new ArrayList<>(Collections.singleton(new Constant.ConstantInt(call.lineno))), curBB);
-        }else{
+        } else {
             ArrayList<Value> params = new ArrayList<>();
             for (Exp exp : call.getParams()) {
                 params.add(visitExp(exp));

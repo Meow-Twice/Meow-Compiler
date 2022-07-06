@@ -23,7 +23,11 @@ public class Loop {
         this.parentLoop = parentLoop;
         this.loopDepth = parentLoop.loopDepth + 1;
         assert parentLoop.addChildLoop(this);
-        name = parentLoop.name + "-" + (loopDepth == 0 ? 1 : parentLoop.getChildrenLoops().size());
+        name = parentLoop.name + "-" + (loopDepth == 0 ? 0 : parentLoop.getChildrenLoops().size());
+    }
+
+    public int getLoopDepth(){
+        return loopDepth;
     }
 
     // 慎用，visitor用不到到这个

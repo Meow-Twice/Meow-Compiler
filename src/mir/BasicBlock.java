@@ -38,15 +38,16 @@ public class BasicBlock extends Value {
     private HashSet<BasicBlock> DF;
 
 
-    //TODO:需要手动维护BB内部的深度
-    public int loopDepth = 0;
-
     public Loop loop = Loop.emptyLoop;
     public boolean isLoopStart = false;
 
     public void setLoopStart() {
         isLoopStart = true;
         loop.setStartBB(this);
+    }
+
+    public int getLoopDep() {
+        return loop.getLoopDepth();
     }
 
     private String label;

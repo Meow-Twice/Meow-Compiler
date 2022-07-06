@@ -59,12 +59,18 @@ public class GVNAndGCM {
     }
 
     private void GVN() {
-
+        for (Function function: functions) {
+            GVNForFunc(function);
+        }
     }
 
-    private void DFS(int deep) {
+    private void GVNForFunc(Function function) {
 
+        //HashSet<String>
     }
+
+
+
 
     private void scheduleEarlyForFunc(Function function) {
         HashSet<Instr> pinnedInstr = pinnedInstrMap.get(function);
@@ -254,7 +260,8 @@ public class GVNAndGCM {
     private boolean isPinned(Instr instr) {
         return instr instanceof Instr.Jump || instr instanceof Instr.Branch ||
                 instr instanceof Instr.Phi || instr instanceof Instr.Return ||
-                instr instanceof Instr.Store || instr instanceof Instr.Load || instr instanceof Instr.GetElementPtr || instr instanceof Instr.Call;
+                instr instanceof Instr.Store || instr instanceof Instr.Load ||
+                instr instanceof Instr.GetElementPtr || instr instanceof Instr.Call;
     }
 
     private void printBeforeMove() {

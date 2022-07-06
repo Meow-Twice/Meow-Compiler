@@ -20,6 +20,9 @@ public class MidEndRunner {
         Mem2Reg mem2Reg = new Mem2Reg(functions);
         mem2Reg.Run();
 
+        GVNAndGCM gvnAndGCM = new GVNAndGCM(functions);
+        gvnAndGCM.Run();
+
 //        RemovePhi removePhi = new RemovePhi(functions);
 //        removePhi.Run();
     }

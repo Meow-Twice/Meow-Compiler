@@ -41,6 +41,9 @@ public class BasicBlock extends Value {
     public Loop loop = Loop.emptyLoop;
     public boolean isLoopStart = false;
 
+    private int domTreeDeep;
+    private BasicBlock IDominator;
+
     public void setLoopStart() {
         isLoopStart = true;
         loop.setStartBB(this);
@@ -237,8 +240,26 @@ public class BasicBlock extends Value {
         return DF;
     }
 
+    public void setDomTreeDeep(int domTreeDeep) {
+        this.domTreeDeep = domTreeDeep;
+    }
+
+    public int getDomTreeDeep() {
+        return domTreeDeep;
+    }
+
+    public void setIDominator(BasicBlock IDominator) {
+        assert this.IDominator == null;
+        this.IDominator = IDominator;
+    }
+
+    public BasicBlock getIDominator() {
+        return IDominator;
+    }
+
     @Override
     public String toString() {
-        return this.label + ":\t\t\t\t\t; loopDepth: " + loop.loopDepth + ";\t" + loop;
+        //return this.label + ":\t\t\t\t\t; loopDepth: " + loop.loopDepth + ";\t" + loop;
+        return this.label;
     }
 }

@@ -20,6 +20,25 @@ public class Instr extends Value {
     //TODO:添加一个hash标记,是否比比较arraylist的equal方法快且保险(正确性)
     public String hash;
 
+    private BasicBlock earliestBB;
+    private BasicBlock latestBB;//在本算法中,last is best
+
+    public void setEarliestBB(BasicBlock earliestBB) {
+        this.earliestBB = earliestBB;
+    }
+
+    public void setLatestBB(BasicBlock latestBB) {
+        this.latestBB = latestBB;
+    }
+
+    public BasicBlock getEarliestBB() {
+        return earliestBB;
+    }
+
+    public BasicBlock getLatestBB() {
+        return latestBB;
+    }
+
     public BasicBlock parentBB() {
         return bb;
     }
@@ -692,6 +711,11 @@ public class Instr extends Value {
 
         public ArrayList<Value> getOptionalValues() {
             return this.optionalValues;
+        }
+
+        public int getValueIndexInUseValueList(Value value) {
+            assert useValueList.contains(value);
+            return useValueList.indexOf(value);
         }
     }
 

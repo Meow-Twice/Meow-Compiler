@@ -74,22 +74,31 @@ public class GVNAndGCM {
             instr.setEarliestBB(instr.parentBB());
             know.add(instr);
         }
-        for (Instr instr: pinnedInstr) {
-            for (Value value: instr.getUseValueList()) {
-                if (value instanceof Constant || value instanceof BasicBlock ||
-                        value instanceof GlobalVal || value instanceof Function || value instanceof Function.Param) {
-                    continue;
-                }
-                assert value instanceof Instr;
-                scheduleEarly((Instr) value);
-            }
-        }
+//        for (Instr instr: pinnedInstr) {
+//            for (Value value: instr.getUseValueList()) {
+//                if (value instanceof Constant || value instanceof BasicBlock ||
+//                        value instanceof GlobalVal || value instanceof Function || value instanceof Function.Param) {
+//                    continue;
+//                }
+//                assert value instanceof Instr;
+//                scheduleEarly((Instr) value);
+//            }
+//        }
         BasicBlock bb = function.getBeginBB();
         while (bb.getNext() != null) {
             Instr instr = bb.getBeginInstr();
             while (instr.getNext() != null) {
                 if (!know.contains(instr)) {
                     scheduleEarly(instr);
+                } else if (pinnedInstr.contains(instr)) {
+                    for (Value value: instr.getUseValueList()) {
+                        if (value instanceof Constant || value instanceof BasicBlock ||
+                                value instanceof GlobalVal || value instanceof Function || value instanceof Function.Param) {
+                            continue;
+                        }
+                        assert value instanceof Instr;
+                        scheduleEarly((Instr) value);
+                    }
                 }
                 instr = (Instr) instr.getNext();
             }
@@ -98,7 +107,7 @@ public class GVNAndGCM {
     }
 
     private void scheduleEarly(Instr instr) {
-        System.out.println(instr.toString());
+        //System.out.println(cnt++);
         //System.out.println(know.size());
         if (know.contains(instr)) {
             return;
@@ -138,14 +147,25 @@ public class GVNAndGCM {
                 use = (Use) use.getNext();
             }
         }
+//        BasicBlock bb = function.getBeginBB();
+//        while (bb.getNext() != null) {
+//            Instr instr = bb.getBeginInstr();
+//            while (instr.getNext() != null) {
+//                if (!know.contains(instr)) {
+//                    scheduleLate(instr);
+//                }
+//                instr = (Instr) instr.getNext();
+//            }
+//            bb = (BasicBlock) bb.getNext();
+//        }
         BasicBlock bb = function.getBeginBB();
         while (bb.getNext() != null) {
-            Instr instr = bb.getBeginInstr();
-            while (instr.getNext() != null) {
+            Instr instr = bb.getEndInstr();
+            while (instr.getPrev() != null) {
                 if (!know.contains(instr)) {
                     scheduleLate(instr);
                 }
-                instr = (Instr) instr.getNext();
+                instr = (Instr) instr.getPrev();
             }
             bb = (BasicBlock) bb.getNext();
         }

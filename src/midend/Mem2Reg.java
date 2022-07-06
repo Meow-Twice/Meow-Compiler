@@ -163,14 +163,16 @@ public class Mem2Reg {
 
         //
         instr.remove();
-        for (Instr instr1: defInstrs) {
-            if (!(instr1 instanceof Instr.Phi)) {
-                instr1.remove();
+        if (!useBBs.isEmpty()) {
+            for (Instr instr1 : defInstrs) {
+                if (!(instr1 instanceof Instr.Phi)) {
+                    instr1.remove();
+                }
             }
-        }
-        for (Instr instr1: useInstrs) {
-            if (!(instr1 instanceof Instr.Phi)) {
-                instr1.remove();
+            for (Instr instr1 : useInstrs) {
+                if (!(instr1 instanceof Instr.Phi)) {
+                    instr1.remove();
+                }
             }
         }
     }

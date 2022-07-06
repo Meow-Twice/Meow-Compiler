@@ -186,6 +186,38 @@ public class Instr extends Value {
         return useValueList;
     }
 
+    public boolean check() {
+        if (!(this instanceof Alu)) {
+            return false;
+        }
+        //TODO:当前不是i32类型默认不可融合,后需要修改
+        if (!this.getType().isInt32Type()) {
+            return false;
+        }
+        if (!((Alu) this).isSub() && !((Alu) this).isAdd()) {
+            return false;
+        }
+        if (!((Alu) this).hasOneConst()) {
+            return false;
+        }
+        return true;
+    }
+
+    public boolean canComb() {
+        if (!check()) {
+            return false;
+        }
+        Use use = getBeginUse();
+        while (use.getNext() != null) {
+            Instr user = use.getUser();
+            if (!user.check()) {
+                return false;
+            }
+            use = (Use) use.getNext();
+        }
+        return true;
+    }
+
     // 二元算术运算, 结果是 i32 型
     public static class Alu extends Instr {
 
@@ -252,6 +284,21 @@ public class Instr extends Value {
 
         public Value getRVal2() {
             return useValueList.get(1);
+        }
+
+        public boolean isAdd() {
+            return op.equals(Op.ADD);
+        }
+
+        public boolean isSub() {
+            return op.equals(Op.SUB);
+        }
+
+        public boolean hasOneConst() {
+            if (useValueList.get(0) instanceof Constant && useValueList.get(1) instanceof Constant) {
+                return false;
+            }
+            return useValueList.get(0) instanceof Constant || useValueList.get(1) instanceof Constant;
         }
 
     }

@@ -127,8 +127,6 @@ public class GVNAndGCM {
         while (bb.getNext() != null) {
             Instr instr = bb.getBeginInstr();
             while (instr.getNext() != null) {
-
-
                 if (!know.contains(instr)) {
                     scheduleLate(instr, know);
                 }

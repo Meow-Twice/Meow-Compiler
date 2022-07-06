@@ -23,6 +23,9 @@ public class MidEndRunner {
         DeadCodeDelete deadCodeDelete = new DeadCodeDelete(functions);
         deadCodeDelete.Run();
 
+        InstrComb instrComb = new InstrComb(functions);
+        instrComb.Run();
+
         GVNAndGCM gvnAndGCM = new GVNAndGCM(functions);
         gvnAndGCM.Run();
 

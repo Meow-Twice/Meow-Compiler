@@ -11,7 +11,7 @@ public class GVNAndGCM {
     private ArrayList<Function> functions;
     private HashMap<Function, HashSet<Instr>> pinnedInstrMap;
 
-    private HashSet<Instr> know;
+    private static HashSet<Instr> know;
     private BasicBlock root;
 
     public GVNAndGCM(ArrayList<Function> functions) {
@@ -24,8 +24,9 @@ public class GVNAndGCM {
 
     public void Run() {
         Init();
+        //GVN();
         GCM();
-        GVN();
+        //GVN();
     }
 
     private void Init() {
@@ -58,6 +59,10 @@ public class GVNAndGCM {
     }
 
     private void GVN() {
+
+    }
+
+    private void DFS(int deep) {
 
     }
 
@@ -108,7 +113,7 @@ public class GVNAndGCM {
 //            if (!(X instanceof Instr)) {
 //                continue;
 //            }
-            if (X instanceof  Instr) {
+            if (X instanceof Instr) {
                 //assert X instanceof Instr;
                 scheduleEarly((Instr) X);
                 if (instr.getEarliestBB().getDomTreeDeep() < ((Instr) X).getEarliestBB().getDomTreeDeep()) {

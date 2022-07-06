@@ -50,6 +50,8 @@ public class GVNAndGCM {
         for (Function function: functions) {
             scheduleLateForFunc(function);
         }
+        printBeforeMove();
+        move();
     }
 
     private void GVN() {
@@ -67,12 +69,23 @@ public class GVNAndGCM {
         for (Instr instr: pinnedInstr) {
             for (Value value: instr.getUseValueList()) {
                 if (value instanceof Constant || value instanceof BasicBlock ||
-                        value instanceof GlobalVal.UndefValue || value instanceof Function) {
+                        value instanceof GlobalVal || value instanceof Function || value instanceof Function.Param) {
                     continue;
                 }
                 assert value instanceof Instr;
                 scheduleEarly((Instr) value, root, know);
             }
+        }
+        BasicBlock bb = function.getBeginBB();
+        while (bb.getNext() != null) {
+            Instr instr = bb.getBeginInstr();
+            while (instr.getNext() != null) {
+                if (!know.contains(instr)) {
+                    scheduleEarly(instr, root, know);
+                }
+                instr = (Instr) instr.getNext();
+            }
+            bb = (BasicBlock) bb.getNext();
         }
     }
 
@@ -84,7 +97,7 @@ public class GVNAndGCM {
         instr.setEarliestBB(root);
         for (Value X: instr.getUseValueList()) {
             if (X instanceof Constant || X instanceof BasicBlock ||
-                    X instanceof GlobalVal.UndefValue || X instanceof Function) {
+                    X instanceof GlobalVal || X instanceof Function || X instanceof Function.Param) {
                 continue;
             }
             assert X instanceof Instr;
@@ -110,6 +123,19 @@ public class GVNAndGCM {
                 use = (Use) use.getNext();
             }
         }
+        BasicBlock bb = function.getBeginBB();
+        while (bb.getNext() != null) {
+            Instr instr = bb.getBeginInstr();
+            while (instr.getNext() != null) {
+
+
+                if (!know.contains(instr)) {
+                    scheduleLate(instr, know);
+                }
+                instr = (Instr) instr.getNext();
+            }
+            bb = (BasicBlock) bb.getNext();
+        }
     }
 
     private void scheduleLate(Instr instr, HashSet<Instr> know) {
@@ -121,6 +147,7 @@ public class GVNAndGCM {
         Use usePos = instr.getBeginUse();
         while (usePos.getNext() != null) {
             Instr y = usePos.getUser();
+
             scheduleLate(y, know);
             BasicBlock use = y.getLatestBB();
             if (y instanceof Instr.Phi) {
@@ -139,15 +166,45 @@ public class GVNAndGCM {
             }
             lca = lca.getIDominator();
         }
+        if (lca.getLoopDep() < best.getLoopDep()) {
+            best = lca;
+        }
         instr.setLatestBB(best);
     }
 
+    private void move() {
+        for (Function function: functions) {
+            BasicBlock bb = function.getBeginBB();
+            while (bb.getNext() != null) {
+                Instr instr = bb.getBeginInstr();
+                ArrayList<Instr> instrs = new ArrayList<>();
+                while (instr.getNext() != null) {
+                    instrs.add(instr);
+                    instr = (Instr) instr.getNext();
+                }
+                for (Instr i: instrs) {
+                    if (!i.getLatestBB().equals(bb)) {
+//                        i.getPrev().setNext(i.getNext());
+//                        i.getNext().setPrev(i.getPrev());
+                        i.delFromNowBB();
+                        i.getLatestBB().getEndInstr().insertBefore(i);
+                        i.setBb(i.getLatestBB());
+                    }
+                }
+
+                bb = (BasicBlock) bb.getNext();
+            }
+        }
+    }
+
     private BasicBlock findLCA(BasicBlock a, BasicBlock b) {
-        if (a == null) return b;
-        while (a.getDomTreeDeep() < b.getDomTreeDeep()) {
+        if (a == null) {
+            return b;
+        }
+        while (a.getDomTreeDeep() > b.getDomTreeDeep()) {
             a = a.getIDominator();
         }
-        while (b.getDomTreeDeep() < a.getDomTreeDeep()) {
+        while (b.getDomTreeDeep() > a.getDomTreeDeep()) {
             b = b.getIDominator();
         }
         while (!a.equals(b)) {
@@ -163,7 +220,24 @@ public class GVNAndGCM {
 
     private boolean isPinned(Instr instr) {
         return instr instanceof Instr.Jump || instr instanceof Instr.Branch ||
-                instr instanceof Instr.Phi || instr instanceof Instr.Return;
+                instr instanceof Instr.Phi || instr instanceof Instr.Return ||
+                instr instanceof Instr.Store || instr instanceof Instr.Load || instr instanceof Instr.GetElementPtr || instr instanceof Instr.Call;
+    }
+
+    private void printBeforeMove() {
+        for (Function function: functions) {
+            BasicBlock bb = function.getBeginBB();
+            System.err.println(function.getName());
+            while (bb.getNext() != null) {
+                Instr instr = bb.getBeginInstr();
+                System.err.println(bb.toString());
+                while (instr.getNext() != null) {
+                    System.err.println("    " + instr.toString() + " early:" + instr.getEarliestBB().toString() + " last:" + instr.getLatestBB());
+                    instr = (Instr) instr.getNext();
+                }
+                bb = (BasicBlock) bb.getNext();
+            }
+        }
     }
 
 }

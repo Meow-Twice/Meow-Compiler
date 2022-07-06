@@ -20,6 +20,9 @@ public class MidEndRunner {
         Mem2Reg mem2Reg = new Mem2Reg(functions);
         mem2Reg.Run();
 
+        DeadCodeDelete deadCodeDelete = new DeadCodeDelete(functions);
+        deadCodeDelete.Run();
+
         GVNAndGCM gvnAndGCM = new GVNAndGCM(functions);
         gvnAndGCM.Run();
 

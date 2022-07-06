@@ -51,8 +51,8 @@ public class Compiler {
             // globalValueLocalize.Run();
             MidEndRunner midEndRunner = new MidEndRunner(funcManager.getFunctionList());
             midEndRunner.Run();
-            DeadCodeDelete deadCodeDelete = new DeadCodeDelete(funcManager.getFunctionList());
-            deadCodeDelete.Run();
+//            DeadCodeDelete deadCodeDelete = new DeadCodeDelete(funcManager.getFunctionList());
+//            deadCodeDelete.Run();
             funcManager.output(arg.llvmStream);
         } catch (Exception e) {
             e.printStackTrace();

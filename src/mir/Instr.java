@@ -43,6 +43,7 @@ public class Instr extends Value {
         return bb;
     }
 
+
     public void setBb(BasicBlock bb) {
         this.bb = bb;
     }
@@ -59,6 +60,10 @@ public class Instr extends Value {
     public void remove() {
         super.remove();
         this.removeUserUse();
+    }
+
+    public void delFromNowBB() {
+        super.remove();
     }
 
     public interface Terminator {

@@ -28,15 +28,19 @@ public class DeadCodeDelete {
                 while (!pos.equals(end)) {
 
                     Instr instr = pos.getBeginInstr();
-                    Instr endInst = pos.getEndInstr();
+                    //Instr endInst = pos.getEndInstr();
                     // 一个基本块至少有一条跳转指令
-                    while (!instr.equals(endInst)) {
-                        if (!(instr instanceof Instr.Terminator) && !(instr instanceof Instr.Call) && !(instr.getType().isVoidType()) &&
-                        instr.isNoUse()) {
-                            instr.remove();
-                            changed = true;
+                    try {
+                        while (instr.getNext() != null) {
+                            if (!(instr instanceof Instr.Terminator) && !(instr instanceof Instr.Call) && !(instr.getType().isVoidType()) &&
+                                    instr.isNoUse()) {
+                                instr.remove();
+                                changed = true;
+                            }
+                            instr = (Instr) instr.getNext();
                         }
-                        instr = (Instr) instr.getNext();
+                    } catch (Exception e) {
+                        System.out.println(instr.toString());
                     }
 
                     pos = (BasicBlock) pos.getNext();

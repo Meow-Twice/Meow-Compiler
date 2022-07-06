@@ -9,7 +9,10 @@ import java.util.HashSet;
 public class GVNAndGCM {
 
     private ArrayList<Function> functions;
-    HashMap<Function, HashSet<Instr>> pinnedInstrMap;
+    private HashMap<Function, HashSet<Instr>> pinnedInstrMap;
+
+    private HashSet<Instr> know;
+    private BasicBlock root;
 
     public GVNAndGCM(ArrayList<Function> functions) {
         this.functions = functions;
@@ -60,8 +63,8 @@ public class GVNAndGCM {
 
     private void scheduleEarlyForFunc(Function function) {
         HashSet<Instr> pinnedInstr = pinnedInstrMap.get(function);
-        HashSet<Instr> know = new HashSet<>();
-        BasicBlock root = function.getBeginBB();
+        know = new HashSet<>();
+        root = function.getBeginBB();
         for (Instr instr: pinnedInstr) {
             instr.setEarliestBB(instr.parentBB());
             know.add(instr);
@@ -73,7 +76,7 @@ public class GVNAndGCM {
                     continue;
                 }
                 assert value instanceof Instr;
-                scheduleEarly((Instr) value, root, know);
+                scheduleEarly((Instr) value);
             }
         }
         BasicBlock bb = function.getBeginBB();
@@ -81,7 +84,7 @@ public class GVNAndGCM {
             Instr instr = bb.getBeginInstr();
             while (instr.getNext() != null) {
                 if (!know.contains(instr)) {
-                    scheduleEarly(instr, root, know);
+                    scheduleEarly(instr);
                 }
                 instr = (Instr) instr.getNext();
             }
@@ -89,21 +92,28 @@ public class GVNAndGCM {
         }
     }
 
-    private void scheduleEarly(Instr instr, BasicBlock root, HashSet<Instr> know) {
+    private void scheduleEarly(Instr instr) {
+        System.out.println(instr.toString());
+        //System.out.println(know.size());
         if (know.contains(instr)) {
             return;
         }
         know.add(instr);
         instr.setEarliestBB(root);
         for (Value X: instr.getUseValueList()) {
-            if (X instanceof Constant || X instanceof BasicBlock ||
-                    X instanceof GlobalVal || X instanceof Function || X instanceof Function.Param) {
-                continue;
-            }
-            assert X instanceof Instr;
-            scheduleEarly((Instr) X, root, know);
-            if (instr.getEarliestBB().getDomTreeDeep() < ((Instr) X).getEarliestBB().getDomTreeDeep()) {
-                instr.setEarliestBB(((Instr) X).getEarliestBB());
+//            if (X instanceof Constant || X instanceof BasicBlock ||
+//                    X instanceof GlobalVal || X instanceof Function || X instanceof Function.Param) {
+//                continue;
+//            }
+//            if (!(X instanceof Instr)) {
+//                continue;
+//            }
+            if (X instanceof  Instr) {
+                //assert X instanceof Instr;
+                scheduleEarly((Instr) X);
+                if (instr.getEarliestBB().getDomTreeDeep() < ((Instr) X).getEarliestBB().getDomTreeDeep()) {
+                    instr.setEarliestBB(((Instr) X).getEarliestBB());
+                }
             }
         }
     }
@@ -111,7 +121,7 @@ public class GVNAndGCM {
 
     private void scheduleLateForFunc(Function function) {
         HashSet<Instr> pinnedInstr = pinnedInstrMap.get(function);
-        HashSet<Instr> know = new HashSet<>();
+        know = new HashSet<>();
         for (Instr instr: pinnedInstr) {
             instr.setLatestBB(instr.parentBB());
             know.add(instr);
@@ -119,7 +129,7 @@ public class GVNAndGCM {
         for (Instr instr: pinnedInstr) {
             Use use = instr.getBeginUse();
             while (use.getNext() != null) {
-                scheduleLate(use.getUser(), know);
+                scheduleLate(use.getUser());
                 use = (Use) use.getNext();
             }
         }
@@ -128,7 +138,7 @@ public class GVNAndGCM {
             Instr instr = bb.getBeginInstr();
             while (instr.getNext() != null) {
                 if (!know.contains(instr)) {
-                    scheduleLate(instr, know);
+                    scheduleLate(instr);
                 }
                 instr = (Instr) instr.getNext();
             }
@@ -136,7 +146,7 @@ public class GVNAndGCM {
         }
     }
 
-    private void scheduleLate(Instr instr, HashSet<Instr> know) {
+    private void scheduleLate(Instr instr) {
         if (know.contains(instr)) {
             return;
         }
@@ -146,7 +156,7 @@ public class GVNAndGCM {
         while (usePos.getNext() != null) {
             Instr y = usePos.getUser();
 
-            scheduleLate(y, know);
+            scheduleLate(y);
             BasicBlock use = y.getLatestBB();
             if (y instanceof Instr.Phi) {
                 int j = ((Instr.Phi) y).getValueIndexInUseValueList(instr);

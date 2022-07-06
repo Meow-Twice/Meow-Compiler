@@ -171,7 +171,7 @@ public class Function extends Value {
         while (!queue.isEmpty()) {
             BasicBlock block = queue.poll();
             ILinkNode node = block.getEntry();
-            body.append(block.getLabel()).append(":\n");
+            body.append(block).append(":\n");
             while (node.hasNext()) {
                 body.append("  ").append(node).append("\n");
                 if (node instanceof Instr.Branch) {

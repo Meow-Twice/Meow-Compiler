@@ -25,6 +25,13 @@ public class MakeDFG {
         MakeDF();
     }
 
+
+    private void RemoveDeadBB() {
+        for (Function function: functions) {
+            removeFuncDeadBB(function);
+        }
+    }
+
     private void MakeCFG() {
         for (Function function: functions) {
             makeSingleFuncCFG(function);
@@ -49,11 +56,12 @@ public class MakeDFG {
         }
     }
 
-    private void RemoveDeadBB() {
+    private void MakeLoopTree() {
         for (Function function: functions) {
-            removeFuncDeadBB(function);
+
         }
     }
+
 
     private void removeFuncDeadBB(Function function) {
         BasicBlock beginBB = function.getBeginBB();
@@ -255,5 +263,9 @@ public class MakeDFG {
             }
         }
         return false;
+    }
+
+    private void makeLoopTreeForFunc(Function function) {
+
     }
 }

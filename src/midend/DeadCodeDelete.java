@@ -33,7 +33,6 @@ public class DeadCodeDelete {
                     while (!instr.equals(endInst)) {
                         if (!(instr instanceof Instr.Terminator) && !(instr instanceof Instr.Call) && !(instr.getType().isVoidType()) &&
                         instr.isNoUse()) {
-                            instr.removeUserUse();
                             instr.remove();
                             changed = true;
                         }

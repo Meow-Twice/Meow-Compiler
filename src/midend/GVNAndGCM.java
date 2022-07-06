@@ -5,11 +5,11 @@ import mir.Instr;
 
 import java.util.ArrayList;
 
-public class GCM {
+public class GVNAndGCM {
 
     private ArrayList<Function> functions;
 
-    public GCM(ArrayList<Function> functions) {
+    public GVNAndGCM(ArrayList<Function> functions) {
         this.functions = functions;
     }
 
@@ -17,5 +17,8 @@ public class GCM {
         return instr instanceof Instr.Jump || instr instanceof Instr.Branch ||
                 instr instanceof Instr.Phi || instr instanceof Instr.Return;
     }
+
+
+
 
 }

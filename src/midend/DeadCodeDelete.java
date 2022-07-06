@@ -27,7 +27,6 @@ public class DeadCodeDelete {
                 BasicBlock pos = beginBB;
                 while (!pos.equals(end)) {
 
-                    //remove useless br
                     Instr instr = pos.getBeginInstr();
                     Instr endInst = pos.getEndInstr();
                     // 一个基本块至少有一条跳转指令

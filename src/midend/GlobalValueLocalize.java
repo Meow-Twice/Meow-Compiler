@@ -42,7 +42,8 @@ public class GlobalValueLocalize {
                 Type innerType = ((Type.PointerType) g.getType()).getInnerType();
                 if(innerType instanceof Type.BasicType){
                     Value alloc = new Instr.Alloc(innerType, function.entry);
-                    new Instr.Store();
+                    // new Instr.Store();
+                    // TODO: 还啥都没干呢
                     g.modifyAllUseThisToUseA(alloc);
                 }
 

@@ -47,10 +47,10 @@ public class Compiler {
             visitor.__ONLY_PARSE_OUTSIDE_DIM = false;
             visitor.visitAst(ast);
             FuncManager funcManager = visitor.getIr();
-            GlobalValueLocalize globalValueLocalize = new GlobalValueLocalize(funcManager.globals);
-            globalValueLocalize.Run();
-            // MidEndRunner midEndRunner = new MidEndRunner(funcManager.getFunctionList());
-            // midEndRunner.Run();
+            // GlobalValueLocalize globalValueLocalize = new GlobalValueLocalize(funcManager.globals);
+            // globalValueLocalize.Run();
+            MidEndRunner midEndRunner = new MidEndRunner(funcManager.getFunctionList());
+            midEndRunner.Run();
             DeadCodeDelete deadCodeDelete = new DeadCodeDelete(funcManager.getFunctionList());
             deadCodeDelete.Run();
             funcManager.output(arg.llvmStream);

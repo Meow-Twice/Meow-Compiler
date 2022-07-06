@@ -268,4 +268,8 @@ public class MakeDFG {
     private void makeLoopTreeForFunc(Function function) {
 
     }
+
+    private void tarjan(BasicBlock bb, HashSet<BasicBlock> know) {
+
+    }
 }

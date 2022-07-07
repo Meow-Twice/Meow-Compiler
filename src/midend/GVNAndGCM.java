@@ -53,6 +53,8 @@ public class GVNAndGCM {
         }
     }
 
+    //%v44 = phi i32 [ 0, %b0 ], [ %v38, %b2 ];
+    //a2 = phi (a0, a1);
     private void GCM() {
         for (Function function: functions) {
             scheduleEarlyForFunc(function);

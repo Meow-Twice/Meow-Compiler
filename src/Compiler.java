@@ -5,10 +5,8 @@ import frontend.lexer.TokenList;
 import frontend.semantic.Visitor;
 import frontend.syntax.Ast;
 import frontend.syntax.Parser;
-import midend.DeadCodeDelete;
-import midend.GlobalValueLocalize;
 import midend.MidEndRunner;
-import mir.FuncManager;
+import midend.Manager;
 
 import java.io.*;
 
@@ -46,14 +44,16 @@ public class Compiler {
             Visitor visitor = new Visitor();
             visitor.__ONLY_PARSE_OUTSIDE_DIM = false;
             visitor.visitAst(ast);
-            FuncManager funcManager = visitor.getIr();
+            // Manager manager = visitor.getIr();
             // GlobalValueLocalize globalValueLocalize = new GlobalValueLocalize(funcManager.globals);
             // globalValueLocalize.Run();
-            MidEndRunner midEndRunner = new MidEndRunner(funcManager.getFunctionList());
+            MidEndRunner midEndRunner = new MidEndRunner(Manager.MANAGER.getFunctionList());
             midEndRunner.Run();
 //            DeadCodeDelete deadCodeDelete = new DeadCodeDelete(funcManager.getFunctionList());
 //            deadCodeDelete.Run();
-            funcManager.output(arg.llvmStream);
+            Manager.MANAGER.outputLLVM("hello");
+            Manager.MANAGER.outputLLVM();
+            Manager.MANAGER.output(arg.llvmStream);
         } catch (Exception e) {
             e.printStackTrace();
             System.exit(1);

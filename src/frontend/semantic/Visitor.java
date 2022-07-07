@@ -7,6 +7,7 @@ import frontend.lexer.TokenType;
 import frontend.semantic.symbol.SymTable;
 import frontend.semantic.symbol.Symbol;
 import frontend.syntax.Ast;
+import midend.Manager;
 import mir.*;
 import mir.Instr.*;
 import mir.type.Type;
@@ -22,7 +23,7 @@ import static mir.type.Type.BasicType.*;
  */
 public class Visitor {
     public boolean __ONLY_PARSE_OUTSIDE_DIM = true;
-    private final FuncManager funcManager = new FuncManager(); // 最终生成的 IR
+    private final Manager manager = Manager.MANAGER; // 最终生成的 IR
     public static SymTable currentSymTable = new SymTable(); // 当前符号表, 初始时是全局符号表
     private Function curFunc = null; // 当前正在分析的函数
     private BasicBlock curBB = null; // 当前所在的基本块
@@ -328,7 +329,7 @@ public class Visitor {
     // returns the return value if function call, null if function is void
     private Value visitCall(Ast.Call call) throws SemanticException {
         String ident = call.getIdent().getContent();
-        Function function = funcManager.getFunctions().get(ident);
+        Function function = manager.getFunctions().get(ident);
         assert function != null;
         if (function.isTimeFunc) {
             return new Instr.Call(function, new ArrayList<>(Collections.singleton(new Constant.ConstantInt(call.lineno))), curBB);
@@ -585,7 +586,7 @@ public class Visitor {
         if (((PointerType) ptr.getType()).getInnerType().isFloatType()) {
             ptr = new Bitcast(ptr, new PointerType(I32_TYPE), curBB);
         }
-        new Instr.Call(FuncManager.ExternFunction.MEM_SET, wrapImmutable(ptr, CONST_0, new Constant.ConstantInt(size)), curBB);
+        new Instr.Call(Manager.ExternFunction.MEM_SET, wrapImmutable(ptr, CONST_0, new Constant.ConstantInt(size)), curBB);
     }
 
     public ArrayList<Value> wrapImmutable(Value... values) {
@@ -694,7 +695,7 @@ public class Visitor {
         Symbol symbol = new Symbol(ident, pointeeType, init, constant, pointer);
         currentSymTable.add(symbol);
         if (isGlobal) {
-            funcManager.addGlobal(symbol);
+            manager.addGlobal(symbol);
         }
     }
 
@@ -793,7 +794,7 @@ public class Visitor {
             default -> throw new SemanticException("Wrong func ret type: " + funcTypeTk);
         };
         String ident = def.getIdent().getContent();
-        if (funcManager.getFunctions().containsKey(ident)) {
+        if (manager.getFunctions().containsKey(ident)) {
             throw new SemanticException("Duplicated function defined");
         }
         isGlobal = false;
@@ -816,7 +817,7 @@ public class Visitor {
         }
         Function function = new Function(ident, params, retType);
         curLoop.setFunc(function);
-        funcManager.addFunction(function);
+        manager.addFunction(function);
         function.setBody(entry);
         curFunc = function;
         entry.setFunction(curFunc, curLoop);
@@ -874,8 +875,8 @@ public class Visitor {
         }
     }
 
-    public FuncManager getIr() {
-        return this.funcManager;
+    public Manager getIr() {
+        return this.manager;
     }
 
 }

@@ -1,5 +1,6 @@
 package mir;
 
+import midend.Manager;
 import mir.type.Type;
 import util.ILinkNode;
 
@@ -20,7 +21,7 @@ public class Function extends Value {
         private Function parentFunc;
 
         public Param(Type type, int idx) {
-            if (!FuncManager.external) {
+            if (!Manager.external) {
                 prefix = LOCAL_PREFIX;
                 name = FPARAM_NAME_PREFIX + FPARAM_COUNT++;
             }

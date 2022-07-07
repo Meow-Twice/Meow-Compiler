@@ -1,12 +1,15 @@
-package mir;
+package midend;
 
 import frontend.semantic.Initial;
 import frontend.semantic.symbol.Symbol;
+import mir.Function;
+import mir.Value;
 import mir.type.Type;
 import util.FileDealer;
 
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.OutputStream;
-import java.io.PrintStream;
 import java.util.*;
 
 import static mir.Function.Param.wrapParam;
@@ -16,7 +19,8 @@ import static mir.type.Type.BasicType.I32_TYPE;
 /**
  * LLVM IR
  */
-public class FuncManager {
+public class Manager {
+    public static final Manager MANAGER = new Manager();
     private static final String MAIN_FUNCTION = "main";
     public static boolean external = false;
     public final Map<Value, Initial> globals = new HashMap<>();
@@ -48,7 +52,7 @@ public class FuncManager {
         public static final Function STOP_TIME = new Function("stoptime", wrapParam(I32_TYPE), Type.VoidType.getVoidType());
     }
 
-    public FuncManager() {
+    private Manager() {
         external = true;
         addFunction(ExternFunction.GET_INT);
         addFunction(ExternFunction.GET_CH);
@@ -79,6 +83,16 @@ public class FuncManager {
 
     public boolean hasMainFunction() {
         return functions.containsKey(MAIN_FUNCTION);
+    }
+
+    static int outputLLVMCnt = 0;
+
+    public void outputLLVM() throws FileNotFoundException {
+        outputLLVM("llvmOf-" + outputLLVMCnt++);
+    }
+
+    public void outputLLVM(String llvmFilename) throws FileNotFoundException {
+        output(new FileOutputStream(llvmFilename + ".ll"));
     }
 
     public void output(OutputStream out) {

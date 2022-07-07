@@ -1,6 +1,6 @@
 package mir;
 
-import midend.Manager;
+import manage.Manager;
 import mir.type.Type;
 import util.ILinkNode;
 

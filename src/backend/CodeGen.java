@@ -1,9 +1,8 @@
 package backend;
 
 import frontend.semantic.Initial;
-import lir.Arm;
 import lir.Machine;
-import midend.Manager;
+import manage.Manager;
 import mir.BasicBlock;
 import mir.Function;
 import mir.GlobalVal;
@@ -11,19 +10,19 @@ import mir.Value;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Map;
+import java.util.HashMap;
 
 public class CodeGen {
 
     private static Machine.Function curMachineFunc;
     private static Function curFunc;
-    private Map<String, Function> midFuncMap;
+    private HashMap<String, Function> midFuncMap;
     public HashMap<Value, Machine.Operand> value2opd;
     public HashMap<Value, Machine.Operand> opd2value;
     public ArrayList<Machine.Function> mcFuncList;
     public HashMap<Function, Machine.Function> func2mcFunc;
     public HashMap<BasicBlock, Machine.Block> bb2mcBB;
-    private Map<Value, Initial> globalMap;
+    private HashMap<GlobalVal.GlobalValue, Initial> globalMap;
 
     public CodeGen() {
         curFunc = null;

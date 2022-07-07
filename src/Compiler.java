@@ -5,9 +5,8 @@ import frontend.lexer.TokenList;
 import frontend.Visitor;
 import frontend.syntax.Ast;
 import frontend.syntax.Parser;
-import midend.DeadCodeDelete;
 import midend.MidEndRunner;
-import midend.Manager;
+import manage.Manager;
 
 import java.io.*;
 

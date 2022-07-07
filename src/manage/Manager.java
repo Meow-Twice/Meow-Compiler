@@ -1,8 +1,9 @@
-package midend;
+package manage;
 
 import frontend.semantic.Initial;
 import frontend.semantic.symbol.Symbol;
 import mir.Function;
+import mir.GlobalVal;
 import mir.Value;
 import mir.type.Type;
 import util.FileDealer;
@@ -23,8 +24,8 @@ public class Manager {
     public static final Manager MANAGER = new Manager();
     private static final String MAIN_FUNCTION = "main";
     public static boolean external = false;
-    public final Map<Value, Initial> globals = new HashMap<>();
-    private final Map<String, Function> functions = new HashMap<>(); // 函数定义
+    public final HashMap<GlobalVal.GlobalValue, Initial> globals = new HashMap<>();
+    private final HashMap<String, Function> functions = new HashMap<>(); // 函数定义
 
     public ArrayList<Function> getFunctionList() {
         ArrayList<Function> list = new ArrayList<>();
@@ -74,7 +75,8 @@ public class Manager {
 
     public void addGlobal(Symbol symbol) {
         assert symbol.getInitial() != null;
-        globals.putIfAbsent(symbol.getValue(), symbol.getInitial());
+        assert symbol.getValue() instanceof GlobalVal.GlobalValue;
+        globals.putIfAbsent((GlobalVal.GlobalValue) symbol.getValue(), symbol.getInitial());
     }
 
     public void addFunction(Function function) {
@@ -97,7 +99,7 @@ public class Manager {
 
     public void output(OutputStream out) {
         // 全局变量
-        for (Map.Entry<Value, Initial> entry : globals.entrySet()) {
+        for (HashMap.Entry<GlobalVal.GlobalValue, Initial> entry : globals.entrySet()) {
             FileDealer.addOutputString(entry.getKey().getName() + " = dso_local global " + entry.getValue());
         }
         // 函数声明
@@ -115,12 +117,12 @@ public class Manager {
         FileDealer.outputStringList(out);
     }
 
-    public Map<Value, Initial> getGlobals() {
+    public HashMap<GlobalVal.GlobalValue, Initial> getGlobals() {
         return this.globals;
     }
 
 
-    public Map<String, Function> getFunctions() {
+    public HashMap<String, Function> getFunctions() {
         return this.functions;
     }
 

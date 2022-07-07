@@ -1,13 +1,13 @@
 package frontend.semantic.symbol;
 
 import java.util.HashMap;
-import java.util.Map;
+import java.util.HashMap;
 
 /**
  * 分层结构的符号表
  */
 public class SymTable {
-    private final Map<String, Symbol> symbolMap = new HashMap<>();
+    private final HashMap<String, Symbol> symbolMap = new HashMap<>();
 
     private final SymTable parent;
 

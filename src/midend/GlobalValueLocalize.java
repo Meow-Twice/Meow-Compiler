@@ -7,12 +7,12 @@ import mir.type.Type;
 import java.util.*;
 
 public class GlobalValueLocalize {
-    private HashMap<Value, Initial> globalValues;
+    private HashMap<GlobalVal.GlobalValue, Initial> globalValues;
     private ArrayList<Function> functions;
 
     private HashSet<Value> removedGlobal;
 
-    public GlobalValueLocalize(ArrayList<Function> functions, HashMap<Value, Initial> globalValues) {
+    public GlobalValueLocalize(ArrayList<Function> functions, HashMap<GlobalVal.GlobalValue, Initial> globalValues) {
         this.functions = functions;
         this.globalValues = globalValues;
         this.removedGlobal = new HashSet<>();

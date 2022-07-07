@@ -9,7 +9,7 @@ import frontend.lexer.TokenType;
 import frontend.semantic.symbol.SymTable;
 import frontend.semantic.symbol.Symbol;
 import frontend.syntax.Ast;
-import midend.Manager;
+import manage.Manager;
 import mir.*;
 import mir.Instr.*;
 import mir.type.Type;

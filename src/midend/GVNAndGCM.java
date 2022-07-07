@@ -55,6 +55,10 @@ public class GVNAndGCM {
 
     //%v44 = phi i32 [ 0, %b0 ], [ %v38, %b2 ];
     //a2 = phi (a0, a1);
+    //TODO:phi需要删除,当且仅当,定义构成了一条没有分叉的路径
+    //向上dfs 找到第一个到达的定义 即为reach def
+    //fixme: 当前认为,phi不能被删除,否则影响正确性 Time:07-08-02:52,
+    // 示例样例路径 ~/testcase/07-08-02:52.sy
     private void GCM() {
         for (Function function: functions) {
             scheduleEarlyForFunc(function);

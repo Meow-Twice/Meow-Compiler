@@ -20,9 +20,29 @@ public class Instr extends Value {
     //TODO:添加一个hash标记,是否比比较arraylist的equal方法快且保险(正确性)
     public String hash;
 
+    private BasicBlock earliestBB;
+    private BasicBlock latestBB;//在本算法中,last is best
+
+    public void setEarliestBB(BasicBlock earliestBB) {
+        this.earliestBB = earliestBB;
+    }
+
+    public void setLatestBB(BasicBlock latestBB) {
+        this.latestBB = latestBB;
+    }
+
+    public BasicBlock getEarliestBB() {
+        return earliestBB;
+    }
+
+    public BasicBlock getLatestBB() {
+        return latestBB;
+    }
+
     public BasicBlock parentBB() {
         return bb;
     }
+
 
     public void setBb(BasicBlock bb) {
         this.bb = bb;
@@ -40,6 +60,10 @@ public class Instr extends Value {
     public void remove() {
         super.remove();
         this.removeUserUse();
+    }
+
+    public void delFromNowBB() {
+        super.remove();
     }
 
     public interface Terminator {
@@ -162,6 +186,38 @@ public class Instr extends Value {
         return useValueList;
     }
 
+    public boolean check() {
+        if (!(this instanceof Alu)) {
+            return false;
+        }
+        //TODO:当前不是i32类型默认不可融合,后需要修改
+        if (!this.getType().isInt32Type()) {
+            return false;
+        }
+        if (!((Alu) this).isSub() && !((Alu) this).isAdd()) {
+            return false;
+        }
+        if (!((Alu) this).hasOneConst()) {
+            return false;
+        }
+        return true;
+    }
+
+    public boolean canComb() {
+        if (!check()) {
+            return false;
+        }
+        Use use = getBeginUse();
+        while (use.getNext() != null) {
+            Instr user = use.getUser();
+            if (!user.check()) {
+                return false;
+            }
+            use = (Use) use.getNext();
+        }
+        return true;
+    }
+
     // 二元算术运算, 结果是 i32 型
     public static class Alu extends Instr {
 
@@ -228,6 +284,25 @@ public class Instr extends Value {
 
         public Value getRVal2() {
             return useValueList.get(1);
+        }
+
+        public boolean isAdd() {
+            return op.equals(Op.ADD);
+        }
+
+        public boolean isSub() {
+            return op.equals(Op.SUB);
+        }
+
+        public boolean hasOneConst() {
+            if (useValueList.get(0) instanceof Constant && useValueList.get(1) instanceof Constant) {
+                return false;
+            }
+            return useValueList.get(0) instanceof Constant || useValueList.get(1) instanceof Constant;
+        }
+
+        public boolean hasTwoConst() {
+            return useValueList.get(0) instanceof Constant && useValueList.get(1) instanceof Constant;
         }
 
     }
@@ -458,6 +533,12 @@ public class Instr extends Value {
         // Alloc一定插在基本块的开始(Phi之后)
         public Alloc(Type contentType, BasicBlock parentBB) {
             super(new PointerType(contentType), parentBB, true);
+            this.contentType = contentType;
+        }
+
+        //不自动插入到基本块的ALLOC
+        public Alloc(Type contentType, BasicBlock parentBB, boolean tag) {
+            super(new PointerType(contentType), parentBB);
             this.contentType = contentType;
         }
 
@@ -692,6 +773,11 @@ public class Instr extends Value {
 
         public ArrayList<Value> getOptionalValues() {
             return this.optionalValues;
+        }
+
+        public int getValueIndexInUseValueList(Value value) {
+            assert useValueList.contains(value);
+            return useValueList.indexOf(value);
         }
     }
 

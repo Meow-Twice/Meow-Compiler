@@ -38,7 +38,20 @@ public class BasicBlock extends Value {
     private HashSet<BasicBlock> DF;
 
 
+    public Loop loop = Loop.emptyLoop;
+    public boolean isLoopStart = false;
 
+    private int domTreeDeep;
+    private BasicBlock IDominator;
+
+    public void setLoopStart() {
+        isLoopStart = true;
+        loop.setStartBB(this);
+    }
+
+    public int getLoopDep() {
+        return loop.getLoopDepth();
+    }
 
     private String label;
 
@@ -47,7 +60,7 @@ public class BasicBlock extends Value {
 
     private static int empty_bb_cnt = 0;
 
-    public BasicBlock(){
+    public BasicBlock() {
         super(Type.BBType.getBBType());
         init();
         this.label = "EMPTY_BB" + (empty_bb_cnt++);
@@ -56,9 +69,10 @@ public class BasicBlock extends Value {
     }
 
     // 自动命名基本块, 从 "b1" 开始
-    public BasicBlock(Function function) {
+    public BasicBlock(Function function, Loop loop) {
         super(Type.BBType.getBBType());
         init();
+        this.loop = loop;
         this.label = "b" + (++bb_count);
         this.function = function;
         begin.setNext(end);
@@ -66,8 +80,19 @@ public class BasicBlock extends Value {
         if (ENABLE_DEBUG) {
             System.err.println("new Basic block (" + label + ")");
         }
+        // 放到这是因为HashSet存的时候需要计算hash，BB的hash靠label
         function.insertAtEnd(this);
+        loop.addBB(this);
     }
+
+    public void setFunction(Function function, Loop loop) {
+        this.loop = loop;
+        this.label = "b" + (bb_count);
+        this.function = function;
+        function.insertAtBegin(this);
+        loop.addBB(this);
+    }
+
 
 //    @Override
 //    public String getDescriptor() {
@@ -135,13 +160,6 @@ public class BasicBlock extends Value {
     public Function getFunction() {
         return function;
     }
-
-    public void setFunction(Function function) {
-        this.label = "b" + (bb_count);
-        this.function = function;
-        function.insertAtBegin(this);
-    }
-
 
     public Instr getBeginInstr() {
         assert begin.getNext() instanceof Instr;
@@ -222,8 +240,26 @@ public class BasicBlock extends Value {
         return DF;
     }
 
+    public void setDomTreeDeep(int domTreeDeep) {
+        this.domTreeDeep = domTreeDeep;
+    }
+
+    public int getDomTreeDeep() {
+        return domTreeDeep;
+    }
+
+    public void setIDominator(BasicBlock IDominator) {
+        assert this.IDominator == null;
+        this.IDominator = IDominator;
+    }
+
+    public BasicBlock getIDominator() {
+        return IDominator;
+    }
+
     @Override
     public String toString() {
+        //return this.label + ":\t\t\t\t\t; loopDepth: " + loop.loopDepth + ";\t" + loop;
         return this.label;
     }
 }

@@ -23,6 +23,7 @@ public class MakeDFG {
         MakeDom();
         MakeIDom();
         MakeDF();
+        MakeDomTreeDeep(); //定义基本块在支配树中的深度,并定义每个基本块在支配树中的父节点
     }
 
 
@@ -56,11 +57,12 @@ public class MakeDFG {
         }
     }
 
-    private void MakeLoopTree() {
+    private void MakeDomTreeDeep() {
         for (Function function: functions) {
-
+            makeDomTreeDeepForFunc(function);
         }
     }
+
 
 
     private void removeFuncDeadBB(Function function) {
@@ -265,7 +267,18 @@ public class MakeDFG {
         return false;
     }
 
-    private void makeLoopTreeForFunc(Function function) {
-
+    private void makeDomTreeDeepForFunc(Function function) {
+        BasicBlock entry = function.getBeginBB();
+        int deep = 1;
+        DFSForDomTreeDeep(entry, deep);
     }
+
+    private void DFSForDomTreeDeep(BasicBlock bb, int deep) {
+        bb.setDomTreeDeep(deep);
+        for (BasicBlock next: bb.getIdoms()) {
+            next.setIDominator(bb);
+            DFSForDomTreeDeep(next, deep+1);
+        }
+    }
+
 }

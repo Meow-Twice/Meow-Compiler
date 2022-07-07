@@ -44,7 +44,8 @@ public class RemovePhi {
                 BasicBlock incomeBB = pres.get(i);
 
                 if (incomeBB.getSuccBBs().size() > 1) {
-                    BasicBlock mid = new BasicBlock(function);
+                    // TODO: 这里不知道优化的时候， incomeBB的loop是不是null
+                    BasicBlock mid = new BasicBlock(function, incomeBB.loop);
                     Instr.PCopy pCopy = new Instr.PCopy(new ArrayList<>(), new ArrayList<>(), mid);
                     PCopys.add(pCopy);
                     addMidBB(incomeBB, mid, bb);

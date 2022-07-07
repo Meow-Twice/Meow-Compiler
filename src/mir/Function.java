@@ -1,5 +1,6 @@
 package mir;
 
+import midend.Manager;
 import mir.type.Type;
 import util.ILinkNode;
 
@@ -20,7 +21,7 @@ public class Function extends Value {
         private Function parentFunc;
 
         public Param(Type type, int idx) {
-            if (!FuncManager.external) {
+            if (!Manager.external) {
                 prefix = LOCAL_PREFIX;
                 name = FPARAM_NAME_PREFIX + FPARAM_COUNT++;
             }
@@ -171,7 +172,7 @@ public class Function extends Value {
         while (!queue.isEmpty()) {
             BasicBlock block = queue.poll();
             ILinkNode node = block.getEntry();
-            body.append(block.getLabel()).append(":\n");
+            body.append(block).append(":\n");
             while (node.hasNext()) {
                 body.append("  ").append(node).append("\n");
                 if (node instanceof Instr.Branch) {
@@ -244,6 +245,19 @@ public class Function extends Value {
 
     public HashSet<BasicBlock> getBBs() {
         return BBs;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Function function = (Function) o;
+        return Objects.equals(name, function.name);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(name);
     }
 
     // @Override

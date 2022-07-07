@@ -65,6 +65,8 @@ public class GVNAndGCM {
     }
 
     private void GVN() {
+        GvnMap.clear();
+        GvnCnt.clear();
         for (Function function: functions) {
             GVNForFunc(function);
         }

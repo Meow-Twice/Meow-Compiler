@@ -536,6 +536,12 @@ public class Instr extends Value {
             this.contentType = contentType;
         }
 
+        //不自动插入到基本块的ALLOC
+        public Alloc(Type contentType, BasicBlock parentBB, boolean tag) {
+            super(new PointerType(contentType), parentBB);
+            this.contentType = contentType;
+        }
+
         @Override
         public String toString() {
             return this.getName() + " = alloca " + contentType;

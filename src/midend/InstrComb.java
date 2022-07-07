@@ -70,27 +70,27 @@ public class InstrComb {
             Constant.ConstantInt constantInt = new Constant.ConstantInt(ConstInA + ConstInB);
             B.modifyUse(constantInt, 0);
             B.modifyUse(AUseList.get(1), 1);
-            A.remove();
+            //A.remove();
         }
         else if (ConstInAIs0 && ConstInBIs0 && A.isAdd() && !B.isAdd()) {
             Constant.ConstantInt constantInt = new Constant.ConstantInt(ConstInB - ConstInA);
             B.modifyUse(constantInt, 0);
             B.modifyUse(AUseList.get(1), 1);
-            A.remove();
+            //A.remove();
         }
         else if (ConstInAIs0 && ConstInBIs0 && !A.isAdd() && B.isAdd()) {
             Constant.ConstantInt constantInt = new Constant.ConstantInt(ConstInB + ConstInA);
             B.modifyUse(constantInt, 0);
             B.modifyUse(AUseList.get(1), 1);
             B.setOp(Instr.Alu.Op.SUB);
-            A.remove();
+            //A.remove();
         }
         else if (ConstInAIs0 && ConstInBIs0 && !A.isAdd() && !B.isAdd()) {
             Constant.ConstantInt constantInt = new Constant.ConstantInt(ConstInB - ConstInA);
             B.modifyUse(constantInt, 0);
             B.modifyUse(AUseList.get(1), 1);
             B.setOp(Instr.Alu.Op.ADD);
-            A.remove();
+            //A.remove();
         }
 
 
@@ -98,14 +98,14 @@ public class InstrComb {
             Constant.ConstantInt constantInt = new Constant.ConstantInt(ConstInA + ConstInB);
             B.modifyUse(constantInt, 1);
             B.modifyUse(AUseList.get(1), 0);
-            A.remove();
+            //A.remove();
         }
         else if (ConstInAIs0 && !ConstInBIs0 && A.isAdd() && !B.isAdd()) {
             Constant.ConstantInt constantInt = new Constant.ConstantInt(ConstInA - ConstInB);
             B.modifyUse(constantInt, 1);
             B.modifyUse(AUseList.get(1), 0);
             B.setOp(Instr.Alu.Op.ADD);
-            A.remove();
+            //A.remove();
         }
         //b = x - a; c = b + y; c = (x+y) - a
         else if (ConstInAIs0 && !ConstInBIs0 && !A.isAdd() && B.isAdd()) {
@@ -113,14 +113,14 @@ public class InstrComb {
             B.modifyUse(constantInt, 0);
             B.modifyUse(AUseList.get(1), 1);
             B.setOp(Instr.Alu.Op.SUB);
-            A.remove();
+            //A.remove();
         }
         //b = x - a; c = b - y ==> c = (x - y) - a
         else if (ConstInAIs0 && !ConstInBIs0 && !A.isAdd() && !B.isAdd()) {
             Constant.ConstantInt constantInt = new Constant.ConstantInt(ConstInA - ConstInB);
             B.modifyUse(constantInt, 0);
             B.modifyUse(AUseList.get(1), 1);
-            A.remove();
+            //A.remove();
         }
 
 
@@ -129,45 +129,45 @@ public class InstrComb {
             Constant.ConstantInt constantInt = new Constant.ConstantInt(ConstInA + ConstInB);
             B.modifyUse(constantInt, 0);
             B.modifyUse(AUseList.get(0), 1);
-            A.remove();
+            //A.remove();
         }
         else if (!ConstInAIs0 && ConstInBIs0 && A.isAdd() && !B.isAdd()) {
             Constant.ConstantInt constantInt = new Constant.ConstantInt(ConstInB - ConstInA);
             B.modifyUse(constantInt, 0);
             B.modifyUse(AUseList.get(0), 1);
-            A.remove();
+            //A.remove();
         }
         else if (!ConstInAIs0 && ConstInBIs0 && !A.isAdd() && B.isAdd()) {
             Constant.ConstantInt constantInt = new Constant.ConstantInt(ConstInB - ConstInA);
             B.modifyUse(constantInt, 0);
             B.modifyUse(AUseList.get(0), 1);
-            A.remove();
+            //A.remove();
         }
         else if (!ConstInAIs0 && ConstInBIs0 && !A.isAdd() && !B.isAdd()) {
             Constant.ConstantInt constantInt = new Constant.ConstantInt(ConstInB + ConstInA);
             B.modifyUse(constantInt, 0);
             B.modifyUse(AUseList.get(0), 1);
-            A.remove();
+            //A.remove();
         }
 
         else if (!ConstInAIs0 && !ConstInBIs0 && A.isAdd() && B.isAdd()) {
             Constant.ConstantInt constantInt = new Constant.ConstantInt(ConstInA + ConstInB);
             B.modifyUse(constantInt, 0);
             B.modifyUse(AUseList.get(0), 1);
-            A.remove();
+            //A.remove();
         }
         else if (!ConstInAIs0 && !ConstInBIs0 && A.isAdd() && !B.isAdd()) {
             Constant.ConstantInt constantInt = new Constant.ConstantInt(ConstInA - ConstInB);
             B.modifyUse(constantInt, 0);
             B.modifyUse(AUseList.get(0), 1);
             B.setOp(Instr.Alu.Op.ADD);
-            A.remove();
+            //A.remove();
         }
         else if (!ConstInAIs0 && !ConstInBIs0 && !A.isAdd() && B.isAdd()) {
             Constant.ConstantInt constantInt = new Constant.ConstantInt(ConstInB - ConstInA);
             B.modifyUse(constantInt, 0);
             B.modifyUse(AUseList.get(0), 1);
-            A.remove();
+            //A.remove();
         }
 
         //b = a - x; c = b - y; c = a - (x + y)
@@ -176,7 +176,7 @@ public class InstrComb {
             B.modifyUse(constantInt, 0);
             B.modifyUse(AUseList.get(0), 1);
             B.setOp(Instr.Alu.Op.ADD);
-            A.remove();
+            //A.remove();
         }
     }
 }

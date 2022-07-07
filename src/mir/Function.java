@@ -247,6 +247,19 @@ public class Function extends Value {
         return BBs;
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Function function = (Function) o;
+        return Objects.equals(name, function.name);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(name);
+    }
+
     // @Override
     // public boolean equals(Object obj) {
     //     return ;

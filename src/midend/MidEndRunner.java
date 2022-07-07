@@ -23,11 +23,14 @@ public class MidEndRunner {
         MakeDFG makeDFG = new MakeDFG(functions);
         makeDFG.Run();
 
+        GlobalValueLocalize globalValueLocalize = new GlobalValueLocalize(functions, globalValues);
+        globalValueLocalize.Run();
+
+
+
         Mem2Reg mem2Reg = new Mem2Reg(functions);
         mem2Reg.Run();
 
-        GlobalValueLocalize globalValueLocalize = new GlobalValueLocalize(functions, globalValues);
-        globalValueLocalize.Run();
 
         DeadCodeDelete deadCodeDelete = new DeadCodeDelete(functions);
         deadCodeDelete.Run();

@@ -1,11 +1,49 @@
 package lir;
+
 import lir.Machine;
 import lir.MachineInst;
 import lir.Tag;
+import mir.type.DataType;
+
+import javax.xml.crypto.Data;
+import java.util.ArrayList;
 
 
 public class Arm {
-    public static class Reg{
+    public static class Reg {
+        DataType dataType;
+        FPRs fpr;
+        GPRs gpr;
+
+
+        public Reg(DataType dataType, FPRs fpr) {
+            this.dataType = dataType;
+            this.fpr = fpr;
+        }
+
+        public Reg(DataType dataType, GPRs gpr) {
+            this.dataType = dataType;
+            this.gpr = gpr;
+        }
+
+        private static final ArrayList<Reg> gprPool = new ArrayList<>();
+        private static final ArrayList<Reg> fprPool = new ArrayList<>();
+
+        static {
+            for (int i = 0; i <= 12; i++) {
+                gprPool.add(new Reg(DataType.I32, GPRs.valueOf("r" + i)));
+                fprPool.add(new Reg(DataType.F32, FPRs.valueOf("s" + i)));
+            }
+        }
+
+        public static Reg getR(int i) {
+            return gprPool.get(i);
+        }
+
+        public static Reg getS(int i) {
+            return fprPool.get(i);
+        }
+
         public enum GPRs {
             // args and return value (caller saved)
             r0("r0"), r1("r1"), r2("r2"), r3("r3"),
@@ -15,33 +53,26 @@ public class Arm {
             // some aliases
             // fp("r11"),  // frame pointer (omitted), allocatable
             // ip("r12"),  // ipc scratch register, used in some instructions (caller saved)
-            sp("r13"),  // stack pointer
-            lr("r14"),  // link register (caller saved) BL指令调用时存放返回地址
-            pc("r15"),  // program counter
+            sp("sp"),  // stack pointer
+            lr("lr"),  // link register (caller saved) BL指令调用时存放返回地址
+            pc("pc"),  // program counter
             cspr("r16");
 
             GPRs(String rName) {
-
             }
         }
 
-        public enum FPRs{
+        public enum FPRs {
             // args and return value (caller saved)
-            r0("r0"), r1("r1"), r2("r2"), r3("r3"),
-            // local variables (callee saved)
-            r4("r4"), r5("r5"), r6("r6"), r7("r7"),
-            r8("r8"), r9("r9"), r10("r10"), r11("r11"), r12("r12"),
-            // some aliases
-            // fp("r11"),  // frame pointer (omitted), allocatable
-            // ip("r12"),  // ipc scratch register, used in some instructions (caller saved)
-            sp("r13"),  // stack pointer
-            lr("r14"),  // link register (caller saved) BL指令调用时存放返回地址
-            pc("r15"),  // program counter
-            cspr("r16");
+            s0("s0"), s1("s1"), s2("s2"), s3("s3"),
+            // local vasiables (callee saved)
+            s4("s4"), s5("s5"), s6("s6"), s7("s7"),
+            s8("s8"), s9("s9"), s10("s10"), s11("s11"), s12("s12");
 
             FPRs(String fpName) {
             }
         }
+
     }
 
     public enum Cond {

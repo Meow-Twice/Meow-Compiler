@@ -11,7 +11,6 @@ public class MILoad extends MIAccess{
         super(Tag.Load,inst);
     }
 
-
     @Override
     public void genDefUse() {
         defOpds.add(dOpd);

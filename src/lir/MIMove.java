@@ -3,7 +3,7 @@ package lir;
 public class MIMove extends MachineInst{
     Arm.Cond cond;
     Machine.Operand dOpd;
-    Machine.Operand rOpd;
+    Machine.Operand sOpd;
     Arm.Shift shift;
 
     public MIMove(Machine.Block insertAtEnd){
@@ -21,8 +21,14 @@ public class MIMove extends MachineInst{
             return this.cond.compareTo(move.cond) < 0;
         if(this.dOpd != this.dOpd)
             return this.dOpd.compareTo(this.dOpd);
-        if(this.rOpd != this.rOpd)
-           return this.rOpd.compareTo(this.rOpd);
+        if(this.sOpd != this.sOpd)
+           return this.sOpd.compareTo(this.sOpd);
        return false;
    }
+
+    @Override
+    public void genDefUse() {
+        defOpds.add(dOpd);
+        useOpds.add(sOpd);
+    }
 }

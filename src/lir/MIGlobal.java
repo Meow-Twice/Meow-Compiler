@@ -11,4 +11,9 @@ public class MIGlobal extends MachineInst{
         insertAtBegin.insts.addFirst(this);
 
     }
+
+    @Override
+    public void genDefUse() {
+        defOpds.add(dOpd);
+    }
 }

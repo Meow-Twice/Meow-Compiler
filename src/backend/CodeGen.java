@@ -1,20 +1,49 @@
 package backend;
 
+import frontend.semantic.Initial;
+import lir.Arm;
 import lir.Machine;
+import midend.Manager;
+import mir.BasicBlock;
 import mir.Function;
+import mir.GlobalVal;
+import mir.Value;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 public class CodeGen {
 
     private static Machine.Function curMachineFunc;
     private static Function curFunc;
-    // private
+    private Map<String, Function> midFuncMap;
+    public HashMap<Value, Machine.Operand> value2opd;
+    public HashMap<Value, Machine.Operand> opd2value;
+    public ArrayList<Machine.Function> mcFuncList;
+    public HashMap<Function, Machine.Function> func2mcFunc;
+    public HashMap<BasicBlock, Machine.Block> bb2mcBB;
+    private Map<Value, Initial> globalMap;
 
     public CodeGen() {
-        // Manager
+        curFunc = null;
+        curMachineFunc = null;
+        midFuncMap = Manager.MANAGER.getFunctions();
+        globalMap = Manager.MANAGER.globals;
+        value2opd = new HashMap<>();
+        opd2value = new HashMap<>();
+        mcFuncList = new ArrayList<>();
+        func2mcFunc = new HashMap<>();
+        bb2mcBB = new HashMap<>();
     }
 
     public void gen() {
+        genGlobal();
+        // TODO
+    }
 
+    public void genGlobal(){
+        // for(GlobalVal.GlobalValue glob: )
     }
 
     boolean immCanCode(int imm) {

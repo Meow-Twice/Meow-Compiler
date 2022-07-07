@@ -1,13 +1,19 @@
 package midend;
 
+import frontend.semantic.Initial;
+import frontend.syntax.Ast;
 import mir.Function;
+import mir.Value;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 public class MidEndRunner {
 
     //TODO:另一种实现方法 functions定为static 提供init方法
     public ArrayList<Function> functions;
+    private HashMap<Value, Initial> globalValues = (HashMap<Value, Initial>) Manager.MANAGER.getGlobals();
 
     public MidEndRunner(ArrayList<Function> functions) {
         this.functions = functions;

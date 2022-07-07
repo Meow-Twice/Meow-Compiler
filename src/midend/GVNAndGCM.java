@@ -8,11 +8,17 @@ import java.util.HashSet;
 
 public class GVNAndGCM {
 
+    //TODO:GCM更新phi,删除无用phi,添加数组相关分析,
+    // 把load,store,get_element_ptr也纳入GCM考虑之中
     private ArrayList<Function> functions;
     private HashMap<Function, HashSet<Instr>> pinnedInstrMap;
 
     private static HashSet<Instr> know;
     private BasicBlock root;
+
+
+    HashMap<String, Instr.Alu> GvnMap = new HashMap<>();
+    HashMap<String, Integer> GvnCnt = new HashMap<>();
 
     public GVNAndGCM(ArrayList<Function> functions) {
         this.functions = functions;
@@ -24,7 +30,7 @@ public class GVNAndGCM {
 
     public void Run() {
         Init();
-        //GVN();
+        GVN();
         GCM();
         //GVN();
     }
@@ -65,8 +71,42 @@ public class GVNAndGCM {
     }
 
     private void GVNForFunc(Function function) {
+        BasicBlock bb = function.getBeginBB();
+        RPOSearch(bb);
+    }
 
-        //HashSet<String>
+    //逆后序遍历支配树
+    private void RPOSearch(BasicBlock bb) {
+        //Constant folding
+        Instr alu = bb.getBeginInstr();
+        while (alu.getNext() != null) {
+            if (alu instanceof Instr.Alu && ((Instr.Alu) alu).hasTwoConst()) {
+                Constant value = calc((Instr.Alu) alu);
+
+                alu.modifyAllUseThisToUseA(value);
+                alu.remove();
+            }
+            alu = (Instr) alu.getNext();
+        }
+
+        HashSet<Instr.Alu> alus  = new HashSet<>();
+        Instr instr = bb.getBeginInstr();
+        while (instr.getNext() != null) {
+            if (instr instanceof Instr.Alu) {
+                if (!addInstrToGVN((Instr.Alu) instr)) {
+                    alus.add((Instr.Alu) instr);
+                }
+            }
+            instr = (Instr) instr.getNext();
+        }
+
+        for (BasicBlock next: bb.getIdoms()) {
+            RPOSearch(next);
+        }
+
+        for (Instr.Alu alu1: alus) {
+            removeInstrFromGVN(alu1);
+        }
     }
 
 
@@ -277,6 +317,108 @@ public class GVNAndGCM {
                 }
                 bb = (BasicBlock) bb.getNext();
             }
+        }
+    }
+
+    private void add(String str, Instr.Alu alu) {
+        if (!GvnCnt.containsKey(str)) {
+            GvnCnt.put(str, 1);
+        } else {
+            GvnCnt.put(str, GvnCnt.get(str) + 1);
+        }
+        if (!GvnMap.containsKey(str)) {
+            GvnMap.put(str, alu);
+        }
+    }
+
+    private void remove(String str) {
+        GvnCnt.put(str, GvnCnt.get(str) - 1);
+        if (GvnCnt.get(str) == 0) {
+            GvnMap.remove(str);
+        }
+    }
+
+    private boolean addInstrToGVN(Instr.Alu alu) {
+        //进行替换
+        boolean tag = false;
+        String hash = alu.getUseValueList().get(0).getName() + alu.getOp().getName() + alu.getUseValueList().get(1).getName();
+        if (GvnMap.containsKey(hash)) {
+            alu.modifyAllUseThisToUseA(GvnMap.get(hash));
+            alu.remove();
+            return true;
+        }
+
+        if (alu.getOp().equals(Instr.Alu.Op.ADD) || alu.getOp().equals(Instr.Alu.Op.MUL)) {
+            String str = alu.getUseValueList().get(0).getName() + alu.getOp().getName() + alu.getUseValueList().get(1).getName();
+            add(str, alu);
+            if (!alu.getUseValueList().get(0).getName().equals(alu.getUseValueList().get(1).getName())) {
+                str = alu.getUseValueList().get(1).getName() + alu.getOp().getName() + alu.getUseValueList().get(0).getName();
+                add(str, alu);
+            }
+        } else {
+            String str = alu.getUseValueList().get(0).getName() + alu.getOp().getName() + alu.getUseValueList().get(1).getName();
+            add(str, alu);
+        }
+        return tag;
+    }
+
+    private void removeInstrFromGVN(Instr.Alu alu) {
+        if (alu.getOp().equals(Instr.Alu.Op.ADD) || alu.getOp().equals(Instr.Alu.Op.MUL)) {
+            String str = alu.getUseValueList().get(0).getName() + alu.getOp().getName() + alu.getUseValueList().get(1).getName();
+            remove(str);
+            if (!alu.getUseValueList().get(0).getName().equals(alu.getUseValueList().get(1).getName())) {
+                str = alu.getUseValueList().get(1).getName() + alu.getOp().getName() + alu.getUseValueList().get(0).getName();
+                remove(str);
+            }
+        } else {
+            String str = alu.getUseValueList().get(0).getName() + alu.getOp().getName() + alu.getUseValueList().get(1).getName();
+            remove(str);
+        }
+    }
+
+    private Constant calc(Instr.Alu alu) {
+        assert alu.hasTwoConst();
+        if (alu.getType().isInt32Type()) {
+            Instr.Alu.Op op = alu.getOp();
+            int ConstA = (int) ((Constant) alu.getUseValueList().get(0)).getConstVal();
+            int ConstB = (int) ((Constant) alu.getUseValueList().get(1)).getConstVal();
+            Constant.ConstantInt value = null;
+            if (op.equals(Instr.Alu.Op.ADD)) {
+                value = new Constant.ConstantInt(ConstA + ConstB);
+            } else if (op.equals(Instr.Alu.Op.SUB)) {
+                value = new Constant.ConstantInt(ConstA - ConstB);
+            } else if (op.equals(Instr.Alu.Op.MUL)) {
+                value = new Constant.ConstantInt(ConstA * ConstB);
+            } else if (op.equals(Instr.Alu.Op.DIV)) {
+                value = new Constant.ConstantInt(ConstA / ConstB);
+            } else if (op.equals(Instr.Alu.Op.REM)) {
+                value = new Constant.ConstantInt(ConstA % ConstB);
+            } else {
+                System.err.println("err");
+            }
+
+            return value;
+
+        } else {
+            Instr.Alu.Op op = alu.getOp();
+            float ConstA = (float) ((Constant) alu.getUseValueList().get(0)).getConstVal();
+            float ConstB = (float) ((Constant) alu.getUseValueList().get(1)).getConstVal();
+            Constant.ConstantFloat value = null;
+            if (op.equals(Instr.Alu.Op.FADD)) {
+                value = new Constant.ConstantFloat(ConstA + ConstB);
+            } else if (op.equals(Instr.Alu.Op.FSUB)) {
+                value = new Constant.ConstantFloat(ConstA - ConstB);
+            } else if (op.equals(Instr.Alu.Op.FMUL)) {
+                value = new Constant.ConstantFloat(ConstA * ConstB);
+            } else if (op.equals(Instr.Alu.Op.FDIV)) {
+                value = new Constant.ConstantFloat(ConstA / ConstB);
+            } else if (op.equals(Instr.Alu.Op.FREM)) {
+                value = new Constant.ConstantFloat(ConstA % ConstB);
+            } else {
+                System.err.println("err");
+            }
+
+            return value;
         }
     }
 

@@ -301,6 +301,10 @@ public class Instr extends Value {
             return useValueList.get(0) instanceof Constant || useValueList.get(1) instanceof Constant;
         }
 
+        public boolean hasTwoConst() {
+            return useValueList.get(0) instanceof Constant && useValueList.get(1) instanceof Constant;
+        }
+
     }
 
     // 比较运算, 结果是 i1 型

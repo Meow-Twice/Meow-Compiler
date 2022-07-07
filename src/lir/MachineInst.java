@@ -2,9 +2,14 @@ package lir;
 
 import util.ILinkNode;
 
+import java.util.ArrayList;
+
 public class MachineInst {
     Machine.Block bb;
     Tag tag;
+
+    public ArrayList<Machine.Operand> defOpds = new ArrayList<>();
+    public ArrayList<Machine.Operand> useOpds = new ArrayList<>();
 
     /*
     init and insert at end of the bb
@@ -31,6 +36,9 @@ public class MachineInst {
 
     public MachineInst(Tag tag) {
         this.tag = tag;
+    }
+
+    public void genDefUse(){
     }
 }
 

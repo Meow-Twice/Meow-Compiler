@@ -8,4 +8,10 @@ public class MICompare extends MachineInst{
     public MICompare(Machine.Block insertAtEnd){
         super(Tag.Compare,insertAtEnd);
     }
+
+    @Override
+    public void genDefUse() {
+        useOpds.add(lOpd);
+        useOpds.add(rOpd);
+    }
 }

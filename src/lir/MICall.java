@@ -5,4 +5,9 @@ public class MICall extends MachineInst{
     public MICall(Machine.Block insertAtEnd){
         super(Tag.Call,insertAtEnd);
     }
+
+    @Override
+    public void genDefUse() {
+        super.genDefUse();
+    }
 }

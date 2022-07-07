@@ -1,7 +1,9 @@
 package lir;
 
 import mir.GlobalVal;
+import util.DoublelyLinkedList;
 
+import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.HashSet;
 
@@ -30,6 +32,11 @@ public class Machine {
         }
     }
     public static class Block {
+        DoublelyLinkedList<MachineInst> insts;
+        //pred and successor
+        ArrayList<Block> pred;
+        ArrayList<Block> successor;
+        MachineInst con_tran = null;
         HashSet<Operand> liveUseSet;
         HashSet<Operand> defSet;
         HashSet<Operand> liveInSet;
@@ -45,13 +52,21 @@ public class Machine {
             Virtual,
             Immediate
         }
-
+        private Type type;
         public Operand(Type type){
             prefix = switch (type){
                 case Virtual -> "v";
                 case Allocated, PreColored -> "r";
                 case Immediate -> "#";
             };
+        }
+        public boolean compareTo(Operand other){
+            if(this.type != other.type){
+                return type.compareTo(other.type)<0;
+            }
+            else{
+                return this.id < other.id;
+            }
         }
     }
 }

@@ -1,4 +1,8 @@
 package lir;
+import lir.Machine;
+import lir.MachineInst;
+import lir.Tag;
+
 
 public class Arm {
     public static class Reg{

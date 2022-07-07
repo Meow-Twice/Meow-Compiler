@@ -1,54 +1,38 @@
 package lir;
 
+import util.ILinkNode;
+
 public class MachineInst {
+    Machine.Block bb;
+    Tag tag;
 
-
-    public enum InstTag {
-        // Binary
-        LongMul,
-        FMA,
-        Mv,
-        Branch,
-        Jump,
-        Return,  // Control flow
-        Load,
-        Store,  // Memory
-        Compare,
-        Call,
-        Global,
-        Comment,  // for printing comments
+    /*
+    init and insert at end of the bb
+    */
+    public MachineInst(Tag tag,Machine.Block insertAtEnd) {
+        this.bb = insertAtEnd;
+        this.tag = tag;
+        if (insertAtEnd != null) {
+            insertAtEnd.insts.add(insertAtEnd.insts.size - 1, this);
+        }
     }
 
-    public static class Binary extends MachineInst {
-        public enum Op {
-            Add("add"),
-            Sub("sub"),
-            Rsb("rsb"),
-            Mul("mul"),
-            Div("sdiv"),
-            Mod("mod"),
-            Lt("lt"),
-            Le("le"),
-            Ge("ge"),
-            Gt("gt"),
-            Eq("eq"),
-            Ne("ne"),
-            And("and"),
-            Or("or"),
-            ;
-
-            Op(String op) {
+    /*
+    init and inset before inst
+    */
+    public MachineInst(Tag tag,MachineInst inst) {
+            this.bb = inst.bb;
+            this.tag = tag;
+            if (inst.bb != null) {
+                int index = inst.bb.insts.getIndex(inst);
+                inst.bb.insts.add(index,this);
             }
-        }
+    }
 
-        Machine.Operand lOpd;
-        Machine.Operand rOpd;
-        Machine.Operand dOpd;
-        Arm.Shift shift;
-
-        public Binary(Op op, Machine.Block insertAtEnd){
-
-        }
-
+    public MachineInst(Tag tag) {
+        this.tag = tag;
     }
 }
+
+
+

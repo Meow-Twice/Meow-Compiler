@@ -15,6 +15,10 @@ public class DeadCodeDelete {
     public void Run(){
         deadCodeDelete(functions);
     }
+
+    //TODO:对于指令闭包
+    // 指令闭包的算法: 必须被保留的指令  函数的return,函数调用,对全局变量的store,数组  从这些指令dfs use
+    //  其余全部删除
     public void deadCodeDelete(ArrayList<Function> functions) {
         boolean changed = true;
         while(changed)

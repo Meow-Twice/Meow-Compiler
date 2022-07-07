@@ -5,6 +5,7 @@ import frontend.lexer.TokenList;
 import frontend.Visitor;
 import frontend.syntax.Ast;
 import frontend.syntax.Parser;
+import midend.DeadCodeDelete;
 import midend.MidEndRunner;
 import midend.Manager;
 
@@ -49,10 +50,8 @@ public class Compiler {
             // globalValueLocalize.Run();
             MidEndRunner midEndRunner = new MidEndRunner(Manager.MANAGER.getFunctionList());
             midEndRunner.Run();
-//            DeadCodeDelete deadCodeDelete = new DeadCodeDelete(funcManager.getFunctionList());
-//            deadCodeDelete.Run();
-            Manager.MANAGER.outputLLVM("hello");
-            Manager.MANAGER.outputLLVM();
+            // DeadCodeDelete deadCodeDelete = new DeadCodeDelete(Manager.MANAGER.getFunctionList());
+            // deadCodeDelete.Run();
             Manager.MANAGER.output(arg.llvmStream);
         } catch (Exception e) {
             e.printStackTrace();

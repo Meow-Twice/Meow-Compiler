@@ -272,6 +272,12 @@ public class Visitor {
         // 去符号表拿出指向这个左值的指针
         String ident = lVal.getIdent().getContent();
         Symbol symbol = currentSymTable.get(ident, true);
+        if(symbol.isConstant() && lVal.getIndexes().isEmpty()){
+            // return symbol.getInitial();
+            // assert !needPointer;
+            assert  symbol.getInitial() instanceof Initial.ValueInit;
+            return ((Initial.ValueInit)symbol.getInitial()).getValue();
+        }
         Value pointer = symbol.getValue();
         // assert pointer instanceof Alloc;
         assert pointer.getType() instanceof PointerType;

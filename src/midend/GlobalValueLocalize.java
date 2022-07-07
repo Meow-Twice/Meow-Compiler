@@ -77,6 +77,7 @@ public class GlobalValueLocalize {
         // }
         //TODO:获取函数被调用的次数,次数为1则可局部化:只在非递归函数的循环深度为一的位置被调用一次?
         //fixme:上述条件是否正确
+        //TODO:main不可能被递归调用,纳入考虑
 //        if (useFunctions.size() == 1) {
 //            Function function = null;
 //            for (Function tmp: useFunctions) {

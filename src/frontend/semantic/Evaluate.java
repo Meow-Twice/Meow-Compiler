@@ -1,6 +1,7 @@
 package frontend.semantic;
 
 import exception.SemanticException;
+import frontend.Visitor;
 import frontend.lexer.Token;
 import frontend.semantic.symbol.SymTable;
 import frontend.semantic.symbol.Symbol;

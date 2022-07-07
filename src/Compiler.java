@@ -2,7 +2,7 @@ import arg.Arg;
 import frontend.lexer.Lexer;
 import frontend.lexer.Token;
 import frontend.lexer.TokenList;
-import frontend.semantic.Visitor;
+import frontend.Visitor;
 import frontend.syntax.Ast;
 import frontend.syntax.Parser;
 import midend.MidEndRunner;

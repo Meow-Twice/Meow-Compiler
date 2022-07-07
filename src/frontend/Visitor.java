@@ -1,5 +1,7 @@
-package frontend.semantic;
+package frontend;
 
+import frontend.semantic.Evaluate;
+import frontend.semantic.Initial;
 import frontend.syntax.Ast.*;
 import exception.SemanticException;
 import frontend.lexer.Token;

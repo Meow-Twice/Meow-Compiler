@@ -8,7 +8,7 @@ import static lir.Arm.Reg.GPRs.lr;
 import static lir.Machine.Operand.Type.PreColored;
 
 public class MICall extends MachineInst {
-    Machine.Function function;
+    McFunction mcFunction;
 
     public MICall(Machine.Block insertAtEnd) {
         super(Tag.Call, insertAtEnd);
@@ -18,7 +18,7 @@ public class MICall extends MachineInst {
     public void genDefUse() {
         // TODO for xry: 到底是new还是get单例
         // 调用者保存
-        for (int i = 0; i < function.params.size(); i++) {
+        for (int i = 0; i < mcFunction.params.size(); i++) {
             useOpds.add(new Operand(PreColored, Reg.getR(i)));
         }
         for (int i = 0; i < 4; i++) {

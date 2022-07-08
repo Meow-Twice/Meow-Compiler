@@ -1,16 +1,16 @@
 package lir;
 
+import mir.BasicBlock;
 import mir.GlobalVal;
 import mir.type.DataType;
 import util.DoublelyLinkedList;
 
-import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.HashSet;
 
 public class Machine {
     public static class Program {
-        ArrayList<Function> funcList;
+        ArrayList<McFunction> funcList;
         ArrayList<GlobalVal> globList;
 
         // public Program(ArrayList<Function> funcList, ArrayList<GlobalVal> globList){
@@ -21,7 +21,7 @@ public class Machine {
         }
     }
 
-    public static class Function {
+    public static class McFunction {
         ArrayList<MachineInst> instList;
         ArrayList<Block> blockList;
         ArrayList<Operand> params;
@@ -32,11 +32,13 @@ public class Machine {
         HashSet<Arm.Reg> usedCalleeSavedRegs;
         boolean useLr = false;
 
-        public Function() {
+        public McFunction(mir.Function function) {
+            this.mFunc = function;
         }
     }
 
     public static class Block {
+        public BasicBlock bb;
         DoublelyLinkedList<MachineInst> insts;
         //pred and successor
         ArrayList<Block> pred;
@@ -46,6 +48,10 @@ public class Machine {
         HashSet<Operand> defSet;
         HashSet<Operand> liveInSet;
         HashSet<Operand> liveOutSet;
+
+        public Block(BasicBlock bb){
+            this.bb = bb;
+        }
     }
 
     public static class Operand {

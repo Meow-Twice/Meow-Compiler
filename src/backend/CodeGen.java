@@ -8,19 +8,18 @@ import mir.Function;
 import mir.GlobalVal;
 import mir.Value;
 
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.*;
 import java.util.HashMap;
 
 public class CodeGen {
 
-    private static Machine.Function curMachineFunc;
+    private static Machine.McFunction curMachineFunc;
     private static Function curFunc;
     private HashMap<String, Function> midFuncMap;
     public HashMap<Value, Machine.Operand> value2opd;
     public HashMap<Value, Machine.Operand> opd2value;
-    public ArrayList<Machine.Function> mcFuncList;
-    public HashMap<Function, Machine.Function> func2mcFunc;
+    public ArrayList<Machine.McFunction> mcFuncList;
+    public HashMap<Function, Machine.McFunction> func2mcFunc;
     public HashMap<BasicBlock, Machine.Block> bb2mcBB;
     private HashMap<GlobalVal.GlobalValue, Initial> globalMap;
 
@@ -39,10 +38,36 @@ public class CodeGen {
     public void gen() {
         genGlobal();
         // TODO
+        for (Function func : midFuncMap.values()) {
+
+            Machine.McFunction mcFunc = new Machine.McFunction(func);
+            curFunc = func;
+            curMachineFunc = mcFunc;
+            mcFuncList.add(mcFunc);
+            func2mcFunc.put(func, mcFunc);
+
+            BasicBlock bb = func.getBeginBB();
+            BasicBlock endBB = func.getEndBB();
+            while (!bb.equals(endBB)) {
+
+                genBB(bb);
+
+                bb = (BasicBlock) bb.getNext();
+            }
+        }
     }
 
-    public void genGlobal(){
-        // for(GlobalVal.GlobalValue glob: )
+    public void genBB(BasicBlock bb) {
+        Machine.Block mb = new Machine.Block(bb);
+
+    }
+
+    public void genGlobal() {
+        for (Map.Entry<GlobalVal.GlobalValue, Initial> entry : globalMap.entrySet()) {
+            GlobalVal.GlobalValue glob = entry.getKey();
+            Initial init = entry.getValue();
+            // TODO for yyf
+        }
     }
 
     boolean immCanCode(int imm) {

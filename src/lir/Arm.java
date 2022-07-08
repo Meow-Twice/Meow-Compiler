@@ -108,7 +108,7 @@ public class Arm {
         }
     }
 
-    public enum Shift {
+    public enum ShiftType {
         // no shifting
         None("!None"),
         // arithmetic right
@@ -122,7 +122,46 @@ public class Arm {
         // rotate right one bit with extend
         Rrx("rrx");
 
-        Shift(String shift) {
+        ShiftType(String shift) {
+        }
+    }
+
+    public class Shift {
+        ShiftType shiftType;
+        int shift;
+        Shift(){
+            shift = 0;
+            shiftType = ShiftType.None;
+        }
+
+        public Shift(ShiftType shiftType, int shift) {
+            this.shiftType = shiftType;
+            this.shift = shift;
+        }
+
+        public String toString(){
+            String op = null;
+            switch(shiftType){
+                case Asr :
+                    op = "asr";
+                    break;
+                case Lsl:
+                    op = "lsl";
+                    break;
+                case Lsr:
+                    op = "lsr";
+                    break;
+                case Ror:
+                    op = "ror";
+                    break;
+                case Rrx:
+                    op = "rrx";
+                    break;
+                default:
+                    op = null;
+
+            }
+            return op+" #"+this.shift;
         }
     }
 }

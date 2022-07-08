@@ -1,6 +1,8 @@
 package lir;
 
-public class MIComment extends MachineInst {
+import java.io.PrintStream;
+
+public class MIComment extends MachineInst{
     String content;
 
     public MIComment(String content, Machine.Block insertAtEnd) {
@@ -13,4 +15,7 @@ public class MIComment extends MachineInst {
         this.content = content;
     }
 
+    public void output(PrintStream os){
+        os.println("@ "+content);
+    }
 }

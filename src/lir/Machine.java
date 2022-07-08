@@ -42,6 +42,7 @@ public class Machine {
     public static class Block {
         public BasicBlock bb;
         public McFunction mcFunc;
+        public MICompare cmp;
         DoublelyLinkedList<MachineInst> insts;
         //pred and successor
         ArrayList<Block> pred;

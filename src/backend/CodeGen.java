@@ -99,9 +99,15 @@ public class CodeGen {
                     Arm.Cond cond;
                     Instr.Branch brInst = (Instr.Branch) instr;
                     Instr condValue = (Instr) brInst.getCond();
-                    // condMap.get(condValue);
-                    Machine.Operand condVR = getVR_may_imm(condValue);
+                    CMPAndArmCond t = cmpInst2MICmpMap.get(condValue);
+                    if (t != null) {
+                        curMB.cmp = t.CMP;
+                        // cmp =
 
+                    } else {
+                        Machine.Operand condVR = getVR_may_imm(condValue);
+                    }
+                    // new MIJump()
                 }
                 case fneg -> {
                     // TODO

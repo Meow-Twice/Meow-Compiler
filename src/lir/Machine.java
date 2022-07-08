@@ -12,6 +12,7 @@ import static lir.Machine.Operand.Type.Virtual;
 
 public class Machine {
     public static String BB_Prefix = ".L_BB_";
+
     public static class Program {
         ArrayList<McFunction> funcList;
         ArrayList<GlobalVal> globList;
@@ -60,8 +61,9 @@ public class Machine {
             this.mcFunc = insertAtEnd;
             mcFunc.blockList.addLast(this);
         }
-        public String toString(){
-            return BB_Prefix+index;
+
+        public String toString() {
+            return BB_Prefix + index;
         }
 
     }
@@ -135,8 +137,8 @@ public class Machine {
             }
         }
 
-        public String toString(){
-            return prefix+id;
+        public String toString() {
+            return prefix + vrId;
         }
     }
 }

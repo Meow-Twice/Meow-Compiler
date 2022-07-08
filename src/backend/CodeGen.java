@@ -1,29 +1,32 @@
 package backend;
 
 import frontend.semantic.Initial;
+import lir.MIComment;
 import lir.Machine;
+import lir.MachineBinary;
+import lir.Tag;
 import manage.Manager;
-import mir.BasicBlock;
-import mir.Function;
-import mir.GlobalVal;
-import mir.Value;
-import util.DoublelyLinkedList;
+import mir.*;
 
 import java.util.*;
 import java.util.HashMap;
 
 public class CodeGen {
 
+    public static boolean _DEBUG_OUTPUT_MIR_INTO_COMMENT = true;
+
     private static Machine.McFunction curMachineFunc;
     private static Function curFunc;
     private HashMap<String, Function> midFuncMap;
     public HashMap<Value, Machine.Operand> value2opd;
-    public HashMap<Value, Machine.Operand> opd2value;
+    public HashMap<Machine.Operand, Value> opd2value;
     public ArrayList<Machine.McFunction> mcFuncList;
     public HashMap<Function, Machine.McFunction> func2mcFunc;
     public HashMap<BasicBlock, Machine.Block> bb2mb;
     private HashMap<GlobalVal.GlobalValue, Initial> globalMap;
     private Machine.Block curMB;
+    private int virtual_cnt = 0;
+
 
     public CodeGen() {
         curFunc = null;
@@ -67,7 +70,56 @@ public class CodeGen {
     }
 
     public void genBB(BasicBlock bb) {
+        Instr instr = bb.getBeginInstr();
+        Instr endInstr = bb.getEndInstr();
+        while (!instr.equals(endInstr)) {
+            if (_DEBUG_OUTPUT_MIR_INTO_COMMENT) {
+                new MIComment(instr.toString(), curMB);
+            }
+            if (instr instanceof Instr.Alu) {
+                genBinaryInst((Instr.Alu) instr);
+            }
+            // else if( instr instanceof Instr.)
+            instr = (Instr) instr.getNext();
+        }
+    }
 
+    public Machine.Operand newVR(Value value) {
+        Machine.Operand opd = new Machine.Operand(virtual_cnt++);
+        opd2value.put(opd, value);
+        value2opd.put(value, opd);
+        return opd;
+    }
+
+    public Machine.Operand getVR_no_imm(Value value) {
+        Machine.Operand opd = value2opd.get(value);
+        if (opd == null) {
+            opd = newVR(value);
+            value2opd.put(value, opd);
+            opd2value.put(opd, value);
+        }
+        return opd;
+    }
+
+
+    public Machine.Operand getVR_may_imm(Value value) {
+        if (value instanceof Constant) {
+            assert false;
+            // TODO for yyf
+            return null;
+        } else {
+            return getVR_no_imm(value);
+        }
+    }
+
+    private void genBinaryInst(Instr.Alu instr) {
+        Value lhs = instr.getRVal1();
+        Value rhs = instr.getRVal2();
+        Machine.Operand lVR = getVR_no_imm(lhs);
+        Machine.Operand rVR = getVR_no_imm(rhs);
+        Machine.Operand dVR = getVR_no_imm(instr);
+        Tag tag = Tag.map.get(instr.getOp());
+        new MachineBinary(tag, dVR, lVR, rVR, curMB);
     }
 
     public void genGlobal() {

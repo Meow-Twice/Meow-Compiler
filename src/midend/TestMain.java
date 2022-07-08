@@ -1,5 +1,6 @@
 package midend;
 
+import lir.Arm;
 import mir.BasicBlock;
 import mir.Function;
 import mir.Instr;

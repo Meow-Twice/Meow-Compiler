@@ -10,41 +10,10 @@ import java.util.ArrayList;
 
 
 public class Arm {
-    public static class Reg {
-        DataType dataType;
-        FPRs fpr;
-        GPRs gpr;
 
+    public static interface Regs{
 
-        public Reg(DataType dataType, FPRs fpr) {
-            this.dataType = dataType;
-            this.fpr = fpr;
-        }
-
-        public Reg(DataType dataType, GPRs gpr) {
-            this.dataType = dataType;
-            this.gpr = gpr;
-        }
-
-        private static final ArrayList<Reg> gprPool = new ArrayList<>();
-        private static final ArrayList<Reg> fprPool = new ArrayList<>();
-
-        static {
-            for (int i = 0; i <= 12; i++) {
-                gprPool.add(new Reg(DataType.I32, GPRs.valueOf("r" + i)));
-                fprPool.add(new Reg(DataType.F32, FPRs.valueOf("s" + i)));
-            }
-        }
-
-        public static Reg getR(int i) {
-            return gprPool.get(i);
-        }
-
-        public static Reg getS(int i) {
-            return fprPool.get(i);
-        }
-
-        public enum GPRs {
+        public enum GPRs implements Regs{
             // args and return value (caller saved)
             r0("r0"), r1("r1"), r2("r2"), r3("r3"),
             // local variables (callee saved)
@@ -62,7 +31,7 @@ public class Arm {
             }
         }
 
-        public enum FPRs {
+        public enum FPRs implements Regs{
             // args and return value (caller saved)
             s0("s0"), s1("s1"), s2("s2"), s3("s3"),
             // local vasiables (callee saved)
@@ -72,6 +41,42 @@ public class Arm {
             FPRs(String fpName) {
             }
         }
+    }
+
+    public static class Reg {
+        DataType dataType;
+        Regs.FPRs fpr;
+        Regs.GPRs gpr;
+
+
+        public Reg(DataType dataType, Regs.FPRs fpr) {
+            this.dataType = dataType;
+            this.fpr = fpr;
+        }
+
+        public Reg(DataType dataType, Regs.GPRs gpr) {
+            this.dataType = dataType;
+            this.gpr = gpr;
+        }
+
+        private static final ArrayList<Reg> gprPool = new ArrayList<>();
+        private static final ArrayList<Reg> fprPool = new ArrayList<>();
+
+        static {
+            for (int i = 0; i <= 12; i++) {
+                gprPool.add(new Reg(DataType.I32, Regs.GPRs.valueOf("r" + i)));
+                fprPool.add(new Reg(DataType.F32, Regs.FPRs.valueOf("s" + i)));
+            }
+        }
+
+        public static Reg getR(int i) {
+            return gprPool.get(i);
+        }
+
+        public static Reg getS(int i) {
+            return fprPool.get(i);
+        }
+
 
     }
 

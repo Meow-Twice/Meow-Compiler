@@ -8,6 +8,8 @@ import util.DoublelyLinkedList;
 import java.util.ArrayList;
 import java.util.HashSet;
 
+import static lir.Machine.Operand.Type.Virtual;
+
 public class Machine {
     public static class Program {
         ArrayList<McFunction> funcList;
@@ -50,7 +52,7 @@ public class Machine {
         HashSet<Operand> liveInSet;
         HashSet<Operand> liveOutSet;
 
-        public Block(BasicBlock bb, Machine.McFunction insertAtEnd){
+        public Block(BasicBlock bb, Machine.McFunction insertAtEnd) {
             this.bb = bb;
             this.mcFunc = insertAtEnd;
             mcFunc.blockList.addLast(this);
@@ -59,7 +61,7 @@ public class Machine {
 
     public static class Operand {
         private String prefix;
-        private int id;
+        private int vrId;
 
         public enum Type {
             PreColored,
@@ -79,6 +81,13 @@ public class Machine {
                 case Allocated, PreColored -> "r";
                 case Immediate -> "#";
             };
+        }
+
+        // 默认分配通用寄存器
+        public Operand(int virtualRegCnt) {
+            this.type = Virtual;
+            vrId = virtualRegCnt;
+            prefix = "v";
         }
 
         public Operand(Type type, DataType dataType) {
@@ -111,7 +120,7 @@ public class Machine {
             if (this.type != other.type) {
                 return type.compareTo(other.type) < 0;
             } else {
-                return this.id < other.id;
+                return this.vrId < other.vrId;
             }
         }
     }

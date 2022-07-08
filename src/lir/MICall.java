@@ -4,7 +4,7 @@ import lir.Machine.*;
 
 import lir.Arm.Reg;
 
-import static lir.Arm.Reg.GPRs.lr;
+import static lir.Arm.Regs.GPRs.lr;
 import static lir.Machine.Operand.Type.PreColored;
 
 public class MICall extends MachineInst {

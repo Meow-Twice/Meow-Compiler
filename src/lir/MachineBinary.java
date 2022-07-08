@@ -12,7 +12,7 @@ public class MachineBinary extends MachineInst {
     Machine.Operand rOpd;
     Arm.Shift shift;
 
-    public MachineBinary(Tag tag, Machine.Block insertAtEnd) {
+    public MachineBinary(Tag tag, Machine.Operand dOpd, Machine.Operand lOpd, Machine.Operand rOpd, Machine.Block insertAtEnd) {
         super(tag, insertAtEnd);
     }
 

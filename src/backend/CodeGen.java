@@ -1,10 +1,7 @@
 package backend;
 
 import frontend.semantic.Initial;
-import lir.MIComment;
-import lir.Machine;
-import lir.MachineBinary;
-import lir.Tag;
+import lir.*;
 import manage.Manager;
 import mir.*;
 
@@ -53,10 +50,11 @@ public class CodeGen {
 
             BasicBlock bb = func.getBeginBB();
             BasicBlock endBB = func.getEndBB();
+            // 先造出来防止br找不到目标
             while (!bb.equals(endBB)) {
                 Machine.Block mb = new Machine.Block(bb, curMachineFunc);
                 bb.setMB(mb);
-                // bb2mb.put(bb, mb);
+                bb2mb.put(bb, mb);
                 bb = (BasicBlock) bb.getNext();
             }
             bb = func.getBeginBB();
@@ -78,10 +76,18 @@ public class CodeGen {
             }
             if (instr instanceof Instr.Alu) {
                 genBinaryInst((Instr.Alu) instr);
+            } else if (instr instanceof Instr.Jump) {
+                BasicBlock tarBB = ((Instr.Jump) instr).getTarget();
+                new MIJump(tarBB.getMb(), curMB);
+            } else if(instr instanceof Instr.Branch){
+
             }
-            // else if( instr instanceof Instr.)
             instr = (Instr) instr.getNext();
         }
+    }
+
+    public Machine.Operand newVR() {
+        return new Machine.Operand(virtual_cnt++);
     }
 
     public Machine.Operand newVR(Value value) {
@@ -93,20 +99,17 @@ public class CodeGen {
 
     public Machine.Operand getVR_no_imm(Value value) {
         Machine.Operand opd = value2opd.get(value);
-        if (opd == null) {
-            opd = newVR(value);
-            value2opd.put(value, opd);
-            opd2value.put(opd, value);
-        }
-        return opd;
+        return opd == null ? newVR(value) : opd;
     }
-
 
     public Machine.Operand getVR_may_imm(Value value) {
         if (value instanceof Constant) {
-            assert false;
-            // TODO for yyf
-            return null;
+            // TODO for yyf, 目前是无脑用一条move指令把立即数转到寄存器
+            assert value instanceof Constant.ConstantInt;
+            Machine.Operand dst = newVR();
+            Machine.Operand imm = new Machine.Operand((int) ((Constant) value).getConstVal());
+            new MIMove(dst, imm, curMB);
+            return dst;
         } else {
             return getVR_no_imm(value);
         }
@@ -115,8 +118,8 @@ public class CodeGen {
     private void genBinaryInst(Instr.Alu instr) {
         Value lhs = instr.getRVal1();
         Value rhs = instr.getRVal2();
-        Machine.Operand lVR = getVR_no_imm(lhs);
-        Machine.Operand rVR = getVR_no_imm(rhs);
+        Machine.Operand lVR = getVR_may_imm(lhs);
+        Machine.Operand rVR = getVR_may_imm(rhs);
         Machine.Operand dVR = getVR_no_imm(instr);
         Tag tag = Tag.map.get(instr.getOp());
         new MachineBinary(tag, dVR, lVR, rVR, curMB);

@@ -9,11 +9,15 @@ public class MIMove extends MachineInst {
     public MIMove(Machine.Block insertAtEnd) {
         super(Tag.Mv, insertAtEnd);
         this.cond = Arm.Cond.Any;
+        genDefUse();
     }
 
-    public MIMove(MachineInst inst, boolean isFloat) {
-        super(Tag.Mv, inst, isFloat);
+    public MIMove(Machine.Operand dOpd, Machine.Operand sOpd, Machine.Block insertAtEnd) {
+        super(Tag.Mv, insertAtEnd);
+        this.dOpd = dOpd;
+        this.sOpd = sOpd;
         this.cond = Arm.Cond.Any;
+        genDefUse();
     }
 
     public boolean operator(MIMove move) {

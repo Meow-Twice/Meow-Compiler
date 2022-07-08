@@ -7,7 +7,7 @@ import java.util.ArrayList;
 public class MachineInst {
     Machine.Block bb;
     Tag tag;
-
+    boolean isFloat;
     public ArrayList<Machine.Operand> defOpds = new ArrayList<>();
     public ArrayList<Machine.Operand> useOpds = new ArrayList<>();
 
@@ -25,8 +25,9 @@ public class MachineInst {
     /*
     init and inset before inst
     */
-    public MachineInst(Tag tag,MachineInst inst) {
+    public MachineInst(Tag tag,MachineInst inst,boolean isFloat) {
             this.bb = inst.bb;
+            this.isFloat = isFloat;
             this.tag = tag;
             if (inst.bb != null) {
                 int index = inst.bb.insts.getIndex(inst);
@@ -34,8 +35,9 @@ public class MachineInst {
             }
     }
 
-    public MachineInst(Tag tag) {
+    public MachineInst(Tag tag,boolean isFloat) {
         this.tag = tag;
+        this.isFloat = isFloat;
     }
 
     public void genDefUse(){

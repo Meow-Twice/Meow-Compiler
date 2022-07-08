@@ -5,7 +5,7 @@ import java.util.List;
 
 public class Token {
     private final TokenType type;
-    private final String content;
+    public final String content;
 
     public int lineNum = 0;
 

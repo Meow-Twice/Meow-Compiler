@@ -13,18 +13,18 @@ public class MIAccess extends MachineInst{
     Machine.Operand offset;
     int shift;
     Arm.Cond cond;
-    public MIAccess(Tag tag, Machine.Block insertAtEnd){
-        super(tag,insertAtEnd);
+    public MIAccess(Tag tag, Machine.Block insertAtEnd,boolean isFloat){
+        super(tag,insertAtEnd,isFloat);
         cond = Arm.Cond.Any;
     }
 
-    public MIAccess(Tag tag, MachineInst inst){
-        super(tag,inst);
+    public MIAccess(Tag tag, MachineInst inst,boolean isFloat){
+        super(tag,inst,isFloat);
         cond = Arm.Cond.Any;
     }
 
-    public MIAccess(Tag tag){
-        super(tag);
+    public MIAccess(Tag tag,boolean isFloat){
+        super(tag,isFloat);
         cond = Arm.Cond.Any;
     }
 }

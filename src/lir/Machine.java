@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 
 public class Machine {
+    public static String BB_Prefix = ".L_BB_";
     public static class Program {
         ArrayList<Function> funcList;
         ArrayList<GlobalVal> globList;
@@ -25,7 +26,7 @@ public class Machine {
         ArrayList<MachineInst> instList;
         ArrayList<Block> blockList;
         ArrayList<Operand> params;
-
+        String func_name;
         int virRegNum = 0;
         int stackSize = 0;
         mir.Function mFunc;
@@ -37,6 +38,7 @@ public class Machine {
     }
 
     public static class Block {
+        int index;
         DoublelyLinkedList<MachineInst> insts;
         //pred and successor
         ArrayList<Block> pred;
@@ -46,11 +48,15 @@ public class Machine {
         HashSet<Operand> defSet;
         HashSet<Operand> liveInSet;
         HashSet<Operand> liveOutSet;
+        public String toString(){
+            return BB_Prefix+index;
+        }
+
     }
 
     public static class Operand {
-        private String prefix;
-        private int id;
+        String prefix;
+        int id;
 
         public enum Type {
             PreColored,
@@ -59,8 +65,12 @@ public class Machine {
             Immediate
         }
 
-        private Type type;
-        private DataType dataType = DataType.I32;
+        Type type;
+        DataType dataType = DataType.I32;
+
+        public Type getType() {
+            return type;
+        }
 
         // 默认分配通用寄存器
         public Operand(Type type) {
@@ -104,6 +114,10 @@ public class Machine {
             } else {
                 return this.id < other.id;
             }
+        }
+
+        public String toString(){
+            return prefix+id;
         }
     }
 }

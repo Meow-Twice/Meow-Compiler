@@ -4,14 +4,16 @@ import lir.Machine.*;
 
 import lir.Arm.Reg;
 
+import java.io.PrintStream;
+
 import static lir.Arm.Reg.GPRs.lr;
 import static lir.Machine.Operand.Type.PreColored;
 
 public class MICall extends MachineInst {
     Machine.Function function;
 
-    public MICall(Machine.Block insertAtEnd) {
-        super(Tag.Call, insertAtEnd);
+    public MICall(Machine.Block insertAtEnd,boolean isFloat) {
+        super(Tag.Call, insertAtEnd,isFloat);
     }
 
     @Override
@@ -27,5 +29,9 @@ public class MICall extends MachineInst {
         defOpds.add(new Operand(PreColored, Reg.getR(lr.ordinal())));
         // TODO: 不确定浮点怎么存,不确定到底存哪些
 
+    }
+
+    public void output(PrintStream os){
+        os.println("blx\t"+function.func_name);
     }
 }

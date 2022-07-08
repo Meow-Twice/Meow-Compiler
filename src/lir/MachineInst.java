@@ -2,6 +2,7 @@ package lir;
 
 import util.ILinkNode;
 
+import java.io.PrintStream;
 import java.util.ArrayList;
 
 public class MachineInst {
@@ -10,13 +11,13 @@ public class MachineInst {
     boolean isFloat;
     public ArrayList<Machine.Operand> defOpds = new ArrayList<>();
     public ArrayList<Machine.Operand> useOpds = new ArrayList<>();
-
     /*
     init and insert at end of the bb
     */
-    public MachineInst(Tag tag,Machine.Block insertAtEnd) {
+    public MachineInst(Tag tag,Machine.Block insertAtEnd,boolean isFloat) {
         this.bb = insertAtEnd;
         this.tag = tag;
+        this.isFloat = isFloat;
         if (insertAtEnd != null) {
             insertAtEnd.insts.add(insertAtEnd.insts.size - 1, this);
         }
@@ -41,6 +42,12 @@ public class MachineInst {
     }
 
     public void genDefUse(){
+    }
+
+    public void transfer_output(PrintStream os){
+        if(bb!=null && bb.con_tran == this){
+            os.println("@ control transfer");
+        }
     }
 }
 

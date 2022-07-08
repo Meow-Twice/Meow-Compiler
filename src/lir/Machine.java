@@ -22,8 +22,8 @@ public class Machine {
     }
 
     public static class McFunction {
-        ArrayList<MachineInst> instList;
-        ArrayList<Block> blockList;
+        // ArrayList<MachineInst> instList;
+        DoublelyLinkedList<Block> blockList;
         ArrayList<Operand> params;
 
         int virRegNum = 0;
@@ -39,6 +39,7 @@ public class Machine {
 
     public static class Block {
         public BasicBlock bb;
+        public McFunction mcFunc;
         DoublelyLinkedList<MachineInst> insts;
         //pred and successor
         ArrayList<Block> pred;
@@ -49,8 +50,10 @@ public class Machine {
         HashSet<Operand> liveInSet;
         HashSet<Operand> liveOutSet;
 
-        public Block(BasicBlock bb){
+        public Block(BasicBlock bb, Machine.McFunction insertAtEnd){
             this.bb = bb;
+            this.mcFunc = insertAtEnd;
+            mcFunc.blockList.addLast(this);
         }
     }
 

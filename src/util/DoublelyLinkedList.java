@@ -129,10 +129,14 @@ public class DoublelyLinkedList<T> {
 
     public int getIndex(T value){
         Node<T> node = first;
-        for (int i = 0; i < size; i++) {
+        Node<T> backNode = last;
+        for (int i = 0; i < size / 2 + 1; i++) {
             node = node.next;
+            backNode = backNode.pri;
             if(node.data == value){
                 return i;
+            }else if(backNode.data == value){
+                return size - 1 - i;
             }
         }
         throw new RuntimeException("this element does not exist！");

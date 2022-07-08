@@ -7,6 +7,7 @@ import mir.BasicBlock;
 import mir.Function;
 import mir.GlobalVal;
 import mir.Value;
+import util.DoublelyLinkedList;
 
 import java.util.*;
 import java.util.HashMap;
@@ -20,8 +21,9 @@ public class CodeGen {
     public HashMap<Value, Machine.Operand> opd2value;
     public ArrayList<Machine.McFunction> mcFuncList;
     public HashMap<Function, Machine.McFunction> func2mcFunc;
-    public HashMap<BasicBlock, Machine.Block> bb2mcBB;
+    public HashMap<BasicBlock, Machine.Block> bb2mb;
     private HashMap<GlobalVal.GlobalValue, Initial> globalMap;
+    private Machine.Block curMB;
 
     public CodeGen() {
         curFunc = null;
@@ -32,7 +34,7 @@ public class CodeGen {
         opd2value = new HashMap<>();
         mcFuncList = new ArrayList<>();
         func2mcFunc = new HashMap<>();
-        bb2mcBB = new HashMap<>();
+        bb2mb = new HashMap<>();
     }
 
     public void gen() {
@@ -49,16 +51,22 @@ public class CodeGen {
             BasicBlock bb = func.getBeginBB();
             BasicBlock endBB = func.getEndBB();
             while (!bb.equals(endBB)) {
-
+                Machine.Block mb = new Machine.Block(bb, curMachineFunc);
+                bb.setMB(mb);
+                // bb2mb.put(bb, mb);
+                bb = (BasicBlock) bb.getNext();
+            }
+            bb = func.getBeginBB();
+            endBB = func.getEndBB();
+            while (!bb.equals(endBB)) {
+                curMB = bb.getMb();
                 genBB(bb);
-
                 bb = (BasicBlock) bb.getNext();
             }
         }
     }
 
     public void genBB(BasicBlock bb) {
-        Machine.Block mb = new Machine.Block(bb);
 
     }
 

@@ -1,5 +1,6 @@
 package mir;
 
+import lir.Machine;
 import mir.type.Type;
 
 import java.util.ArrayList;
@@ -261,5 +262,14 @@ public class BasicBlock extends Value {
     public String toString() {
         //return this.label + ":\t\t\t\t\t; loopDepth: " + loop.loopDepth + ";\t" + loop;
         return this.label;
+    }
+
+    private Machine.Block mb = null;
+    public void setMB(Machine.Block mb) {
+        this.mb = mb;
+    }
+
+    public Machine.Block getMb(){
+        return mb;
     }
 }

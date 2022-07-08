@@ -2,16 +2,18 @@ package lir;
 
 import mir.BasicBlock;
 import mir.GlobalVal;
+import mir.Instr;
 import mir.type.DataType;
 import util.DoublelyLinkedList;
 
+import javax.xml.crypto.Data;
 import java.util.ArrayList;
 import java.util.HashSet;
 
+import static lir.Machine.Operand.Type.Immediate;
 import static lir.Machine.Operand.Type.Virtual;
 
 public class Machine {
-    public static String BB_Prefix = ".L_BB_";
 
     public static class Program {
         ArrayList<McFunction> funcList;
@@ -42,11 +44,47 @@ public class Machine {
     }
 
     public static class Block {
+        public static String BB_Prefix = ".L_BB_";
         public BasicBlock bb;
         public McFunction mcFunc;
-        public MICompare cmp;
+        public MachineInst firstMIForBJ = null;
         int index;
-        DoublelyLinkedList<MachineInst> insts;
+        // 双向链表的头
+        MachineInst tailMI = new MachineInst();
+        // 双向链表的尾巴
+        MachineInst headMI = new MachineInst();
+        // DoublelyLinkedList<MachineInst> insts;
+
+        /**
+         * 获取第一条真正的指令
+         */
+        public MachineInst getBeginMI() {
+            assert headMI.getNext() instanceof Instr;
+            return (MachineInst) headMI.getNext();
+        }
+
+        /**
+         * 获取最后一条真正的指令
+         */
+        public MachineInst getEndMI() {
+            assert tailMI.getPrev() instanceof Instr;
+            return (MachineInst) tailMI.getPrev();
+        }
+
+        public void insertAtEnd(MachineInst in) {
+            in.setPrev(tailMI.getPrev());
+            in.setNext(tailMI);
+            tailMI.getPrev().setNext(in);
+            tailMI.setPrev(in);
+        }
+
+        public void insertAtHead(MachineInst in) {
+            in.setPrev(headMI);
+            in.setNext(headMI.getNext());
+            headMI.getNext().setPrev(in);
+            headMI.setNext(in);
+        }
+
         //pred and successor
         ArrayList<Block> pred;
         ArrayList<Block> successor;
@@ -69,8 +107,14 @@ public class Machine {
     }
 
     public static class Operand {
+
+        // 立即数, 默认为8888888方便debug
+        public int imm = 88888888;
+
         private String prefix;
-        private int vrId;
+
+        // 虚拟寄存器id号
+        protected int vrId;
 
         public enum Type {
             PreColored,
@@ -101,6 +145,13 @@ public class Machine {
             this.type = Virtual;
             vrId = virtualRegCnt;
             prefix = "v";
+        }
+
+        public Operand(DataType dataType, int imm) {
+            type = Immediate;
+            prefix = "#";
+            this.dataType = dataType;
+            this.imm = imm;
         }
 
         public Operand(Type type, DataType dataType) {

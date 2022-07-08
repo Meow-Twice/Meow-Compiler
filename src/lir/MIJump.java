@@ -12,6 +12,6 @@ public class MIJump extends MachineInst{
 
     public void output(PrintStream os){
         transfer_output(os);
-        os.println("b\t"+bb.index);
+        os.println("b\t"+ mb.index);
     }
 }

@@ -10,7 +10,7 @@ import java.util.EnumMap;
 import static mir.Instr.Alu.Op.*;
 import static mir.Instr.Alu.Op.OR;
 
-public class MachineInst {
+public class MachineInst extends ILinkNode{
 
     public enum Tag {
         // Binary
@@ -46,7 +46,8 @@ public class MachineInst {
         Compare,
         Call,
         Global,
-        Comment;  // for printing comments
+        Comment,   // for printing comments
+        Empty;
 
         public static final EnumMap<Instr.Alu.Op, Tag> map = new EnumMap<>(Instr.Alu.Op.class);
 
@@ -69,41 +70,49 @@ public class MachineInst {
     ;
 
 
-    Machine.Block bb;
+    Machine.Block mb;
     Tag tag;
-    boolean isFloat;
+    boolean isFloat = false;
     public ArrayList<Machine.Operand> defOpds = new ArrayList<>();
     public ArrayList<Machine.Operand> useOpds = new ArrayList<>();
 
     /*
     init and insert at end of the bb
     */
-    public MachineInst(Tag tag, Machine.Block insertAtEnd, boolean isFloat) {
-        this.bb = insertAtEnd;
+    public MachineInst(Tag tag, Machine.Block mb) {
+        this.mb = mb;
         this.tag = tag;
-        this.isFloat = isFloat;
-        insertAtEnd.insts.addLast(this);
+        mb.insertAtEnd(this);
     }
 
     /*
     init and insert at end of the bb
     */
-    public MachineInst(Tag tag, Machine.Block insertAtEnd) {
-        this.bb = insertAtEnd;
+    public MachineInst(Tag tag, Machine.Block mb, boolean isFloat) {
+        this.mb = mb;
         this.tag = tag;
-        this.isFloat = false;
-        insertAtEnd.insts.addLast(this);
+        this.isFloat = isFloat;
+        mb.insertAtEnd(this);
     }
+
+    /*
+    init and inset before inst
+    */
+    public MachineInst(Tag tag, MachineInst inst) {
+        this.mb = inst.mb;
+        this.tag = tag;
+        inst.insertBefore(this);
+    }
+
+
     /*
     init and inset before inst
     */
     public MachineInst(Tag tag, MachineInst inst, boolean isFloat) {
-        this.bb = inst.bb;
+        this.mb = inst.mb;
         this.isFloat = isFloat;
         this.tag = tag;
-        inst.bb.insts.insertAtBefore(this, inst);
-        // int index = inst.bb.insts.getIndex(inst);
-        // inst.bb.insts.add(index, this);
+        inst.insertBefore(this);
     }
 
     public MachineInst(Tag tag) {
@@ -116,11 +125,16 @@ public class MachineInst {
         this.isFloat = isFloat;
     }
 
+
+    public MachineInst() {
+        this.tag = Tag.Empty;
+    }
+
     public void genDefUse() {
     }
 
     public void transfer_output(PrintStream os) {
-        if (bb != null && bb.con_tran == this) {
+        if (mb != null && mb.con_tran == this) {
             os.println("@ control transfer");
         }
     }

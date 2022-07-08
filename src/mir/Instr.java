@@ -862,6 +862,14 @@ public class Instr extends Value {
             ret += type.toString() + " " + src.getName() + " --> " + dst.getName();
             return ret;
         }
+
+        public Value getSrc() {
+            return src;
+        }
+
+        public Value getDst() {
+            return dst;
+        }
     }
 
     // Terminator的type都是Void

@@ -4,22 +4,44 @@ import frontend.semantic.Initial;
 import lir.*;
 import manage.Manager;
 import mir.*;
+import mir.type.DataType;
 
 import java.util.*;
 import java.util.HashMap;
+
+import static lir.Arm.Regs.GPRs.r0;
+import static lir.Machine.Operand.Type.PreColored;
+import static mir.type.DataType.I32;
 
 public class CodeGen {
 
     public static boolean _DEBUG_OUTPUT_MIR_INTO_COMMENT = true;
 
+    // 当前的Machine.McFunction
     private static Machine.McFunction curMachineFunc;
-    private static Function curFunc;
+
+    // 当前的mir.Function
+    private static mir.Function curFunc;
+
+    // mir中func的名字到Function的Map
     private HashMap<String, Function> midFuncMap;
+
+    // 每个LLVM IR为一个值, 需要有一个虚拟寄存器(或常数->立即数)与之一一对应
+    // Value到Operand的Map
     public HashMap<Value, Machine.Operand> value2opd;
+
+    // Operand到Value的Map
     public HashMap<Machine.Operand, Value> opd2value;
+
     public ArrayList<Machine.McFunction> mcFuncList;
+
+    // 如名
     public HashMap<Function, Machine.McFunction> func2mcFunc;
+
+    // 如名
     public HashMap<BasicBlock, Machine.Block> bb2mb;
+
+    // 全局变量
     private HashMap<GlobalVal.GlobalValue, Initial> globalMap;
     private Machine.Block curMB;
     private int virtual_cnt = 0;
@@ -67,22 +89,6 @@ public class CodeGen {
         }
     }
 
-    private static class CMPAndArmCond {
-        public MICompare CMP;
-        public Arm.Cond ArmCond;
-
-        public CMPAndArmCond(MICompare cmp, Arm.Cond cond) {
-            CMP = cmp;
-            ArmCond = cond;
-        }
-
-
-        @Override
-        public int hashCode() {
-            return CMP.hashCode();
-        }
-    }
-
     public void genBB(BasicBlock bb) {
         Instr instr = bb.getBeginInstr();
         Instr endInstr = bb.getEndInstr();
@@ -99,20 +105,40 @@ public class CodeGen {
                     Arm.Cond cond;
                     Instr.Branch brInst = (Instr.Branch) instr;
                     Instr condValue = (Instr) brInst.getCond();
+                    Machine.Block trueBlock = brInst.getThenTarget().getMb();
+                    Machine.Block falseBlock = brInst.getElseTarget().getMb();
                     CMPAndArmCond t = cmpInst2MICmpMap.get(condValue);
                     if (t != null) {
-                        curMB.cmp = t.CMP;
-                        // cmp =
-
+                        curMB.firstMIForBJ = t.CMP;
+                        cond = t.ArmCond;
                     } else {
-                        Machine.Operand condVR = getVR_may_imm(condValue);
+                        Machine.Operand condVR = getVR_no_imm(condValue);
+                        // TODO fcmp无法直接转换?
+                        // cond = Arm.Cond.values()[((Instr.Icmp) condValue).getOp().ordinal()];
+                        Machine.Operand dst = newVR();
+                        Machine.Operand immOpd = new Machine.Operand(I32, 0);
+                        if (curMB.firstMIForBJ != null) {
+                            new MIMove(dst, immOpd, curMB.firstMIForBJ);
+                            new MICompare(condVR, dst, curMB);
+                        } else {
+                            new MIMove(dst, immOpd, curMB);
+                            curMB.firstMIForBJ = new MICompare(condVR, dst, curMB);
+                        }
+                        cond = Arm.Cond.Ne;
                     }
+                    new MIBranch(cond, trueBlock, falseBlock, curMB);
                     // new MIJump()
                 }
                 case fneg -> {
                     // TODO
                 }
                 case ret -> {
+                    Instr.Return returnInst = (Instr.Return) instr;
+                    if(returnInst.hasValue()){
+                        Machine.Operand retOpd = getVR_may_imm(returnInst.getRetValue());
+                        curMB.firstMIForBJ = new MIMove(new Machine.Operand(PreColored, Arm.Reg.getR(0)), retOpd, curMB);
+                        new MIReturn(curMB);
+                    }
                 }
                 case zext -> {
                 }
@@ -132,19 +158,65 @@ public class CodeGen {
                 }
                 case call -> {
                 }
-                case phi -> {
-                }
+                case phi -> throw new AssertionError("Backend has phi: " + instr);
                 case pcopy -> {
                 }
                 case move -> {
+                    Machine.Operand source = getVR_may_imm(((Instr.Move) instr).getSrc());
+                    Machine.Operand target = getVR_no_imm(((Instr.Move) instr).getSrc());
+                    new MIMove(target, source, curMB);
                 }
             }
             instr = (Instr) instr.getNext();
         }
     }
 
+    public void genGlobal() {
+        for (Map.Entry<GlobalVal.GlobalValue, Initial> entry : globalMap.entrySet()) {
+            GlobalVal.GlobalValue glob = entry.getKey();
+            Initial init = entry.getValue();
+            // TODO for yyf
+        }
+    }
+
+    private void genBinaryInst(Instr.Alu instr) {
+        Value lhs = instr.getRVal1();
+        Value rhs = instr.getRVal2();
+        Machine.Operand lVR = getVR_may_imm(lhs);
+        Machine.Operand rVR = getVR_may_imm(rhs);
+        // instr不可能是Constant
+        Machine.Operand dVR = getVR_no_imm(instr);
+        MachineInst.Tag tag = MachineInst.Tag.map.get(instr.getOp());
+        new MachineBinary(tag, dVR, lVR, rVR, curMB);
+    }
+
+    /**
+     * 条件相关
+     */
+    private static class CMPAndArmCond {
+        public MICompare CMP;
+        public Arm.Cond ArmCond;
+
+        public CMPAndArmCond(MICompare cmp, Arm.Cond cond) {
+            CMP = cmp;
+            ArmCond = cond;
+        }
+
+
+        @Override
+        public int hashCode() {
+            return CMP.hashCode();
+        }
+    }
+
+    /**
+     * 条件相关
+     */
     private HashMap<Instr, CMPAndArmCond> cmpInst2MICmpMap = new HashMap<>();
 
+    /**
+     * 条件相关
+     */
     private void genCmp(Instr instr) {
         // 这个不可能是global, param 之类 TODO 常数(?)
         Machine.Operand dst = getVR_may_imm(instr);
@@ -168,9 +240,27 @@ public class CodeGen {
         }
     }
 
-    private Machine.Operand genOpdFromValue(Value value) {
-        return getVR_may_imm(value);
+    /**
+     * 立即数编码
+     *
+     * @param imm
+     * @return
+     */
+    boolean immCanCode(int imm) {
+        int encoding = imm;
+        for (int i = 0; i < 32; i += 2) {
+            if ((encoding & ~((-1) >>> 24)) != 0) {
+                return true;
+            }
+            encoding = (encoding << 2) | (encoding >> 30);
+        }
+        return false;
     }
+
+
+    // private Machine.Operand genOpdFromValue(Value value) {
+    //     return getVR_may_imm(value);
+    // }
 
     /**
      * 直接生成新的 virtual reg
@@ -203,48 +293,31 @@ public class CodeGen {
     }
 
     /**
+     * 直接mov一个立即数到寄存器(暂定用 movw 和 movt, 无脑不管多少位)
+     *
+     * @param imm
+     * @return
+     */
+    public Machine.Operand getImmVR(int imm) {
+        // 暴力用两条指令mov一个立即数到寄存器
+        Machine.Operand dst = newVR();
+        // TODO: 目前没有考虑浮点
+        Machine.Operand immOpd = new Machine.Operand(I32, imm);
+        new MIMove(dst, immOpd, curMB);
+        return dst;
+    }
+
+    /**
      * 可能是立即数的vr获取
      */
     public Machine.Operand getVR_may_imm(Value value) {
         if (value instanceof Constant) {
-            // TODO for yyf, 目前是无脑用一条move指令把立即数转到寄存器
+            // 目前是无脑用两条mov指令把立即数转到寄存器
             assert value instanceof Constant.ConstantInt;
-            Machine.Operand dst = newVR();
-            Machine.Operand imm = new Machine.Operand((int) ((Constant) value).getConstVal());
-            new MIMove(dst, imm, curMB);
-            return dst;
+            return getImmVR((int) ((Constant) value).getConstVal());
         } else {
             return getVR_no_imm(value);
         }
     }
 
-    private void genBinaryInst(Instr.Alu instr) {
-        Value lhs = instr.getRVal1();
-        Value rhs = instr.getRVal2();
-        Machine.Operand lVR = getVR_may_imm(lhs);
-        Machine.Operand rVR = getVR_may_imm(rhs);
-        // instr不可能是Constant
-        Machine.Operand dVR = getVR_no_imm(instr);
-        MachineInst.Tag tag = MachineInst.Tag.map.get(instr.getOp());
-        new MachineBinary(tag, dVR, lVR, rVR, curMB);
-    }
-
-    public void genGlobal() {
-        for (Map.Entry<GlobalVal.GlobalValue, Initial> entry : globalMap.entrySet()) {
-            GlobalVal.GlobalValue glob = entry.getKey();
-            Initial init = entry.getValue();
-            // TODO for yyf
-        }
-    }
-
-    boolean immCanCode(int imm) {
-        int encoding = imm;
-        for (int i = 0; i < 32; i += 2) {
-            if ((encoding & ~((-1) >>> 24)) != 0) {
-                return true;
-            }
-            encoding = (encoding << 2) | (encoding >> 30);
-        }
-        return false;
-    }
 }

@@ -3,16 +3,14 @@ package lir;
 import java.io.PrintStream;
 
 public class MIReturn extends MachineInst{
-    Machine.Operand ret;
-    public MIReturn(Machine.Operand ret, Machine.Block insertAtEnd){
+    public MIReturn(Machine.Block insertAtEnd){
         super(Tag.Return,insertAtEnd);
-        this.ret = ret;
-        genDefUse();
+        // genDefUse();
     }
-    @Override
-    public void genDefUse() {
-        useOpds.add(ret);
-    }
+    // @Override
+    // public void genDefUse() {
+    //     useOpds.add(ret);
+    // }
 
     public void output(PrintStream os){
         return;

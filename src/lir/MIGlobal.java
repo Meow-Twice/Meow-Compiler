@@ -1,17 +1,18 @@
 package lir;
 
 import frontend.syntax.Ast;
+import mir.GlobalVal;
 
 import java.io.PrintStream;
 
 public class MIGlobal extends MachineInst{
     Machine.Operand dOpd;
-    Ast.Def def;
-    public MIGlobal(Ast.Def def , Machine.Block insertAtBegin, boolean isFloat){
-        super(Tag.Global,isFloat);
-        this.def = def;
-        insertAtBegin.insts.addFirst(this);
 
+    // GlobalVal.GlobalValue里有所需的一切信息
+    GlobalVal.GlobalValue globalValue;
+    public MIGlobal(Ast.Def def, GlobalVal.GlobalValue globalValue, boolean isFloat){
+        super(Tag.Global,isFloat);
+        this.globalValue = globalValue;
     }
 
     @Override
@@ -21,6 +22,6 @@ public class MIGlobal extends MachineInst{
 
     public void output(PrintStream os){
         transfer_output(os);
-        os.println("ldr\t"+dOpd.toString()+",="+def.ident.content);
+        os.println("ldr\t"+dOpd.toString()+",="+globalValue.name);
     }
 }

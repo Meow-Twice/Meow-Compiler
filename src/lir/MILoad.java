@@ -29,7 +29,8 @@ public class MILoad extends MIAccess{
     public void output(PrintStream os){
         transfer_output(os);
         if(offset.getType() == Machine.Operand.Type.Immediate){
-            int offset = this.offset.id<<shift;
+            // 这一行是啥情况, vrId并不是栈偏移地址
+            // int offset = this.offset.id<<shift;
             os.println("ldr"+cond+"\t"+dOpd.toString()+",["+addr.toString()+",#"+offset+"]");
         }
         else{

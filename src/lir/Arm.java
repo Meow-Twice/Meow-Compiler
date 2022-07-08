@@ -74,6 +74,9 @@ public class Arm {
             return gprPool.get(i);
         }
 
+        public static Reg getR(Regs.GPRs r) {
+            return gprPool.get(r.ordinal());
+        }
         public static Reg getS(int i) {
             return fprPool.get(i);
         }

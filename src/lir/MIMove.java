@@ -29,6 +29,16 @@ public class MIMove extends MachineInst{
         this.dOpd = dOpd;
         this.sOpd = sOpd;
         this.cond = Arm.Cond.Any;
+        insertAtEnd.insertAtEnd(this);
+        genDefUse();
+    }
+
+
+    public MIMove(Machine.Operand dOpd, Machine.Operand sOpd, MachineInst inst) {
+        super(Tag.Mv, inst);
+        this.dOpd = dOpd;
+        this.sOpd = sOpd;
+        this.cond = Arm.Cond.Any;
         genDefUse();
     }
 
@@ -37,6 +47,7 @@ public class MIMove extends MachineInst{
         this.cond = cond;
         this.dOpd = dOpd;
         this.sOpd = sOpd;
+        insertAtEnd.insertAtEnd(this);
         genDefUse();
     }
 
@@ -58,8 +69,8 @@ public class MIMove extends MachineInst{
 
     public void output(PrintStream os){
         transfer_output(os);
-        if(sOpd.type == Machine.Operand.Type.Immediate && encode_imm(sOpd.id)){
-            int imm = sOpd.id;
+        if(sOpd.type == Machine.Operand.Type.Immediate && encode_imm(sOpd.imm)){
+            int imm = sOpd.imm;
             if(imm>>16 == 0){
                 os.println("movw"+cond+"\t"+dOpd.toString()+",#"+imm);
             }

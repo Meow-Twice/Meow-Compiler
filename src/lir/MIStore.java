@@ -25,7 +25,7 @@ public class MIStore extends MIAccess{
     public void output(PrintStream os){
         transfer_output(os);
         if(offset.getType() == Machine.Operand.Type.Immediate){
-            int offset = this.offset.vrId<<shift;
+            int offset = this.offset.value <<shift;
             os.println("str"+cond+"\t"+data.toString()+",["+addr.toString()+",#"+offset+"]");
         }
         else{

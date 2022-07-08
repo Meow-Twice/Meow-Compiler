@@ -10,9 +10,9 @@ import java.util.ArrayList;
 
 public class Arm {
 
-    public interface Regs{
+    public interface Regs {
 
-        public enum GPRs implements Regs{
+        public enum GPRs implements Regs {
             // args and return value (caller saved)
             r0("r0"), r1("r1"), r2("r2"), r3("r3"),
             // local variables (callee saved)
@@ -30,7 +30,7 @@ public class Arm {
             }
         }
 
-        public enum FPRs implements Regs{
+        public enum FPRs implements Regs {
             // args and return value (caller saved)
             s0("s0"), s1("s1"), s2("s2"), s3("s3"),
             // local vasiables (callee saved)
@@ -77,6 +77,7 @@ public class Arm {
         public static Reg getR(Regs.GPRs r) {
             return gprPool.get(r.ordinal());
         }
+
         public static Reg getS(int i) {
             return fprPool.get(i);
         }
@@ -97,6 +98,7 @@ public class Arm {
         Cond(String cond) {
         }
     }
+
     public enum OppositeCond {
         // TODO: 保证Arm.Cond与Icmp.Op, Fcmp.Op的顺序相同!!!!!!!!
         Ne("ne"),
@@ -129,10 +131,11 @@ public class Arm {
         }
     }
 
-    public class Shift {
+    public static class Shift {
         ShiftType shiftType;
         int shift;
-        Shift(){
+
+        Shift() {
             shift = 0;
             shiftType = ShiftType.None;
         }
@@ -142,29 +145,16 @@ public class Arm {
             this.shift = shift;
         }
 
-        public String toString(){
-            String op = null;
-            switch(shiftType){
-                case Asr :
-                    op = "asr";
-                    break;
-                case Lsl:
-                    op = "lsl";
-                    break;
-                case Lsr:
-                    op = "lsr";
-                    break;
-                case Ror:
-                    op = "ror";
-                    break;
-                case Rrx:
-                    op = "rrx";
-                    break;
-                default:
-                    op = null;
-
-            }
-            return op+" #"+this.shift;
+        public String toString() {
+            String op = switch (shiftType) {
+                case Asr -> "asr";
+                case Lsl -> "lsl";
+                case Lsr -> "lsr";
+                case Ror -> "ror";
+                case Rrx -> "rrx";
+                default -> null;
+            };
+            return op + " #" + this.shift;
         }
     }
 }

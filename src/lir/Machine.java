@@ -6,7 +6,6 @@ import mir.Instr;
 import mir.type.DataType;
 import util.DoublelyLinkedList;
 
-import javax.xml.crypto.Data;
 import java.util.ArrayList;
 import java.util.HashSet;
 
@@ -53,6 +52,7 @@ public class Machine {
         MachineInst tailMI = new MachineInst();
         // 双向链表的尾巴
         MachineInst headMI = new MachineInst();
+        // 上面这两个是空的, 专门做头和尾, 为了减少添加节点(MachineInst)的时候的空指针判断
         // DoublelyLinkedList<MachineInst> insts;
 
         /**
@@ -109,12 +109,12 @@ public class Machine {
     public static class Operand {
 
         // 立即数, 默认为8888888方便debug
-        public int imm = 88888888;
+        // public int imm = 88888888;
 
         private String prefix;
 
-        // 虚拟寄存器id号
-        protected int vrId;
+        // 虚拟寄存器id号, 立即数号, 实际寄存器号
+        protected int value;
 
         public enum Type {
             PreColored,
@@ -143,7 +143,7 @@ public class Machine {
         // 默认分配通用寄存器
         public Operand(int virtualRegCnt) {
             this.type = Virtual;
-            vrId = virtualRegCnt;
+            value = virtualRegCnt;
             prefix = "v";
         }
 
@@ -151,7 +151,7 @@ public class Machine {
             type = Immediate;
             prefix = "#";
             this.dataType = dataType;
-            this.imm = imm;
+            this.value = imm;
         }
 
         public Operand(Type type, DataType dataType) {
@@ -184,12 +184,12 @@ public class Machine {
             if (this.type != other.type) {
                 return type.compareTo(other.type) < 0;
             } else {
-                return this.vrId < other.vrId;
+                return this.value < other.value;
             }
         }
 
         public String toString() {
-            return prefix + vrId;
+            return prefix + value;
         }
     }
 }

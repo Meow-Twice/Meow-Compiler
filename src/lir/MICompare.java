@@ -10,6 +10,13 @@ public class MICompare extends MachineInst{
         genDefUse();
     }
 
+    public MICompare(Machine.Operand lOpd, Machine.Operand rOpd, Machine.Block insertAtEnd){
+        super(Tag.Compare,insertAtEnd);
+        this.lOpd = lOpd;
+        this.rOpd = rOpd;
+        genDefUse();
+    }
+
     @Override
     public void genDefUse() {
         useOpds.add(lOpd);

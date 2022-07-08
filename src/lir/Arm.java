@@ -2,7 +2,6 @@ package lir;
 
 import lir.Machine;
 import lir.MachineInst;
-import lir.Tag;
 import mir.type.DataType;
 
 import javax.xml.crypto.Data;
@@ -11,7 +10,7 @@ import java.util.ArrayList;
 
 public class Arm {
 
-    public static interface Regs{
+    public interface Regs{
 
         public enum GPRs implements Regs{
             // args and return value (caller saved)
@@ -36,7 +35,9 @@ public class Arm {
             s0("s0"), s1("s1"), s2("s2"), s3("s3"),
             // local vasiables (callee saved)
             s4("s4"), s5("s5"), s6("s6"), s7("s7"),
-            s8("s8"), s9("s9"), s10("s10"), s11("s11"), s12("s12");
+            s8("s8"), s9("s9"), s10("s10"), s11("s11"),
+            s12("s12"), s13("s13"), s14("s14");
+            //TODO for yyf:这个不知道能用多少
 
             FPRs(String fpName) {
             }
@@ -81,15 +82,29 @@ public class Arm {
     }
 
     public enum Cond {
-        Any("!Any"),
+        // TODO: 保证Arm.Cond与Icmp.Op, Fcmp.Op的顺序相同!!!!!!!!
         Eq("eq"),
         Ne("ne"),
         Ge("ge"),
         Gt("gt"),
         Le("le"),
-        Lt("lt");
+        Lt("lt"),
+        Any("!Any");
 
         Cond(String cond) {
+        }
+    }
+    public enum OppositeCond {
+        // TODO: 保证Arm.Cond与Icmp.Op, Fcmp.Op的顺序相同!!!!!!!!
+        Ne("ne"),
+        Eq("eq"),
+        Lt("lt"),
+        Le("le"),
+        Gt("gt"),
+        Ge("ge"),
+        Any("!Any");
+
+        OppositeCond(String cond) {
         }
     }
 

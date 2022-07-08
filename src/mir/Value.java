@@ -4,6 +4,34 @@ import mir.type.Type;
 import util.ILinkNode;
 
 public class Value extends ILinkNode {
+
+    public enum AmaTag{
+        value,
+        func,
+        bb,
+        bino,
+        icmp,
+        fcmp,
+        fneg,
+        zext,
+        fptosi,
+        sitofp,
+        alloc,
+        load,
+        store,
+        gep,
+        bitcast,
+        call,
+        phi,
+        pcopy,
+        move,
+        branch,
+        jump,
+        ret,
+    }
+
+    public AmaTag tag = AmaTag.value;
+
     public static final String GLOBAL_PREFIX = "@";
     public static final String LOCAL_PREFIX = "%";
     public static final String GLOBAL_NAME_PREFIX = "g";
@@ -14,8 +42,8 @@ public class Value extends ILinkNode {
 
     public static boolean debug = true;
 
-    private Use begin = new Use();
-    private Use end = new Use();
+    private Use beginUse = new Use();
+    private Use endUse = new Use();
 
     protected Type type;
 
@@ -24,8 +52,8 @@ public class Value extends ILinkNode {
         // if(debug){
         //     System.err.println("fuck");
         // }
-        begin.setNext(end);
-        end.setPrev(begin);
+        beginUse.setNext(endUse);
+        endUse.setPrev(beginUse);
     }
 
     public Value(Type type) {
@@ -34,14 +62,14 @@ public class Value extends ILinkNode {
         //     System.err.println("fuck");
         // }
         this.type = type;
-        begin.setNext(end);
-        end.setPrev(begin);
+        beginUse.setNext(endUse);
+        endUse.setPrev(beginUse);
     }
 
     public void insertAtEnd(Use use) {
         //end.insertAfter(use);
         //end = use;
-        end.insertBefore(use);
+        endUse.insertBefore(use);
     }
 
     public String getName() {
@@ -53,12 +81,21 @@ public class Value extends ILinkNode {
     }
 
     public Use getBeginUse() {
-        assert begin.getNext() instanceof Use;
-        return (Use) begin.getNext();
+        assert beginUse.getNext() instanceof Use;
+        return (Use) beginUse.getNext();
+    }
+
+    public Use getEndUse() {
+        assert endUse.getPrev() instanceof Use;
+        return (Use) endUse.getPrev();
+    }
+
+    public boolean onlyOneUser(){
+        return getBeginUse().equals(getEndUse());
     }
 
     public void modifyAllUseThisToUseA(Value A) {
-        Use use = (Use) begin.getNext();
+        Use use = (Use) beginUse.getNext();
         while (use.getNext() != null) {
             Instr user = use.getUser();
             user.modifyUse(this, A, use.getIdx());
@@ -71,6 +108,47 @@ public class Value extends ILinkNode {
     }
 
     public boolean isNoUse(){
-        return begin.getNext().equals(end);
+        return beginUse.getNext().equals(endUse);
+    }
+
+    public boolean isAlu(){
+        return tag == AmaTag.bino;
+    }
+
+    public boolean isStore(){
+        return tag == AmaTag.store;
+    }
+
+    public boolean isLoad(){
+        return tag == AmaTag.load;
+    }
+
+    public boolean isAlloc(){
+        return tag == AmaTag.alloc;
+    }
+
+    public boolean isGep(){
+        return tag == AmaTag.gep;
+    }
+
+    public boolean isCall(){
+        return tag == AmaTag.call;
+    }
+
+    public boolean isPhi(){
+        return tag == AmaTag.phi;
+    }
+
+    public boolean isIcmp() {
+        return tag == AmaTag.icmp;
+    }
+
+    public boolean isFcmp(){
+        return tag == AmaTag.fcmp;
+    }
+
+
+    public boolean isBranch() {
+        return tag == AmaTag.branch;
     }
 }

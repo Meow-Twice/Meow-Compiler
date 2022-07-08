@@ -187,7 +187,7 @@ public class Instr extends Value {
     }
 
     public boolean check() {
-        if (!(this instanceof Alu)) {
+        if (!(this.isAlu())) {
             return false;
         }
         //TODO:当前不是i32类型默认不可融合,后需要修改
@@ -251,6 +251,7 @@ public class Instr extends Value {
         public Alu(Type type, Op op, Value op1, Value op2, BasicBlock basicBlock) {
             super(type, basicBlock);
             assert type.equals(op1.type) && op1.type.equals(op2.type);
+            tag = AmaTag.bino;
             this.op = op;
             setUse(op1, 0);
             setUse(op2, 1);
@@ -259,6 +260,7 @@ public class Instr extends Value {
         public Alu(Type type, Op op, Value op1, Value op2, Instr insertBefore) {
             super(type, insertBefore);
             assert type.equals(op1.type) && op1.type.equals(op2.type);
+            tag = AmaTag.bino;
             this.op = op;
             setUse(op1, 0);
             setUse(op2, 1);
@@ -311,6 +313,7 @@ public class Instr extends Value {
     public static class Icmp extends Instr {
 
         public enum Op {
+            // TODO: 保证Arm.Cond与Icmp.Op, Fcmp.Op的顺序相同!!!!!!!!
             EQ("eq"),
             NE("ne"),
             SGT("sgt"),
@@ -335,6 +338,7 @@ public class Instr extends Value {
             super(BasicType.getI1Type(), curBB);
             assert op1.type.isInt32Type() && op2.type.isInt32Type();
             this.op = op;
+            tag = AmaTag.icmp;
             setUse(op1, 0);
             setUse(op2, 1);
         }
@@ -343,6 +347,7 @@ public class Instr extends Value {
             super(BasicType.getI1Type(), insertBefore);
             assert op1.type.isInt32Type() && op2.type.isInt32Type();
             this.op = op;
+            tag = AmaTag.icmp;
             setUse(op1, 0);
             setUse(op2, 1);
         }
@@ -374,12 +379,14 @@ public class Instr extends Value {
         public Fneg(Value src, BasicBlock parentBB) {
             super(BasicType.getF32Type(), parentBB);
             assert src.type.isFloatType();
+            tag = AmaTag.fneg;
             setUse(src, 0);
         }
 
         public Fneg(Value src, Instr insertBefore) {
             super(BasicType.getF32Type(), insertBefore);
             assert src.type.isFloatType();
+            tag = AmaTag.fneg;
             setUse(src, 0);
         }
 
@@ -397,9 +404,10 @@ public class Instr extends Value {
     public static class Fcmp extends Instr {
 
         public enum Op {
+            // TODO: 保证Arm.Cond与Icmp.Op, Fcmp.Op的顺序相同!!!!!!!!
             OEQ("oeq"),
-            OGT("ogt"),
             ONE("one"),
+            OGT("ogt"),
             OGE("oge"),
             OLT("olt"),
             OLE("ole");
@@ -422,6 +430,7 @@ public class Instr extends Value {
             super(BasicType.getI1Type(), curBB);
             assert op1.type.isFloatType() && op2.type.isFloatType();
             this.op = op;
+            tag = AmaTag.fcmp;
             setUse(op1, 0);
             setUse(op2, 1);
         }
@@ -430,6 +439,7 @@ public class Instr extends Value {
             super(BasicType.getI1Type(), insertBefore);
             assert op1.type.isFloatType() && op2.type.isFloatType();
             this.op = op;
+            tag = AmaTag.fcmp;
             setUse(op1, 0);
             setUse(op2, 1);
         }
@@ -458,12 +468,14 @@ public class Instr extends Value {
         public Zext(Value src, BasicBlock parentBB) {
             super(BasicType.getI32Type(), parentBB);
             assert src.type.isInt1Type();
+            tag = AmaTag.zext;
             setUse(src, 0);
         }
 
         public Zext(Value src, Instr insertBefore) {
             super(BasicType.getI32Type(), insertBefore);
             assert src.type.isInt1Type();
+            tag = AmaTag.zext;
             setUse(src, 0);
         }
 
@@ -480,13 +492,14 @@ public class Instr extends Value {
 
         public FPtosi(Value src, BasicBlock parentBB) {
             super(BasicType.getI32Type(), parentBB);
-
+            tag = AmaTag.fptosi;
             assert src.type.isFloatType();
             setUse(src, 0);
         }
 
         public FPtosi(Value src, Instr insertBefore) {
             super(BasicType.getI32Type(), insertBefore);
+            tag = AmaTag.fptosi;
             assert src.type.isFloatType();
             setUse(src, 0);
         }
@@ -506,12 +519,14 @@ public class Instr extends Value {
         public SItofp(Value src, BasicBlock parentBB) {
             super(BasicType.getF32Type(), parentBB);
             assert src.type.isInt32Type();
+            tag = AmaTag.sitofp;
             setUse(src, 0);
         }
 
         public SItofp(Value src, Instr insertBefore) {
             super(BasicType.getF32Type(), insertBefore);
             assert src.type.isInt32Type();
+            tag = AmaTag.sitofp;
             setUse(src, 0);
         }
 
@@ -533,12 +548,14 @@ public class Instr extends Value {
         // Alloc一定插在基本块的开始(Phi之后)
         public Alloc(Type contentType, BasicBlock parentBB) {
             super(new PointerType(contentType), parentBB, true);
+            tag = AmaTag.alloc;
             this.contentType = contentType;
         }
 
         //不自动插入到基本块的ALLOC
-        public Alloc(Type contentType, BasicBlock parentBB, boolean tag) {
+        public Alloc(Type contentType, BasicBlock parentBB, boolean Lipsum) {
             super(new PointerType(contentType), parentBB);
+            tag = AmaTag.alloc;
             this.contentType = contentType;
         }
 
@@ -562,11 +579,13 @@ public class Instr extends Value {
         //TODO:修改toString()方法添加指令的Type
         public Load(Value pointer, BasicBlock parentBB) {
             super(((PointerType) pointer.getType()).getInnerType(), parentBB);
+            tag = AmaTag.load;
             setUse(pointer, 0);
         }
 
         public Load(Value pointer, Instr insertBefore) {
             super(((PointerType) pointer.getType()).getInnerType(), insertBefore);
+            tag = AmaTag.load;
             setUse(pointer, 0);
         }
 
@@ -589,6 +608,7 @@ public class Instr extends Value {
         public Store(Value value, Value address, BasicBlock parent) {
             super(VoidType.getVoidType(), parent);
             assert ((PointerType) address.getType()).getInnerType().equals(value.type);
+            tag = AmaTag.store;
             setUse(value, 0);
             setUse(address, 1);
         }
@@ -597,6 +617,7 @@ public class Instr extends Value {
         public Store(Value value, Value address, Instr insertBefore) {
             super(value.type, insertBefore);
             assert ((PointerType) address.getType()).getInnerType().equals(value.type);
+            tag = AmaTag.store;
             setUse(value, 0);
             setUse(address, 1);
         }
@@ -622,6 +643,7 @@ public class Instr extends Value {
         // e.g. a is i32*: a[3] -> %v1 = getelementptr inbounds i32, i32* %a, i32 3
         public GetElementPtr(Type pointeeType, Value ptr, ArrayList<Value> idxList, BasicBlock basicBlock) {
             super(new PointerType(pointeeType), basicBlock);
+            tag = AmaTag.gep;
             setUse(ptr, 0);
             int i = 1;
             for (Value idxValue : idxList) {
@@ -658,6 +680,7 @@ public class Instr extends Value {
 
         public Bitcast(Value srcValue, Type dstType, BasicBlock parent) {
             super(dstType, parent);
+            tag = AmaTag.bitcast;
             setUse(srcValue, 0);
         }
 
@@ -681,6 +704,7 @@ public class Instr extends Value {
 
         public Call(Function func, ArrayList<Value> paramList, BasicBlock parent) {
             super(func.getRetType(), parent); // ret may be null
+            tag = AmaTag.call;
             // func一定在前面已经定义，故此处一定可以取出来retType
             // this.func = func;
             // this.paramList = paramList;
@@ -693,6 +717,7 @@ public class Instr extends Value {
 
         public Call(Function func, ArrayList<Value> paramList, Instr insertBefore) {
             super(func.getRetType(), insertBefore); // ret may be null
+            tag = AmaTag.call;
             // this.func = func;
             // this.paramList = paramList;
             int i = 0;
@@ -733,6 +758,7 @@ public class Instr extends Value {
         public Phi(Type type, ArrayList<Value> optionalValues, BasicBlock parent) {
             // Phi一定插在基本块的开始, Alloc之前
             super(type, parent, true);
+            tag = AmaTag.phi;
 //            for (Value instr : optionalValues) {
 //                assert type.equals(instr.type);
 //            }
@@ -787,6 +813,7 @@ public class Instr extends Value {
 
         public PCopy(ArrayList<Value> LHS, ArrayList<Value> RHS, BasicBlock parent) {
             super(Type.getVoidType(), parent);
+            tag = AmaTag.pcopy;
             this.LHS = LHS;
             this.RHS = RHS;
         }
@@ -820,18 +847,19 @@ public class Instr extends Value {
 
     public static class Move extends Instr {
         private Value src;
-        private Value tag;
+        private Value dst;
 
-        public Move(Type type, Value tag, Value src, BasicBlock parent) {
+        public Move(Type type, Value dst, Value src, BasicBlock parent) {
             super(type, parent);
-            this.tag = tag;
+            tag = AmaTag.move;
+            this.dst = dst;
             this.src = src;
         }
 
         @Override
         public String toString() {
-            String ret = "Move ";
-            ret += type.toString() + " " + src.getName() + " --> " + tag.getName();
+            String ret = "move ";
+            ret += type.toString() + " " + src.getName() + " --> " + dst.getName();
             return ret;
         }
     }
@@ -846,6 +874,7 @@ public class Instr extends Value {
         public Branch(Value cond, BasicBlock thenTarget, BasicBlock elseTarget, BasicBlock parent) {
             super(VoidType.getVoidType(), parent);
             assert cond.getType().isInt1Type();
+            tag = AmaTag.branch;
             setUse(cond, 0);
             setUse(thenTarget, 1);
             setUse(elseTarget, 2);
@@ -889,6 +918,7 @@ public class Instr extends Value {
 
         public Jump(BasicBlock target, BasicBlock parent) {
             super(VoidType.getVoidType(), parent);
+            tag = AmaTag.jump;
             setUse(target, 0);
         }
 
@@ -916,10 +946,12 @@ public class Instr extends Value {
         // Return 的类型是Void, 与返回值无关
         public Return(BasicBlock parent) {
             super(VoidType.getVoidType(), parent);
+            tag = AmaTag.ret;
         }
 
         public Return(Value retValue, BasicBlock parent) {
             super(retValue.getType(), parent);
+            tag = AmaTag.ret;
             assert retValue.type.equals(parent.getFunction().getRetType());
             setUse(retValue, 0);
         }

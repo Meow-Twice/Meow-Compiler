@@ -67,6 +67,22 @@ public class CodeGen {
         }
     }
 
+    private static class CMPAndArmCond {
+        public MICompare CMP;
+        public Arm.Cond ArmCond;
+
+        public CMPAndArmCond(MICompare cmp, Arm.Cond cond) {
+            CMP = cmp;
+            ArmCond = cond;
+        }
+
+
+        @Override
+        public int hashCode() {
+            return CMP.hashCode();
+        }
+    }
+
     public void genBB(BasicBlock bb) {
         Instr instr = bb.getBeginInstr();
         Instr endInstr = bb.getEndInstr();
@@ -74,22 +90,97 @@ public class CodeGen {
             if (_DEBUG_OUTPUT_MIR_INTO_COMMENT) {
                 new MIComment(instr.toString(), curMB);
             }
-            if (instr instanceof Instr.Alu) {
-                genBinaryInst((Instr.Alu) instr);
-            } else if (instr instanceof Instr.Jump) {
-                BasicBlock tarBB = ((Instr.Jump) instr).getTarget();
-                new MIJump(tarBB.getMb(), curMB);
-            } else if(instr instanceof Instr.Branch){
+            switch (instr.tag) {
+                case value, func, bb -> throw new AssertionError("Damaged wrong: try gen: " + instr);
+                case bino -> genBinaryInst((Instr.Alu) instr);
+                case jump -> new MIJump(((Instr.Jump) instr).getTarget().getMb(), curMB);
+                case icmp, fcmp -> genCmp(instr);
+                case branch -> {
+                    Arm.Cond cond;
+                    Instr.Branch brInst = (Instr.Branch) instr;
+                    Instr condValue = (Instr) brInst.getCond();
+                    // condMap.get(condValue);
+                    Machine.Operand condVR = getVR_may_imm(condValue);
 
+                }
+                case fneg -> {
+                    // TODO
+                }
+                case ret -> {
+                }
+                case zext -> {
+                }
+                case fptosi -> {
+                }
+                case sitofp -> {
+                }
+                case alloc -> {
+                }
+                case load -> {
+                }
+                case store -> {
+                }
+                case gep -> {
+                }
+                case bitcast -> {
+                }
+                case call -> {
+                }
+                case phi -> {
+                }
+                case pcopy -> {
+                }
+                case move -> {
+                }
             }
             instr = (Instr) instr.getNext();
         }
     }
 
+    private HashMap<Instr, CMPAndArmCond> cmpInst2MICmpMap = new HashMap<>();
+
+    private void genCmp(Instr instr) {
+        // 这个不可能是global, param 之类 TODO 常数(?)
+        Machine.Operand dst = getVR_may_imm(instr);
+        if (instr.isIcmp()) {
+            Instr.Icmp icmp = ((Instr.Icmp) instr);
+            Value lhs = icmp.getRVal1();
+            Value rhs = icmp.getRVal2();
+            Machine.Operand lVR = getVR_may_imm(lhs);
+            Machine.Operand rVR = getVR_may_imm(rhs);
+            MICompare cmp = new MICompare(lVR, rVR, curMB);
+            int condIdx = icmp.getOp().ordinal();
+            // Icmp或Fcmp后紧接着BranchInst，而且前者的结果仅被后者使用，那么就可以不用计算结果，而是直接用bxx的指令
+            if (((Instr) icmp.getNext()).isBranch()
+                    && icmp.onlyOneUser()
+                    && icmp.getBeginUse().getUser().isBranch()) {
+                Arm.Cond cond = Arm.Cond.values()[condIdx];
+                cmpInst2MICmpMap.put(instr, new CMPAndArmCond(cmp, cond));
+            } else {
+                // TODO: 不懂mov
+            }
+        }
+    }
+
+    private Machine.Operand genOpdFromValue(Value value) {
+        return getVR_may_imm(value);
+    }
+
+    /**
+     * 直接生成新的 virtual reg
+     * 没有value与之对应时使用
+     *
+     * @return 新生成的 virtual reg
+     */
     public Machine.Operand newVR() {
         return new Machine.Operand(virtual_cnt++);
     }
 
+    /***
+     * value为待寻求虚拟寄存器的value
+     * @param value
+     * @return 如果value没有生成过vr, 则生成并放到map里并返回, 如果生成过直接返回
+     */
     public Machine.Operand newVR(Value value) {
         Machine.Operand opd = new Machine.Operand(virtual_cnt++);
         opd2value.put(opd, value);
@@ -97,11 +188,17 @@ public class CodeGen {
         return opd;
     }
 
+    /**
+     * 不可能是立即数的vr获取
+     */
     public Machine.Operand getVR_no_imm(Value value) {
         Machine.Operand opd = value2opd.get(value);
         return opd == null ? newVR(value) : opd;
     }
 
+    /**
+     * 可能是立即数的vr获取
+     */
     public Machine.Operand getVR_may_imm(Value value) {
         if (value instanceof Constant) {
             // TODO for yyf, 目前是无脑用一条move指令把立即数转到寄存器
@@ -120,8 +217,9 @@ public class CodeGen {
         Value rhs = instr.getRVal2();
         Machine.Operand lVR = getVR_may_imm(lhs);
         Machine.Operand rVR = getVR_may_imm(rhs);
+        // instr不可能是Constant
         Machine.Operand dVR = getVR_no_imm(instr);
-        Tag tag = Tag.map.get(instr.getOp());
+        MachineInst.Tag tag = MachineInst.Tag.map.get(instr.getOp());
         new MachineBinary(tag, dVR, lVR, rVR, curMB);
     }
 

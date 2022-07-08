@@ -20,6 +20,14 @@ public class MIMove extends MachineInst {
         genDefUse();
     }
 
+    public MIMove(Arm.Cond cond, Machine.Operand dOpd, Machine.Operand sOpd, Machine.Block insertAtEnd) {
+        super(Tag.Mv, insertAtEnd);
+        this.cond = cond;
+        this.dOpd = dOpd;
+        this.sOpd = sOpd;
+        genDefUse();
+    }
+
     public boolean operator(MIMove move) {
         if (this.cond != move.cond)
             return this.cond.compareTo(move.cond) < 0;

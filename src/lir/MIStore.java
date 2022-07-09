@@ -22,7 +22,8 @@ public class MIStore extends MIAccess{
         useOpds.add(addr);
 
     }
-    public void output(PrintStream os){
+    @Override
+    public void output(PrintStream os, Machine.McFunction f){
         transfer_output(os);
         if(offset.getType() == Machine.Operand.Type.Immediate){
             int offset = this.offset.value <<shift;

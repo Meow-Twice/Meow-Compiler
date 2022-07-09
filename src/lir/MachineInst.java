@@ -138,6 +138,10 @@ public class MachineInst extends ILinkNode{
             os.println("@ control transfer");
         }
     }
+
+    public void output(PrintStream os, Machine.McFunction f){
+        return;
+    }
 }
 
 

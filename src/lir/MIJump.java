@@ -10,7 +10,8 @@ public class MIJump extends MachineInst{
         this.target = target;
     }
 
-    public void output(PrintStream os){
+    @Override
+    public void output(PrintStream os, Machine.McFunction f){
         transfer_output(os);
         os.println("b\t"+ mb.index);
     }

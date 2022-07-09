@@ -32,7 +32,8 @@ public class MachineBinary extends MachineInst {
         useOpds.add(rOpd);
     }
 
-    public void output(PrintStream os){
+    @Override
+    public void output(PrintStream os, Machine.McFunction f){
         transfer_output(os);
         String tag_str  = null;
         switch (tag){

@@ -24,7 +24,8 @@ public class MICompare extends MachineInst{
         useOpds.add(rOpd);
     }
 
-    public void output(PrintStream os){
+    @Override
+    public void output(PrintStream os, Machine.McFunction f){
         transfer_output(os);
         os.println("cmp\t"+lOpd.toString()+","+rOpd.toString());
     }

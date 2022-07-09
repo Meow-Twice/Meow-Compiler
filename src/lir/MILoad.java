@@ -26,7 +26,8 @@ public class MILoad extends MIAccess{
         defOpds.add(dOpd);
         useOpds.add(addr);
     }
-    public void output(PrintStream os){
+    @Override
+    public void output(PrintStream os, Machine.McFunction f){
         transfer_output(os);
         if(offset.getType() == Machine.Operand.Type.Immediate){
             // 这一行是啥情况, vrId并不是栈偏移地址

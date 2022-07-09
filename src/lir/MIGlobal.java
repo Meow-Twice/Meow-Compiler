@@ -20,7 +20,8 @@ public class MIGlobal extends MachineInst{
         defOpds.add(dOpd);
     }
 
-    public void output(PrintStream os){
+    @Override
+    public void output(PrintStream os, Machine.McFunction f){
         transfer_output(os);
         os.println("ldr\t"+dOpd.toString()+",="+globalValue.name);
     }

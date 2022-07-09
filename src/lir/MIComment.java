@@ -15,7 +15,7 @@ public class MIComment extends MachineInst{
         this.content = content;
     }
 
-    public void output(PrintStream os){
-        os.println("@ "+content);
+    @Override
+    public void output(PrintStream os, Machine.McFunction f){os.println("@ "+content);
     }
 }

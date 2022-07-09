@@ -1,5 +1,4 @@
 package mir;
-
 import manage.Manager;
 import mir.type.Type;
 import util.ILinkNode;

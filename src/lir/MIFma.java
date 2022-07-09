@@ -19,7 +19,8 @@ public class MIFma extends MachineInst{
         this.sign = sign;
 
     }
-    public void output(PrintStream os){
+    @Override
+    public void output(PrintStream os, Machine.McFunction f){
         transfer_output(os);
         if(sign){
             os.print("sm");

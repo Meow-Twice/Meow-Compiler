@@ -15,7 +15,8 @@ public class MIBranch extends MachineInst {
         falseTargetBlock = falseBlock;
     }
 
-    public void output(PrintStream os) {
+    @Override
+    public void output(PrintStream os, Machine.McFunction f){
         transfer_output(os);
         os.println("b\t" + cond + "\t" + trueTargetBlock.index);
     }

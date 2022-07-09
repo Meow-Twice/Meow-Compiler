@@ -9,8 +9,7 @@ import util.DoublelyLinkedList;
 import java.util.ArrayList;
 import java.util.HashSet;
 
-import static lir.Machine.Operand.Type.Immediate;
-import static lir.Machine.Operand.Type.Virtual;
+import static lir.Machine.Operand.Type.*;
 
 public class Machine {
 
@@ -39,6 +38,14 @@ public class Machine {
 
         public McFunction(mir.Function function) {
             this.mFunc = function;
+        }
+
+        public void addStack(int i) {
+            stackSize += i;
+        }
+
+        public int getStackSize() {
+            return stackSize;
         }
     }
 
@@ -167,16 +174,12 @@ public class Machine {
             };
         }
 
-        public Operand(Type type, Arm.Reg reg) {
-            this.type = type;
-            prefix = switch (type) {
-                case Virtual -> "v";
-                case Allocated, PreColored -> switch (reg.dataType) {
-                    case F32 -> "s";
-                    case I32 -> "r";
-                    default -> throw new IllegalStateException("Unexpected reg type: " + reg.dataType);
-                };
-                case Immediate -> "#";
+        public Operand(Arm.Reg reg) {
+            this.type = PreColored;
+            prefix = switch (reg.dataType) {
+                case F32 -> "s";
+                case I32 -> "r";
+                default -> throw new IllegalStateException("Unexpected reg type: " + reg.dataType);
             };
         }
 

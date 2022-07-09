@@ -109,8 +109,8 @@ public class Constant extends Value {
             int idx = 0;
             Type.ArrayType type = (Type.ArrayType) this.type;
             for (int i = 0; i < dims.size() - 1; i++) {
-                assert type.getBase() instanceof Type.ArrayType;
-                type = (Type.ArrayType) type.getBase();
+                assert type.getBaseType() instanceof Type.ArrayType;
+                type = (Type.ArrayType) type.getBaseType();
                 idx += type.getSize();
             }
             assert idx < constArray.size() + dims.get(dims.size() - 1);

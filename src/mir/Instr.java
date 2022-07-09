@@ -674,6 +674,13 @@ public class Instr extends Value {
             return new ArrayList<>(useValueList.subList(1, useValueList.size()));
         }
 
+        public int getOffsetCount() {
+            return useValueList.size() - 1;
+        }
+
+        public Value getIdxValueOf(int i) {
+            return useValueList.get(i + 1);
+        }
     }
 
     public static class Bitcast extends Instr {

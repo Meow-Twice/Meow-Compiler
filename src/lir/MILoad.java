@@ -10,10 +10,11 @@ public class MILoad extends MIAccess{
         super(Tag.Load, insertAtEnd);
     }
 
-    public MILoad(Machine.Operand dOpd, Machine.Operand addr, Machine.Block insertAtEnd) {
+    public MILoad(Machine.Operand dOpd, Machine.Operand addr, Machine.Operand offset, Machine.Block insertAtEnd) {
         super(Tag.Load, insertAtEnd);
         this.dOpd = dOpd;
         this.addr = addr;
+        this.offset = offset;
         genDefUse();
     }
 
@@ -25,12 +26,12 @@ public class MILoad extends MIAccess{
     public void genDefUse() {
         defOpds.add(dOpd);
         useOpds.add(addr);
+        useOpds.add(offset);
     }
     public void output(PrintStream os){
         transfer_output(os);
         if(offset.getType() == Machine.Operand.Type.Immediate){
-            // 这一行是啥情况, vrId并不是栈偏移地址
-            // int offset = this.offset.id<<shift;
+            int offset = this.offset.value<<shift;
             os.println("ldr"+cond+"\t"+dOpd.toString()+",["+addr.toString()+",#"+offset+"]");
         }
         else{

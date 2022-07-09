@@ -23,12 +23,12 @@ public class MICall extends MachineInst {
         // TODO for xry: 到底是new还是get单例
         // 调用者保存
         for (int i = 0; i < mcFunction.params.size(); i++) {
-            useOpds.add(new Operand(PreColored, Reg.getR(i)));
+            useOpds.add(new Operand(Reg.getR(i)));
         }
         for (int i = 0; i < 4; i++) {
-            defOpds.add(new Operand(PreColored, Reg.getR(i)));
+            defOpds.add(new Operand(Reg.getR(i)));
         }
-        defOpds.add(new Operand(PreColored, Reg.getR(lr.ordinal())));
+        defOpds.add(new Operand(Reg.getR(lr.ordinal())));
         // TODO: 不确定浮点怎么存,不确定到底存哪些
 
     }

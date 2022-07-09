@@ -69,8 +69,8 @@ public class MIMove extends MachineInst{
 
     public void output(PrintStream os){
         transfer_output(os);
-        if(sOpd.type == Machine.Operand.Type.Immediate && encode_imm(sOpd.imm)){
-            int imm = sOpd.imm;
+        if(sOpd.type == Machine.Operand.Type.Immediate && encode_imm(sOpd.value)){
+            int imm = sOpd.value;
             if(imm>>16 == 0){
                 os.println("movw"+cond+"\t"+dOpd.toString()+",#"+imm);
             }

@@ -5,7 +5,7 @@ import util.ILinkNode;
 
 public class Value extends ILinkNode {
 
-    public enum AmaTag{
+    public enum AmaTag {
         value,
         func,
         bb,
@@ -90,7 +90,7 @@ public class Value extends ILinkNode {
         return (Use) endUse.getPrev();
     }
 
-    public boolean onlyOneUser(){
+    public boolean onlyOneUser() {
         return getBeginUse().equals(getEndUse());
     }
 
@@ -107,35 +107,35 @@ public class Value extends ILinkNode {
         return getType() + " " + getName();
     }
 
-    public boolean isNoUse(){
+    public boolean isNoUse() {
         return beginUse.getNext().equals(endUse);
     }
 
-    public boolean isAlu(){
+    public boolean isAlu() {
         return tag == AmaTag.bino;
     }
 
-    public boolean isStore(){
+    public boolean isStore() {
         return tag == AmaTag.store;
     }
 
-    public boolean isLoad(){
+    public boolean isLoad() {
         return tag == AmaTag.load;
     }
 
-    public boolean isAlloc(){
+    public boolean isAlloc() {
         return tag == AmaTag.alloc;
     }
 
-    public boolean isGep(){
+    public boolean isGep() {
         return tag == AmaTag.gep;
     }
 
-    public boolean isCall(){
+    public boolean isCall() {
         return tag == AmaTag.call;
     }
 
-    public boolean isPhi(){
+    public boolean isPhi() {
         return tag == AmaTag.phi;
     }
 
@@ -143,12 +143,19 @@ public class Value extends ILinkNode {
         return tag == AmaTag.icmp;
     }
 
-    public boolean isFcmp(){
+    public boolean isFcmp() {
         return tag == AmaTag.fcmp;
     }
-
 
     public boolean isBranch() {
         return tag == AmaTag.branch;
     }
+
+    public boolean isConstant() {
+        return this instanceof Constant;
+    }
+    public boolean isConstantInt() {
+        return this instanceof Constant.ConstantInt;
+    }
+
 }

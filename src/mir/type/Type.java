@@ -1,5 +1,6 @@
 package mir.type;
 
+import java.util.ArrayList;
 import java.util.Objects;
 
 /**
@@ -7,7 +8,7 @@ import java.util.Objects;
  */
 public class Type {
 
-    public static VoidType getVoidType(){
+    public static VoidType getVoidType() {
         return VoidType.getVoidType();
     }
 
@@ -41,6 +42,14 @@ public class Type {
 
     public boolean isFloatType() {
         return this == BasicType.getF32Type();
+    }
+
+    public boolean isPointerType() {
+        return this instanceof PointerType;
+    }
+
+    public boolean isBasicType() {
+        return this instanceof BasicType;
     }
 
     public static class BasicType extends Type {
@@ -87,9 +96,11 @@ public class Type {
     // Terminator(Return, Jump, Branch)都是VoidType
     public static class VoidType extends Type {
         private final static VoidType VOID_TYPE = new VoidType();
-        private VoidType(){}
 
-        public static VoidType getVoidType(){
+        private VoidType() {
+        }
+
+        public static VoidType getVoidType() {
             return VOID_TYPE;
         }
 
@@ -99,7 +110,7 @@ public class Type {
         }
 
         @Override
-        public String toString(){
+        public String toString() {
             return "void";
         }
     }
@@ -128,62 +139,91 @@ public class Type {
 
     public static class ArrayType extends Type {
         private final int size;
-        private final Type base;
+        private final Type baseType;
         private BasicType baseEleType = null;
+        private ArrayList<Integer> dims = new ArrayList<>();
 
         @Override
         public boolean equals(Object o) {
             if (this == o) return true;
             if (o == null || getClass() != o.getClass()) return false;
             ArrayType arrayType = (ArrayType) o;
-            return size == arrayType.size && Objects.equals(base, arrayType.base);
+            return size == arrayType.size && Objects.equals(baseType, arrayType.baseType);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(size, base);
+            return Objects.hash(size, baseType);
         }
 
         @Override
         public String toString() {
-            return String.format("[%d x %s]", size, base);
+            return String.format("[%d x %s]", size, baseType);
         }
 
-        public ArrayType(final int size, final Type base) {
+        public ArrayType(final int size, final Type baseType) {
             this.size = size;
-            this.base = base;
+            this.baseType = baseType;
+            dims.add(size);
+            if (baseType.isArrType()) {
+                dims.addAll(((ArrayType) baseType).dims);
+            }
         }
 
         public int getSize() {
             return this.size;
         }
 
-        public int getFlattenSize(){
-            if(base instanceof BasicType){
+        public int getFlattenSize() {
+            // TODO: 没有做高速缓存, 保证更改后不会出问题
+            if (baseType instanceof BasicType) {
                 return size;
             }
-            assert base.isArrType();
-            return ((ArrayType) base).getFlattenSize();
+            assert baseType.isArrType();
+            return ((ArrayType) baseType).getFlattenSize() * size;
         }
 
-        public Type getBase() {
-            return this.base;
+        public Type getBaseType() {
+            return this.baseType;
         }
 
-        public BasicType getBaseEleType(){
-            if(baseEleType != null){
+        public BasicType getBaseEleType() {
+            if (baseEleType != null) {
                 return baseEleType;
             }
-            if(base instanceof BasicType){
-                return (BasicType) base;
+            if (baseType instanceof BasicType) {
+                return (BasicType) baseType;
             }
-            assert base instanceof ArrayType;
-            return ((ArrayType)base).getBaseEleType();
+            assert baseType instanceof ArrayType;
+            return ((ArrayType) baseType).getBaseEleType();
         }
 
+        public ArrayList<Integer> getDims() {
+            // TODO: 没有用高速缓存, 每次都新建
+            dims.clear();
+            dims.add(size);
+            if(baseType.isArrType()){
+                dims.addAll(((ArrayType) baseType).dims);
+            }
+            return dims;
+        }
+
+        public int getDimSize(){
+            if(baseType.isArrType()){
+                return ((ArrayType) baseType).getDimSize() + 1;
+            }
+            return 1;
+        }
+
+        public int getBaseFlattenSize(){
+            if(baseType.isArrType()){
+                return ((ArrayType) baseType).getFlattenSize();
+            }
+            return 4;
+        }
     }
 
-    private boolean isArrType() {
+    public boolean isArrType() {
         return this instanceof ArrayType;
     }
 

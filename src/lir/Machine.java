@@ -129,6 +129,7 @@ public class Machine {
 
             }
         }
+
     }
         public static class McFunction {
             // ArrayList<MachineInst> instList;
@@ -155,7 +156,13 @@ public class Machine {
             public McFunction(mir.Function function) {
                 this.mFunc = function;
             }
+            public void addStack(int i) {
+                stackSize += i;
+            }
 
+            public int getStackSize() {
+                return stackSize;
+            }
             public void output_reg_list(PrintStream os) {
                 int i = 0;
                 for (Arm.Reg reg : usedCalleeSavedRegs) {
@@ -285,6 +292,7 @@ public class Machine {
                 this.value = imm;
             }
 
+
             public Operand(Type type, DataType dataType) {
                 this.type = type;
                 prefix = switch (type) {
@@ -297,6 +305,16 @@ public class Machine {
                     case Immediate -> "#";
                 };
             }
+
+        public Operand(Arm.Reg reg) {
+            this.type = PreColored;
+            prefix = switch (reg.dataType) {
+                case F32 -> "s";
+                case I32 -> "r";
+                default -> throw new IllegalStateException("Unexpected reg type: " + reg.dataType);
+            };
+        }
+
 
             public Operand(Type type, Arm.Reg reg) {
                 this.type = type;

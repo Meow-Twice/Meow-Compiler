@@ -9,10 +9,11 @@ public class MIStore extends MIAccess{
         super(Tag.Store,insertAtEnd,isFloat);
     }
 
-    public MIStore(Machine.Operand data, Machine.Operand addr, Machine.Block insertAtEnd) {
+    public MIStore(Machine.Operand data, Machine.Operand addr, Machine.Operand offset, Machine.Block insertAtEnd) {
         super(Tag.Load, insertAtEnd);
         this.data = data;
         this.addr = addr;
+        this.offset = offset;
         genDefUse();
     }
 
@@ -20,6 +21,7 @@ public class MIStore extends MIAccess{
     public void genDefUse() {
         useOpds.add(data);
         useOpds.add(addr);
+        useOpds.add(offset);
 
     }
     @Override

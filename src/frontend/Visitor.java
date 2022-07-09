@@ -304,7 +304,7 @@ public class Visitor {
                 }
             } else if (innerType instanceof ArrayType) {
                 // 数组
-                innerType = ((ArrayType) innerType).getBase();
+                innerType = ((ArrayType) innerType).getBaseType();
                 if (__ONLY_PARSE_OUTSIDE_DIM) {
                     pointer = new GetElementPtr(innerType, pointer, wrapImmutable(CONST_0, offset), curBB);
                 } else {
@@ -328,7 +328,7 @@ public class Visitor {
         if (innerType instanceof BasicType || innerType instanceof PointerType) {
             return new Load(pointer, curBB);
         } else if (innerType instanceof ArrayType) {
-            return new GetElementPtr(((ArrayType) innerType).getBase(), pointer, wrapImmutable(CONST_0, CONST_0), curBB);
+            return new GetElementPtr(((ArrayType) innerType).getBaseType(), pointer, wrapImmutable(CONST_0, CONST_0), curBB);
         } else {
             throw new AssertionError("Bad baseType");
         }
@@ -579,7 +579,7 @@ public class Visitor {
         idxList.add(CONST_0);
         while (pointeeType instanceof ArrayType) {
             size *= ((ArrayType) pointeeType).getSize();
-            pointeeType = ((ArrayType) pointeeType).getBase();
+            pointeeType = ((ArrayType) pointeeType).getBaseType();
             if (__ONLY_PARSE_OUTSIDE_DIM) {
                 ptr = new GetElementPtr(pointeeType, ptr, wrapImmutable(CONST_0, CONST_0), curBB);
             } else {
@@ -616,7 +616,7 @@ public class Visitor {
             int len = arrayInit.length();
             for (int i = 0; i < len; i++) {
                 // PointerType pointeeType = new PointerType(((ArrayType) baseType).getBase());
-                Value ptr = new GetElementPtr(((ArrayType) baseType).getBase(), pointer, wrapImmutable(CONST_0, new Constant.ConstantInt(i)), curBB);
+                Value ptr = new GetElementPtr(((ArrayType) baseType).getBaseType(), pointer, wrapImmutable(CONST_0, new Constant.ConstantInt(i)), curBB);
                 initLocalVarHelper(ptr, arrayInit.get(i));
             }
         } else if (init instanceof Initial.ZeroInit) {
@@ -710,7 +710,7 @@ public class Visitor {
     private Initial.ArrayInit visitInitArray(InitArray initial, ArrayType type, boolean constant, boolean eval) throws SemanticException {
         Initial.ArrayInit arrayInit = new Initial.ArrayInit(type);
         BasicType baseEleType = type.getBaseEleType();
-        Type baseType = type.getBase();
+        Type baseType = type.getBaseType();
         int needSize = type.getSize();
         int count = 0;
         while (count < needSize && initial.hasInit(count)) {
@@ -750,11 +750,11 @@ public class Visitor {
         while (count < type.getSize()) {
             // 初始化个数小于当前维度的长度，补零
             count++;
-            if (type.getBase() instanceof BasicType) {
+            if (type.getBaseType() instanceof BasicType) {
                 arrayInit.add(new Initial.ValueInit(CONST_0, I32_TYPE));
             } else {
-                assert type.getBase() instanceof ArrayType;
-                arrayInit.add(new Initial.ZeroInit(type.getBase()));
+                assert type.getBaseType() instanceof ArrayType;
+                arrayInit.add(new Initial.ZeroInit(type.getBaseType()));
             }
         }
         return arrayInit;

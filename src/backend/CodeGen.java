@@ -4,13 +4,13 @@ import frontend.semantic.Initial;
 import lir.*;
 import manage.Manager;
 import mir.*;
-import mir.type.DataType;
+import mir.type.Type;
 
 import java.util.*;
 import java.util.HashMap;
 
-import static lir.Arm.Regs.GPRs.r0;
-import static lir.Machine.Operand.Type.PreColored;
+import static lir.Arm.Cond.*;
+import static lir.Arm.Regs.GPRs.sp;
 import static mir.type.DataType.I32;
 
 public class CodeGen {
@@ -45,6 +45,9 @@ public class CodeGen {
     private HashMap<GlobalVal.GlobalValue, Initial> globalMap;
     private Machine.Block curMB;
     private int virtual_cnt = 0;
+    private int curStackTop = 0;
+
+    private HashMap<Instr.Load, Instr.Alloc> load2alloc = new HashMap<>();
 
 
     public CodeGen() {
@@ -134,32 +137,136 @@ public class CodeGen {
                 }
                 case ret -> {
                     Instr.Return returnInst = (Instr.Return) instr;
-                    if(returnInst.hasValue()){
+                    if (returnInst.hasValue()) {
                         Machine.Operand retOpd = getVR_may_imm(returnInst.getRetValue());
-                        curMB.firstMIForBJ = new MIMove(new Machine.Operand(PreColored, Arm.Reg.getR(0)), retOpd, curMB);
+                        curMB.firstMIForBJ = new MIMove(new Machine.Operand(Arm.Reg.getR(0)), retOpd, curMB);
                         new MIReturn(curMB);
                     }
                 }
                 case zext -> {
+                    Machine.Operand dst = getVR_no_imm(instr);
+                    Machine.Operand src = getVR_may_imm(((Instr.Zext) instr).getRVal1());
+                    // 现阶段应该已经在上一个cmp生成好了并转移到虚拟寄存器中了, 应该不用管, 待优化
+                    new MIMove(dst, src, curMB);
                 }
                 case fptosi -> {
                 }
                 case sitofp -> {
                 }
                 case alloc -> {
+                    Instr.Alloc allocInst = (Instr.Alloc) instr;
+                    Type contentType = allocInst.getContentType();
+                    if (contentType.isPointerType()) {
+                        break;
+                    }
+                    // 这里已经不可能Alloc一个Int或者Float了
+                    assert contentType.isArrType();
+                    Machine.Operand addr = getVR_no_imm(allocInst);
+                    Machine.Operand spReg = new Machine.Operand(Arm.Reg.getR(sp));
+                    Machine.Operand offset = new Machine.Operand(I32, curMachineFunc.getStackSize());
+                    new MachineBinary(MachineInst.Tag.Add, addr, spReg, offset, curMB);
+                    // 栈空间移位
+                    curMachineFunc.addStack(((Type.ArrayType) contentType).getFlattenSize() * 4);
                 }
                 case load -> {
+                    Machine.Operand data = getVR_no_imm(instr);
+                    Instr.Load loadInst = (Instr.Load) instr;
+                    Value addrValue = loadInst.getPointer();
+                    // assert addrValue.getType().isPointerType();
+                    // if(((Type.PointerType) addrValue.getType()).getInnerType().isPointerType()){
+                    //     // 前端消多了,这个本来不应该消的,但是全消了
+                    //     load2alloc.put(loadInst, (Instr.Alloc) addrValue);
+                    //     break;
+                    // }
+                    Machine.Operand addrOpd = getVR_no_imm(addrValue);
+                    Machine.Operand offsetOpd = new Machine.Operand(I32, 0);
+                    new MILoad(data, addrOpd, offsetOpd, curMB);
                 }
                 case store -> {
+                    Instr.Store storeInst = (Instr.Store) instr;
+                    Machine.Operand data = getVR_may_imm(storeInst.getValue());
+                    Machine.Operand addr = getVR_no_imm(storeInst.getPointer());
+                    Machine.Operand offset = new Machine.Operand(I32, 0);
+                    new MIStore(data, addr, offset, curMB);
                 }
                 case gep -> {
+                    int offsetCount;
+                    Instr.GetElementPtr gepInst = (Instr.GetElementPtr) instr;
+                    Value ptrValue = gepInst.getPtr();
+                    Type.PointerType addrValueType = ((Type.PointerType) ptrValue.getType());
+                    if (addrValueType.isBasicType()) {
+                        offsetCount = 1;
+                    } else {
+                        assert addrValueType.getInnerType().isArrType();
+                        offsetCount = ((Type.ArrayType) addrValueType.getInnerType()).getDimSize();
+                    }
+                    assert !ptrValue.isConstant();
+                    Machine.Operand dstVR = getVR_no_imm(gepInst);
+                    Machine.Operand curAddrVR = getVR_no_imm(ptrValue);
+                    Type curType = addrValueType.getInnerType();
+                    int totalConstOff = 0;
+                    for (int i = 0; i < offsetCount; i++) {
+                        Value curIdxValue = gepInst.getIdxValueOf(i);
+                        int offUnit = 4;
+                        if (curType.isArrType()) {
+                            offUnit = 4 * ((Type.ArrayType) curType).getBaseFlattenSize();
+                        }
+                        if (curIdxValue.isConstantInt()) {
+                            totalConstOff += offUnit * (int) ((Constant.ConstantInt) curIdxValue).getConstVal();
+                            if (i == offsetCount - 1) {
+                                if (totalConstOff == 0) {
+                                    new MIMove(dstVR, curAddrVR, curMB);
+                                } else {
+                                    Machine.Operand immVR = getImmVR(totalConstOff);
+                                    new MachineBinary(MachineInst.Tag.Add, dstVR, curAddrVR, immVR, curMB);
+                                }
+                                // 由于已经是最后一个偏移,所以不需要
+                                // curAddrVR = dstVR;
+                            }
+                            /*} else if ((offUnit & (offUnit - 1)) == 0) {*/
+                            // TODO
+                        } else {
+                            Machine.Operand curIdxVR = getVR_may_imm(curIdxValue);
+                            if (i == offsetCount - 1 && totalConstOff != 0) {
+                                Machine.Operand immVR = getImmVR(totalConstOff);
+                                // TODO 是否需要避免寄存器分配时出现use的VR与def的VR相同的情况
+                                new MachineBinary(MachineInst.Tag.Add, curAddrVR, curAddrVR, immVR, curMB);
+                            }
+                            Machine.Operand offUnitImmVR = getImmVR(offUnit);
+
+                            /**
+                             * Fma
+                             * smmla:Rn + (Rm * Rs)[63:32] or smmls:Rd := Rn – (Rm * Rs)[63:32]
+                             * mla:Rn + (Rm * Rs)[31:0] or mls:Rd := Rn – (Rm * Rs)[31:0]
+                             * dst = acc +(-) lhs * rhs
+                             */
+                            // Machine.Operand tmpDst = newVR();
+                            // new MIFma(true,false, tmpDst, curAddrVR, curIdxVR ,offUnitImmVR, curMB);
+                            // curAddrVR = tmpDst;
+                            // TODO 是否需要避免寄存器分配时出现use的VR与def的VR相同的情况
+                            new MIFma(true,false, curAddrVR, curAddrVR, curIdxVR ,offUnitImmVR, curMB);
+                        }
+                    }
+
                 }
-                case bitcast -> {
-                }
+                case bitcast -> {/*不用管*/}
                 case call -> {
                 }
                 case phi -> throw new AssertionError("Backend has phi: " + instr);
                 case pcopy -> {
+                    // 前端已经消完了
+                    // Instr.PCopy pCopy = (Instr.PCopy) instr;
+                    // ArrayList<Value> rList = pCopy.getRHS();
+                    // ArrayList<Value> lList = pCopy.getLHS();
+                    // assert rList.size() == lList.size();
+                    // for (int i = 0; i < lList.size(); i++) {
+                    //     Value lhs = lList.get(i);
+                    //     Value rhs = rList.get(i);
+                    //     Machine.Operand source = getVR_may_imm(rhs);
+                    //     assert !(lhs instanceof Constant);
+                    //     Machine.Operand target = getVR_no_imm(lhs);
+                    //     new MIMove(target, source, curMB);
+                    // }
                 }
                 case move -> {
                     Machine.Operand source = getVR_may_imm(((Instr.Move) instr).getSrc());
@@ -228,16 +335,29 @@ public class CodeGen {
             Machine.Operand rVR = getVR_may_imm(rhs);
             MICompare cmp = new MICompare(lVR, rVR, curMB);
             int condIdx = icmp.getOp().ordinal();
+            Arm.Cond cond = Arm.Cond.values()[condIdx];
             // Icmp或Fcmp后紧接着BranchInst，而且前者的结果仅被后者使用，那么就可以不用计算结果，而是直接用bxx的指令
             if (((Instr) icmp.getNext()).isBranch()
                     && icmp.onlyOneUser()
                     && icmp.getBeginUse().getUser().isBranch()) {
-                Arm.Cond cond = Arm.Cond.values()[condIdx];
                 cmpInst2MICmpMap.put(instr, new CMPAndArmCond(cmp, cond));
             } else {
-                // TODO: 不懂mov
+                new MIMove(cond, dst, new Machine.Operand(I32, 1), curMB);
+                new MIMove(getOppoCond(cond), dst, new Machine.Operand(I32, 0), curMB);
             }
         }
+    }
+
+    public Arm.Cond getOppoCond(Arm.Cond cond) {
+        return switch (cond) {
+            case Eq -> Ne;
+            case Ne -> Eq;
+            case Ge -> Lt;
+            case Gt -> Le;
+            case Le -> Gt;
+            case Lt -> Ge;
+            case Any -> Any;
+        };
     }
 
     /**

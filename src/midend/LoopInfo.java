@@ -7,6 +7,8 @@ import java.util.ArrayList;
 
 public class LoopInfo {
 
+    //TODO:
+
     private ArrayList<Function> functions;
 
     public LoopInfo(ArrayList<Function> functions) {

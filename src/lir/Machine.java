@@ -18,8 +18,8 @@ import static lir.Machine.Operand.Type.*;
 public class Machine {
 
     public static class Program {
-        ArrayList<McFunction> funcList;
-        ArrayList<GlobalVal> globList;
+        public Ilist<McFunction> funcList;
+        public ArrayList<GlobalVal> globList;
         int pool_count = 0;
         int inst_count = 0;
 
@@ -134,7 +134,7 @@ public class Machine {
 
     }
 
-    public static class McFunction {
+    public static class McFunction extends ILinkNode{
         // ArrayList<MachineInst> instList;
         // DoublelyLinkedList<Block> blockList;
         // Block tailBlock = new Block();

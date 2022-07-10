@@ -11,13 +11,9 @@ public class TrivialRegAllocator {
     void livenessAnalysis(Machine.McFunction mcFunc) {
         ArrayList<Machine.Block> bfsMbList = new ArrayList<>();
         for (Machine.Block mb : mcFunc.mbList) {
-            // }
-            // for (Machine.Block mb = mcFunc.getBeginMB(); mb != mcFunc.getEndMB(); mb = (Machine.Block) mb.getNext()) {
-            //     final Machine.Block mb = mb;
             mb.liveUseSet.clear();
             mb.defSet.clear();
             for (MachineInst mi : mb.miList) {
-                // for (MachineInst mi = mb.getBeginMI(); mi != mb.getEndMI(); mi = (MachineInst) mi.getNext()) {
                 ArrayList<Machine.Operand> defs = mi.defOpds;
                 ArrayList<Machine.Operand> uses = mi.useOpds;
                 // liveuse 计算
@@ -43,6 +39,8 @@ public class TrivialRegAllocator {
         while (changed) {
             changed = false;
             for (Machine.Block mb : mcFunc.mbList) {
+                // 任意succ的liveInSet如果有更新, 则可能更新 (只可能增加, 增量为newLiveOut) 当前MB的liveIn,
+                // 且当前MB如果需要更新liveIn, 只可能新增且新增的Opd一定出自newLiveOut
                 HashSet<Machine.Operand> newLiveOut = new HashSet<>();
                 for (Machine.Block succMB : mb.successor) {
                     for (Machine.Operand liveIn : succMB.liveInSet) {
@@ -57,6 +55,14 @@ public class TrivialRegAllocator {
                         mb.liveInSet.add(newOut);
                     }
                 });
+            }
+        }
+    }
+
+    public void AllocateRegister(Machine.Program program){
+        for(Machine.McFunction mcFunc: program.funcList){
+            for(Machine.Block mb: mcFunc.mbList){
+
             }
         }
     }

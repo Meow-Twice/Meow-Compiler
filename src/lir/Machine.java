@@ -128,7 +128,6 @@ public class Machine {
                 os.println(val.name + ":");
 
                 //TODO for yyf:array init
-                // arr你再仔细看看, 不用你做
 
             }
         }

@@ -1,5 +1,6 @@
 package mir;
 
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Objects;
 
@@ -30,6 +31,7 @@ public class Loop {
     private HashSet<BasicBlock> latchs;
     private HashSet<BasicBlock> exits;
 
+    private HashMap<Integer, HashSet<Instr>> conds;
 
     public Loop(Loop parentLoop) {
         this.hash = loop_num++;
@@ -127,5 +129,9 @@ public class Loop {
     public void addExit(BasicBlock bb) {
         exits.add(bb);
         bb.setExit();
+    }
+
+    public void addCond(Instr instr) {
+
     }
 }

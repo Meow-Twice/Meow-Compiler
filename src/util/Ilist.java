@@ -64,18 +64,14 @@ public class Ilist<E extends ILinkNode> implements Iterable<E> {
 
     @Override
     public Iterator<E> iterator() {
-        return new IIterator(getBegin());
+        return new IIterator();
     }
 
     class IIterator implements Iterator<E> {
 
-        int curIdx;
+        E cur = head;
 
-        E cur = (E) new ILinkNode();
-        E nxt = tail;
-
-        IIterator(E head) {
-            cur.setNext(head);
+        IIterator() {
         }
 
         @Override

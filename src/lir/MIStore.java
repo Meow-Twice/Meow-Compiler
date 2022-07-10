@@ -3,8 +3,8 @@ package lir;
 import java.io.PrintStream;
 
 public class MIStore extends MIAccess{
-    Machine.Operand data;
-    Machine.Operand addr;
+    public Machine.Operand data;
+    public Machine.Operand addr;
     public MIStore(Machine.Block insertAtEnd,boolean isFloat){
         super(Tag.Store,insertAtEnd,isFloat);
     }

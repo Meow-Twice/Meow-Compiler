@@ -1,172 +1,99 @@
 package util;
 
+import java.util.ConcurrentModificationException;
 import java.util.Iterator;
+import java.util.Objects;
+import java.util.function.Consumer;
 
-public class Ilist<E> implements Iterable<Ilist.Node<E>>{
-    public Node<E> head;
-    public Node<E> tail;
-    public int nodeNum = 0;
+public class Ilist<E extends ILinkNode> implements Iterable<E> {
+    public E head;
+    public E tail;
+    public int size = 0;
 
     public Ilist() {
-        nodeNum = 0;
-        head = tail = null;
+        head = (E) new ILinkNode();
+        tail = (E) new ILinkNode();
+        size = 0;
     }
 
     public void clear() {
-        this.head = null;
-        this.tail = null;
-        nodeNum = 0;
+        size = 0;
     }
 
-    public Node<E> getHead() {
-        return head;
+    public E getBegin() {
+        return (E) head.getNext();
     }
 
-    public void setHead(Node<E> head) {
-        this.head = head;
+    public E getEnd() {
+        return (E) head.getNext();
     }
 
-    public Node<E> getTail() {
-        return tail;
+    public void insertBefore(E node, E insertBefore) {
+        node.setPrev(insertBefore.getPrev());
+        node.setNext(insertBefore);
+        insertBefore.setPrev(node);
+        size++;
     }
 
-    public void setTail(Node<E> tail) {
-        this.tail = tail;
+    public void insertAfter(E node, E insertAfter) {
+        node.setNext(insertAfter.getNext());
+        node.setPrev(insertAfter);
+        insertAfter.setNext(node);
+        size++;
     }
 
-    public void insertBefore(Node<E> node, Node<E> insertBefore) {
-        node.prev = insertBefore.prev;
-        node.next = insertBefore;
-        if (insertBefore.prev != null) {
-            insertBefore.prev.next = node;
-        }
-        insertBefore.prev = node;
-
-        if (head == insertBefore) {
-            head = node;
-        }
-        nodeNum++;
+    public void insertAtEnd(E node) {
+        node.setPrev(tail.getPrev());
+        node.setNext(tail);
+        tail.setPrev(node);
+        size++;
     }
 
-    public void insertAfter(Node<E> node, Node<E> insertAfter) {
-        node.prev = insertAfter;
-        node.next = insertAfter.next;
-        if (insertAfter.next != null) {
-            insertAfter.next.prev = node;
-        }
-        insertAfter.next = node;
-
-        if (tail == insertAfter) {
-            tail = node;
-        }
-        nodeNum++;
+    public void insertAtBegin(E node) {
+        node.setNext(head.getPrev());
+        node.setPrev(head);
+        head.setNext(node);
+        size++;
     }
 
-    public void insertAtEnd(Node<E> node) {
-        node.prev = tail;
-        node.next = null;
-        if (tail == null) {
-            head = tail = node;
-        } else {
-            tail.next = node;
-            tail = node;
-        }
-        nodeNum++;
-    }
-
-    public void insertAtBegin(Node<E> node) {
-        node.prev = null;
-        node.next = head;
-        if (head == null) {
-            head = tail = node;
-        } else {
-            head.prev = node;
-            head = node;
-        }
-        nodeNum++;
-    }
-
-    public void remove(Node<E> node) {
-        if(node == null){
-            return;
-        }
-        if (node.prev != null) {
-            node.prev.next = node.next;
-        } else {
-            head = node.next;
-        }
-
-        if (node.next != null) {
-            node.next.prev = node.prev;
-        } else {
-            tail = node.prev;
-        }
-        nodeNum--;
+    public void remove(E node) {
+        node.getPrev().setNext(node.getNext());
+        node.getNext().setPrev(node.getPrev());
+        size--;
     }
 
     @Override
-    public Iterator<Node<E>> iterator() {
-        return new IIterator(head);
+    public Iterator<E> iterator() {
+        return new IIterator(getBegin());
     }
 
-    class IIterator implements Iterator<Node<E>> {
+    class IIterator implements Iterator<E> {
 
-        Node<E> cur = new Node<>(null);
-        Node<E> nxt = null;
+        int curIdx;
 
-        IIterator(Node<E> head) {
-            cur.next = head;
+        E cur = (E) new ILinkNode();
+        E nxt = tail;
+
+        IIterator(E head) {
+            cur.setNext(head);
         }
 
         @Override
         public boolean hasNext() {
-            return nxt != null || cur.next != null;
+            return cur.getNext() != tail;
         }
 
         @Override
-        public Node<E> next() {
-            if (nxt == null) {
-                cur = cur.next;
-            } else {
-                cur = nxt;
-            }
-            nxt = null;
+        public E next() {
+            cur = (E) cur.getNext();
             return cur;
         }
 
         @Override
         public void remove() {
-            Node<E> prev = cur.prev;
-            Node<E> next = cur.next;
-            // Node<E> parent = cur.getParent();
-            if (prev != null) {
-                prev.next = next;
-            // } else {
-            //     parent.setEntry(next);
-            }
-
-            if (next != null) {
-                next.prev = prev;
-            // } else {
-            //     parent.setLast(prev);
-            }
-            // --parent.numNode;
-
-            nxt = next;
-            cur.next = cur.prev = null;
-            cur.val = null;
-        }
-    }
-    
-    public static class Node<E> {
-
-        public E val;
-        public Node<E> prev = null;
-        public Node<E> next = null;
-        public Object parent = null;
-
-        public Node(E val){
-            this.val = val;
+            cur.getPrev().setNext(cur.getNext());
+            cur.getNext().setPrev(cur.getPrev());
+            size--;
         }
 
     }

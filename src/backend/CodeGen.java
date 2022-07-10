@@ -164,7 +164,7 @@ public class CodeGen {
                     Machine.Operand addr = getVR_no_imm(allocInst);
                     Machine.Operand spReg = new Machine.Operand(Arm.Reg.getR(sp));
                     Machine.Operand offset = new Machine.Operand(I32, curMachineFunc.getStackSize());
-                    new MachineBinary(MachineInst.Tag.Add, addr, spReg, offset, curMB);
+                    new MIBinary(MachineInst.Tag.Add, addr, spReg, offset, curMB);
                     // 栈空间移位
                     curMachineFunc.addStack(((Type.ArrayType) contentType).getFlattenSize() * 4);
                 }
@@ -218,7 +218,7 @@ public class CodeGen {
                                     new MIMove(dstVR, curAddrVR, curMB);
                                 } else {
                                     Machine.Operand immVR = getImmVR(totalConstOff);
-                                    new MachineBinary(MachineInst.Tag.Add, dstVR, curAddrVR, immVR, curMB);
+                                    new MIBinary(MachineInst.Tag.Add, dstVR, curAddrVR, immVR, curMB);
                                 }
                                 // 由于已经是最后一个偏移,所以不需要
                                 // curAddrVR = dstVR;
@@ -230,7 +230,7 @@ public class CodeGen {
                             if (i == offsetCount - 1 && totalConstOff != 0) {
                                 Machine.Operand immVR = getImmVR(totalConstOff);
                                 // TODO 是否需要避免寄存器分配时出现use的VR与def的VR相同的情况
-                                new MachineBinary(MachineInst.Tag.Add, curAddrVR, curAddrVR, immVR, curMB);
+                                new MIBinary(MachineInst.Tag.Add, curAddrVR, curAddrVR, immVR, curMB);
                             }
                             Machine.Operand offUnitImmVR = getImmVR(offUnit);
 
@@ -294,7 +294,7 @@ public class CodeGen {
         // instr不可能是Constant
         Machine.Operand dVR = getVR_no_imm(instr);
         MachineInst.Tag tag = MachineInst.Tag.map.get(instr.getOp());
-        new MachineBinary(tag, dVR, lVR, rVR, curMB);
+        new MIBinary(tag, dVR, lVR, rVR, curMB);
     }
 
     /**

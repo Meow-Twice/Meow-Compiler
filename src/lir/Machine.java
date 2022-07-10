@@ -6,6 +6,7 @@ import mir.Instr;
 import mir.type.DataType;
 import util.DoublelyLinkedList;
 import util.ILinkNode;
+import util.Ilist;
 
 import java.io.PrintStream;
 import java.util.ArrayList;
@@ -106,9 +107,10 @@ public class Machine {
                 }
 
                 //asm for bb
-                for (Block bb = (Block) function.headBlock.getNext(); bb != (Block) function.tailBlock; bb = (Block) bb.getNext()) {
+                // TODO 这里原来用法有问题，因为有空头部，所以headMB原来是空的, 现在用for循环就没问题了
+                for (Block bb : function.mbList) {
                     os.println(bb.toString() + ":");
-                    for (MachineInst inst = (MachineInst) bb.headMI.getNext(); inst != (MachineInst) bb.tailMI; inst = (MachineInst) inst.getNext()) {
+                    for (MachineInst inst : bb.miList) {
                         inst.output(os, function);
                     }
                 }
@@ -126,185 +128,218 @@ public class Machine {
                 os.println(val.name + ":");
 
                 //TODO for yyf:array init
+                // arr你再仔细看看, 不用你做
 
             }
         }
 
     }
-        public static class McFunction {
-            // ArrayList<MachineInst> instList;
-            // DoublelyLinkedList<Block> blockList;
-            Block tailBlock = new Block();
-            Block headBlock = new Block();
 
-            public void insertAtEnd(Block in) {
-                in.setPrev(tailBlock.getPrev());
-                in.setNext(tailBlock);
-                tailBlock.getPrev().setNext(in);
-                tailBlock.setPrev(in);
-            }
+    public static class McFunction {
+        // ArrayList<MachineInst> instList;
+        // DoublelyLinkedList<Block> blockList;
+        // Block tailBlock = new Block();
+        // Block headBlock = new Block();
+        public Ilist<Block> mbList = new Ilist<>();
+
+        /**
+         * 获取真正的第一个Block
+         */
+        public Block getBeginMB() {
+            return mbList.getBegin();
+            // assert headBlock.getNext() instanceof Instr;
+            // return (Block) headBlock.getNext();
+        }
+
+        /**
+         * 获取最后一个真正的Block
+         */
+        public Block getEndMB() {
+            return mbList.getEnd();
+            // assert tailBlock.getPrev() instanceof Instr;
+            // return (Block) tailBlock.getPrev();
+        }
+
+        public void insertAtEnd(Block mb) {
+            mbList.insertAtEnd(mb);
+            // in.setPrev(tailBlock.getPrev());
+            // in.setNext(tailBlock);
+            // tailBlock.getPrev().setNext(in);
+            // tailBlock.setPrev(in);
+        }
 
 
-            ArrayList<Operand> params;
-            String func_name;
-            int virRegNum = 0;
-            int stackSize = 0;
-            mir.Function mFunc;
-            HashSet<Arm.Reg> usedCalleeSavedRegs;
-            boolean useLr = false;
+        ArrayList<Operand> params;
+        String func_name;
+        int virRegNum = 0;
+        int stackSize = 0;
+        mir.Function mFunc;
+        HashSet<Arm.Reg> usedCalleeSavedRegs;
+        boolean useLr = false;
 
-            public McFunction(mir.Function function) {
-                this.mFunc = function;
-            }
-            public void addStack(int i) {
-                stackSize += i;
-            }
+        public McFunction(mir.Function function) {
+            this.mFunc = function;
+        }
 
-            public int getStackSize() {
-                return stackSize;
-            }
-            public void output_reg_list(PrintStream os) {
-                int i = 0;
-                for (Arm.Reg reg : usedCalleeSavedRegs) {
-                    if (i > 0) {
-                        os.print(",");
-                    }
-                    os.print(reg);
-                    i++;
+        public void addStack(int i) {
+            stackSize += i;
+        }
+
+        public int getStackSize() {
+            return stackSize;
+        }
+
+        public void output_reg_list(PrintStream os) {
+            int i = 0;
+            for (Arm.Reg reg : usedCalleeSavedRegs) {
+                if (i > 0) {
+                    os.print(",");
                 }
+                os.print(reg);
+                i++;
             }
-
-
         }
 
-        public static class Block extends ILinkNode {
-            public static String BB_Prefix = ".L_BB_";
-            public BasicBlock bb;
-            public McFunction mcFunc;
-            public MachineInst firstMIForBJ = null;
-            int index;
-            // 双向链表的头
-            MachineInst tailMI = new MachineInst();
-            // 双向链表的尾巴
-            MachineInst headMI = new MachineInst();
 
-            // 上面这两个是空的, 专门做头和尾, 为了减少添加节点(MachineInst)的时候的空指针判断
-            // DoublelyLinkedList<MachineInst> insts;
-            public Block() {
-            }
+    }
 
-            /**
-             * 获取第一条真正的指令
-             */
-            public MachineInst getBeginMI() {
-                assert headMI.getNext() instanceof Instr;
-                return (MachineInst) headMI.getNext();
-            }
+    public static class Block extends ILinkNode {
+        public static String BB_Prefix = ".L_BB_";
+        public BasicBlock bb;
+        public McFunction mcFunc;
+        public MachineInst firstMIForBJ = null;
+        public Ilist<MachineInst> miList;
+        int index;
+        // 双向链表的头
+        // MachineInst tailMI = new MachineInst();
+        // 双向链表的尾巴
+        // MachineInst headMI = new MachineInst();
 
-            /**
-             * 获取最后一条真正的指令
-             */
-            public MachineInst getEndMI() {
-                assert tailMI.getPrev() instanceof Instr;
-                return (MachineInst) tailMI.getPrev();
-            }
-
-            public void insertAtEnd(MachineInst in) {
-                in.setPrev(tailMI.getPrev());
-                in.setNext(tailMI);
-                tailMI.getPrev().setNext(in);
-                tailMI.setPrev(in);
-            }
-
-            public void insertAtHead(MachineInst in) {
-                in.setPrev(headMI);
-                in.setNext(headMI.getNext());
-                headMI.getNext().setPrev(in);
-                headMI.setNext(in);
-            }
-
-            //pred and successor
-            ArrayList<Block> pred;
-            ArrayList<Block> successor;
-            MachineInst con_tran = null;
-            HashSet<Operand> liveUseSet;
-            HashSet<Operand> defSet;
-            HashSet<Operand> liveInSet;
-            HashSet<Operand> liveOutSet;
-
-            public Block(BasicBlock bb, Machine.McFunction insertAtEnd) {
-                this.bb = bb;
-                this.mcFunc = insertAtEnd;
-                mcFunc.insertAtEnd(this);
-            }
-
-            public String toString() {
-                return BB_Prefix + index;
-            }
-
+        // 上面这两个是空的, 专门做头和尾, 为了减少添加节点(MachineInst)的时候的空指针判断
+        // DoublelyLinkedList<MachineInst> insts;
+        public Block() {
         }
 
-        public static class Operand {
+        /**
+         * 获取第一条真正的指令
+         */
+        public MachineInst getBeginMI() {
+            return miList.getBegin();
+            // assert headMI.getNext() instanceof Instr;
+            // return (MachineInst) headMI.getNext();
+        }
 
-            // 立即数, 默认为8888888方便debug
-            // public int imm = 88888888;
+        /**
+         * 获取最后一条真正的指令
+         */
+        public MachineInst getEndMI() {
+            return miList.getEnd();
+            // assert tailMI.getPrev() instanceof Instr;
+            // return (MachineInst) tailMI.getPrev();
+        }
 
-            private String prefix;
+        public void insertAtEnd(MachineInst in) {
+            miList.insertAtEnd(in);
+            // in.setPrev(tailMI.getPrev());
+            // in.setNext(tailMI);
+            // tailMI.getPrev().setNext(in);
+            // tailMI.setPrev(in);
+        }
 
-            // 虚拟寄存器id号, 立即数号, 实际寄存器号
-            protected int value;
+        public void insertAtHead(MachineInst in) {
+            miList.insertAtBegin(in);
+            // in.setPrev(headMI);
+            // in.setNext(headMI.getNext());
+            // headMI.getNext().setPrev(in);
+            // headMI.setNext(in);
+        }
 
-            public enum Type {
-                PreColored,
-                Allocated,
-                Virtual,
-                Immediate
-            }
+        //pred and successor
+        public ArrayList<Block> pred;
+        public ArrayList<Block> successor;
+        public MachineInst con_tran = null;
+        public HashSet<Operand> liveUseSet;
+        public HashSet<Operand> defSet;
+        public HashSet<Operand> liveInSet;
+        public HashSet<Operand> liveOutSet;
 
-            Type type;
-            DataType dataType = DataType.I32;
+        public Block(BasicBlock bb, Machine.McFunction insertAtEnd) {
+            this.bb = bb;
+            this.mcFunc = insertAtEnd;
+            mcFunc.insertAtEnd(this);
+        }
 
-            public Type getType() {
-                return type;
-            }
+        public String toString() {
+            return BB_Prefix + index;
+        }
 
-            // 默认分配通用寄存器
-            public Operand(Type type) {
-                this.type = type;
-                prefix = switch (type) {
-                    case Virtual -> "v";
-                    case Allocated, PreColored -> "r";
-                    case Immediate -> "#";
+    }
+
+    public static class Operand {
+
+        // 立即数, 默认为8888888方便debug
+        // public int imm = 88888888;
+
+        private String prefix;
+
+        // 虚拟寄存器id号, 立即数号, 实际寄存器号
+        protected int value;
+
+        public boolean isImm() {
+            return type == Immediate;
+        }
+
+        public enum Type {
+            PreColored,
+            Allocated,
+            Virtual,
+            Immediate
+        }
+
+        Type type;
+        DataType dataType = DataType.I32;
+
+        public Type getType() {
+            return type;
+        }
+
+        // 默认分配通用寄存器
+        public Operand(Type type) {
+            this.type = type;
+            prefix = switch (type) {
+                case Virtual -> "v";
+                case Allocated, PreColored -> "r";
+                case Immediate -> "#";
+            };
+        }
+
+        // 默认分配通用寄存器
+        public Operand(int virtualRegCnt) {
+            this.type = Virtual;
+            value = virtualRegCnt;
+            prefix = "v";
+        }
+
+        public Operand(DataType dataType, int imm) {
+            type = Immediate;
+            prefix = "#";
+            this.dataType = dataType;
+            this.value = imm;
+        }
+
+
+        public Operand(Type type, DataType dataType) {
+            this.type = type;
+            prefix = switch (type) {
+                case Virtual -> "v";
+                case Allocated, PreColored -> switch (dataType) {
+                    case F32 -> "s";
+                    case I32 -> "r";
+                    default -> throw new IllegalStateException("Unexpected reg type: " + dataType);
                 };
-            }
-
-            // 默认分配通用寄存器
-            public Operand(int virtualRegCnt) {
-                this.type = Virtual;
-                value = virtualRegCnt;
-                prefix = "v";
-            }
-
-            public Operand(DataType dataType, int imm) {
-                type = Immediate;
-                prefix = "#";
-                this.dataType = dataType;
-                this.value = imm;
-            }
-
-
-            public Operand(Type type, DataType dataType) {
-                this.type = type;
-                prefix = switch (type) {
-                    case Virtual -> "v";
-                    case Allocated, PreColored -> switch (dataType) {
-                        case F32 -> "s";
-                        case I32 -> "r";
-                        default -> throw new IllegalStateException("Unexpected reg type: " + dataType);
-                    };
-                    case Immediate -> "#";
-                };
-            }
+                case Immediate -> "#";
+            };
+        }
 
         public Operand(Arm.Reg reg) {
             this.type = PreColored;
@@ -316,29 +351,29 @@ public class Machine {
         }
 
 
-            public Operand(Type type, Arm.Reg reg) {
-                this.type = type;
-                prefix = switch (type) {
-                    case Virtual -> "v";
-                    case Allocated, PreColored -> switch (reg.dataType) {
-                        case F32 -> "s";
-                        case I32 -> "r";
-                        default -> throw new IllegalStateException("Unexpected reg type: " + reg.dataType);
-                    };
-                    case Immediate -> "#";
+        public Operand(Type type, Arm.Reg reg) {
+            this.type = type;
+            prefix = switch (type) {
+                case Virtual -> "v";
+                case Allocated, PreColored -> switch (reg.dataType) {
+                    case F32 -> "s";
+                    case I32 -> "r";
+                    default -> throw new IllegalStateException("Unexpected reg type: " + reg.dataType);
                 };
-            }
+                case Immediate -> "#";
+            };
+        }
 
-            public boolean compareTo(Operand other) {
-                if (this.type != other.type) {
-                    return type.compareTo(other.type) < 0;
-                } else {
-                    return this.value < other.value;
-                }
-            }
-
-            public String toString() {
-                return prefix + value;
+        public boolean compareTo(Operand other) {
+            if (this.type != other.type) {
+                return type.compareTo(other.type) < 0;
+            } else {
+                return this.value < other.value;
             }
         }
+
+        public String toString() {
+            return prefix + value;
+        }
+    }
 }

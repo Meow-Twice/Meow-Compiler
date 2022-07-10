@@ -3,7 +3,7 @@ package util;
 /**
  * 自定义的链表节点
  */
-public abstract class ILinkNode {
+public class ILinkNode {
     private ILinkNode prev;
     private ILinkNode next;
 

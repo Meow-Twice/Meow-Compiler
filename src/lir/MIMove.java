@@ -3,10 +3,10 @@ package lir;
 import java.io.PrintStream;
 
 public class MIMove extends MachineInst{
-    Arm.Cond cond;
+    Arm.Cond cond = Arm.Cond.Any;
     Machine.Operand dOpd;
     Machine.Operand sOpd;
-    Arm.Shift shift;
+    Arm.Shift shift = Arm.Shift.NONE_SHIFT;
 
     public MIMove(Machine.Block insertAtEnd) {
         super(Tag.Mv, insertAtEnd);
@@ -39,6 +39,7 @@ public class MIMove extends MachineInst{
         this.dOpd = dOpd;
         this.sOpd = sOpd;
         this.cond = Arm.Cond.Any;
+        inst.insertBefore(this);
         genDefUse();
     }
 
@@ -87,6 +88,22 @@ public class MIMove extends MachineInst{
             os.print("mov"+cond+"\t"+dOpd.toString()+","+sOpd.toString());
             os.println(","+shift.toString());
         }
+    }
 
+    @Override
+    public boolean isMove() {
+        return true;
+    }
+
+    public Machine.Operand getDst() {
+        return dOpd;
+    }
+
+    public boolean directColor() {
+        return dOpd.needColor() && sOpd.needColor() && cond == Arm.Cond.Any && shift.shiftType == Arm.ShiftType.None;
+    }
+
+    public Machine.Operand getSrc() {
+        return sOpd;
     }
 }

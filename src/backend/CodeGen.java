@@ -66,7 +66,7 @@ public class CodeGen {
         genGlobal();
         // TODO
         for (Function func : midFuncMap.values()) {
-
+            virtual_cnt = 0;
             Machine.McFunction mcFunc = new Machine.McFunction(func);
             curFunc = func;
             curMachineFunc = mcFunc;
@@ -89,6 +89,7 @@ public class CodeGen {
                 genBB(bb);
                 bb = (BasicBlock) bb.getNext();
             }
+            mcFunc.setVRSize(virtual_cnt);
         }
     }
 

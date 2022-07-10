@@ -2,9 +2,7 @@ package lir;
 
 import mir.BasicBlock;
 import mir.GlobalVal;
-import mir.Instr;
 import mir.type.DataType;
-import util.DoublelyLinkedList;
 import util.ILinkNode;
 import util.Ilist;
 
@@ -134,7 +132,7 @@ public class Machine {
 
     }
 
-    public static class McFunction extends ILinkNode{
+    public static class McFunction extends ILinkNode {
         // ArrayList<MachineInst> instList;
         // DoublelyLinkedList<Block> blockList;
         // Block tailBlock = new Block();
@@ -170,7 +168,7 @@ public class Machine {
 
         ArrayList<Operand> params;
         String func_name;
-        int virRegNum = 0;
+        int vrSize = 0;
         int stackSize = 0;
         mir.Function mFunc;
         HashSet<Arm.Reg> usedCalleeSavedRegs;
@@ -200,6 +198,13 @@ public class Machine {
         }
 
 
+        public int getVRSize() {
+            return vrSize;
+        }
+
+        public void setVRSize(int size) {
+            vrSize = size;
+        }
     }
 
     public static class Block extends ILinkNode {
@@ -275,6 +280,7 @@ public class Machine {
     }
 
     public static class Operand {
+        public int loopCounter = 0;
 
         // 立即数, 默认为8888888方便debug
         // public int imm = 88888888;
@@ -284,9 +290,57 @@ public class Machine {
         // 虚拟寄存器id号, 立即数号, 实际寄存器号
         protected int value;
 
+        /**
+         * 对于每一个非预着色的虚拟寄存器 this , adjOpedSet 是与 this 冲突的 Operand 的集合
+         */
+        public HashSet<Operand> adjOpdSet = new HashSet<>();
+
+        /**
+         * 当前度数
+         */
+        public int degree = 0;
+        /**
+         * 当一条传送指令 (u, v) 已被合并,
+         * 并且 v 已放入到 已合并 Operand 集合 coalescedNodeSet时,
+         * alias(v) = u
+         */
+        public Operand alias;
+        /**
+         * 与此 Operand 相关的传送指令列表的集合
+         */
+        public HashSet<MIMove> moveSet = new HashSet<>();
+
+        // private static Arm.Reg[] regPool = new Arm.Reg[Arm.Regs.GPRs.values().length + Arm.Regs.FPRs.values().length];
+
         public boolean isImm() {
             return type == Immediate;
         }
+
+        public void addAdj(Operand v) {
+            adjOpdSet.add(v);
+        }
+
+        public boolean isPreColored() {
+            return type == PreColored;
+        }
+
+        public boolean needColor() {
+            return type == PreColored || type == Virtual;
+        }
+
+        // static {
+        //     // 调用了子类, 所以不行
+        //     int i;
+        //     for(i = 0 ; i < Arm.Regs.GPRs.values().length; i++){
+        //         regPool[i] = Arm.Reg.getR(i);
+        //     }
+        //     for(i = Arm.Regs.GPRs.values().length ; i < Arm.Regs.GPRs.values().length + Arm.Regs.FPRs.values().length; i++){
+        //         regPool[i] = Arm.Reg.getS(i);
+        //     }
+        // }
+        // public static void getR() {
+        //
+        // }
 
         public enum Type {
             PreColored,

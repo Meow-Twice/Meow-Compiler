@@ -39,6 +39,7 @@ public class LoopInfo {
 
 
         for (BasicBlock next:bb.getSuccBBs()) {
+            //后向边
             if (know.contains(next)) {
                 assert next.isLoopHeader();
                 Loop loop = bb.getLoop();

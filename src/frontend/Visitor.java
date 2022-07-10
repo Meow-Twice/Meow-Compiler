@@ -809,7 +809,7 @@ public class Visitor {
         // 入口基本块
         BasicBlock entry = new BasicBlock();
         curBB = entry;
-        curLoop.setStartBB(entry);
+        curLoop.setHeader(entry);
         // 构造形参层符号表
         currentSymTable = new SymTable(currentSymTable);
         // 形参表

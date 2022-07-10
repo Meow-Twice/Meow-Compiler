@@ -40,14 +40,24 @@ public class BasicBlock extends Value {
 
 
     public Loop loop = Loop.emptyLoop;
-    public boolean isLoopStart = false;
+
+
+    public boolean isLoopHeader = false;
+    private boolean isLoopEntering = false;
+    private boolean isLoopExiting = false;
+    private boolean isLoopLatch = false;
+    private boolean isExit = false;
 
     private int domTreeDeep;
     private BasicBlock IDominator;
 
     public void setLoopStart() {
-        isLoopStart = true;
-        loop.setStartBB(this);
+        isLoopHeader = true;
+        loop.setHeader(this);
+    }
+
+    public boolean isLoopHeader() {
+        return isLoopHeader;
     }
 
     public int getLoopDep() {
@@ -260,7 +270,7 @@ public class BasicBlock extends Value {
 
     @Override
     public String toString() {
-        //return this.label + ":\t\t\t\t\t; loopDepth: " + loop.loopDepth + ";\t" + loop;
+        //return this.label + ":\t\t\t\t\t; loopDepth: " + loop.loopDepth + ";\t" + loop + ";\t" + loop.getHash();
         return this.label;
     }
 
@@ -271,5 +281,9 @@ public class BasicBlock extends Value {
 
     public Machine.Block getMb(){
         return mb;
+    }
+
+    public Loop getLoop() {
+        return loop;
     }
 }

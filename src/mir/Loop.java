@@ -1,10 +1,12 @@
 package mir;
 
 import java.util.HashSet;
+import java.util.Objects;
 
 public class Loop {
 
     public static final Loop emptyLoop = new Loop();
+    private static int loop_num = 0;
 
     private Loop() {
     }
@@ -15,11 +17,22 @@ public class Loop {
     private Loop parentLoop;
     public int loopDepth = -1;
     private final HashSet<Loop> childrenLoops = new HashSet<>();
-    private final HashSet<BasicBlock> nowLevelBB = new HashSet<>();
 
-    private BasicBlock startBB;
+    private int hash;
+
+    //同一循环内的BB 进一步划分为 entering header exiting latch exit
+    //entering为header的前驱
+    private HashSet<BasicBlock> nowLevelBB = new HashSet<>();
+
+    private BasicBlock header;
+    private HashSet<BasicBlock> enterings;
+    private HashSet<BasicBlock> exitings;
+    private HashSet<BasicBlock> latchs;
+    private HashSet<BasicBlock> exits;
+
 
     public Loop(Loop parentLoop) {
+        this.hash = loop_num++;
         this.parentLoop = parentLoop;
         this.loopDepth = parentLoop.loopDepth + 1;
         assert parentLoop.addChildLoop(this);
@@ -62,12 +75,12 @@ public class Loop {
         return nowLevelBB.add(bb);
     }
 
-    public BasicBlock getStartBB() {
-        return startBB;
+    public BasicBlock getHeader() {
+        return header;
     }
 
-    public void setStartBB(BasicBlock basicBlock) {
-        startBB = basicBlock;
+    public void setHeader(BasicBlock basicBlock) {
+        header = basicBlock;
     }
 
     @Override
@@ -77,5 +90,26 @@ public class Loop {
 
     public void setFunc(Function function) {
         funcName = function.getName();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Loop loop = (Loop) o;
+        return hash == loop.hash;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(hash);
+    }
+
+    public int getHash() {
+        return hash;
+    }
+
+    public void addLatch(BasicBlock bb) {
+        latchs.add(bb)
     }
 }

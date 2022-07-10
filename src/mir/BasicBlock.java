@@ -56,8 +56,40 @@ public class BasicBlock extends Value {
         loop.setHeader(this);
     }
 
+    public void setLoopEntering() {
+        isLoopEntering = true;
+    }
+
+    public void setLoopExiting() {
+        isLoopExiting = true;
+    }
+
+    public void setLoopLatch() {
+        isLoopLatch = true;
+    }
+
+    public void setExit() {
+        isExit = true;
+    }
+
     public boolean isLoopHeader() {
         return isLoopHeader;
+    }
+
+    public boolean isLoopEntering() {
+        return isLoopEntering;
+    }
+
+    public boolean isLoopExiting() {
+        return isLoopExiting;
+    }
+
+    public boolean isLoopLatch() {
+        return isLoopLatch;
+    }
+
+    public boolean isExit() {
+        return isExit;
     }
 
     public int getLoopDep() {

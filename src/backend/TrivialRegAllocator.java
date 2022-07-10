@@ -9,14 +9,15 @@ import java.util.HashSet;
 
 public class TrivialRegAllocator {
     void livenessAnalysis(Machine.McFunction mcFunc) {
+        ArrayList<Machine.Block> bfsMbList = new ArrayList<>();
         for (Machine.Block mb : mcFunc.mbList) {
             // }
             // for (Machine.Block mb = mcFunc.getBeginMB(); mb != mcFunc.getEndMB(); mb = (Machine.Block) mb.getNext()) {
             //     final Machine.Block mb = mb;
             mb.liveUseSet.clear();
             mb.defSet.clear();
-            for(MachineInst mi : mb.miList){
-            // for (MachineInst mi = mb.getBeginMI(); mi != mb.getEndMI(); mi = (MachineInst) mi.getNext()) {
+            for (MachineInst mi : mb.miList) {
+                // for (MachineInst mi = mb.getBeginMI(); mi != mb.getEndMI(); mi = (MachineInst) mi.getNext()) {
                 ArrayList<Machine.Operand> defs = mi.defOpds;
                 ArrayList<Machine.Operand> uses = mi.useOpds;
                 // liveuse 计算
@@ -41,26 +42,21 @@ public class TrivialRegAllocator {
         boolean changed = true;
         while (changed) {
             changed = false;
-            for(Machine.Block mb : mcFunc.mbList){
-            // for (Machine.Block mb = mcFunc.getBeginMB(); mb != mcFunc.getEndMB(); mb = (Machine.Block) mb.getNext()) {
-            //     final Machine.Block finalMb = mb;
+            for (Machine.Block mb : mcFunc.mbList) {
                 HashSet<Machine.Operand> newLiveOut = new HashSet<>();
-                mb.successor.forEach(succMB -> newLiveOut.addAll(succMB.liveInSet));
-                if (newLiveOut.size() != mb.liveOutSet.size()) {
-                    changed = true;
-                } else if (newLiveOut.containsAll(mb.liveOutSet)) {
-                    changed = true;
-                }
-                if (changed) {
-                    mb.liveOutSet = newLiveOut;
-                    HashSet<Machine.Operand> newLiveIn = mb.liveUseSet;
-                    mb.liveOutSet.forEach(out -> {
-                        if (mb.defSet.contains(out)) {
-                            newLiveIn.add(out);
+                for (Machine.Block succMB : mb.successor) {
+                    for (Machine.Operand liveIn : succMB.liveInSet) {
+                        if (mb.liveOutSet.add(liveIn)) {
+                            newLiveOut.add(liveIn);
                         }
-                    });
-                    mb.liveInSet = newLiveIn;
+                    }
                 }
+                changed = newLiveOut.size() > 0;
+                newLiveOut.forEach(newOut -> {
+                    if (!mb.defSet.contains(newOut)) {
+                        mb.liveInSet.add(newOut);
+                    }
+                });
             }
         }
     }

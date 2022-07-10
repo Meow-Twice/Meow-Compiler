@@ -110,6 +110,6 @@ public class Loop {
     }
 
     public void addLatch(BasicBlock bb) {
-        latchs.add(bb)
+        latchs.add(bb);
     }
 }

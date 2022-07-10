@@ -30,6 +30,8 @@ public class Visitor {
     public static SymTable currentSymTable = new SymTable(); // 当前符号表, 初始时是全局符号表
     // 用于记录loop的单cond中的累计第几个, 不可直接public获取, 很危险
     // 在循环相关的所有visitLOrExp和visitLAndExp之前++可保证递增且唯一
+    // 上面这个想法是错的, visitLOrExp内进第一个visitLAndExp之前加加会导致第一个andCond有两批编号
+    // 应该在每一次切换基本块时++
     private int curLoopCondCount = 0;
     //实时更新表示Value是否在循环中的Cond里
     public boolean inLoopCond = false;
@@ -429,7 +431,6 @@ public class Visitor {
             nextBlock = new BasicBlock(curFunc, curLoop); // 实为trueBlock的前驱
             flag = true;
         }
-        curLoopCondCount++;
         Value first = visitCondLAnd(lOrExp.getFirst(), nextBlock);
         assert first.getType().isInt1Type();
         Iterator<Token> iterOp = lOrExp.getOperators().listIterator();
@@ -487,9 +488,9 @@ public class Visitor {
         BasicBlock condBlock = new BasicBlock(curFunc, curLoop);
         condBlock.setLoopStart();
         new Jump(condBlock, curBB);
-        curBB = condBlock;
         BasicBlock body = new BasicBlock(curFunc, curLoop);
         BasicBlock follow = new BasicBlock(curFunc, curLoop.getParentLoop());
+        curBB = condBlock;
         inLoopCond =true;
         curLoopCondCount++;
         Value cond = visitCondLOr(whileStmt.getCond(), body, follow);

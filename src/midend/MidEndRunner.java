@@ -41,6 +41,12 @@ public class MidEndRunner {
         GVNAndGCM gvnAndGCM = new GVNAndGCM(functions);
         gvnAndGCM.Run();
 
+        LoopInfo loopInfo = new LoopInfo(functions);
+        loopInfo.Run();
+
+        LCSSA lcssa = new LCSSA(functions);
+        lcssa.Run();
+
 //        RemovePhi removePhi = new RemovePhi(functions);
 //        removePhi.Run();
     }

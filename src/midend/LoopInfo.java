@@ -13,6 +13,7 @@ public class LoopInfo {
     //TODO:
 
     private ArrayList<Function> functions;
+    private Function nowFunc;
 
     public LoopInfo(ArrayList<Function> functions) {
         this.functions = functions;
@@ -31,12 +32,17 @@ public class LoopInfo {
 
     //标记loop的 entering header exiting latch exit
     private void makeInfoForFunc(Function function) {
+        nowFunc = function;
         HashSet<BasicBlock> know = new HashSet<>();
         BasicBlock entry = function.getBeginBB();
         DFS(entry, know);
     }
 
     private void DFS(BasicBlock bb, HashSet<BasicBlock> know) {
+        if (bb.isLoopHeader()) {
+            nowFunc.addLoopHead(bb);
+        }
+
         if (know.contains(bb)) {
             return;
         }
@@ -64,8 +70,8 @@ public class LoopInfo {
 
         for (BasicBlock next:bb.getSuccBBs()) {
             //后向边 latch
-            if (know.contains(next)) {
-                assert next.isLoopHeader();
+            if (know.contains(next) && next.isLoopHeader()) {
+                //assert next.isLoopHeader();
                 Loop loop = bb.getLoop();
                 loop.addLatch(bb);
             }
@@ -75,6 +81,7 @@ public class LoopInfo {
                 loop.addExiting(bb);
                 loop.addExit(next);
             }
+            DFS(next, know);
         }
     }
 }

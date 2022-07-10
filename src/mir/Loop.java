@@ -27,12 +27,12 @@ public class Loop {
     private HashSet<BasicBlock> nowLevelBB = new HashSet<>();
 
     private BasicBlock header;
-    private HashSet<BasicBlock> enterings;
-    private HashSet<BasicBlock> exitings;
-    private HashSet<BasicBlock> latchs;
-    private HashSet<BasicBlock> exits;
+    private HashSet<BasicBlock> enterings = new HashSet<>();
+    private HashSet<BasicBlock> exitings = new HashSet<>();
+    private HashSet<BasicBlock> latchs = new HashSet<>();
+    private HashSet<BasicBlock> exits = new HashSet<>();
 
-    private HashMap<Integer, HashSet<Instr>> conds;
+    private HashMap<Integer, HashSet<Instr>> conds = new HashMap<>();
 
     public Loop(Loop parentLoop) {
         this.hash = loop_num++;
@@ -138,5 +138,13 @@ public class Loop {
             conds.put(condNum, new HashSet<>());
         }
         conds.get(condNum).add(instr);
+    }
+
+    public HashSet<BasicBlock> getNowLevelBB() {
+        return nowLevelBB;
+    }
+
+    public HashSet<BasicBlock> getExits() {
+        return exits;
     }
 }

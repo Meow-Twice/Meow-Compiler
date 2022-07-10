@@ -90,6 +90,7 @@ public class LCSSA {
             Instr user = use.getUser();
             BasicBlock userBB = user.parentBB();
             //PHI对其的使用其实是在PHI的前驱对它的使用
+            //与GCM的scheduleLate采用同一思想
             if (user instanceof Instr.Phi) {
                 int index = use.getIdx();
                 userBB = userBB.getPrecBBs().get(index);

@@ -24,9 +24,18 @@ import static mir.type.Type.BasicType.*;
  * 遍历语法树, 生成 IR 代码
  */
 public class Visitor {
+    public static final Visitor VISITOR = new Visitor();
     public boolean __ONLY_PARSE_OUTSIDE_DIM = true;
     private final Manager manager = Manager.MANAGER; // 最终生成的 IR
     public static SymTable currentSymTable = new SymTable(); // 当前符号表, 初始时是全局符号表
+    // 用于记录loop的单cond中的累计第几个, 不可直接public获取, 很危险
+    // 在循环相关的所有visitLOrExp和visitLAndExp之前++可保证递增且唯一
+    private int curLoopCondCount = 0;
+    //实时更新表示Value是否在循环中的Cond里
+    public boolean inLoopCond = false;
+    public int getLoopCondCount(){
+        return inLoopCond ? curLoopCondCount : -1;
+    }
     private Function curFunc = null; // 当前正在分析的函数
     private BasicBlock curBB = null; // 当前所在的基本块
     private boolean isGlobal = true;
@@ -41,7 +50,7 @@ public class Visitor {
     private final Stack<BasicBlock> loopHeads = new Stack<>(); // for continue;
     private final Stack<BasicBlock> loopFollows = new Stack<>(); // for break;
 
-    public Visitor() {
+    private Visitor() {
     }
 
     private Value trimTo(Value value, BasicType targetType) /*throws SemanticException*/ {
@@ -272,11 +281,11 @@ public class Visitor {
         // 去符号表拿出指向这个左值的指针
         String ident = lVal.getIdent().getContent();
         Symbol symbol = currentSymTable.get(ident, true);
-        if(symbol.isConstant() && lVal.getIndexes().isEmpty()){
+        if (symbol.isConstant() && lVal.getIndexes().isEmpty()) {
             // return symbol.getInitial();
             // assert !needPointer;
-            assert  symbol.getInitial() instanceof Initial.ValueInit;
-            return ((Initial.ValueInit)symbol.getInitial()).getValue();
+            assert symbol.getInitial() instanceof Initial.ValueInit;
+            return ((Initial.ValueInit) symbol.getInitial()).getValue();
         }
         Value pointer = symbol.getValue();
         // assert pointer instanceof Alloc;
@@ -395,6 +404,7 @@ public class Visitor {
             BasicBlock nextBlock = new BasicBlock(curFunc, curLoop); // 实为trueBlock的前驱
             new Branch(first, nextBlock, falseBlock, curBB);
             curBB = nextBlock;
+            curLoopCondCount++;
             first = trimTo(visitExp(nextExp), I1_TYPE);
         }
         return first;
@@ -419,6 +429,7 @@ public class Visitor {
             nextBlock = new BasicBlock(curFunc, curLoop); // 实为trueBlock的前驱
             flag = true;
         }
+        curLoopCondCount++;
         Value first = visitCondLAnd(lOrExp.getFirst(), nextBlock);
         assert first.getType().isInt1Type();
         Iterator<Token> iterOp = lOrExp.getOperators().listIterator();
@@ -433,6 +444,7 @@ public class Visitor {
             }
             new Branch(first, trueBlock, nextBlock, curBB);
             curBB = nextBlock;
+            curLoopCondCount++;
             first = visitCondLAnd(nextExp, falseBlock);
             assert first.getType().isInt1Type();
         }
@@ -478,9 +490,12 @@ public class Visitor {
         curBB = condBlock;
         BasicBlock body = new BasicBlock(curFunc, curLoop);
         BasicBlock follow = new BasicBlock(curFunc, curLoop.getParentLoop());
+        inLoopCond =true;
+        curLoopCondCount++;
         Value cond = visitCondLOr(whileStmt.getCond(), body, follow);
         assert cond.getType().isInt1Type();
         new Branch(cond, body, follow, curBB);
+        inLoopCond = false;
         curBB = body;
         loopHeads.push(condBlock);
         loopFollows.push(follow);

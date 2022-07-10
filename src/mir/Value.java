@@ -1,5 +1,6 @@
 package mir;
 
+import frontend.Visitor;
 import mir.type.Type;
 import util.ILinkNode;
 

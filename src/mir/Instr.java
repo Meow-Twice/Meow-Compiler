@@ -1,5 +1,6 @@
 package mir;
 
+import frontend.Visitor;
 import mir.type.Type;
 import mir.type.Type.*;
 
@@ -72,6 +73,16 @@ public class Instr extends Value {
     protected ArrayList<Use> useList;
     protected ArrayList<Value> useValueList;
 
+    public int loopCondCount;
+
+    public boolean isInWhileCond(){
+        return loopCondCount > 0;
+    }
+
+    public int getLoopCondCount(){
+        return loopCondCount;
+    }
+
     //空指令用于在BB中做链表头/尾
     public Instr() {
         super();
@@ -79,6 +90,7 @@ public class Instr extends Value {
     }
 
     private void init() {
+        loopCondCount = Visitor.VISITOR.getLoopCondCount();
         hash = "Instr " + LOCAL_COUNT;
         prefix = LOCAL_PREFIX;
         name = LOCAL_NAME_PREFIX + LOCAL_COUNT++;

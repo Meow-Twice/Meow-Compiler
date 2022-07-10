@@ -2,6 +2,7 @@ package midend;
 
 import mir.BasicBlock;
 import mir.Function;
+import mir.Instr;
 import mir.Loop;
 
 import java.util.ArrayList;
@@ -41,6 +42,17 @@ public class LoopInfo {
         }
 
         know.add(bb);
+
+        if (bb.getLoopDep() > 0) {
+            Instr instr = bb.getBeginInstr();
+            Loop loop = bb.getLoop();
+            while (instr.getNext() != null) {
+                if (instr.isInWhileCond()) {
+                    loop.addCond(instr);
+                }
+                instr = (Instr) instr.getNext();
+            }
+        }
 
         //entering
         if (bb.isLoopHeader()) {

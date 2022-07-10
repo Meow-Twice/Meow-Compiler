@@ -10,6 +10,7 @@ public class Loop {
     private static int loop_num = 0;
 
     private Loop() {
+        this.hash = -1;
     }
 
     private String funcName = "";
@@ -132,6 +133,10 @@ public class Loop {
     }
 
     public void addCond(Instr instr) {
-
+        int condNum = instr.getLoopCondCount();
+        if (!conds.containsKey(condNum)) {
+            conds.put(condNum, new HashSet<>());
+        }
+        conds.get(condNum).add(instr);
     }
 }

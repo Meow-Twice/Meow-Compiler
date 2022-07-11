@@ -13,6 +13,7 @@ import java.util.Objects;
  */
 public class Instr extends Value {
 
+    //TODO:删除reflect
     public static int LOCAL_COUNT = 0;
 
     public static int empty_instr_cnt = 0;

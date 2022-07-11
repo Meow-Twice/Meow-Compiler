@@ -44,12 +44,6 @@ public class MidEndRunner {
         LoopInfo loopInfo = new LoopInfo(functions);
         loopInfo.Run();
 
-//        try {
-//            Manager.MANAGER.outputLLVM();
-//        } catch (Exception e) {
-//
-//        }
-
         LCSSA lcssa = new LCSSA(functions);
         lcssa.Run();
 

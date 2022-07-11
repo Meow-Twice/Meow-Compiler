@@ -4,7 +4,6 @@ import frontend.semantic.Initial;
 import frontend.semantic.symbol.Symbol;
 import mir.Function;
 import mir.GlobalVal;
-import mir.Value;
 import mir.type.Type;
 import util.FileDealer;
 
@@ -26,6 +25,9 @@ public class Manager {
     public static boolean external = false;
     public final HashMap<GlobalVal.GlobalValue, Initial> globals = new HashMap<>();
     private final HashMap<String, Function> functions = new HashMap<>(); // 函数定义
+
+    public int RK = 5;
+    public int SK = 5;
 
     public ArrayList<Function> getFunctionList() {
         ArrayList<Function> list = new ArrayList<>();

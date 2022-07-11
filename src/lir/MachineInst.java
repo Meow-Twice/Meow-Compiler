@@ -10,7 +10,7 @@ import java.util.EnumMap;
 import static mir.Instr.Alu.Op.*;
 import static mir.Instr.Alu.Op.OR;
 
-public class MachineInst extends ILinkNode{
+public class MachineInst extends ILinkNode {
 
     public enum Tag {
         // Binary
@@ -67,8 +67,9 @@ public class MachineInst extends ILinkNode{
         }
     }
 
-    ;
-
+    public boolean isMove() {
+        return tag == Tag.Mv;
+    }
 
     Machine.Block mb;
     Tag tag;
@@ -139,7 +140,7 @@ public class MachineInst extends ILinkNode{
         }
     }
 
-    public void output(PrintStream os, Machine.McFunction f){
+    public void output(PrintStream os, Machine.McFunction f) {
         return;
     }
 }

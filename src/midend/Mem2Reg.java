@@ -156,7 +156,7 @@ public class Mem2Reg {
             //TODO:Rename
             Stack<Value> S = new Stack<>();
             Type type = ((Type.PointerType) instr.getType()).getInnerType();
-            RenameDFS(S, instr.parentBB().getFunction().getBeginBB(), useInstrs, defInstrs, type);
+            RenameDFS(S, instr.parentBB().getFunction().getBeginBB(), useInstrs, defInstrs);
         }
 
 
@@ -191,14 +191,14 @@ public class Mem2Reg {
         return true;
     }
 
-    public void RenameDFS(Stack<Value> S, BasicBlock X, HashSet<Instr> useInstrs, HashSet<Instr> defInstrs, Type type) {
+    public void RenameDFS(Stack<Value> S, BasicBlock X, HashSet<Instr> useInstrs, HashSet<Instr> defInstrs) {
         int cnt = 0;
         Instr A = X.getBeginInstr();
         while (A.getNext() != null) {
             if (!(A instanceof Instr.Phi) && useInstrs.contains(A)) {
                 assert A instanceof Instr.Load;
                 //A.modifyAllUseThisToUseA(S.peek());
-                A.modifyAllUseThisToUseA(getStackTopValue(S, type));
+                A.modifyAllUseThisToUseA(getStackTopValue(S));
             }
             if (defInstrs.contains(A)) {
                 assert A instanceof Instr.Store || A instanceof Instr.Phi;
@@ -222,7 +222,7 @@ public class Mem2Reg {
                 }
                 if (useInstrs.contains(instr)) {
                     //instr.modifyUse(S.peek(), bb.getPrecBBs().indexOf(X));
-                    instr.modifyUse(getStackTopValue(S, type), bb.getPrecBBs().indexOf(X));
+                    instr.modifyUse(getStackTopValue(S), bb.getPrecBBs().indexOf(X));
 
                     //instr.remove();
                 }
@@ -231,7 +231,7 @@ public class Mem2Reg {
         }
 
         for (BasicBlock next: X.getIdoms()) {
-            RenameDFS(S, next, useInstrs, defInstrs, type);
+            RenameDFS(S, next, useInstrs, defInstrs);
         }
 
         for (int i = 0; i < cnt; i++) {
@@ -246,7 +246,7 @@ public class Mem2Reg {
         return null;
     }
 
-    public Value getStackTopValue(Stack<Value> S, Type type) {
+    public Value getStackTopValue(Stack<Value> S) {
         if (S.empty()) {
 //            if (type.isFloatType()) {
 //                return new Constant.ConstantFloat(0);

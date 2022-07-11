@@ -26,7 +26,7 @@ public class MidEndRunner {
         GlobalValueLocalize globalValueLocalize = new GlobalValueLocalize(functions, globalValues);
         globalValueLocalize.Run();
 
-
+        //TODO:funcInline
 
         Mem2Reg mem2Reg = new Mem2Reg(functions);
         mem2Reg.Run();
@@ -43,6 +43,12 @@ public class MidEndRunner {
 
         LoopInfo loopInfo = new LoopInfo(functions);
         loopInfo.Run();
+
+//        try {
+//            Manager.MANAGER.outputLLVM();
+//        } catch (Exception e) {
+//
+//        }
 
         LCSSA lcssa = new LCSSA(functions);
         lcssa.Run();

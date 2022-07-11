@@ -3,7 +3,9 @@ package midend;
 import mir.*;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Stack;
 
 public class LCSSA {
 
@@ -60,29 +62,82 @@ public class LCSSA {
 //            }
 //            use = (Use) use.getNext();
 //        }
-    }
-
-    //TODO:获取某个value到达某个bb的定义
-    private HashSet<BasicBlock> getDomBB(BasicBlock bb) {
-        HashSet<BasicBlock> know = new HashSet<>();
-        DFS(bb, know);
-        return know;
-    }
-
-    private void DFS(BasicBlock bb, HashSet<BasicBlock> know) {
-        if (know.contains(bb)) {
-            return;
+        HashMap<Instr, Integer> useInstrMap = new HashMap<>();
+        HashSet<Instr> defInstrs = new HashSet<>();
+        Stack<Value> S = new Stack<>();
+        defInstrs.add(phi);
+        defInstrs.add((Instr) value);
+        Use use = value.getBeginUse();
+        while (use.getNext() != null) {
+            Instr user = use.getUser();
+            BasicBlock userBB = user.parentBB();
+            //PHI对其的使用其实是在PHI的前驱对它的使用
+            //与GCM的scheduleLate采用同一思想
+            if (user instanceof Instr.Phi) {
+                if (!user.equals(phi)) {
+                    use = (Use) use.getNext();
+                    continue;
+                }
+            }
+//            if (!userBB.getLoop().equals(loop)) {
+//                useInstrMap.put(use.getUser(), use.getIdx());
+//            }
+            useInstrMap.put(use.getUser(), use.getIdx());
+            use = (Use) use.getNext();
         }
-        know.add(bb);
+        RenameDFS(S, bb.getFunction().getBeginBB(), useInstrMap, defInstrs);
+    }
 
-        for (BasicBlock next: bb.getIdoms()) {
-            DFS(next, know);
+    public void RenameDFS(Stack<Value> S, BasicBlock X, HashMap<Instr, Integer> useInstrMap, HashSet<Instr> defInstrs) {
+        int cnt = 0;
+        Instr A = X.getBeginInstr();
+        while (A.getNext() != null) {
+            if (!(A instanceof Instr.Phi) && useInstrMap.containsKey(A)) {
+                A.modifyUse(getStackTopValue(S), useInstrMap.get(A));
+            }
+            if (defInstrs.contains(A)) {
+                S.push(A);
+                cnt++;
+            }
+            A = (Instr) A.getNext();
+        }
+
+        ArrayList<BasicBlock> Succ = X.getSuccBBs();
+        for (int i = 0; i < Succ.size(); i++) {
+            BasicBlock bb = Succ.get(i);
+            Instr instr = Succ.get(i).getBeginInstr();
+            while (instr.getNext() != null) {
+                if (!(instr instanceof Instr.Phi)) {
+                    break;
+                }
+                if (useInstrMap.containsKey(instr)) {
+                    instr.modifyUse(getStackTopValue(S), bb.getPrecBBs().indexOf(X));
+                }
+                instr = (Instr) instr.getNext();
+            }
+        }
+
+        for (BasicBlock next: X.getIdoms()) {
+            RenameDFS(S, next, useInstrMap, defInstrs);
+        }
+
+        for (int i = 0; i < cnt; i++) {
+            S.pop();
         }
     }
+
+    public Value getStackTopValue(Stack<Value> S) {
+        if (S.empty()) {
+            return new GlobalVal.UndefValue();
+        }
+        return S.peek();
+    }
+
 
     //判断value是否在loop外被使用
     private boolean usedOutLoop(Value value, Loop loop) {
-        if (value instanceof Instr.Load) {
+        if (value instanceof Instr.Load
+                || value instanceof Instr.GetElementPtr || value instanceof Instr.Store) {
             return false;
         }
         Use use = value.getBeginUse();
@@ -98,11 +153,10 @@ public class LCSSA {
             if (!userBB.getLoop().equals(loop)) {
                 return true;
             }
-//            if (!use.getUser().parentBB().getLoop().equals(loop) && !(use.getUser() instanceof Instr.Phi)) {
-//                return true;
-//            }
             use = (Use) use.getNext();
         }
         return false;
     }
+
+
 }

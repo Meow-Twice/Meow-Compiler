@@ -13,8 +13,9 @@ import static lir.Machine.Operand.Type.PreColored;
 public class MICall extends MachineInst {
     McFunction mcFunction;
 
-    public MICall(Machine.Block insertAtEnd) {
+    public MICall(McFunction mcFunction,Machine.Block insertAtEnd) {
         super(Tag.Call, insertAtEnd);
+        this.mcFunction = mcFunction;
         genDefUse();
     }
 

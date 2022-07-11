@@ -10,7 +10,7 @@ import java.util.*;
 import java.util.HashMap;
 
 import static lir.Arm.Cond.*;
-import static lir.Arm.Regs.GPRs.sp;
+import static lir.Arm.Regs.GPRs.*;
 import static mir.type.DataType.I32;
 
 public class CodeGen {
@@ -251,6 +251,69 @@ public class CodeGen {
                 }
                 case bitcast -> {/*不用管*/}
                 case call -> {
+                    //move caller's r0-r3  to VR
+                    Instr.Call call_inst = (Instr.Call) instr;
+                    ArrayList<Value> param_list = call_inst.getParamList();
+                    if(!param_list.isEmpty()){
+                        //move r0 to VR0
+                        Machine.Operand vr0 = newVR();
+                        Machine.Operand r0 = new Machine.Operand(new Arm.Reg(I32, Arm.Regs.GPRs.r0));
+                        new MIMove(vr0,r0,curMB);
+                        //move param0 to r0
+                        if(value2opd.containsKey(param_list.get(0))){
+                            new MIMove(r0,value2opd.get(param_list.get(0)),curMB);
+                        }
+                    }
+
+                    if(param_list.size()>1){
+                        //move r1 to VR1
+                        Machine.Operand vr1 = newVR();
+                        Machine.Operand r1 = new Machine.Operand(new Arm.Reg(I32, Arm.Regs.GPRs.r1));
+                        new MIMove(vr1,r1,curMB);
+                        //move param1 to r1
+                        if(value2opd.containsKey(param_list.get(1))){
+                            new MIMove(r1,value2opd.get(param_list.get(1)),curMB);
+                        }
+                    }
+                    if(param_list.size()>2){
+                        //move r2 to VR2
+                        Machine.Operand vr2 = newVR();
+                        Machine.Operand r2 = new Machine.Operand(new Arm.Reg(I32, Arm.Regs.GPRs.r2));
+                        new MIMove(vr2,r2,curMB);
+                        //move param2 to r2
+                        if(value2opd.containsKey(param_list.get(2))){
+                            new MIMove(r2,value2opd.get(param_list.get(2)),curMB);
+                        }
+                    }
+                    if(param_list.size()>3){
+                        //move r3 to VR3
+                        Machine.Operand vr3 = newVR();
+                        Machine.Operand r3= new Machine.Operand(new Arm.Reg(I32, Arm.Regs.GPRs.r3));
+                        new MIMove(vr3,r3,curMB);
+                        //move param3 to r3
+                        if(value2opd.containsKey(param_list.get(3))){
+                            new MIMove(r3,value2opd.get(param_list.get(3)),curMB);
+                        }
+                    }
+                    if(param_list.size()>4){
+                        //push
+                        for(int i = 4;i<param_list.size();i++){
+                            Value param = param_list.get(i);
+                            int offset_imm = (i-3)*-4;
+                            Machine.Operand data = value2opd.get(param);
+                            Machine.Operand addr = new Machine.Operand(new Arm.Reg(I32, sp));
+                            Machine.Operand offset = new Machine.Operand(I32, offset_imm);
+                            new MIStore(data, addr, offset, curMB);
+                        }
+                    }
+                    // 栈空间移位
+                    func2mcFunc.get(call_inst.getFunc()).addStack((param_list.size()-4)*4);
+                    Machine.Operand dOp = new Machine.Operand(new Arm.Reg(I32, sp));
+                    Machine.Operand lOp = dOp;
+                    Machine.Operand rOp = new Machine.Operand(I32,(param_list.size()-4)*4);
+                    new MIBinary(MachineInst.Tag.Sub,dOp,lOp,rOp,curMB);
+                    //call
+                    new MICall(func2mcFunc.get(call_inst.getFunc()),curMB);
                 }
                 case phi -> throw new AssertionError("Backend has phi: " + instr);
                 case pcopy -> {
@@ -283,6 +346,7 @@ public class CodeGen {
             GlobalVal.GlobalValue glob = entry.getKey();
             Initial init = entry.getValue();
             // TODO for yyf
+
         }
     }
 

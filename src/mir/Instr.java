@@ -1,6 +1,7 @@
 package mir;
 
 import frontend.Visitor;
+import midend.CloneInfoMap;
 import mir.type.Type;
 import mir.type.Type.*;
 
@@ -230,6 +231,11 @@ public class Instr extends Value {
         return true;
     }
 
+    //把指令复制到指定bb
+    public Instr cloneToBB(BasicBlock bb) {
+        return null;
+    }
+
     // 二元算术运算, 结果是 i32 型
     public static class Alu extends Instr {
 
@@ -319,6 +325,13 @@ public class Instr extends Value {
             return useValueList.get(0) instanceof Constant && useValueList.get(1) instanceof Constant;
         }
 
+        @Override
+        public Instr cloneToBB(BasicBlock bb) {
+            Instr ret = new Alu(getType(), getOp(),
+                    CloneInfoMap.getReflectedValue(getRVal1()), CloneInfoMap.getReflectedValue(getRVal2()), bb);
+            CloneInfoMap.addValueReflect(this, ret);
+            return ret;
+        }
     }
 
     // 比较运算, 结果是 i1 型
@@ -384,6 +397,14 @@ public class Instr extends Value {
         public Value getRVal2() {
             return useValueList.get(1);
         }
+
+        @Override
+        public Instr cloneToBB(BasicBlock bb) {
+            Instr ret =  new Icmp(getOp(), CloneInfoMap.getReflectedValue(getRVal1()),
+                    CloneInfoMap.getReflectedValue(getRVal2()), bb);
+            CloneInfoMap.addValueReflect(this, bb);
+            return ret;
+        }
     }
 
     public static class Fneg extends Instr {
@@ -410,6 +431,8 @@ public class Instr extends Value {
         public Value getRVal1() {
             return useValueList.get(0);
         }
+
+        //TODO:当前构造方法没有使用,当需要使用的时候,需要重写cloneToBB方法
     }
 
     // 比较运算, 结果是 i1 型
@@ -472,6 +495,14 @@ public class Instr extends Value {
         public Value getRVal2() {
             return useValueList.get(1);
         }
+
+        @Override
+        public Instr cloneToBB(BasicBlock bb) {
+            Instr ret =  new Fcmp(getOp(), CloneInfoMap.getReflectedValue(getRVal1()),
+                    CloneInfoMap.getReflectedValue(getRVal2()), bb);
+            CloneInfoMap.addValueReflect(this, ret);
+            return ret;
+        }
     }
 
     // 零扩展运算, 结果是 i32 型
@@ -497,6 +528,13 @@ public class Instr extends Value {
 
         public Value getRVal1() {
             return useValueList.get(0);
+        }
+
+        @Override
+        public Instr cloneToBB(BasicBlock bb) {
+            Instr ret =  new Zext(CloneInfoMap.getReflectedValue(getRVal1()), bb);
+            CloneInfoMap.addValueReflect(this, ret);
+            return ret;
         }
     }
 
@@ -524,6 +562,13 @@ public class Instr extends Value {
         public Value getRVal1() {
             return useValueList.get(0);
         }
+
+        @Override
+        public Instr cloneToBB(BasicBlock bb) {
+            Instr ret = new FPtosi(CloneInfoMap.getReflectedValue(getRVal1()), bb);
+            CloneInfoMap.addValueReflect(this, ret);
+            return ret;
+        }
     }
 
     public static class SItofp extends Instr {
@@ -549,6 +594,13 @@ public class Instr extends Value {
 
         public Value getRVal1() {
             return useValueList.get(0);
+        }
+
+        @Override
+        public Instr cloneToBB(BasicBlock bb) {
+            Instr ret = new SItofp(CloneInfoMap.getReflectedValue(getRVal1()), bb);
+            CloneInfoMap.addValueReflect(this, ret);
+            return ret;
         }
     }
 
@@ -584,6 +636,12 @@ public class Instr extends Value {
             return contentType instanceof ArrayType;
         }
 
+        @Override
+        public Instr cloneToBB(BasicBlock bb) {
+            Instr ret = new Alloc(contentType, bb);
+            CloneInfoMap.addValueReflect(this, ret);
+            return ret;
+        }
     }
 
     // 读取内存
@@ -610,6 +668,12 @@ public class Instr extends Value {
             return this.useValueList.get(0);
         }
 
+        @Override
+        public Instr cloneToBB(BasicBlock bb) {
+            Instr ret = new Load(CloneInfoMap.getReflectedValue(getPointer()), bb);
+            CloneInfoMap.addValueReflect(this, ret);
+            return ret;
+        }
     }
 
     // 写入内存
@@ -646,6 +710,14 @@ public class Instr extends Value {
         public Value getPointer() {
             return this.useValueList.get(1);
         }
+
+        @Override
+        public Instr cloneToBB(BasicBlock bb) {
+            Instr ret = new Store(CloneInfoMap.getReflectedValue(getValue()),
+                    CloneInfoMap.getReflectedValue(getPointer()), bb);
+            CloneInfoMap.addValueReflect(this, ret);
+            return ret;
+        }
     }
 
     // 数组元素寻址, 每个该指令对指针/数组解引用一层, 返回值含义等价于 `base[offset]`
@@ -674,7 +746,7 @@ public class Instr extends Value {
             return strBD.toString();
         }
 
-        public Type getBaseType() {
+        public Type getPointeeType() {
             return ((PointerType) type).getInnerType();
         }
 
@@ -693,6 +765,18 @@ public class Instr extends Value {
         public Value getIdxValueOf(int i) {
             return useValueList.get(i + 1);
         }
+
+        @Override
+        public Instr cloneToBB(BasicBlock bb) {
+            ArrayList<Value> reflectedIdxList = new ArrayList<>();
+            for (Value value: getIdxList()) {
+                reflectedIdxList.add(CloneInfoMap.getReflectedValue(value));
+            }
+            Instr ret = new GetElementPtr(getPointeeType(), CloneInfoMap.getReflectedValue(getPtr()),
+                    reflectedIdxList, bb);
+            CloneInfoMap.addValueReflect(this, ret);
+            return ret;
+        }
     }
 
     public static class Bitcast extends Instr {
@@ -710,6 +794,17 @@ public class Instr extends Value {
         @Override
         public String toString() {
             return getName() + " = bitcast " + getSrcValue().getDescriptor() + " to " + getType();
+        }
+
+        public Type getDstType() {
+            return getType();
+        }
+
+        @Override
+        public Instr cloneToBB(BasicBlock bb) {
+            Instr ret = new Bitcast(CloneInfoMap.getReflectedValue(getSrcValue()), getDstType(), bb);
+            CloneInfoMap.addValueReflect(this, ret);
+            return ret;
         }
     }
 

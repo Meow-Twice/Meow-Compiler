@@ -1,6 +1,7 @@
 package mir;
 
 import lir.Machine;
+import midend.CloneInfoMap;
 import mir.type.Type;
 
 import java.util.ArrayList;
@@ -319,7 +320,24 @@ public class BasicBlock extends Value {
         return loop;
     }
 
+    //把当前BB复制到指定函数
     public BasicBlock cloneToFunc(Function function) {
+        // 是循环内的BB, 复制的时候,
+        // 先创建新的循环, 然后把BB塞到新的loop里面
+        Loop srcLoop = this.loop;
+        Loop tagLoop = new Loop(loop.getParentLoop());
+        CloneInfoMap.addLoopReflect(srcLoop, tagLoop);
+
+        BasicBlock ret = new BasicBlock(function, this.loop);
+        CloneInfoMap.addValueReflect(this, ret);
+        if (this.isLoopHeader) {
+            tagLoop.setHeader(ret);
+        }
+        Instr instr = this.getBeginInstr();
+        while (instr.getNext() != null) {
+
+            instr = (Instr) instr.getNext();
+        }
         return null;
     }
 }

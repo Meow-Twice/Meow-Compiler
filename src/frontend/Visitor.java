@@ -32,7 +32,7 @@ public class Visitor {
     // 在循环相关的所有visitLOrExp和visitLAndExp之前++可保证递增且唯一
     // 上面这个想法是错的, visitLOrExp内进第一个visitLAndExp之前加加会导致第一个andCond有两批编号
     // 应该在每一次切换基本块时++
-    private int curLoopCondCount = 0;
+    public int curLoopCondCount = 0;
     //实时更新表示Value是否在循环中的Cond里
     public boolean inLoopCond = false;
     public int getLoopCondCount(){

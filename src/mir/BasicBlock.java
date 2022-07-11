@@ -318,4 +318,8 @@ public class BasicBlock extends Value {
     public Loop getLoop() {
         return loop;
     }
+
+    public BasicBlock cloneToFunc(Function function) {
+        return null;
+    }
 }

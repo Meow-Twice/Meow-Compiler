@@ -150,6 +150,16 @@ public class Loop {
         return exits;
     }
 
+
+    public HashMap<Integer, HashSet<Instr>> getConds() {
+        return conds;
+    }
+
+    public HashSet<BasicBlock> getEnterings() {
+        return enterings;
+    }
+
+
     //把一个循环复制到指定函数
     public void cloneToFunc(Function function) {
         for (BasicBlock bb: nowLevelBB) {

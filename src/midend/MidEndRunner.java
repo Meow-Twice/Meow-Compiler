@@ -72,12 +72,12 @@ public class MidEndRunner {
         LCSSA lcssa = new LCSSA(functions);
         lcssa.Run();
 
-//        BranchLift branchLift = new BranchLift(functions);
-//        branchLift.Run();
-//
-//        reMakeCFGAndLoopInfo();
-//
-//        Pass();
+        BranchLift branchLift = new BranchLift(functions);
+        branchLift.Run();
+
+        reMakeCFGAndLoopInfo();
+
+        Pass();
     }
 
 }

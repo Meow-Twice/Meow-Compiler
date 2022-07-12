@@ -33,11 +33,17 @@ public class Visitor {
     // 上面这个想法是错的, visitLOrExp内进第一个visitLAndExp之前加加会导致第一个andCond有两批编号
     // 应该在每一次切换基本块时++
     public int curLoopCondCount = 0;
-    //实时更新表示Value是否在循环中的Cond里
+
+    // 实时更新表示Instr是否在循环中
+    public boolean inLoop = false;
+
+    // 实时更新表示Instr是否在循环包含的Cond中
     public boolean inLoopCond = false;
-    public int getLoopCondCount(){
+
+    public int getLoopCondCount() {
         return inLoopCond ? curLoopCondCount : -1;
     }
+
     private Function curFunc = null; // 当前正在分析的函数
     private BasicBlock curBB = null; // 当前所在的基本块
     private boolean isGlobal = true;
@@ -385,6 +391,18 @@ public class Visitor {
         }
     }
 
+    private void setLoopCond(){
+        if(inLoop){
+            inLoopCond = true;
+        }
+    }
+
+    private void dealLoopCondCount() {
+        if (inLoopCond) {
+            curLoopCondCount++;
+        }
+    }
+
     /***
      * 出来的时候保证curBB为最后一个条件所在的块，不用Jump
      * @param exp
@@ -406,7 +424,7 @@ public class Visitor {
             BasicBlock nextBlock = new BasicBlock(curFunc, curLoop); // 实为trueBlock的前驱
             new Branch(first, nextBlock, falseBlock, curBB);
             curBB = nextBlock;
-            curLoopCondCount++;
+            dealLoopCondCount();
             first = trimTo(visitExp(nextExp), I1_TYPE);
         }
         return first;
@@ -445,7 +463,7 @@ public class Visitor {
             }
             new Branch(first, trueBlock, nextBlock, curBB);
             curBB = nextBlock;
-            curLoopCondCount++;
+            dealLoopCondCount();
             first = visitCondLAnd(nextExp, falseBlock);
             assert first.getType().isInt1Type();
         }
@@ -463,19 +481,25 @@ public class Visitor {
         }
         BasicBlock followBlock = new BasicBlock(curFunc, curLoop);
         if (hasElseBlock) {
+            setLoopCond();
+            dealLoopCondCount();
             Value cond = visitCondLOr(ifStmt.getCond(), thenBlock, elseBlock);
             assert cond.getType().isInt1Type();
             new Branch(cond, thenBlock, elseBlock, curBB);
             curBB = thenBlock;
+            inLoopCond = false;
             visitStmt(thenTarget);
             new Jump(followBlock, curBB);
             curBB = elseBlock;
             visitStmt(elseTarget);
         } else {
+            setLoopCond();
+            dealLoopCondCount();
             Value cond = visitCondLOr(ifStmt.getCond(), thenBlock, followBlock);
             assert cond.getType().isInt1Type();
             new Branch(cond, thenBlock, followBlock, curBB);
             curBB = thenBlock;
+            inLoopCond = false;
             visitStmt(thenTarget); // currentBlock may be modified
         }
         new Jump(followBlock, curBB);
@@ -491,19 +515,21 @@ public class Visitor {
         BasicBlock body = new BasicBlock(curFunc, curLoop);
         BasicBlock follow = new BasicBlock(curFunc, curLoop.getParentLoop());
         curBB = condBlock;
-        inLoopCond =true;
-        curLoopCondCount++;
+        inLoop = true;
+        setLoopCond();
+        dealLoopCondCount();
         Value cond = visitCondLOr(whileStmt.getCond(), body, follow);
         assert cond.getType().isInt1Type();
         new Branch(cond, body, follow, curBB);
-        inLoopCond = false;
         curBB = body;
+        inLoopCond = false;
         loopHeads.push(condBlock);
         loopFollows.push(follow);
         visitStmt(whileStmt.getBody());
         loopHeads.pop();
         loopFollows.pop();
         new Jump(condBlock, curBB);
+        inLoop = false;
         curBB = follow;
         curLoop = curLoop.getParentLoop();
     }

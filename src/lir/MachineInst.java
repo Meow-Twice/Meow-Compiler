@@ -86,6 +86,7 @@ public class MachineInst extends ILinkNode {
         mb.insertAtEnd(this);
     }
 
+
     /*
     init and insert at end of the bb
     */

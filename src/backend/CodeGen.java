@@ -347,7 +347,12 @@ public class CodeGen {
             GlobalVal.GlobalValue glob = entry.getKey();
             Initial init = entry.getValue();
             // TODO for yyf
-
+            //load global addr at the head of the entry bb
+            GlobalVal.GlobalValue globalValue = (GlobalVal.GlobalValue) glob;
+            MIGlobal new_inst = new MIGlobal(globalValue,curMachineFunc.getBeginMB());
+            //allocate virtual reg
+            Machine.Operand vr = newVR(globalValue);
+            new_inst.dOpd = vr;
         }
     }
 

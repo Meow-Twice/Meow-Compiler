@@ -6,15 +6,20 @@ import mir.GlobalVal;
 import java.io.PrintStream;
 
 public class MIGlobal extends MachineInst{
-    Machine.Operand dOpd;
+    public Machine.Operand dOpd;
 
     // GlobalVal.GlobalValue里有所需的一切信息
     GlobalVal.GlobalValue globalValue;
-    public MIGlobal(Ast.Def def, GlobalVal.GlobalValue globalValue, boolean isFloat){
+    public MIGlobal(GlobalVal.GlobalValue globalValue, boolean isFloat){
         super(Tag.Global,isFloat);
         this.globalValue = globalValue;
     }
 
+    public MIGlobal(GlobalVal.GlobalValue globalValue,Machine.Block mb){
+        super(Tag.Global);
+        this.globalValue = globalValue;
+        mb.insertAtHead(this);
+    }
     @Override
     public void genDefUse() {
         defOpds.add(dOpd);

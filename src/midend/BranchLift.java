@@ -68,10 +68,22 @@ public class BranchLift {
             } else {
                 System.err.println("error");
             }
+            entering.modifySuc(thenHead, transBB);
+            transBB.addPre(entering);
+            thenHead.modifyPre(entering, transBB);
+            elseHead.modifyPre(entering, transBB);
+
+            transBB.addPre(entering);
         }
 
         //Clone br
-        //transBB --> thenHead & elseHead
+        // entering --> transBB
+        // transBB --> thenHead & elseHead
+        transBB.addSuc(thenHead);
+        transBB.addSuc(elseHead);
+
+
+        Instr.Branch elseBr = (Instr.Branch) CloneInfoMap.getReflectedValue(thenBr);
         Instr brInTransBB = thenBr.cloneToBB(transBB);
         brInTransBB.modifyUse(thenHead, 1);
         brInTransBB.modifyUse(elseHead, 2);
@@ -79,14 +91,47 @@ public class BranchLift {
         //修改thenLoop和elseLoop中的br为无条件转跳
         //thenBr.modifyUse(new Constant.ConstantInt(1), 0);
         Instr.Jump thenJump = new Instr.Jump((BasicBlock) thenBr.getUseValueList().get(1), thenBr.parentBB());
-        thenJump.insertBefore(thenBr);
+        thenBr.insertBefore(thenJump);
 
-        Instr.Branch elseBr = (Instr.Branch) CloneInfoMap.getReflectedValue(thenBr);
+
         //elseBr.modifyUse(new Constant.ConstantInt(0), 0);
         Instr.Jump elseJump = new Instr.Jump((BasicBlock) elseBr.getUseValueList().get(2), elseBr.parentBB());
-        elseJump.insertBefore(elseBr);
+        elseBr.insertBefore(elseJump);
 
         thenBr.remove();
         elseBr.remove();
+
+
+        //修改exiting的数据流
+        //
+        //修改exits的(冗余)phi
+        HashSet<BasicBlock> exits = thenLoop.getExits();
+        for (BasicBlock bb: exits) {
+            ArrayList<BasicBlock> addBBs = new ArrayList<>();
+            for (BasicBlock pre: bb.getPrecBBs()) {
+                if (CloneInfoMap.valueMap.containsKey(pre)) {
+                    addBBs.add((BasicBlock) CloneInfoMap.getReflectedValue(pre));
+                }
+            }
+            for (BasicBlock add: addBBs) {
+                bb.addPre(add);
+            }
+
+            Instr instr = bb.getBeginInstr();
+            while (instr.getNext() != null) {
+                if (instr instanceof Instr.Phi) {
+                    ArrayList<Value> adds = new ArrayList<>();
+                    for (Value used: instr.getUseValueList()) {
+                        if (CloneInfoMap.valueMap.containsKey(used)) {
+                            adds.add(CloneInfoMap.getReflectedValue(used));
+                        }
+                    }
+                    for (Value add: adds) {
+                        ((Instr.Phi) instr).addOptionalValue(add);
+                    }
+                }
+                instr = (Instr) instr.getNext();
+            }
+        }
     }
 }

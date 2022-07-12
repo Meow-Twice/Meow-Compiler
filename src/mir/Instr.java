@@ -416,7 +416,7 @@ public class Instr extends Value {
 //            Instr ret =  new Icmp(getOp(), CloneInfoMap.getReflectedValue(getRVal1()),
 //                    CloneInfoMap.getReflectedValue(getRVal2()), bb);
             Instr ret = new Icmp(getOp(), getRVal1(), getRVal2(), bb);
-            CloneInfoMap.addValueReflect(this, bb);
+            CloneInfoMap.addValueReflect(this, ret);
             return ret;
         }
     }
@@ -879,7 +879,9 @@ public class Instr extends Value {
 
         @Override
         public Instr cloneToBB(BasicBlock bb) {
-            Instr ret = new Call(getFunc(), getParamList(), bb);
+            ArrayList<Value> params = new ArrayList<>();
+            params.addAll(getParamList());
+            Instr ret = new Call(getFunc(), params, bb);
             CloneInfoMap.addValueReflect(this, ret);
             return ret;
         }
@@ -942,11 +944,37 @@ public class Instr extends Value {
             return useValueList.indexOf(value);
         }
 
+        public void addOptionalValue(Value value) {
+            int index = useValueList.size();
+            setUse(value, index);
+        }
+
         @Override
         public Instr cloneToBB(BasicBlock bb) {
-            Instr ret = new Phi(getType(), getOptionalValues(), bb);
+            ArrayList<Value> optionalValues = new ArrayList<>();
+            optionalValues.addAll(getOptionalValues());
+            Instr ret = new Phi(getType(), optionalValues, bb);
             CloneInfoMap.addValueReflect(this, ret);
             return ret;
+        }
+
+        public void simple(ArrayList<BasicBlock> oldPres, ArrayList<BasicBlock> newPres) {
+            ArrayList<Value> values = new ArrayList<>();
+            for (int i = 0; i < oldPres.size(); i++) {
+                if (!newPres.contains(oldPres.get(i))) {
+                    continue;
+                }
+                values.add(useValueList.get(i));
+            }
+            for (Use use: useList) {
+                use.remove();
+            }
+            useList.clear();
+            useValueList.clear();
+            int index = 0;
+            for (Value value: values) {
+                setUse(value, index++);
+            }
         }
     }
 

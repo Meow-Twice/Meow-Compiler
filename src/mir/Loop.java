@@ -2,6 +2,7 @@ package mir;
 
 import midend.CloneInfoMap;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Objects;
@@ -164,17 +165,30 @@ public class Loop {
     public void cloneToFunc(Function function) {
         for (BasicBlock bb: nowLevelBB) {
             bb.cloneToFunc(function);
-            CloneInfoMap.bbNeedFix.add(bb);
         }
         for (Loop next: childrenLoops) {
             next.cloneToFunc(function);
         }
     }
 
+    //修正当前BB对应BB的use-def,同时修正简单的数据流:前驱后继关系
     public void fix() {
-        for (BasicBlock bb: CloneInfoMap.bbNeedFix) {
-            bb.fix();
+        for (BasicBlock bb: nowLevelBB) {
+            BasicBlock needFixBB = (BasicBlock) CloneInfoMap.getReflectedValue(bb);
+
+            ArrayList<BasicBlock> pres = new ArrayList<>();
+            for (BasicBlock pre: bb.getPrecBBs()) {
+                pres.add((BasicBlock) CloneInfoMap.getReflectedValue(pre));
+            }
+            needFixBB.setPrecBBs(pres);
+
+            ArrayList<BasicBlock> succs = new ArrayList<>();
+            for (BasicBlock succ: bb.getSuccBBs()) {
+                succs.add((BasicBlock) CloneInfoMap.getReflectedValue(succ));
+            }
+            needFixBB.setSuccBBs(succs);
+
+            needFixBB.fix();
         }
-        CloneInfoMap.bbNeedFix.clear();
     }
 }

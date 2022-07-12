@@ -64,7 +64,9 @@ public class LoopInfo {
         if (bb.isLoopHeader()) {
             for (BasicBlock pre: bb.getPrecBBs()) {
                 Loop loop = bb.getLoop();
-                loop.addEntering(pre);
+                if (!loop.getNowLevelBB().contains(pre)) {
+                    loop.addEntering(pre);
+                }
             }
         }
 

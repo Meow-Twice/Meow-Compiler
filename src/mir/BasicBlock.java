@@ -237,14 +237,30 @@ public class BasicBlock extends Value {
     }
 
     public void setPrecBBs(ArrayList<BasicBlock> precBBs) {
-        if (precBBs == null) {
-            this.precBBs = new ArrayList<>();
+        if (this.precBBs.size() != 0 && arrayEq(this.precBBs, precBBs)) {
+            return;
+        }
+        if (this.precBBs.size() == 0) {
+            if (precBBs == null) {
+                this.precBBs = new ArrayList<>();
+            } else {
+                this.precBBs = precBBs;
+            }
         } else {
+            ArrayList<BasicBlock> oldPres = this.precBBs;
+            ArrayList<BasicBlock> newPres = precBBs;
+            if (oldPres.size() == newPres.size()) {
+                System.err.println("err");
+            }
+            simplyPhi(oldPres, newPres);
             this.precBBs = precBBs;
         }
     }
 
     public void setSuccBBs(ArrayList<BasicBlock> succBBs) {
+        if (this.succBBs.size() != 0 && arrayEq(this.succBBs, succBBs)) {
+            return;
+        }
         if (succBBs == null) {
             this.succBBs = new ArrayList<>();
         } else {
@@ -342,11 +358,11 @@ public class BasicBlock extends Value {
             instr.cloneToBB(ret);
             instr = (Instr) instr.getNext();
         }
-        Instr retInstr = ret.getBeginInstr();
-        while (retInstr.getNext() != null) {
-            retInstr.fix();
-            retInstr = (Instr) retInstr.getNext();
-        }
+//        Instr retInstr = ret.getBeginInstr();
+//        while (retInstr.getNext() != null) {
+//            retInstr.fix();
+//            retInstr = (Instr) retInstr.getNext();
+//        }
         return ret;
     }
 
@@ -356,5 +372,45 @@ public class BasicBlock extends Value {
             instr.fix();
             instr = (Instr) instr.getNext();
         }
+    }
+
+    public void modifyPre(BasicBlock old, BasicBlock now) {
+        precBBs.set(precBBs.indexOf(old), now);
+    }
+
+    public void modifySuc(BasicBlock old, BasicBlock now) {
+        succBBs.set(succBBs.indexOf(old), now);
+    }
+
+    public void addPre(BasicBlock add) {
+        precBBs.add(add);
+    }
+
+    public void addSuc(BasicBlock add) {
+        succBBs.add(add);
+    }
+
+    public void simplyPhi(ArrayList<BasicBlock> oldPres, ArrayList<BasicBlock> newPres) {
+        Instr instr = getBeginInstr();
+        while (instr.getNext() != null) {
+            if (instr instanceof Instr.Phi) {
+                ((Instr.Phi) instr).simple(oldPres, newPres);
+            }
+            instr = (Instr) instr.getNext();
+        }
+    }
+
+    private boolean arrayEq(ArrayList<BasicBlock> src, ArrayList<BasicBlock> tag) {
+        for (BasicBlock bb: src) {
+            if (!tag.contains(bb)) {
+                return false;
+            }
+        }
+        for (BasicBlock bb: tag) {
+            if (!src.contains(bb)) {
+                return false;
+            }
+        }
+        return true;
     }
 }

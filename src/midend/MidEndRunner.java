@@ -54,7 +54,7 @@ public class MidEndRunner {
         gvnAndGCM.Run();
     }
 
-    //重建数据流和循环关系
+    //重建数据流, 简化PHI, 重建循环关系
     private void reMakeCFGAndLoopInfo() {
         MakeDFG makeDFG = new MakeDFG(functions);
         makeDFG.Run();
@@ -74,6 +74,8 @@ public class MidEndRunner {
 
         BranchLift branchLift = new BranchLift(functions);
         branchLift.Run();
+
+
 
         reMakeCFGAndLoopInfo();
 

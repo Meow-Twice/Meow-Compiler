@@ -119,6 +119,7 @@ public class MakeDFG {
                 needRemove.add(pos);
                 preMap.remove(pos);
                 sucMap.remove(pos);
+                BBs.remove(pos);
             }
             pos = (BasicBlock) pos.getNext();
         }
@@ -128,6 +129,11 @@ public class MakeDFG {
 
         for (BasicBlock bb: needRemove) {
             bb.remove();
+            Instr instr = bb.getBeginInstr();
+            while (instr.getNext() != null) {
+                instr.remove();
+                instr = (Instr) instr.getNext();
+            }
         }
     }
 

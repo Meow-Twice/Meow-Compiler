@@ -58,10 +58,10 @@ public class Compiler {
             Manager.MANAGER.output(arg.llvmStream);
             CodeGen.CODEGEN.gen();
             CodeGen.CODEGEN.outputMI();
-            Machine.Program p = Machine.Program.PROGRAM;
-            TrivialRegAllocator regAllocator = new TrivialRegAllocator();
-            regAllocator.AllocateRegister(p);
-            p.output(new PrintStream(arg.asmStream));
+            // Machine.Program p = Machine.Program.PROGRAM;
+            // TrivialRegAllocator regAllocator = new TrivialRegAllocator();
+            // regAllocator.AllocateRegister(p);
+            // p.output(new PrintStream(arg.asmStream));
         } catch (Exception e) {
             e.printStackTrace();
             System.exit(1);

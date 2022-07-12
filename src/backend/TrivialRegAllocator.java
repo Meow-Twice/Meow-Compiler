@@ -75,6 +75,7 @@ public class TrivialRegAllocator {
                     }
                 });
             }
+            int i = 0;
         }
     }
 
@@ -350,6 +351,7 @@ public class TrivialRegAllocator {
             Machine.Block finalMb = mb;
             for (ILinkNode iNode = mb.getEndMI(); !iNode.equals(mb.miList.head); iNode = iNode.getPrev()) {
                 MachineInst mi = (MachineInst) iNode;
+                // System.err.println(mi);
                 // TODO : 此时考虑了Call
                 ArrayList<Operand> defs = mi.defOpds;
                 ArrayList<Operand> uses = mi.useOpds;

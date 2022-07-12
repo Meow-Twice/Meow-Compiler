@@ -75,6 +75,10 @@ public class MachineInst extends ILinkNode {
         return tag == Tag.Mv;
     }
 
+    public boolean isCall() {
+        return tag == Tag.Call;
+    }
+
     Machine.Block mb;
     Tag tag;
     boolean isFloat = false;
@@ -111,6 +115,7 @@ public class MachineInst extends ILinkNode {
 
     /**
      * 目前给MIStore插入一个指令后面时专用
+     *
      * @param tag
      */
     public MachineInst(MachineInst insertAfter, Tag tag) {

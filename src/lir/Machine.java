@@ -224,6 +224,12 @@ public class Machine {
         public void setVRCount(int i) {
             vrCount = i;
         }
+
+        public int addVRCount(int i) {
+            assert vrCount == vrList.size() - 1;
+            vrCount = vrCount + i;
+            return vrCount;
+        }
     }
 
     public static class Block extends ILinkNode {
@@ -368,6 +374,10 @@ public class Machine {
 
         public boolean isVirtual() {
             return type == Virtual;
+        }
+
+        public void setValue(int i) {
+            value = i;
         }
 
         // static {

@@ -1,8 +1,5 @@
 package lir;
 
-import mir.Instr;
-
-import javax.crypto.Mac;
 import java.io.PrintStream;
 
 /**

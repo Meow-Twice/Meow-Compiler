@@ -188,8 +188,7 @@ public class TrivialRegAllocator {
     public void AllocateRegister(Machine.Program program) {
         for (Machine.McFunction mcFunc : program.funcList) {
             curMF = mcFunc;
-            boolean unDone = true;
-            while (unDone) {
+            while (true) {
                 livenessAnalysis(mcFunc);
                 adjSet = new HashSet<>();
                 simplifyWorkSet = new HashSet<>();
@@ -231,9 +230,8 @@ public class TrivialRegAllocator {
                     }
                 }
                 assignColors();
-                unDone = spilledNodeSet.size() > 0;
-                if (!unDone) {
-                    continue;
+                if (spilledNodeSet.size() == 0) {
+                    break;
                 }
                 spilledNodeSet.forEach(this::dealSpillNode);
             }
@@ -248,18 +246,62 @@ public class TrivialRegAllocator {
 
     private void dealSpillNode(Operand x) {
         for (Machine.Block mb : curMF.mbList) {
-            int curOffset = curMF.getStackSize();
-            offImm = new Operand(I32, curOffset);
+            offImm = new Operand(I32, curMF.getStackSize());
             // generate a MILoad before first use, and a MIStore after last def
             firstUse = null;
             lastDef = null;
             vrIdx = -1;
+
+            int i = 0;
+            // TODO 这里还不是很动
+            for (MachineInst srcMI : mb.miList) {
+                if (srcMI.isCall()) continue;
+                ArrayList<Operand> defs = srcMI.defOpds;
+                ArrayList<Operand> uses = srcMI.useOpds;
+
+                if (defs.size() > 0) {
+                    assert defs.size() == 1;
+                    Operand def = defs.get(0);
+                    if (def.equals(x)) {
+                        // Store
+                        if (vrIdx == -1) {
+                            vrIdx = curMF.addVRCount(1);
+                            curMF.vrList.add(def);
+                        } else {
+                            curMF.vrList.set(vrIdx, def);
+                        }
+                        def.setValue(vrIdx);
+                        lastDef = srcMI;
+                    }
+                    uses.forEach(use -> {
+                        if (use.equals(x)) {
+                            // Load
+                            if (vrIdx == -1) {
+                                vrIdx = curMF.addVRCount(1);
+                                curMF.vrList.add(use);
+                            } else {
+                                curMF.vrList.set(vrIdx, use);
+                            }
+                            use.setValue(vrIdx);
+                            if(firstUse!=null && lastDef!=null){
+                                firstUse = srcMI;
+                            }
+                        }
+                    });
+                }
+
+                if(i++ > 30){
+                    checkpoint();
+                }
+            }
+            checkpoint();
         }
+        curMF.addStack(4);
     }
 
     private void checkpoint() {
         if (firstUse != null) {
-            MILoad miLoad = new MILoad(curMF.newVR(), Arm.Reg.getR(sp), firstUse);
+            MILoad miLoad = new MILoad(curMF.getVR(vrIdx), Arm.Reg.getR(sp), firstUse);
             miLoad.offset = genMemOffSet(offImm, miLoad);
         }
         if (lastDef != null) {
@@ -305,6 +347,7 @@ public class TrivialRegAllocator {
             HashSet<Operand> live = mb.liveOutSet;
             Machine.Block finalMb = mb;
             for (MachineInst mi = mb.getEndMI(); !mi.equals(mb.miList.head); mi = (MachineInst) mi.getPrev()) {
+                // TODO : 此时考虑了Call
                 ArrayList<Operand> defs = mi.defOpds;
                 ArrayList<Operand> uses = mi.useOpds;
                 if (mi.isMove()) {
@@ -663,6 +706,8 @@ public class TrivialRegAllocator {
 
         for (Machine.Block mb : curMF.mbList) {
             for (MachineInst mi : mb.miList) {
+                // TODO 这里不考虑Call
+                if (mi.isCall()) continue;
                 ArrayList<Operand> defs = mi.defOpds;
                 ArrayList<Operand> uses = mi.useOpds;
                 if (defs.size() > 0) {

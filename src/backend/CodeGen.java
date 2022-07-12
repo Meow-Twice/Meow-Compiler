@@ -1,6 +1,7 @@
 package backend;
 
 import frontend.semantic.Initial;
+import jdk.incubator.vector.VectorOperators;
 import lir.*;
 import manage.Manager;
 import mir.*;
@@ -135,6 +136,14 @@ public class CodeGen {
                 }
                 case fneg -> {
                     // TODO
+                    Instr.Fneg fneginst = (Instr.Fneg) instr;
+                    Value value = fneginst.getRVal1();
+                    //0 sub value ->dst
+                    Machine.Operand lOpd = getVR_may_imm(new Constant.ConstantFloat(0));
+                    Machine.Operand rOpd = getVR_may_imm(value);
+                    Machine.Operand dVR = getVR_no_imm(fneginst);
+                    new MIBinary(MachineInst.Tag.FSub,dVR,lOpd,rOpd,curMB);
+
                 }
                 case ret -> {
                     Instr.Return returnInst = (Instr.Return) instr;

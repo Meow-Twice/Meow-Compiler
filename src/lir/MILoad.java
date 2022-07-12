@@ -18,8 +18,10 @@ public class MILoad extends MIAccess{
         genDefUse();
     }
 
-    public MILoad(MachineInst inst, boolean isFloat) {
-        super(Tag.Load, inst, isFloat);
+    public MILoad(Machine.Operand data, Machine.Operand addr, MachineInst inst) {
+        super(Tag.Load, inst);
+        this.data = data;
+        this.addr = addr;
     }
 
     @Override

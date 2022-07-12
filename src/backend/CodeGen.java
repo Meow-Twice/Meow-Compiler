@@ -15,6 +15,7 @@ import static mir.type.DataType.I32;
 
 public class CodeGen {
 
+    public static final CodeGen CODEGEN = new CodeGen();
     public static boolean _DEBUG_OUTPUT_MIR_INTO_COMMENT = true;
 
     // 当前的Machine.McFunction
@@ -44,13 +45,13 @@ public class CodeGen {
     // 全局变量
     private HashMap<GlobalVal.GlobalValue, Initial> globalMap;
     private Machine.Block curMB;
-    private int virtual_cnt = 0;
+    // private int virtual_cnt = 0;
     private int curStackTop = 0;
 
     private HashMap<Instr.Load, Instr.Alloc> load2alloc = new HashMap<>();
 
 
-    public CodeGen() {
+    private CodeGen() {
         curFunc = null;
         curMachineFunc = null;
         midFuncMap = Manager.MANAGER.getFunctions();
@@ -66,10 +67,10 @@ public class CodeGen {
         genGlobal();
         // TODO
         for (Function func : midFuncMap.values()) {
-            virtual_cnt = 0;
             Machine.McFunction mcFunc = new Machine.McFunction(func);
             curFunc = func;
             curMachineFunc = mcFunc;
+            curMachineFunc.setVRCount(0);
             mcFuncList.add(mcFunc);
             func2mcFunc.put(func, mcFunc);
 
@@ -89,7 +90,6 @@ public class CodeGen {
                 genBB(bb);
                 bb = (BasicBlock) bb.getNext();
             }
-            mcFunc.setVRSize(virtual_cnt);
         }
     }
 
@@ -454,7 +454,7 @@ public class CodeGen {
      * @return 新生成的 virtual reg
      */
     public Machine.Operand newVR() {
-        return new Machine.Operand(virtual_cnt++);
+        return curMachineFunc.newVR();
     }
 
     /***
@@ -463,7 +463,7 @@ public class CodeGen {
      * @return 如果value没有生成过vr, 则生成并放到map里并返回, 如果生成过直接返回
      */
     public Machine.Operand newVR(Value value) {
-        Machine.Operand opd = new Machine.Operand(virtual_cnt++);
+        Machine.Operand opd = curMachineFunc.newVR();
         opd2value.put(opd, value);
         value2opd.put(value, opd);
         return opd;

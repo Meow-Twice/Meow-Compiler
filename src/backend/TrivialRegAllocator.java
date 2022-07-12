@@ -1,22 +1,27 @@
 package backend;
 
-import lir.Arm;
-import lir.MIMove;
-import lir.Machine;
+import lir.*;
 import lir.Machine.Operand;
-import lir.MachineInst;
 import manage.Manager;
+import mir.type.DataType;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.Stack;
+import java.util.*;
 import java.util.stream.Stream;
 
+import static lir.Arm.Regs.GPRs.*;
+import static lir.Arm.Regs.GPRs.sp;
+import static mir.type.DataType.I32;
+
 public class TrivialRegAllocator {
+    Tools tools = new Tools();
+
+    private final CodeGen CODEGEN = CodeGen.CODEGEN;
+    private final Arm.Reg rSP = Arm.Reg.getR(sp);
 
     private int rk = 0;
     private int sk = 0;
+
+    private DataType dataType = I32;
 
     void livenessAnalysis(Machine.McFunction mcFunc) {
         for (Machine.Block mb : mcFunc.mbList) {
@@ -114,7 +119,7 @@ public class TrivialRegAllocator {
     /**
      * 包含从图中删除的临时寄存器的栈
      */
-    Stack<Operand> selectStackList = new Stack<>();
+    Stack<Operand> selectStack = new Stack<>();
 
     /***
      * 传送指令的数据结构, 下面给出了5个由传送指令组成的集合,
@@ -183,35 +188,94 @@ public class TrivialRegAllocator {
     public void AllocateRegister(Machine.Program program) {
         for (Machine.McFunction mcFunc : program.funcList) {
             curMF = mcFunc;
-            for (Machine.Block mb : mcFunc.mbList) {
-                boolean unDone = true;
-                while (unDone) {
-                    livenessAnalysis(mcFunc);
-                    adjSet = new HashSet<>();
-                    simplifyWorkSet = new HashSet<>();
-                    freezeWorkSet = new HashSet<>();
-                    spillWorkSet = new HashSet<>();
-                    spilledNodeSet = new HashSet<>();
-                    coloredNodeList = new ArrayList<>();
-                    selectStackList = new Stack<>();
-                    coalescedNodeSet = new HashSet<>();
-                    coalescedMoveSet = new HashSet<>();
-                    constrainedMoveSet = new HashSet<>();
-                    frozenMoveSet = new HashSet<>();
-                    workListMoveSet = new HashSet<>();
-                    activeMoveSet = new HashSet<>();
+            boolean unDone = true;
+            while (unDone) {
+                livenessAnalysis(mcFunc);
+                adjSet = new HashSet<>();
+                simplifyWorkSet = new HashSet<>();
+                freezeWorkSet = new HashSet<>();
+                spillWorkSet = new HashSet<>();
+                spilledNodeSet = new HashSet<>();
+                coloredNodeList = new ArrayList<>();
+                selectStack = new Stack<>();
+                coalescedNodeSet = new HashSet<>();
+                coalescedMoveSet = new HashSet<>();
+                constrainedMoveSet = new HashSet<>();
+                frozenMoveSet = new HashSet<>();
+                workListMoveSet = new HashSet<>();
+                activeMoveSet = new HashSet<>();
 
-                    rk = Manager.MANAGER.RK;
-                    sk = Manager.MANAGER.SK;
-                    for (int i = 0; i < rk; i++) {
-                        Arm.Reg.getR(i).degree = Integer.MAX_VALUE;
-                    }
-                    for (int i = 0; i < sk; i++) {
-                        Arm.Reg.getS(i).degree = Integer.MAX_VALUE;
-                    }
+                rk = Manager.MANAGER.RK;
+                sk = Manager.MANAGER.SK;
+                for (int i = 0; i < rk; i++) {
+                    Arm.Reg.getR(i).degree = Integer.MAX_VALUE;
+                }
+                for (int i = 0; i < sk; i++) {
+                    Arm.Reg.getS(i).degree = Integer.MAX_VALUE;
                 }
 
+                build();
+                makeWorkList();
+                while (simplifyWorkSet.size() > 0 || workListMoveSet.size() > 0 || freezeWorkSet.size() > 0 || spillWorkSet.size() > 0) {
+                    if (simplifyWorkSet.size() > 0) {
+                        simplify();
+                    }
+                    if (workListMoveSet.size() > 0) {
+                        coalesce();
+                    }
+                    if (freezeWorkSet.size() > 0) {
+                        freeze();
+                    }
+                    if (spillWorkSet.size() > 0) {
+                        selectSpill();
+                    }
+                }
+                assignColors();
+                unDone = spilledNodeSet.size() > 0;
+                if (!unDone) {
+                    continue;
+                }
+                spilledNodeSet.forEach(this::dealSpillNode);
             }
+
+        }
+    }
+
+    int vrIdx = -1;
+    MachineInst firstUse = null;
+    MachineInst lastDef = null;
+    Operand offImm;
+
+    private void dealSpillNode(Operand x) {
+        for (Machine.Block mb : curMF.mbList) {
+            int curOffset = curMF.getStackSize();
+            offImm = new Operand(I32, curOffset);
+            // generate a MILoad before first use, and a MIStore after last def
+            firstUse = null;
+            lastDef = null;
+            vrIdx = -1;
+        }
+    }
+
+    private void checkpoint() {
+        if (firstUse != null) {
+            MILoad miLoad = new MILoad(curMF.newVR(), Arm.Reg.getR(sp), firstUse);
+            miLoad.offset = genMemOffSet(offImm, miLoad);
+        }
+        if (lastDef != null) {
+            MIStore miStore = new MIStore(lastDef, curMF.getVR(vrIdx), rSP);
+            miStore.offset = genMemOffSet(offImm, miStore);
+        }
+        vrIdx = -1;
+    }
+
+    public Operand genMemOffSet(Operand offImm, MachineInst miLoadStore) {
+        if (offImm.getImm() < (1 << 12)) {
+            return offImm;
+        } else {
+            Operand dst = curMF.newVR();
+            new MIMove(dst, offImm, miLoadStore);
+            return dst;
         }
     }
 
@@ -284,26 +348,28 @@ public class TrivialRegAllocator {
      * 对于o, 删除在selectStackList(冲突图中已删除的结点list), 和已合并的mov的src(dst在其他工作表中)
      */
     private HashSet<Operand> adjacent(Operand o) {
-        o.adjOpdSet.removeIf(r -> selectStackList.contains(r) || coalescedNodeSet.contains(r));
-        return o.adjOpdSet;
+        HashSet<Operand> validConflictOpdSet = new HashSet<>(o.adjOpdSet);
+        validConflictOpdSet.removeIf(r -> selectStack.contains(r) || coalescedNodeSet.contains(r));
+        return validConflictOpdSet;
     }
 
     /**
-     * 对于o, 如果不是有可能合并的move, 就从moveSet中删除, 包括
+     * 取 x 的 moveSet 交 (activeMoveSet 并 workListMoveSet)
      * 1. 已经合并的传送指令的集合 coalescedMoveSet
      * 2. src 和 dst 相冲突的传送指令集合 constrainedMoveSet
      * 3. 不再考虑合并的传送指令集合 frozenMoveSet
      */
-    private HashSet<MIMove> nodeMoves(Operand o) {
-        o.moveSet.removeIf(r -> !(activeMoveSet.contains(r) || workListMoveSet.contains(r)));
-        return o.moveSet;
+    private HashSet<MIMove> nodeMoves(Operand x) {
+        HashSet<MIMove> canCoalesceSet = new HashSet<>(x.moveSet);
+        canCoalesceSet.removeIf(r -> !(activeMoveSet.contains(r) || workListMoveSet.contains(r)));
+        return canCoalesceSet;
     }
 
     /**
      * 结点 o 仍然有关联的move指令
      */
-    private boolean moveRelated(Operand o) {
-        return nodeMoves(o).size() > 0;
+    private boolean moveRelated(Operand x) {
+        return nodeMoves(x).size() > 0;
     }
 
     private void makeWorkList() {
@@ -328,6 +394,7 @@ public class TrivialRegAllocator {
         nodeMoves(x).stream().filter(activeMoveSet::contains).forEach(mv -> {
             activeMoveSet.remove(mv);
             workListMoveSet.add(mv);
+            // tools.changeWorkSet(mv, activeMoveSet, workListMoveSet);
         });
         adjacent(x).forEach(adj -> nodeMoves(adj).stream().filter(activeMoveSet::contains).forEach(mv -> {
             activeMoveSet.remove(mv);
@@ -378,11 +445,11 @@ public class TrivialRegAllocator {
         }
     }
 
-    private void Simplify() {
+    private void simplify() {
         Iterator<Operand> iter = simplifyWorkSet.iterator();
         Operand x = iter.next();
         iter.remove();
-        selectStackList.push(x);
+        selectStack.push(x);
         adjacent(x).forEach(this::decrementDegree);
     }
 
@@ -402,13 +469,14 @@ public class TrivialRegAllocator {
             // 低度数传送有关结点删除 x , 且低度数传送无关结点添加 x
             freezeWorkSet.remove(x);
             simplifyWorkSet.add(x);
+            // tools.changeWorkSet(x, freezeWorkSet, simplifyWorkSet);
+            // changeWorkSet(x, freezeWorkSet, simplifyWorkSet);
         }
     }
 
     /**
      * u 为低度数结点, 或者 u 已经预着色, 或者 (u, v)冲突
      */
-
     public boolean ok(Operand adj, Operand v) {
         return adj.degree < rk || adj.isPreColored() || adjSet.contains(new AdjPair(adj, v));
     }
@@ -428,5 +496,188 @@ public class TrivialRegAllocator {
         return true;
     }
 
+    // 合并move u <- v
+    public void combine(Operand u, Operand v) {
+        if (freezeWorkSet.contains(v)) {
+            freezeWorkSet.remove(v);
+        } else {
+            spillWorkSet.remove(v);
+        }
+        // 合并 move u, v, 将v加入 coalescedNodeSet
+        coalescedNodeSet.add(v);
+        v.alias = u;
+        u.moveSet.addAll(v.moveSet);
+        // 对于 v 在冲突图上的每个邻结点 adj , 建立 adj, u 之间的冲突边, 且
+        adjacent(v).forEach(adj -> {
+            addEdge(adj, u);
+            decrementDegree(adj);
+        });
+        // 当 u 从(合并前的)低度数结点成为(合并后的)高度数结点, 则将其从freezeWorkSet转移到 spillWorkSet
+        if (u.degree >= rk && freezeWorkSet.contains(u)) {
+            freezeWorkSet.remove(u);
+            spillWorkSet.add(u);
+            // changeWorkSet(u, freezeWorkSet, spillWorkSet);
+        }
+    }
 
+    // private void changeWorkSet(MIMove x, HashSet<MIMove> from, HashSet<MIMove> to) {
+    //     from.remove(x);
+    //     to.add(x);
+    // }
+    // private void changeWorkSet(Operand x, HashSet<Operand> from, HashSet<Operand> to) {
+    //     from.remove(x);
+    //     to.add(x);
+    // }
+
+    /**
+     * 保守的,
+     * 将 v 的冲突结点全部加到 u 的冲突结点中去
+     */
+    public boolean conservative(HashSet<Operand> adjU, HashSet<Operand> adjV) {
+        return Stream.concat(adjU.stream(), adjV.stream()).filter(x -> x.degree >= rk).count() < rk;
+    }
+
+    //-------------------------------------------------------------------------------------------------
+    public void coalesce() {
+        MIMove mv = workListMoveSet.iterator().next();
+        Operand u = mv.getDst();
+        Operand v = mv.getSrc();
+        if (v.isPreColored()) {
+            var tmp = u;
+            u = v;
+            v = tmp;
+        }
+        workListMoveSet.remove(mv);
+        if (u.equals(v)) {
+            coalescedMoveSet.add(mv);
+            addWorkList(u);
+        } else if (v.isPreColored() || adjSet.contains(new AdjPair(u, v))) {
+            constrainedMoveSet.add(mv);
+            addWorkList(u);
+            addWorkList(v);
+        } else if ((u.isPreColored() && adjOk(u, v))
+                || (!u.isPreColored() && conservative(adjacent(u), adjacent(v)))) {
+            coalescedMoveSet.add(mv);
+            combine(u, v);
+            addWorkList(u);
+        } else {
+            activeMoveSet.add(mv);
+        }
+    }
+
+    /**
+     * 对于每一个 x 相关的 move, 将其从可能合并的传送指令的集合 (activeMoveSet ∪ workListMoveSet)
+     * 挪到 frozenMoveSet 中, 同时 对于 x 相关 move 的另一端的操作数 v
+     * 如果 v 不是传送相关的低度数结点
+     *
+     * @param x
+     */
+    public void freezeMoves(Operand x) {
+        for (var mv : nodeMoves(x)) {
+            // nodeMoves(x) 取出来的只可能是 activeMoveSet 中的或者 workListMoveSet 中的
+            if (!activeMoveSet.remove(mv)) {
+                workListMoveSet.remove(mv);
+            }
+            frozenMoveSet.add(mv);
+
+            // 这个很怪, 跟书上不一样
+            // 选择 move 中非 x 方结点 v
+            Operand v = mv.getDst();
+            if (v.equals(x)) v = mv.getSrc();
+            /* // 鲸书:
+            Operand v;
+            if(src.alias.equals(x.alias)){
+                v = dst.alias;
+            }else{
+                v = src.alias;
+            }
+            */
+
+            // 如果 v 不是传送相关的低度数结点, 则将 v 从低度数传送有关结点集 freezeWorkSet 挪到低度数传送无关结点集 simplifyWorkSet
+            if (nodeMoves(v).size() == 0 && v.degree < rk) {
+                // nodeMoves(v) = v.moveSet ∩ (activeMoveSet ∪ workListMoveSet)
+                freezeWorkSet.remove(v);
+                simplifyWorkSet.add(v);
+            }
+        }
+    }
+
+    /**
+     * 从低度数的传送有关的结点中随机选择一个进行冻结
+     */
+    public void freeze() {
+        Operand u = freezeWorkSet.iterator().next();
+        freezeWorkSet.remove(u);
+        simplifyWorkSet.add(u);
+        freezeMoves(u);
+    }
+
+    /**
+     * 从低度数结点集(simplifyWorkSet)中启发式选取结点 x , 挪到高度数结点集(spillWorkSet)中
+     * 冻结 x 及其相关 move
+     */
+    public void selectSpill() {
+        // Operand x = spillWorkSet.stream().reduce((a, b) -> a.heuristicVal() < b.heuristicVal() ? a : b).orElseThrow();
+        Operand x = spillWorkSet.stream().reduce(Operand::select).orElseThrow();
+        simplifyWorkSet.add(x);
+        spillWorkSet.remove(x);
+        freezeMoves(x);
+    }
+
+    public void assignColors() {
+        HashMap<Operand, Operand> colorMap = new HashMap<>();
+        while (selectStack.size() > 0) {
+            Operand n = selectStack.pop();
+            final HashSet<Arm.Regs> okColorSet = new HashSet<>(Arrays.asList(values()).subList(0, rk - 1));
+            okColorSet.add(lr);
+
+            n.adjOpdSet.forEach(w -> {
+                Operand a = w.alias;
+                if (a.hasReg()) {
+                    // 已着色或者预分配
+                    okColorSet.remove(a.getReg());
+                } else if (a.isVirtual()) {
+                    Operand r = colorMap.get(a);
+                    if (r != null) {
+                        okColorSet.remove(r.reg);
+                    }
+                }
+            });
+
+            if (okColorSet.isEmpty()) {
+                spilledNodeSet.add(n);
+            } else {
+                Arm.Regs color = okColorSet.iterator().next();
+                colorMap.put(n, new Operand(color));
+            }
+        }
+
+        if (spilledNodeSet.size() > 0) {
+            return;
+        }
+
+        coalescedNodeSet.forEach(mvSrc -> {
+            Operand mvDst = mvSrc.alias;
+            colorMap.put(mvSrc, mvDst.isPreColored() ? mvDst : colorMap.get(mvDst));
+        });
+
+        for (Machine.Block mb : curMF.mbList) {
+            for (MachineInst mi : mb.miList) {
+                ArrayList<Operand> defs = mi.defOpds;
+                ArrayList<Operand> uses = mi.useOpds;
+                if (defs.size() > 0) {
+                    assert defs.size() == 1;
+                    defs.set(0, colorMap.get(defs.get(0)));
+                }
+
+                for (int i = 0; i < uses.size(); i++) {
+                    assert uses.get(i) != null;
+                    Operand set = colorMap.get(uses.get(i));
+                    if (set != null) {
+                        mi.setUse(i, set);
+                    }
+                }
+            }
+        }
+    }
 }

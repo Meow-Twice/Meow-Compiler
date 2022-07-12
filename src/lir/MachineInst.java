@@ -12,6 +12,10 @@ import static mir.Instr.Alu.Op.OR;
 
 public class MachineInst extends ILinkNode {
 
+    public void setUse(int i, Machine.Operand set) {
+        useOpds.set(i, set);
+    }
+
     public enum Tag {
         // Binary
         Add,
@@ -105,6 +109,15 @@ public class MachineInst extends ILinkNode {
         inst.insertBefore(this);
     }
 
+    /**
+     * 目前给MIStore插入一个指令后面时专用
+     * @param tag
+     */
+    public MachineInst(MachineInst insertAfter, Tag tag) {
+        this.mb = insertAfter.mb;
+        this.tag = tag;
+        insertAfter.insertAfter(this);
+    }
 
     /*
     init and inset before inst

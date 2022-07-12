@@ -1,14 +1,17 @@
 package midend;
 
+import mir.BasicBlock;
 import mir.Loop;
 import mir.Value;
 
 import java.util.HashMap;
+import java.util.HashSet;
 
 public class CloneInfoMap {
 
     public static HashMap<Loop, Loop> loopMap = new HashMap<>();
     public static HashMap<Value, Value> valueMap = new HashMap<>();
+    public static HashSet<BasicBlock> bbNeedFix = new HashSet<>();
 
     public static void addLoopReflect(Loop srcLoop, Loop tagLoop) {
         //assert !loopMap.containsKey(srcLoop);
@@ -36,6 +39,14 @@ public class CloneInfoMap {
             return valueMap.get(value);
         }
         return value;
+    }
+
+    public static void addBBNeedFix(BasicBlock bb) {
+        bbNeedFix.add(bb);
+    }
+
+    public static void rmBBNeedFix(BasicBlock bb) {
+        bbNeedFix.remove(bb);
     }
 
 }

@@ -1,5 +1,7 @@
 package mir;
 
+import midend.CloneInfoMap;
+
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Objects;
@@ -146,5 +148,23 @@ public class Loop {
 
     public HashSet<BasicBlock> getExits() {
         return exits;
+    }
+
+    //把一个循环复制到指定函数
+    public void cloneToFunc(Function function) {
+        for (BasicBlock bb: nowLevelBB) {
+            bb.cloneToFunc(function);
+            CloneInfoMap.bbNeedFix.add(bb);
+        }
+        for (Loop next: childrenLoops) {
+            next.cloneToFunc(function);
+        }
+    }
+
+    public void fix() {
+        for (BasicBlock bb: CloneInfoMap.bbNeedFix) {
+            bb.fix();
+        }
+        CloneInfoMap.bbNeedFix.clear();
     }
 }

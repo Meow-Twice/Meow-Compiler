@@ -293,7 +293,7 @@ public class BasicBlock extends Value {
     }
 
     public void setIDominator(BasicBlock IDominator) {
-        assert this.IDominator == null;
+        //assert this.IDominator == null;
         this.IDominator = IDominator;
     }
 
@@ -325,19 +325,36 @@ public class BasicBlock extends Value {
         // 是循环内的BB, 复制的时候,
         // 先创建新的循环, 然后把BB塞到新的loop里面
         Loop srcLoop = this.loop;
-        Loop tagLoop = new Loop(loop.getParentLoop());
+        Loop tagLoop = CloneInfoMap.loopMap.containsKey(srcLoop)?
+                CloneInfoMap.getReflectedLoop(srcLoop):
+                new Loop(CloneInfoMap.getReflectedLoop(loop.getParentLoop()));
+        tagLoop.setFunc(function);
         CloneInfoMap.addLoopReflect(srcLoop, tagLoop);
 
-        BasicBlock ret = new BasicBlock(function, this.loop);
+        BasicBlock ret = new BasicBlock(function, tagLoop);
         CloneInfoMap.addValueReflect(this, ret);
+        tagLoop.addBB(ret);
         if (this.isLoopHeader) {
             tagLoop.setHeader(ret);
         }
         Instr instr = this.getBeginInstr();
         while (instr.getNext() != null) {
-
+            instr.cloneToBB(ret);
             instr = (Instr) instr.getNext();
         }
-        return null;
+        Instr retInstr = ret.getBeginInstr();
+        while (retInstr.getNext() != null) {
+            retInstr.fix();
+            retInstr = (Instr) retInstr.getNext();
+        }
+        return ret;
+    }
+
+    public void fix() {
+        Instr instr = this.getBeginInstr();
+        while (instr.getNext() != null) {
+            instr.fix();
+            instr = (Instr) instr.getNext();
+        }
     }
 }

@@ -11,7 +11,7 @@ public class MIBinary extends MachineInst {
     public Arm.Shift shift;
 
     public MIBinary(Tag tag, Machine.Block insertAtEnd, boolean isFloat) {
-        super(tag, insertAtEnd,isFloat);
+        super(tag, insertAtEnd, isFloat);
     }
 
     public MIBinary(Tag tag, Machine.Operand dOpd, Machine.Operand lOpd, Machine.Operand rOpd, Machine.Block insertAtEnd) {
@@ -30,7 +30,7 @@ public class MIBinary extends MachineInst {
     }
 
     @Override
-    public void output(PrintStream os, Machine.McFunction f){
+    public void output(PrintStream os, Machine.McFunction f) {
         transfer_output(os);
         String tag_str = switch (tag) {
             case Mul -> "mul";
@@ -42,9 +42,14 @@ public class MIBinary extends MachineInst {
             case Or -> "orr";
             default -> null;
         };
-        os.print(tag_str+"\t"+dOpd.toString()+","+lOpd.toString()+","+rOpd.toString());
-        if(shift.shiftType != Arm.ShiftType.None){
-            os.println(","+shift.toString());
+        os.print(tag_str + "\t" + dOpd.toString() + "," + lOpd.toString() + "," + rOpd.toString());
+        if (shift.shiftType != Arm.ShiftType.None) {
+            os.println("," + shift.toString());
         }
+    }
+
+    @Override
+    public String toString() {
+        return tag.toString() + " , " + dOpd + " , " + lOpd + " , " + rOpd;
     }
 }

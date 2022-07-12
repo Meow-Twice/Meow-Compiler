@@ -1,6 +1,7 @@
 package lir;
 
 import java.io.PrintStream;
+import java.util.stream.Stream;
 
 public class MIBranch extends MachineInst {
     Arm.Cond cond;
@@ -16,8 +17,13 @@ public class MIBranch extends MachineInst {
     }
 
     @Override
-    public void output(PrintStream os, Machine.McFunction f){
+    public void output(PrintStream os, Machine.McFunction f) {
         transfer_output(os);
         os.println("b\t" + cond + "\t" + trueTargetBlock.index);
+    }
+
+    @Override
+    public String toString() {
+        return "b\t" + cond + "\t" + trueTargetBlock.bb.getLabel();
     }
 }

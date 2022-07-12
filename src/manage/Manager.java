@@ -40,19 +40,19 @@ public class Manager {
     }
 
     public static class ExternFunction {
-        public static final Function GET_INT = new Function("getint", new ArrayList<>(), I32_TYPE);
-        public static final Function GET_CH = new Function("getch", new ArrayList<>(), I32_TYPE);
-        public static final Function GET_FLOAT = new Function("getfloat", new ArrayList<>(), F32_TYPE);
-        public static final Function GET_ARR = new Function("getarray", wrapParam(new Type.PointerType(I32_TYPE)), I32_TYPE);
-        public static final Function GET_FARR = new Function("getfarray", wrapParam(new Type.PointerType(F32_TYPE)), I32_TYPE);
-        public static final Function PUT_INT = new Function("putint", wrapParam(I32_TYPE), Type.VoidType.getVoidType());
-        public static final Function PUT_CH = new Function("putch", wrapParam(I32_TYPE), Type.VoidType.getVoidType());
-        public static final Function PUT_FLOAT = new Function("putfloat", wrapParam(F32_TYPE), Type.VoidType.getVoidType());
-        public static final Function PUT_ARR = new Function("putarray", wrapParam(I32_TYPE, new Type.PointerType(I32_TYPE)), Type.VoidType.getVoidType());
-        public static final Function PUT_FARR = new Function("putfarray", wrapParam(I32_TYPE, new Type.PointerType(F32_TYPE)), Type.VoidType.getVoidType());
-        public static final Function MEM_SET = new Function("memset", wrapParam(new Type.PointerType(I32_TYPE), I32_TYPE, I32_TYPE), Type.VoidType.getVoidType());
-        public static final Function START_TIME = new Function("starttime", wrapParam(I32_TYPE), Type.VoidType.getVoidType());
-        public static final Function STOP_TIME = new Function("stoptime", wrapParam(I32_TYPE), Type.VoidType.getVoidType());
+        public static final Function GET_INT = new Function(true, "getint", new ArrayList<>(), I32_TYPE);
+        public static final Function GET_CH = new Function(true, "getch", new ArrayList<>(), I32_TYPE);
+        public static final Function GET_FLOAT = new Function(true, "getfloat", new ArrayList<>(), F32_TYPE);
+        public static final Function GET_ARR = new Function(true, "getarray", wrapParam(new Type.PointerType(I32_TYPE)), I32_TYPE);
+        public static final Function GET_FARR = new Function(true, "getfarray", wrapParam(new Type.PointerType(F32_TYPE)), I32_TYPE);
+        public static final Function PUT_INT = new Function(true, "putint", wrapParam(I32_TYPE), Type.VoidType.getVoidType());
+        public static final Function PUT_CH = new Function(true, "putch", wrapParam(I32_TYPE), Type.VoidType.getVoidType());
+        public static final Function PUT_FLOAT = new Function(true, "putfloat", wrapParam(F32_TYPE), Type.VoidType.getVoidType());
+        public static final Function PUT_ARR = new Function(true, "putarray", wrapParam(I32_TYPE, new Type.PointerType(I32_TYPE)), Type.VoidType.getVoidType());
+        public static final Function PUT_FARR = new Function(true, "putfarray", wrapParam(I32_TYPE, new Type.PointerType(F32_TYPE)), Type.VoidType.getVoidType());
+        public static final Function MEM_SET = new Function(true, "memset", wrapParam(new Type.PointerType(I32_TYPE), I32_TYPE, I32_TYPE), Type.VoidType.getVoidType());
+        public static final Function START_TIME = new Function(true, "starttime", wrapParam(I32_TYPE), Type.VoidType.getVoidType());
+        public static final Function STOP_TIME = new Function(true, "stoptime", wrapParam(I32_TYPE), Type.VoidType.getVoidType());
     }
 
     private Manager() {

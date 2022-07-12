@@ -8,7 +8,7 @@ import java.io.PrintStream;
  * mla:Rn + (Rm * Rs)[31:0] or mls:Rd := Rn – (Rm * Rs)[31:0]
  * dst = acc +(-) lhs * rhs
  */
-public class MIFma extends MachineInst{
+public class MIFma extends MachineInst {
     Machine.Operand acc;
     Machine.Operand dst;
     Machine.Operand lOpd;
@@ -16,21 +16,20 @@ public class MIFma extends MachineInst{
     boolean add;
     boolean sign;
     Arm.Cond cond;
-    public MIFma(boolean add,boolean sign,Machine.Block insertAtEnd,boolean isFloat){
-        super(Tag.FMA,insertAtEnd,isFloat);
+
+    public MIFma(boolean add, boolean sign, Machine.Block insertAtEnd, boolean isFloat) {
+        super(Tag.FMA, insertAtEnd, isFloat);
         this.add = add;
         this.sign = sign;
 
     }
 
 
-
-
     public MIFma(boolean add, boolean sign,
                  Machine.Operand tmpDst, Machine.Operand curAddrVR, Machine.Operand curIdxVR, Machine.Operand offUnitImmVR,
                  Machine.Block insertAtEnd) {
         //dst = acc +(-) lhs * rhs
-        super(Tag.FMA,insertAtEnd);
+        super(Tag.FMA, insertAtEnd);
         this.add = add;
         this.sign = sign;
         dst = tmpDst;
@@ -40,19 +39,18 @@ public class MIFma extends MachineInst{
     }
 
     @Override
-    public void output(PrintStream os, Machine.McFunction f){
+    public void output(PrintStream os, Machine.McFunction f) {
         transfer_output(os);
-        if(sign){
+        if (sign) {
             os.print("sm");
         }
-        String op = null;
-        if(add){
+        String op = "";
+        if (add) {
             op = "mla";
-        }
-        else{
+        } else {
             op = "mls";
         }
-        os.println(op+cond+"\t"+dst.toString()+","+lOpd.toString()+","+rOpd.toString()+","+acc.toString());
+        os.println(op + cond + "\t" + dst.toString() + "," + lOpd.toString() + "," + rOpd.toString() + "," + acc.toString());
 
     }
 
@@ -62,5 +60,21 @@ public class MIFma extends MachineInst{
         useOpds.add(lOpd);
         useOpds.add(rOpd);
         defOpds.add(dst);
+    }
+
+    @Override
+    public String toString() {
+        String res = "";
+        if (sign) {
+            res += "sm";
+        }
+        String op;
+        if (add) {
+            op = "mla";
+        } else {
+            op = "mls";
+        }
+        res += op + cond + "\t" + dst.toString() + "," + lOpd.toString() + "," + rOpd.toString() + "," + acc.toString();
+        return res;
     }
 }

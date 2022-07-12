@@ -1,10 +1,13 @@
 import arg.Arg;
+import backend.CodeGen;
+import backend.TrivialRegAllocator;
 import frontend.lexer.Lexer;
 import frontend.lexer.Token;
 import frontend.lexer.TokenList;
 import frontend.Visitor;
 import frontend.syntax.Ast;
 import frontend.syntax.Parser;
+import lir.Machine;
 import midend.MidEndRunner;
 import manage.Manager;
 
@@ -47,11 +50,18 @@ public class Compiler {
             // Manager manager = visitor.getIr();
             // GlobalValueLocalize globalValueLocalize = new GlobalValueLocalize(funcManager.globals);
             // globalValueLocalize.Run();
+            Manager.MANAGER.outputLLVM();
             MidEndRunner midEndRunner = new MidEndRunner(Manager.MANAGER.getFunctionList());
             midEndRunner.Run();
             // DeadCodeDelete deadCodeDelete = new DeadCodeDelete(Manager.MANAGER.getFunctionList());
             // deadCodeDelete.Run();
             Manager.MANAGER.output(arg.llvmStream);
+            CodeGen.CODEGEN.gen();
+            CodeGen.CODEGEN.outputMI();
+            Machine.Program p = Machine.Program.PROGRAM;
+            TrivialRegAllocator regAllocator = new TrivialRegAllocator();
+            regAllocator.AllocateRegister(p);
+            p.output(new PrintStream(arg.asmStream));
         } catch (Exception e) {
             e.printStackTrace();
             System.exit(1);

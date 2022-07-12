@@ -4,6 +4,7 @@ import lir.*;
 import lir.Machine.Operand;
 import manage.Manager;
 import mir.type.DataType;
+import util.ILinkNode;
 
 import java.util.*;
 import java.util.stream.Stream;
@@ -52,26 +53,27 @@ public class TrivialRegAllocator {
         boolean changed = true;
         while (changed) {
             changed = false;
-            for (Machine.Block mb = mcFunc.mbList.getEnd(); !mb.equals(mcFunc.mbList.head); mb = (Machine.Block) mb.getPrev()) {
+            for (ILinkNode mb = mcFunc.mbList.getEnd(); !mb.equals(mcFunc.mbList.head); mb = mb.getPrev()) {
+                final Machine.Block finalMb = (Machine.Block) mb;
                 // 任意succ的liveInSet如果有更新, 则可能更新 (只可能增加, 增量为newLiveOut) 当前MB的liveIn,
                 // 且当前MB如果需要更新liveIn, 只可能新增且新增的Opd一定出自newLiveOut
                 HashSet<Operand> newLiveOut = new HashSet<>();
-                for (Machine.Block succMB : mb.successor) {
-                    for (Operand liveIn : succMB.liveInSet) {
-                        if (mb.liveOutSet.add(liveIn)) {
+                finalMb.successor.forEach(succMB -> {
+                    succMB.liveInSet.forEach(liveIn -> {
+                        if (finalMb.liveOutSet.add(liveIn)) {
                             newLiveOut.add(liveIn);
                         }
-                    }
-                }
+                    });
+                });
                 changed = newLiveOut.size() > 0;
                 // newLiveOut.retainAll(mb.defSet);
                 // 从 newLiveOut 删除了不存在于 mb.defSet 的元素
 
-                for (Operand newOut : newLiveOut) {
-                    if (!mb.defSet.contains(newOut)) {
-                        mb.liveInSet.add(newOut);
+                newLiveOut.forEach(newOut -> {
+                    if (!finalMb.defSet.contains(newOut)) {
+                        finalMb.liveInSet.add(newOut);
                     }
-                }
+                });
             }
         }
     }
@@ -283,14 +285,14 @@ public class TrivialRegAllocator {
                                 curMF.vrList.set(vrIdx, use);
                             }
                             use.setValue(vrIdx);
-                            if(firstUse!=null && lastDef!=null){
+                            if (firstUse != null && lastDef != null) {
                                 firstUse = srcMI;
                             }
                         }
                     });
                 }
 
-                if(i++ > 30){
+                if (i++ > 30) {
                     checkpoint();
                 }
             }
@@ -346,7 +348,8 @@ public class TrivialRegAllocator {
             // 获取块的 liveOut
             HashSet<Operand> live = mb.liveOutSet;
             Machine.Block finalMb = mb;
-            for (MachineInst mi = mb.getEndMI(); !mi.equals(mb.miList.head); mi = (MachineInst) mi.getPrev()) {
+            for (ILinkNode iNode = mb.getEndMI(); !iNode.equals(mb.miList.head); iNode = iNode.getPrev()) {
+                MachineInst mi = (MachineInst) iNode;
                 // TODO : 此时考虑了Call
                 ArrayList<Operand> defs = mi.defOpds;
                 ArrayList<Operand> uses = mi.useOpds;

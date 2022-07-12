@@ -66,6 +66,21 @@ public class Function extends Value {
     private HashMap<BasicBlock, ArrayList<BasicBlock>> preMap;
     private HashMap<BasicBlock, ArrayList<BasicBlock>> sucMap;
     private HashSet<BasicBlock> BBs;
+    public boolean isExternal = false;
+
+    public Function(boolean flag, String name, ArrayList<Param> params, Type retType) {
+        this.begin = new BasicBlock();
+        this.end = new BasicBlock();
+        begin.setNext(end);
+        end.setPrev(begin);
+        this.name = name;
+        this.params = params;
+        for (Param param : params) {
+            param.parentFunc = this;
+        }
+        this.retType = retType;
+        isExternal = flag;
+    }
 
 
     public Function(String name, ArrayList<Param> params, Type retType) {

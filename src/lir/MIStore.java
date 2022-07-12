@@ -2,11 +2,12 @@ package lir;
 
 import java.io.PrintStream;
 
-public class MIStore extends MIAccess{
+public class MIStore extends MIAccess {
     public Machine.Operand data;
     public Machine.Operand addr;
-    public MIStore(Machine.Block insertAtEnd,boolean isFloat){
-        super(Tag.Store,insertAtEnd,isFloat);
+
+    public MIStore(Machine.Block insertAtEnd, boolean isFloat) {
+        super(Tag.Store, insertAtEnd, isFloat);
     }
 
     public MIStore(Machine.Operand data, Machine.Operand addr, Machine.Operand offset, Machine.Block insertAtEnd) {
@@ -19,6 +20,7 @@ public class MIStore extends MIAccess{
 
     /**
      * 寄存器分配时专用
+     *
      * @param insertAfter
      * @param data
      * @param addr
@@ -37,15 +39,20 @@ public class MIStore extends MIAccess{
         useOpds.add(offset);
 
     }
+
     @Override
-    public void output(PrintStream os, Machine.McFunction f){
+    public void output(PrintStream os, Machine.McFunction f) {
         transfer_output(os);
-        if(offset.getType() == Machine.Operand.Type.Immediate){
-            int offset = this.offset.value <<shift;
-            os.println("str"+cond+"\t"+data.toString()+",["+addr.toString()+",#"+offset+"]");
+        if (offset.getType() == Machine.Operand.Type.Immediate) {
+            int offset = this.offset.value << shift;
+            os.println("str" + cond + "\t" + data.toString() + ",[" + addr.toString() + ",#" + offset + "]");
+        } else {
+            os.println("str" + cond + "\t" + data.toString() + ",[" + addr.toString() + "," + offset.toString() + ",LSL #" + shift + "]");
         }
-        else{
-            os.println("str"+cond+"\t"+data.toString()+",["+addr.toString()+","+offset.toString()+",LSL #"+shift+"]");
-        }
+    }
+
+    @Override
+    public String toString() {
+        return tag.toString() + cond + '\t' + data + ",[" + addr + "," + offset + "," + shift + "]";
     }
 }

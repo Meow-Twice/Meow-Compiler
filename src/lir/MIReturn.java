@@ -41,4 +41,9 @@ public class MIReturn extends MachineInst{
 
         return;
     }
+
+    @Override
+    public String toString() {
+        return tag.toString();
+    }
 }

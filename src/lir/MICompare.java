@@ -29,4 +29,9 @@ public class MICompare extends MachineInst{
         transfer_output(os);
         os.println("cmp\t"+lOpd.toString()+","+rOpd.toString());
     }
+
+    @Override
+    public String toString() {
+        return tag.toString()+'\t' + lOpd + " , "+rOpd;
+    }
 }

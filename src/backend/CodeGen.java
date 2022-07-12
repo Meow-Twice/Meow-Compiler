@@ -1,7 +1,6 @@
 package backend;
 
 import frontend.semantic.Initial;
-import jdk.incubator.vector.VectorOperators;
 import lir.*;
 import manage.Manager;
 import mir.*;
@@ -67,8 +66,19 @@ public class CodeGen {
     public void gen() {
         genGlobal();
         // TODO
+
         for (Function func : midFuncMap.values()) {
+            if (func.isExternal) {
+                Machine.McFunction mcFunc = new Machine.McFunction(func);
+                func2mcFunc.put(func, mcFunc);
+            }
+        }
+        for (Function func : midFuncMap.values()) {
+            if (func.isExternal) {
+                continue;
+            }
             Machine.McFunction mcFunc = new Machine.McFunction(func);
+            Machine.Program.PROGRAM.funcList.insertAtEnd(mcFunc);
             curFunc = func;
             curMachineFunc = mcFunc;
             curMachineFunc.setVRCount(0);
@@ -76,35 +86,57 @@ public class CodeGen {
             func2mcFunc.put(func, mcFunc);
 
             BasicBlock bb = func.getBeginBB();
-            BasicBlock endBB = func.getEndBB();
+            BasicBlock endBB = func.getEnd();
             // 先造出来防止br找不到目标
             while (!bb.equals(endBB)) {
-                Machine.Block mb = new Machine.Block(bb, curMachineFunc);
+                Machine.Block mb = new Machine.Block(bb);
                 bb.setMB(mb);
                 bb2mb.put(bb, mb);
                 bb = (BasicBlock) bb.getNext();
             }
             bb = func.getBeginBB();
-            endBB = func.getEndBB();
-            while (!bb.equals(endBB)) {
-                curMB = bb.getMb();
-                genBB(bb);
-                bb = (BasicBlock) bb.getNext();
+            // endBB = func.getEndBB();
+            // while (!bb.equals(endBB)) {
+            genBB(bb);
+            // bb = (BasicBlock) bb.getNext();
+            // }
+        }
+    }
+
+    public void outputMI() {
+        Machine.Program p = Machine.Program.PROGRAM;
+        for (Machine.McFunction mcFunc : p.funcList) {
+            System.out.println(mcFunc.mFunc.getName());
+            for (Machine.Block mb : mcFunc.mbList) {
+                System.out.println(mb.bb);
+                for (MachineInst mi : mb.miList) {
+                    String str = mi instanceof MIComment ? "" : "\t";
+                    System.out.println(str + mi);
+                }
             }
         }
     }
 
+    HashSet<Machine.Block> dfsBBSet = new HashSet<>();
+
     public void genBB(BasicBlock bb) {
+        curMB = bb.getMb();
+        dfsBBSet.add(curMB);
+        curMB.setMcFunc(curMachineFunc);
+        ArrayList<Machine.Block> nextBlockList = new ArrayList<>();
         Instr instr = bb.getBeginInstr();
-        Instr endInstr = bb.getEndInstr();
-        while (!instr.equals(endInstr)) {
+        while (!instr.equals(bb.getEnd())) {
             if (_DEBUG_OUTPUT_MIR_INTO_COMMENT) {
                 new MIComment(instr.toString(), curMB);
             }
             switch (instr.tag) {
                 case value, func, bb -> throw new AssertionError("Damaged wrong: try gen: " + instr);
                 case bino -> genBinaryInst((Instr.Alu) instr);
-                case jump -> new MIJump(((Instr.Jump) instr).getTarget().getMb(), curMB);
+                case jump -> {
+                    Machine.Block mb = ((Instr.Jump) instr).getTarget().getMb();
+                    if (!dfsBBSet.contains(mb)) nextBlockList.add(mb);
+                    new MIJump(mb, curMB);
+                }
                 case icmp, fcmp -> genCmp(instr);
                 case branch -> {
                     Arm.Cond cond;
@@ -112,6 +144,8 @@ public class CodeGen {
                     Instr condValue = (Instr) brInst.getCond();
                     Machine.Block trueBlock = brInst.getThenTarget().getMb();
                     Machine.Block falseBlock = brInst.getElseTarget().getMb();
+                    if (!dfsBBSet.contains(trueBlock)) nextBlockList.add(trueBlock);
+                    if (!dfsBBSet.contains(falseBlock)) nextBlockList.add(falseBlock);
                     CMPAndArmCond t = cmpInst2MICmpMap.get(condValue);
                     if (t != null) {
                         curMB.firstMIForBJ = t.CMP;
@@ -142,7 +176,7 @@ public class CodeGen {
                     Machine.Operand lOpd = getVR_may_imm(new Constant.ConstantFloat(0));
                     Machine.Operand rOpd = getVR_may_imm(value);
                     Machine.Operand dVR = getVR_no_imm(fneginst);
-                    new MIBinary(MachineInst.Tag.FSub,dVR,lOpd,rOpd,curMB);
+                    new MIBinary(MachineInst.Tag.FSub, dVR, lOpd, rOpd, curMB);
 
                 }
                 case ret -> {
@@ -254,7 +288,7 @@ public class CodeGen {
                             // new MIFma(true,false, tmpDst, curAddrVR, curIdxVR ,offUnitImmVR, curMB);
                             // curAddrVR = tmpDst;
                             // TODO 是否需要避免寄存器分配时出现use的VR与def的VR相同的情况
-                            new MIFma(true,false, curAddrVR, curAddrVR, curIdxVR ,offUnitImmVR, curMB);
+                            new MIFma(true, false, curAddrVR, curAddrVR, curIdxVR, offUnitImmVR, curMB);
                         }
                     }
 
@@ -263,53 +297,60 @@ public class CodeGen {
                 case call -> {
                     //move caller's r0-r3  to VR
                     Instr.Call call_inst = (Instr.Call) instr;
+                    if (call_inst.getFunc().isExternal) {
+                        // getint()临时用
+                        dealExternalFunc(call_inst.getFunc());
+                        new MIMove(getVR_may_imm(call_inst), Arm.Reg.getR(r0), curMB);
+                        break;
+                    }
+                    // TODO : 函数内部可能调用其他函数, 但是在函数内部已经没有了使用哪些寄存器的信息, 目前影响未知, 可能有bug
                     ArrayList<Value> param_list = call_inst.getParamList();
-                    if(!param_list.isEmpty()){
+                    if (!param_list.isEmpty()) {
                         //move r0 to VR0
                         Machine.Operand vr0 = newVR();
                         Machine.Operand r0 = new Machine.Operand(new Arm.Reg(I32, Arm.Regs.GPRs.r0));
-                        new MIMove(vr0,r0,curMB);
+                        new MIMove(vr0, r0, curMB);
                         //move param0 to r0
-                        if(value2opd.containsKey(param_list.get(0))){
-                            new MIMove(r0,value2opd.get(param_list.get(0)),curMB);
+                        if (value2opd.containsKey(param_list.get(0))) {
+                            new MIMove(r0, value2opd.get(param_list.get(0)), curMB);
                         }
                     }
 
-                    if(param_list.size()>1){
+                    if (param_list.size() > 1) {
                         //move r1 to VR1
                         Machine.Operand vr1 = newVR();
                         Machine.Operand r1 = new Machine.Operand(new Arm.Reg(I32, Arm.Regs.GPRs.r1));
-                        new MIMove(vr1,r1,curMB);
+                        new MIMove(vr1, r1, curMB);
                         //move param1 to r1
-                        if(value2opd.containsKey(param_list.get(1))){
-                            new MIMove(r1,value2opd.get(param_list.get(1)),curMB);
+                        if (value2opd.containsKey(param_list.get(1))) {
+                            new MIMove(r1, value2opd.get(param_list.get(1)), curMB);
                         }
                     }
-                    if(param_list.size()>2){
+                    if (param_list.size() > 2) {
                         //move r2 to VR2
                         Machine.Operand vr2 = newVR();
                         Machine.Operand r2 = new Machine.Operand(new Arm.Reg(I32, Arm.Regs.GPRs.r2));
-                        new MIMove(vr2,r2,curMB);
+                        new MIMove(vr2, r2, curMB);
                         //move param2 to r2
-                        if(value2opd.containsKey(param_list.get(2))){
-                            new MIMove(r2,value2opd.get(param_list.get(2)),curMB);
+                        if (value2opd.containsKey(param_list.get(2))) {
+                            new MIMove(r2, value2opd.get(param_list.get(2)), curMB);
                         }
                     }
-                    if(param_list.size()>3){
+                    if (param_list.size() > 3) {
                         //move r3 to VR3
                         Machine.Operand vr3 = newVR();
-                        Machine.Operand r3= new Machine.Operand(new Arm.Reg(I32, Arm.Regs.GPRs.r3));
-                        new MIMove(vr3,r3,curMB);
+                        Machine.Operand r3 = new Machine.Operand(new Arm.Reg(I32, Arm.Regs.GPRs.r3));
+                        new MIMove(vr3, r3, curMB);
                         //move param3 to r3
-                        if(value2opd.containsKey(param_list.get(3))){
-                            new MIMove(r3,value2opd.get(param_list.get(3)),curMB);
+                        if (value2opd.containsKey(param_list.get(3))) {
+                            new MIMove(r3, value2opd.get(param_list.get(3)), curMB);
                         }
                     }
-                    if(param_list.size()>4){
+                    if (param_list.size() > 4) {
                         //push
-                        for(int i = 4;i<param_list.size();i++){
+                        for (int i = 4; i < param_list.size(); i++) {
                             Value param = param_list.get(i);
-                            int offset_imm = (i-3)*-4;
+                            int offset_imm = (i - 3) * -4;
                             Machine.Operand data = value2opd.get(param);
                             Machine.Operand addr = new Machine.Operand(new Arm.Reg(I32, sp));
                             Machine.Operand offset = new Machine.Operand(I32, offset_imm);
@@ -317,13 +358,15 @@ public class CodeGen {
                         }
                     }
                     // 栈空间移位
-                    func2mcFunc.get(call_inst.getFunc()).addStack((param_list.size()-4)*4);
+                    func2mcFunc.get(call_inst.getFunc()).addStack((param_list.size() - 4) * 4);
                     Machine.Operand dOp = new Machine.Operand(new Arm.Reg(I32, sp));
                     Machine.Operand lOp = dOp;
-                    Machine.Operand rOp = new Machine.Operand(I32,(param_list.size()-4)*4);
-                    new MIBinary(MachineInst.Tag.Sub,dOp,lOp,rOp,curMB);
-                    //call
-                    new MICall(func2mcFunc.get(call_inst.getFunc()),curMB);
+                    Machine.Operand rOp = new Machine.Operand(I32, (param_list.size() - 4) * 4);
+                    new MIBinary(MachineInst.Tag.Sub, dOp, lOp, rOp, curMB);
+                    // call
+                    new MICall(func2mcFunc.get(call_inst.getFunc()), curMB);
+                    // 这行是取返回值
+                    new MIMove(getVR_may_imm(call_inst), Arm.Reg.getR(r0), curMB);
                 }
                 case phi -> throw new AssertionError("Backend has phi: " + instr);
                 case pcopy -> {
@@ -349,6 +392,15 @@ public class CodeGen {
             }
             instr = (Instr) instr.getNext();
         }
+        for (Machine.Block mb : nextBlockList) {
+            genBB(mb.bb);
+        }
+    }
+
+    private void dealExternalFunc(Function func) {
+        // getint()临时用
+        new MICall(func2mcFunc.get(func), curMB);
+        // return;
     }
 
     public void genGlobal() {
@@ -358,7 +410,7 @@ public class CodeGen {
             // TODO for yyf
             //load global addr at the head of the entry bb
             GlobalVal.GlobalValue globalValue = (GlobalVal.GlobalValue) glob;
-            MIGlobal new_inst = new MIGlobal(globalValue,curMachineFunc.getBeginMB());
+            MIGlobal new_inst = new MIGlobal(globalValue, curMachineFunc.getBeginMB());
             //allocate virtual reg
             Machine.Operand vr = newVR(globalValue);
             new_inst.dOpd = vr;

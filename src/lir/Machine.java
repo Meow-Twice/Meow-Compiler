@@ -16,8 +16,9 @@ import static lir.Machine.Operand.Type.*;
 public class Machine {
 
     public static class Program {
-        public Ilist<McFunction> funcList;
-        public ArrayList<GlobalVal> globList;
+        public static final Program PROGRAM = new Program();
+        public Ilist<McFunction> funcList = new Ilist<>();
+        public ArrayList<GlobalVal> globList = new ArrayList<>();
         int pool_count = 0;
         int inst_count = 0;
 
@@ -76,11 +77,12 @@ public class Machine {
         //     this.funcList = funcList;
         //     this.globList = globList;
         // }
-        public Program() {
+        private Program() {
         }
 
         public void output(PrintStream os) {
             os.println(".arch armv7ve");
+            os.println(".arm");
             os.println(".section .text");
             for (McFunction function : funcList) {
                 os.println();
@@ -167,12 +169,12 @@ public class Machine {
         }
 
 
-        ArrayList<Operand> params;
+        ArrayList<Operand> params = new ArrayList<>();
         String func_name;
         // int vrSize = 0;
         int stackSize = 0;
-        mir.Function mFunc;
-        HashSet<Arm.Reg> usedCalleeSavedRegs;
+        public mir.Function mFunc;
+        HashSet<Arm.Reg> usedCalleeSavedRegs = new HashSet<>();
         boolean useLr = false;
 
         public McFunction(mir.Function function) {
@@ -237,7 +239,7 @@ public class Machine {
         public BasicBlock bb;
         public McFunction mcFunc;
         public MachineInst firstMIForBJ = null;
-        public Ilist<MachineInst> miList;
+        public Ilist<MachineInst> miList = new Ilist<>();
         int index;
         // 双向链表的头
         // MachineInst tailMI = new MachineInst();
@@ -284,17 +286,26 @@ public class Machine {
         }
 
         //pred and successor
-        public ArrayList<Block> pred;
-        public ArrayList<Block> successor;
+        public ArrayList<Block> pred = new ArrayList<>();
+        public ArrayList<Block> successor = new ArrayList<>();
         public MachineInst con_tran = null;
-        public HashSet<Operand> liveUseSet;
-        public HashSet<Operand> defSet;
-        public HashSet<Operand> liveInSet;
-        public HashSet<Operand> liveOutSet;
+        public HashSet<Operand> liveUseSet = new HashSet<>();
+        public HashSet<Operand> defSet = new HashSet<>();
+        public HashSet<Operand> liveInSet = new HashSet<>();
+        public HashSet<Operand> liveOutSet = new HashSet<>();
 
         public Block(BasicBlock bb, Machine.McFunction insertAtEnd) {
             this.bb = bb;
             this.mcFunc = insertAtEnd;
+            mcFunc.insertAtEnd(this);
+        }
+
+        public Block(BasicBlock bb) {
+            this.bb = bb;
+        }
+
+        public void setMcFunc(McFunction mcFunc) {
+            this.mcFunc = mcFunc;
             mcFunc.insertAtEnd(this);
         }
 

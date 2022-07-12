@@ -3,6 +3,7 @@ package lir;
 import static mir.type.DataType.I32;
 import static mir.type.DataType.F32;
 import static lir.Machine.Operand.Type.*;
+
 import mir.type.DataType;
 
 
@@ -52,24 +53,28 @@ public class Arm {
 
 
         public Reg(DataType dataType, Regs.FPRs fpr) {
-            super(PreColored, I32);
+            super(PreColored, dataType);
             this.dataType = dataType;
             this.fpr = fpr;
+            this.value = fpr.ordinal();
         }
 
         public Reg(DataType dataType, Regs.GPRs gpr) {
-            super(PreColored, F32);
+            super(PreColored, dataType);
             this.dataType = dataType;
             this.gpr = gpr;
+            this.value = gpr.ordinal();
         }
 
         private static final Reg[] gprPool = new Reg[Regs.GPRs.values().length];
         private static final Reg[] fprPool = new Reg[Regs.FPRs.values().length];
 
         static {
-            for (int i = 0; i <= 12; i++) {
-                gprPool[i] = new Reg(DataType.I32, Regs.GPRs.valueOf("r" + i));
-                fprPool[i] = new Reg(DataType.F32, Regs.FPRs.valueOf("s" + i));
+            for(Regs.GPRs gpr : Regs.GPRs.values()){
+                gprPool[gpr.ordinal()] = new Reg(I32, gpr);
+            }
+            for(Regs.FPRs fpr : Regs.FPRs.values()){
+                fprPool[fpr.ordinal()] = new Reg(F32, fpr);
             }
         }
 
@@ -100,9 +105,17 @@ public class Arm {
         Gt("gt"),
         Le("le"),
         Lt("lt"),
-        Any("!Any");
+        Any("");
 
         Cond(String cond) {
+            name = cond;
+        }
+
+        String name;
+
+        @Override
+        public String toString() {
+            return name;
         }
     }
 

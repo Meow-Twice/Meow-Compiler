@@ -23,8 +23,8 @@ public class MidEndRunner {
         MakeDFG makeDFG = new MakeDFG(functions);
         makeDFG.Run();
 
-        GlobalValueLocalize globalValueLocalize = new GlobalValueLocalize(functions, globalValues);
-        globalValueLocalize.Run();
+        // GlobalValueLocalize globalValueLocalize = new GlobalValueLocalize(functions, globalValues);
+        // globalValueLocalize.Run();
 
 
 
@@ -32,17 +32,17 @@ public class MidEndRunner {
         mem2Reg.Run();
 
 
-        DeadCodeDelete deadCodeDelete = new DeadCodeDelete(functions);
-        deadCodeDelete.Run();
+        // DeadCodeDelete deadCodeDelete = new DeadCodeDelete(functions);
+        // deadCodeDelete.Run();
+        //
+        // InstrComb instrComb = new InstrComb(functions);
+        // instrComb.Run();
+        //
+        // GVNAndGCM gvnAndGCM = new GVNAndGCM(functions);
+        // gvnAndGCM.Run();
 
-        InstrComb instrComb = new InstrComb(functions);
-        instrComb.Run();
-
-        GVNAndGCM gvnAndGCM = new GVNAndGCM(functions);
-        gvnAndGCM.Run();
-
-//        RemovePhi removePhi = new RemovePhi(functions);
-//        removePhi.Run();
+       RemovePhi removePhi = new RemovePhi(functions);
+       removePhi.Run();
     }
 
 }

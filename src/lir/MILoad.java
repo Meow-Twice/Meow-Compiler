@@ -2,7 +2,7 @@ package lir;
 
 import java.io.PrintStream;
 
-public class MILoad extends MIAccess{
+public class MILoad extends MIAccess {
     public Machine.Operand data;
     public Machine.Operand addr;
 
@@ -30,15 +30,20 @@ public class MILoad extends MIAccess{
         useOpds.add(addr);
         useOpds.add(offset);
     }
+
     @Override
-    public void output(PrintStream os, Machine.McFunction f){
+    public void output(PrintStream os, Machine.McFunction f) {
         transfer_output(os);
-        if(offset.getType() == Machine.Operand.Type.Immediate){
-            int offset = this.offset.value<<shift;
-            os.println("ldr"+cond+"\t"+ data.toString()+",["+addr.toString()+",#"+offset+"]");
+        if (offset.getType() == Machine.Operand.Type.Immediate) {
+            int offset = this.offset.value << shift;
+            os.println("ldr" + cond + "\t" + data.toString() + ",[" + addr.toString() + ",#" + offset + "]");
+        } else {
+            os.println("ldr" + cond + "\t" + data.toString() + ",[" + addr.toString() + "," + offset.toString() + ",LSL #" + shift + "]");
         }
-        else{
-            os.println("ldr"+cond+"\t"+ data.toString()+",["+addr.toString()+","+offset.toString()+",LSL #"+shift+"]");
-        }
+    }
+
+    @Override
+    public String toString() {
+        return tag.toString() + cond.toString() + '\t' + data + ",[" + addr + ", " + offset + "]";
     }
 }

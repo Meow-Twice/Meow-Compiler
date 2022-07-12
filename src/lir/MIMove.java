@@ -2,7 +2,7 @@ package lir;
 
 import java.io.PrintStream;
 
-public class MIMove extends MachineInst{
+public class MIMove extends MachineInst {
     Arm.Cond cond = Arm.Cond.Any;
     Machine.Operand dOpd;
     Machine.Operand sOpd;
@@ -14,12 +14,12 @@ public class MIMove extends MachineInst{
         genDefUse();
     }
 
-    public boolean encode_imm(int imm){
+    public boolean encode_imm(int imm) {
         for (int ror = 0; ror < 32; ror += 2) {
             if ((imm & ~0xFF) == 0) {
                 return true;
             }
-            imm = (imm << 2) | (imm  >> 30);
+            imm = (imm << 2) | (imm >> 30);
         }
         return false;
     }
@@ -52,20 +52,21 @@ public class MIMove extends MachineInst{
         genDefUse();
     }
 
-   public boolean operator(MIMove move){
-        if(this.cond!=move.cond)
+    public boolean operator(MIMove move) {
+        if (this.cond != move.cond)
             return this.cond.compareTo(move.cond) < 0;
-        if(this.dOpd != this.dOpd)
+        if (this.dOpd != this.dOpd)
             return this.dOpd.compareTo(this.dOpd);
-        if(this.sOpd != this.sOpd)
-           return this.sOpd.compareTo(this.sOpd);
-       return false;
-   }
+        if (this.sOpd != this.sOpd)
+            return this.sOpd.compareTo(this.sOpd);
+        return false;
+    }
 
-   public MIMove(){
+    public MIMove() {
         super(Tag.Mv);
         cond = Arm.Cond.Any;
-   }
+    }
+
     @Override
     public void genDefUse() {
         defOpds.add(dOpd);
@@ -73,20 +74,18 @@ public class MIMove extends MachineInst{
     }
 
     @Override
-    public void output(PrintStream os, Machine.McFunction f){
+    public void output(PrintStream os, Machine.McFunction f) {
         transfer_output(os);
-        if(sOpd.type == Machine.Operand.Type.Immediate && encode_imm(sOpd.value)){
+        if (sOpd.type == Machine.Operand.Type.Immediate && encode_imm(sOpd.value)) {
             int imm = sOpd.value;
-            if(imm>>16 == 0){
-                os.println("movw"+cond+"\t"+dOpd.toString()+",#"+imm);
+            if (imm >> 16 == 0) {
+                os.println("movw" + cond + "\t" + dOpd.toString() + ",#" + imm);
+            } else {
+                os.println("ldr" + cond + "\t" + dOpd.toString() + ",=" + imm);
             }
-            else{
-                os.println("ldr"+cond+"\t"+dOpd.toString()+",="+imm);
-            }
-        }
-        else{
-            os.print("mov"+cond+"\t"+dOpd.toString()+","+sOpd.toString());
-            os.println(","+shift.toString());
+        } else {
+            os.print("mov" + cond + "\t" + dOpd.toString() + "," + sOpd.toString());
+            os.println("," + shift.toString());
         }
     }
 
@@ -105,5 +104,10 @@ public class MIMove extends MachineInst{
 
     public Machine.Operand getSrc() {
         return sOpd;
+    }
+
+    @Override
+    public String toString() {
+        return tag.toString() + cond.toString() + '\t' + dOpd.toString() + ",\t"+sOpd.toString();
     }
 }

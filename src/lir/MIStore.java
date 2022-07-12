@@ -17,6 +17,19 @@ public class MIStore extends MIAccess{
         genDefUse();
     }
 
+    /**
+     * 寄存器分配时专用
+     * @param insertAfter
+     * @param data
+     * @param addr
+     */
+    public MIStore(MachineInst insertAfter, Machine.Operand data, Machine.Operand addr) {
+        super(insertAfter, Tag.Store);
+        this.data = data;
+        this.addr = addr;
+        genDefUse();
+    }
+
     @Override
     public void genDefUse() {
         useOpds.add(data);

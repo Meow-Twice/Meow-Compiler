@@ -42,6 +42,9 @@ public class Arm {
         }
     }
 
+    /**
+     * 只供预着色使用
+     */
     public static class Reg extends Machine.Operand {
         DataType dataType;
         Regs.FPRs fpr;

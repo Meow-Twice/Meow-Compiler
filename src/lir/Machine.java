@@ -138,6 +138,7 @@ public class Machine {
         // Block tailBlock = new Block();
         // Block headBlock = new Block();
         public Ilist<Block> mbList = new Ilist<>();
+        private int vrCount = 0;
 
         /**
          * 获取真正的第一个Block
@@ -168,7 +169,7 @@ public class Machine {
 
         ArrayList<Operand> params;
         String func_name;
-        int vrSize = 0;
+        // int vrSize = 0;
         int stackSize = 0;
         mir.Function mFunc;
         HashSet<Arm.Reg> usedCalleeSavedRegs;
@@ -199,11 +200,29 @@ public class Machine {
 
 
         public int getVRSize() {
-            return vrSize;
+            return vrCount;
         }
 
-        public void setVRSize(int size) {
-            vrSize = size;
+        public final ArrayList<Operand> vrList = new ArrayList<>();
+
+        public Operand getVR(int idx) {
+            assert idx <= vrCount;
+            if (idx >= vrCount) {
+                Operand newVR = new Operand(vrCount++);
+                vrList.add(newVR);
+                return newVR;
+            }
+            return vrList.get(idx);
+        }
+
+        public Operand newVR() {
+            Operand vr = new Operand(vrCount++);
+            vrList.add(vr);
+            return vr;
+        }
+
+        public void setVRCount(int i) {
+            vrCount = i;
         }
     }
 
@@ -290,6 +309,11 @@ public class Machine {
         // 虚拟寄存器id号, 立即数号, 实际寄存器号
         protected int value;
 
+
+        public int getImm() {
+            return value;
+        }
+
         /**
          * 对于每一个非预着色的虚拟寄存器 this , adjOpedSet 是与 this 冲突的 Operand 的集合
          */
@@ -310,6 +334,8 @@ public class Machine {
          */
         public HashSet<MIMove> moveSet = new HashSet<>();
 
+        // public Arm.Reg reg;
+        public Arm.Regs reg;
         // private static Arm.Reg[] regPool = new Arm.Reg[Arm.Regs.GPRs.values().length + Arm.Regs.FPRs.values().length];
 
         public boolean isImm() {
@@ -326,6 +352,22 @@ public class Machine {
 
         public boolean needColor() {
             return type == PreColored || type == Virtual;
+        }
+
+        public boolean isAllocated() {
+            return type == Allocated;
+        }
+
+        public boolean hasReg() {
+            return type == Allocated || type == PreColored;
+        }
+
+        public Arm.Regs getReg() {
+            return reg;
+        }
+
+        public boolean isVirtual() {
+            return type == Virtual;
         }
 
         // static {
@@ -380,7 +422,12 @@ public class Machine {
             this.value = imm;
         }
 
-
+        /**
+         * data
+         *
+         * @param type
+         * @param dataType
+         */
         public Operand(Type type, DataType dataType) {
             this.type = type;
             prefix = switch (type) {
@@ -403,6 +450,16 @@ public class Machine {
             };
         }
 
+        public Operand(Arm.Regs reg) {
+            this.type = Allocated;
+            if (reg instanceof Arm.Regs.GPRs) {
+                prefix = "r";
+            } else if (reg instanceof Arm.Regs.FPRs) {
+                prefix = "s";
+            } else {
+                throw new AssertionError("Wrong reg: " + reg);
+            }
+        }
 
         public Operand(Type type, Arm.Reg reg) {
             this.type = type;
@@ -427,6 +484,14 @@ public class Machine {
 
         public String toString() {
             return prefix + value;
+        }
+
+        public double heuristicVal() {
+            return (double) degree / (2 << loopCounter);
+        }
+
+        public Operand select(Operand o) {
+            return heuristicVal() < o.heuristicVal() ? this : o;
         }
     }
 }

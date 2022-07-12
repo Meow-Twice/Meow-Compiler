@@ -75,8 +75,6 @@ public class MidEndRunner {
         BranchLift branchLift = new BranchLift(functions);
         branchLift.Run();
 
-
-
         reMakeCFGAndLoopInfo();
 
         Pass();

@@ -28,8 +28,11 @@ public class MakeDFG {
 
 
     private void RemoveDeadBB() {
+        //TODO:优化删除基本块的算法
         for (Function function: functions) {
-            removeFuncDeadBB(function);
+            while (removeFuncDeadBB(function)) {
+
+            }
         }
     }
 
@@ -65,7 +68,9 @@ public class MakeDFG {
 
 
 
-    private void removeFuncDeadBB(Function function) {
+    //删除冗余块  一次删不完, 删除一些没有前驱的块会多出来一些新的没有前驱的块
+    //可以DFS删,一次就能删完
+    private boolean removeFuncDeadBB(Function function) {
         BasicBlock beginBB = function.getBeginBB();
         BasicBlock end = function.getEnd();
 
@@ -127,6 +132,8 @@ public class MakeDFG {
         function.setSucMap(sucMap);
         function.setBBs(BBs);
 
+
+        boolean ret = false;
         for (BasicBlock bb: needRemove) {
             bb.remove();
             Instr instr = bb.getBeginInstr();
@@ -134,7 +141,9 @@ public class MakeDFG {
                 instr.remove();
                 instr = (Instr) instr.getNext();
             }
+            ret = true;
         }
+        return ret;
     }
 
     //计算单个函数的控制流图

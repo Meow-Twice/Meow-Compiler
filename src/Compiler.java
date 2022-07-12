@@ -47,8 +47,8 @@ public class Compiler {
             // Manager manager = visitor.getIr();
             // GlobalValueLocalize globalValueLocalize = new GlobalValueLocalize(funcManager.globals);
             // globalValueLocalize.Run();
-            MidEndRunner midEndRunner = new MidEndRunner(Manager.MANAGER.getFunctionList());
-            midEndRunner.Run();
+//            MidEndRunner midEndRunner = new MidEndRunner(Manager.MANAGER.getFunctionList());
+//            midEndRunner.Run();
             // DeadCodeDelete deadCodeDelete = new DeadCodeDelete(Manager.MANAGER.getFunctionList());
             // deadCodeDelete.Run();
             Manager.MANAGER.output(arg.llvmStream);

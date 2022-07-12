@@ -1,5 +1,6 @@
 package mir;
 
+import frontend.Visitor;
 import lir.Machine;
 import midend.CloneInfoMap;
 import mir.type.Type;
@@ -319,7 +320,7 @@ public class BasicBlock extends Value {
 
     @Override
     public String toString() {
-        //return this.label + ":\t\t\t\t\t; loopDepth: " + loop.loopDepth + ";\t" + loop + ";\t" + loop.getHash();
+        //return this.label + ":\t\t\t\t\t; loopDepth: " + loop.loopDepth + ";\t" + loop;
         return this.label;
     }
 
@@ -355,7 +356,10 @@ public class BasicBlock extends Value {
         }
         Instr instr = this.getBeginInstr();
         while (instr.getNext() != null) {
-            instr.cloneToBB(ret);
+            Instr tmp = instr.cloneToBB(ret);
+            if (instr.isInWhileCond()) {
+                tmp.setLoopCondCount(++Visitor.VISITOR.curLoopCondCount);
+            }
             instr = (Instr) instr.getNext();
         }
 //        Instr retInstr = ret.getBeginInstr();

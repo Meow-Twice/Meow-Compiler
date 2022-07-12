@@ -25,7 +25,9 @@ public class BranchLift {
     }
 
     private void branchLiftForFunc(Function function) {
+        //TODO:一次只能提升一个循环的一个Branch
         for (BasicBlock head: function.getLoopHeads()) {
+            boolean tag = false;
             Loop loop = head.getLoop();
             HashMap<Integer, HashSet<Instr>> conds = loop.getConds();
             for (int key: conds.keySet()) {
@@ -34,9 +36,16 @@ public class BranchLift {
                     for (Instr temp: conds.get(key)) {
                         br = temp;
                     }
-                    assert br instanceof Instr.Branch;
+                    if (!(br instanceof Instr.Branch)) {
+                        continue;
+                    }
                     liftBrOutLoop((Instr.Branch) br, loop);
+                    tag = true;
+                    break;
                 }
+            }
+            if (tag) {
+                break;
             }
         }
     }
@@ -45,6 +54,10 @@ public class BranchLift {
         Function function = thenLoop.getHeader().getFunction();
         BasicBlock thenHead = thenLoop.getHeader();
         thenLoop.cloneToFunc(function);
+        for (BasicBlock bb: thenLoop.getNowLevelBB()) {
+            System.out.println(bb.getLabel() + " to " + ((BasicBlock) CloneInfoMap.getReflectedValue(bb)).getLabel());
+        }
+
         thenLoop.fix();
         Loop elseLoop = CloneInfoMap.getReflectedLoop(thenLoop);
         BasicBlock elseHead = elseLoop.getHeader();
@@ -73,7 +86,7 @@ public class BranchLift {
             thenHead.modifyPre(entering, transBB);
             elseHead.modifyPre(entering, transBB);
 
-            transBB.addPre(entering);
+            //transBB.addPre(entering);
         }
 
         //Clone br

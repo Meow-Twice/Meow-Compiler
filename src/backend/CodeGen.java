@@ -32,8 +32,8 @@ public class CodeGen {
     // Value到Operand的Map
     public HashMap<Value, Machine.Operand> value2opd;
 
-    // Operand到Value的Map
-    public HashMap<Machine.Operand, Value> opd2value;
+    // Operand到Value的Map, 这个map不应该存在 , 消phi时产生的move可能造成一条Instr对应多个opd
+    // public HashMap<Machine.Operand, Value> opd2value;
 
     public ArrayList<Machine.McFunction> mcFuncList;
 
@@ -89,13 +89,14 @@ public class CodeGen {
         midFuncMap = Manager.MANAGER.getFunctions();
         globalMap = Manager.MANAGER.globals;
         value2opd = new HashMap<>();
-        opd2value = new HashMap<>();
+        // opd2value = new HashMap<>();
         mcFuncList = new ArrayList<>();
         func2mcFunc = new HashMap<>();
         bb2mb = new HashMap<>();
     }
 
     public void gen() {
+        // curMachineFunc = new Machine.McFunction();
         // genGlobal();
         // TODO
 
@@ -433,11 +434,10 @@ public class CodeGen {
 
     public void genGlobal() {
         for (Map.Entry<GlobalVal.GlobalValue, Initial> entry : globalMap.entrySet()) {
-            GlobalVal.GlobalValue glob = entry.getKey();
-            Initial init = entry.getValue();
+            GlobalVal.GlobalValue globalValue = entry.getKey();
+            // Initial init = entry.getValue();
             // TODO for yyf
             //load global addr at the head of the entry bb
-            GlobalVal.GlobalValue globalValue = (GlobalVal.GlobalValue) glob;
             MIGlobal new_inst = new MIGlobal(globalValue, curMachineFunc.getBeginMB());
             //allocate virtual reg
             Machine.Operand vr = newVR(globalValue);
@@ -640,7 +640,7 @@ public class CodeGen {
      */
     public Machine.Operand newVR(Value value) {
         Machine.Operand opd = curMachineFunc.newVR();
-        opd2value.put(opd, value);
+        // opd2value.put(opd, value);
         value2opd.put(value, opd);
         return opd;
     }
@@ -649,6 +649,9 @@ public class CodeGen {
      * 不可能是立即数的vr获取
      */
     public Machine.Operand getVR_no_imm(Value value) {
+        // if(value instanceof GlobalVal.GlobalValue){
+        //
+        // }
         Machine.Operand opd = value2opd.get(value);
         return opd == null ? newVR(value) : opd;
     }

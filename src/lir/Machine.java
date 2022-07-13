@@ -313,11 +313,11 @@ public class Machine {
         }
 
         public String toString() {
-            return MB_Prefix + index;
+            return MB_Prefix + index +"_"+bb.getLabel();
         }
 
         public String getDebugLabel() {
-            return toString()+"_"+bb.getLabel();
+            return this +"_"+bb.getLabel();
         }
     }
 

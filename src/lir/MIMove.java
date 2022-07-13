@@ -8,12 +8,6 @@ public class MIMove extends MachineInst {
     // Machine.Operand sOpd;
     Arm.Shift shift = Arm.Shift.NONE_SHIFT;
 
-    public MIMove(Machine.Block insertAtEnd) {
-        super(Tag.Mv, insertAtEnd);
-        this.cond = Arm.Cond.Any;
-        genDefUse();
-    }
-
     public boolean encode_imm(int imm) {
         for (int ror = 0; ror < 32; ror += 2) {
             if ((imm & ~0xFF) == 0) {
@@ -116,14 +110,19 @@ public class MIMove extends MachineInst {
 
     @Override
     public String toString() {
+        if (getDst() == null) {
+            assert false;
+        }
         return tag.toString() + cond.toString() + '\t' + getDst().toString() + ",\t" + getSrc().toString();
     }
 
     public void setSrc(Machine.Operand offset_opd) {
+        assert offset_opd != null;
         useOpds.set(0, offset_opd);
     }
 
     public void setDst(Machine.Operand dst) {
+        assert dst != null;
         defOpds.set(0, dst);
     }
 }

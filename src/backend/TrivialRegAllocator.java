@@ -6,6 +6,7 @@ import manage.Manager;
 import mir.type.DataType;
 import util.ILinkNode;
 
+import java.io.FileNotFoundException;
 import java.util.*;
 import java.util.stream.Stream;
 
@@ -188,7 +189,7 @@ public class TrivialRegAllocator {
 
     public Machine.McFunction curMF;
 
-    public void AllocateRegister(Machine.Program program) {
+    public void AllocateRegister(Machine.Program program) throws FileNotFoundException {
         for (Machine.McFunction mcFunc : program.funcList) {
             curMF = mcFunc;
             while (true) {
@@ -212,13 +213,13 @@ public class TrivialRegAllocator {
                 for (int i = 0; i < rk; i++) {
                     Arm.Reg.getR(i).degree = Integer.MAX_VALUE;
                 }
-                for (int i = 0; i < sk; i++) {
-                    Arm.Reg.getS(i).degree = Integer.MAX_VALUE;
-                }
+                // for (int i = 0; i < sk; i++) {
+                //     Arm.Reg.getS(i).degree = Integer.MAX_VALUE;
+                // }
 
-                System.err.println("RegAlloc Build start");
+                logOut("RegAlloc Build start");
                 build();
-                System.err.println("RegAlloc Build end");
+                logOut("RegAlloc Build end");
                 makeWorkList();
                 while (simplifyWorkSet.size() > 0 || workListMoveSet.size() > 0 || freezeWorkSet.size() > 0 || spillWorkSet.size() > 0) {
                     if (simplifyWorkSet.size() > 0) {
@@ -234,7 +235,9 @@ public class TrivialRegAllocator {
                         selectSpill();
                     }
                 }
+                Manager.MANAGER.outputMI();
                 assignColors();
+                Manager.MANAGER.outputMI();
                 if (spilledNodeSet.size() == 0) {
                     break;
                 }

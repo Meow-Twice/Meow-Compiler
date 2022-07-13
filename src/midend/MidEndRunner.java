@@ -26,7 +26,10 @@ public class MidEndRunner {
         GlobalValueLocalize globalValueLocalize = new GlobalValueLocalize(functions, globalValues);
         globalValueLocalize.Run();
 
-        //TODO:funcInline
+        FuncInline funcInline = new FuncInline(functions);
+        funcInline.Run();
+
+        reMakeCFGAndLoopInfo();
 
         Mem2Reg mem2Reg = new Mem2Reg(functions);
         mem2Reg.Run();
@@ -36,7 +39,11 @@ public class MidEndRunner {
 
         loopOptimize();
 
+        MathOptimize mathOptimize = new MathOptimize(functions);
+        mathOptimize.Run();
 
+
+        //TODO:删除冗余phi,分支优化(删除无用的br/jump等),等等
 //        RemovePhi removePhi = new RemovePhi(functions);
 //        removePhi.Run();
     }
@@ -75,7 +82,7 @@ public class MidEndRunner {
         branchLift.Run();
 
         reMakeCFGAndLoopInfo();
-
+//
         Pass();
     }
 

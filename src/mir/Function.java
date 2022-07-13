@@ -1,5 +1,6 @@
 package mir;
 import manage.Manager;
+import midend.CloneInfoMap;
 import mir.type.Type;
 import util.ILinkNode;
 
@@ -274,5 +275,72 @@ public class Function extends Value {
 
     public void addLoopHead(BasicBlock bb) {
         loopHeads.add(bb);
+    }
+
+    public void inlineToFunc(Function tagFunc, BasicBlock retBB, Instr.Call call) {
+        Instr.Phi retPhi = null;
+        if (retBB.getEndInstr() instanceof Instr.Phi) {
+            retPhi = (Instr.Phi) retBB.getBeginInstr();
+        }
+        BasicBlock bb = getBeginBB();
+        while (bb.getNext() != null) {
+            bb.cloneToFunc(tagFunc);
+            bb = (BasicBlock) bb.getNext();
+        }
+
+        ArrayList<Value> callParams = call.getParamList();
+        ArrayList<Param> funcParams = this.getParams();
+        for (int i = 0; i < callParams.size(); i++) {
+            CloneInfoMap.addValueReflect(funcParams.get(i), callParams.get(i));
+        }
+
+        bb = getBeginBB();
+        while (bb.getNext() != null) {
+            //((BasicBlock) CloneInfoMap.getReflectedValue(bb)).fix();
+            BasicBlock needFixBB = (BasicBlock) CloneInfoMap.getReflectedValue(bb);
+
+            //修正数据流
+//            if (!bb.equals(getBeginBB())) {
+//                ArrayList<BasicBlock> pres = new ArrayList<>();
+//                for (BasicBlock pre : bb.getPrecBBs()) {
+//                    pres.add((BasicBlock) CloneInfoMap.getReflectedValue(pre));
+//                }
+//                needFixBB.setPrecBBs(pres);
+//            }
+//
+//            if (!(bb.getEndInstr() instanceof Instr.Return)) {
+//                ArrayList<BasicBlock> succs = new ArrayList<>();
+//                for (BasicBlock succ : bb.getSuccBBs()) {
+//                    succs.add((BasicBlock) CloneInfoMap.getReflectedValue(succ));
+//                }
+//                needFixBB.setSuccBBs(succs);
+//            }
+
+
+
+
+            Instr instr = needFixBB.getBeginInstr();
+            while (instr.getNext() != null) {
+                instr.fix();
+                if (instr instanceof Instr.Return && ((Instr.Return) instr).hasValue()) {
+                    Instr jumpToRetBB = new Instr.Jump(retBB, needFixBB);
+                    instr.insertBefore(jumpToRetBB);
+                    retBB.addPre(needFixBB);
+                    assert retPhi != null;
+                    retPhi.addOptionalValue(((Instr.Return) instr).getRetValue());
+                    instr.remove();
+                } else if (instr instanceof Instr.Return) {
+                    Instr jumpToRetBB = new Instr.Jump(retBB, needFixBB);
+                    instr.insertBefore(jumpToRetBB);
+                    retBB.addPre(needFixBB);
+                    instr.remove();
+                }
+                instr = (Instr) instr.getNext();
+            }
+            bb = (BasicBlock) bb.getNext();
+        }
+
+
+
     }
 }

@@ -132,7 +132,7 @@ public class BasicBlock extends Value {
 
     public void setFunction(Function function, Loop loop) {
         this.loop = loop;
-        this.label = "b" + (bb_count);
+        this.label = "b" + (++bb_count);
         this.function = function;
         function.insertAtBegin(this);
         loop.addBB(this);
@@ -250,7 +250,7 @@ public class BasicBlock extends Value {
         } else {
             ArrayList<BasicBlock> oldPres = this.precBBs;
             ArrayList<BasicBlock> newPres = precBBs;
-            if (oldPres.size() == newPres.size()) {
+            if (oldPres.size() == newPres.size() && getBeginInstr() instanceof Instr.Phi) {
                 System.err.println("err");
             }
             simplyPhi(oldPres, newPres);

@@ -32,10 +32,16 @@ public class MidEndRunner {
         mem2Reg.Run();
 
 
-        Pass();
+        //Pass();
+
+//        LoopInfo loopInfo = new LoopInfo(functions);
+//        loopInfo.Run();
+//
+//        LCSSA lcssa = new LCSSA(functions);
+//        lcssa.Run();
 
 
-        loopOptimize();
+        //loopOptimize();
 
 
 //        RemovePhi removePhi = new RemovePhi(functions);
@@ -72,12 +78,12 @@ public class MidEndRunner {
         LCSSA lcssa = new LCSSA(functions);
         lcssa.Run();
 
-        BranchLift branchLift = new BranchLift(functions);
-        branchLift.Run();
-
-        reMakeCFGAndLoopInfo();
-
-        Pass();
+//        BranchLift branchLift = new BranchLift(functions);
+//        branchLift.Run();
+//
+//        reMakeCFGAndLoopInfo();
+//
+//        Pass();
     }
 
 }

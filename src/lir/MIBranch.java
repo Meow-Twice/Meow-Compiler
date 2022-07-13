@@ -4,6 +4,18 @@ import java.io.PrintStream;
 import java.util.stream.Stream;
 
 public class MIBranch extends MachineInst {
+    public Arm.Cond getCond() {
+        return cond;
+    }
+
+    public Machine.Block getTrueTargetBlock() {
+        return trueTargetBlock;
+    }
+
+    public Machine.Block getFalseTargetBlock() {
+        return falseTargetBlock;
+    }
+
     Arm.Cond cond;
     Machine.Block trueTargetBlock;
     // 条件不满足则跳这个块

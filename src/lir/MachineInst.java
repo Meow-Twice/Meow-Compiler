@@ -7,6 +7,7 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.EnumMap;
 
+import static lir.Arm.Cond.Any;
 import static mir.Instr.Alu.Op.*;
 import static mir.Instr.Alu.Op.OR;
 
@@ -14,6 +15,14 @@ public class MachineInst extends ILinkNode {
 
     public void setUse(int i, Machine.Operand set) {
         useOpds.set(i, set);
+    }
+
+    public Tag getType() {
+        return tag;
+    }
+
+    public Arm.Cond getCond() {
+        return Any;
     }
 
     public enum Tag {
@@ -83,8 +92,8 @@ public class MachineInst extends ILinkNode {
         return tag == Tag.Return;
     }
 
-    public boolean isBinary(){
-        return tag.ordinal() <= Tag.LongMul.ordinal();
+    public boolean isActuallyBino(){
+        return tag.ordinal() <= Tag.FMA.ordinal();
     }
 
     public boolean isBranch(){

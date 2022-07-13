@@ -2,6 +2,30 @@ package lir;
 
 import java.io.PrintStream;
 
+/**
+ * Syntax
+ * SMMUL{R}{cond} {Rd}, Rn, Rm
+ *
+ * where:
+ *
+ * R
+ * is an optional parameter. If R is present, the result is rounded, otherwise it is truncated.
+ *
+ * cond
+ * is an optional condition code.
+ *
+ * Rd
+ * is the destination register.
+ *
+ * Rn, Rm
+ * are the registers holding the operands.
+ *
+ * Ra
+ * is a register holding the value to be added or subtracted from.
+ *
+ * Operation
+ * SMMUL multiplies the 32-bit values from Rn and Rm, and stores the most significant 32 bits of the 64-bit result to Rd.
+ */
 public class MILongMul extends MachineInst {
 
     // Machine.Operand dOpd;

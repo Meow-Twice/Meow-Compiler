@@ -96,7 +96,7 @@ public class CodeGen {
     }
 
     public void gen() {
-        genGlobal();
+        // genGlobal();
         // TODO
 
         for (Function func : midFuncMap.values()) {
@@ -330,8 +330,9 @@ public class CodeGen {
                     }
                     if (call_inst.getFunc().isExternal) {
                         // getint()临时用
-                        dealExternalFunc(call_inst.getFunc());
-                        new MIMove(getVR_may_imm(call_inst), Arm.Reg.getR(r0), curMB);
+                        dealExternalFunc(call_inst, call_inst.getFunc());
+                        if (call_inst.getFunc().hasRet())
+                            new MIMove(getVR_may_imm(call_inst), Arm.Reg.getR(r0), curMB);
                         break;
                     }
 
@@ -339,7 +340,7 @@ public class CodeGen {
                     if (param_list.size() > 1) {
                         //move r1 to VR1
                         Machine.Operand vr1 = newVR();
-                        Machine.Operand r1 = new Machine.Operand(new Arm.Reg(I32, Arm.Regs.GPRs.r1));
+                        Machine.Operand r1 = Arm.Reg.getR(GPRs.r1);
                         new MIMove(vr1, r1, curMB);
                         //move param1 to r1
                         if (value2opd.containsKey(param_list.get(1))) {
@@ -349,7 +350,7 @@ public class CodeGen {
                     if (param_list.size() > 2) {
                         //move r2 to VR2
                         Machine.Operand vr2 = newVR();
-                        Machine.Operand r2 = new Machine.Operand(new Arm.Reg(I32, Arm.Regs.GPRs.r2));
+                        Machine.Operand r2 = Arm.Reg.getR(GPRs.r2);
                         new MIMove(vr2, r2, curMB);
                         //move param2 to r2
                         if (value2opd.containsKey(param_list.get(2))) {
@@ -359,7 +360,7 @@ public class CodeGen {
                     if (param_list.size() > 3) {
                         //move r3 to VR3
                         Machine.Operand vr3 = newVR();
-                        Machine.Operand r3 = new Machine.Operand(new Arm.Reg(I32, Arm.Regs.GPRs.r3));
+                        Machine.Operand r3 = Arm.Reg.getR(GPRs.r3);
                         new MIMove(vr3, r3, curMB);
                         //move param3 to r3
                         if (value2opd.containsKey(param_list.get(3))) {
@@ -372,7 +373,7 @@ public class CodeGen {
                             Value param = param_list.get(i);
                             int offset_imm = (i - 3) * -4;
                             Machine.Operand data = value2opd.get(param);
-                            Machine.Operand addr = new Machine.Operand(new Arm.Reg(I32, sp));
+                            Machine.Operand addr = Arm.Reg.getR(GPRs.sp);
                             Machine.Operand offset = new Machine.Operand(I32, offset_imm);
                             new MIStore(data, addr, offset, curMB);
                         }
@@ -417,9 +418,16 @@ public class CodeGen {
         }
     }
 
-    private void dealExternalFunc(Function func) {
+    private void dealExternalFunc(Instr.Call call, Function func) {
         // getint()临时用
-        new MICall(func2mcFunc.get(func), curMB);
+        Machine.McFunction mf = func2mcFunc.get(func);
+        assert mf != null;
+        // 应该在外面写下面这一段
+        // if (func.hasRet()) {
+        //     Machine.Operand vr = getVR_no_imm(call);
+        //     new MIMove(vr, Arm.Reg.getR(r0), curMB);
+        // }
+        new MICall(mf, curMB);
         // return;
     }
 

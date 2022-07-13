@@ -66,8 +66,7 @@ public class Machine {
                 MIMove move = new MIMove();
                 move.setSrc(offset_opd);
                 //r4
-                Machine.Operand r4 = new Operand(Allocated);
-                r4.value = 4;
+                Machine.Operand r4 = Arm.Reg.getR(Arm.Regs.GPRs.r4);
                 move.setDst(r4);
                 move.output(os, null);
                 os.println(prefix + op + "\t" + "sp, sp, " + r4.toString());
@@ -483,6 +482,7 @@ public class Machine {
 
         public Operand(Arm.Reg reg) {
             this.type = PreColored;
+            this.reg = reg.reg;
             prefix = switch (reg.dataType) {
                 case F32 -> "s";
                 case I32 -> "r";
@@ -499,6 +499,7 @@ public class Machine {
             } else {
                 throw new AssertionError("Wrong reg: " + reg);
             }
+            this.reg = reg;
             value = ((Enum<?>) reg).ordinal();
         }
 

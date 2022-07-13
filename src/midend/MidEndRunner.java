@@ -42,16 +42,16 @@ public class MidEndRunner {
         // GVNAndGCM gvnAndGCM = new GVNAndGCM(functions);
         // gvnAndGCM.Run();
 
-       RemovePhi removePhi = new RemovePhi(functions);
-       removePhi.Run();
+       // RemovePhi removePhi = new RemovePhi(functions);
+       // removePhi.Run();
 
-        Pass();
+        // Pass();
+        //
+        // loopOptimize();
 
-        loopOptimize();
 
-
-//        RemovePhi removePhi = new RemovePhi(functions);
-//        removePhi.Run();
+       // RemovePhi removePhi = new RemovePhi(functions);
+       // removePhi.Run();
     }
 
     //死代码删除 指令融合 GVN/GCM

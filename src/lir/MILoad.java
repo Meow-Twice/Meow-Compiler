@@ -3,11 +3,20 @@ package lir;
 import java.io.PrintStream;
 
 public class MILoad extends MachineInst {
+    public int getShift() {
+        return shift;
+    }
+
     // public Machine.Operand data;
     // public Machine.Operand addr;
     // public Machine.Operand offset;
-    public int shift;
-    public Arm.Cond cond;
+    private int shift;
+    private Arm.Cond cond;
+
+    @Override
+    public Arm.Cond getCond() {
+        return cond;
+    }
 
     public MILoad(Machine.Operand data, Machine.Operand addr, Machine.Operand offset, Machine.Block insertAtEnd) {
         super(MachineInst.Tag.Load, insertAtEnd);

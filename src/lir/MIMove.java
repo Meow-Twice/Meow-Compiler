@@ -3,6 +3,11 @@ package lir;
 import java.io.PrintStream;
 
 public class MIMove extends MachineInst {
+    @Override
+    public Arm.Cond getCond() {
+        return cond;
+    }
+
     Arm.Cond cond = Arm.Cond.Any;
     // Machine.Operand dOpd;
     // Machine.Operand sOpd;

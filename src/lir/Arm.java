@@ -57,6 +57,7 @@ public class Arm {
             this.dataType = dataType;
             this.fpr = fpr;
             this.value = fpr.ordinal();
+            reg = fpr;
         }
 
         public Reg(DataType dataType, Regs.GPRs gpr) {
@@ -64,6 +65,7 @@ public class Arm {
             this.dataType = dataType;
             this.gpr = gpr;
             this.value = gpr.ordinal();
+            reg = gpr;
         }
 
         private static final Reg[] gprPool = new Reg[Regs.GPRs.values().length];
@@ -95,6 +97,10 @@ public class Arm {
         }
 
 
+        @Override
+        public Regs getReg() {
+            return reg;
+        }
     }
 
     public enum Cond {

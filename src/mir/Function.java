@@ -2,6 +2,7 @@ package mir;
 import manage.Manager;
 import mir.type.Type;
 import util.ILinkNode;
+import util.Ilist;
 
 import java.util.*;
 
@@ -62,6 +63,8 @@ public class Function extends Value {
     private BasicBlock begin;
     private BasicBlock end;
 
+    public Ilist<BasicBlock> bbList = new Ilist<>();
+
     //TODO: assign to 刘传
     private HashMap<BasicBlock, ArrayList<BasicBlock>> preMap;
     private HashMap<BasicBlock, ArrayList<BasicBlock>> sucMap;
@@ -80,6 +83,8 @@ public class Function extends Value {
         }
         this.retType = retType;
         isExternal = flag;
+        bbList.head = begin;
+        bbList.tail = end;
     }
 
     //loop 相关信息
@@ -97,7 +102,8 @@ public class Function extends Value {
             param.parentFunc = this;
         }
         this.retType = retType;
-
+        bbList.head = begin;
+        bbList.tail = end;
 
     }
 
@@ -217,6 +223,31 @@ public class Function extends Value {
         }
 
         return "define dso_local " + getTypeStr() + " @" + name + "(" + paramList + ") {\n" + body + "}\n";
+    }
+
+    public String output(){
+
+        String paramList = params.stream().map(Value::toString).reduce((s, s2) -> s + ", " + s2).orElse("");
+        StringBuilder str = new StringBuilder();
+        str.append("define dso_local ").append(getTypeStr()).append(" @").append(name).append("(").append(paramList).append(") {\n");
+        // for(ILinkNode node = getBeginBB(); !node.equals(end);node = node.getNext()){
+        //     BasicBlock bb = (BasicBlock) node;
+        //     str.append(bb).append(":\n");
+        //     for (ILinkNode instNode = bb.getBeginInstr(); !instNode.equals(bb.getEnd()); instNode = instNode.getNext()) {
+        //         // Instr inst = (Instr) instNode;
+        //         str.append("\t").append(instNode).append("\n");
+        //     }
+        // }
+        for(BasicBlock bb: bbList){
+            str.append(bb).append(":\n");
+            for (Instr inst : bb.instrList) {
+                // Instr inst = (Instr) instNode;
+                str.append("\t").append(inst).append("\n");
+            }
+        }
+        str.append( "}\n");
+
+        return  str.toString();
     }
 
     @Override

@@ -3,10 +3,20 @@ package lir;
 import java.io.PrintStream;
 
 public class MIStore extends MachineInst {
+    public int getShift() {
+        return shift;
+    }
+
     // public Machine.Operand data;
     // public Machine.Operand addr;
-    public int shift = 0;
-    public Arm.Cond cond = Arm.Cond.Any;
+    private int shift = 0;
+
+    @Override
+    public Arm.Cond getCond() {
+        return cond;
+    }
+
+    private Arm.Cond cond = Arm.Cond.Any;
 
 
     public MIStore(Machine.Operand data, Machine.Operand addr, Machine.Operand offset, Machine.Block insertAtEnd) {

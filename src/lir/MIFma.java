@@ -9,10 +9,39 @@ import java.io.PrintStream;
  * dst = acc +(-) lhs * rhs
  */
 public class MIFma extends MachineInst {
-    Machine.Operand acc;
-    Machine.Operand dst;
-    Machine.Operand lOpd;
-    Machine.Operand rOpd;
+    // Machine.Operand acc;
+    // Machine.Operand dst;
+    // Machine.Operand lOpd;
+    // Machine.Operand rOpd;
+
+    public Machine.Operand getDst() {
+        return defOpds.get(0);
+    }
+
+    public Machine.Operand getAcc() {
+        return useOpds.get(0);
+    }
+
+    public Machine.Operand getlOpd() {
+        return useOpds.get(1);
+    }
+
+    public Machine.Operand getrOpd() {
+        return useOpds.get(2);
+    }
+
+    public boolean isAdd() {
+        return add;
+    }
+
+    public boolean isSign() {
+        return sign;
+    }
+
+    public Arm.Cond getCond() {
+        return cond;
+    }
+
     boolean add;
     boolean sign;
     Arm.Cond cond;
@@ -21,21 +50,20 @@ public class MIFma extends MachineInst {
         super(Tag.FMA, insertAtEnd, isFloat);
         this.add = add;
         this.sign = sign;
-
     }
 
 
     public MIFma(boolean add, boolean sign,
-                 Machine.Operand tmpDst, Machine.Operand curAddrVR, Machine.Operand curIdxVR, Machine.Operand offUnitImmVR,
+                 Machine.Operand dst, Machine.Operand acc, Machine.Operand lOpd, Machine.Operand rOpd,
                  Machine.Block insertAtEnd) {
         //dst = acc +(-) lhs * rhs
         super(Tag.FMA, insertAtEnd);
         this.add = add;
         this.sign = sign;
-        dst = tmpDst;
-        acc = curAddrVR;
-        lOpd = curIdxVR;
-        rOpd = offUnitImmVR;
+        defOpds.add(dst);
+        useOpds.add(acc);
+        useOpds.add(lOpd);
+        useOpds.add(rOpd);
     }
 
     @Override
@@ -50,17 +78,17 @@ public class MIFma extends MachineInst {
         } else {
             op = "mls";
         }
-        os.println(op + cond + "\t" + dst.toString() + "," + lOpd.toString() + "," + rOpd.toString() + "," + acc.toString());
+        os.println(op + cond + "\t" + getDst().toString() + "," + getlOpd().toString() + "," + getrOpd().toString() + "," + getAcc().toString());
 
     }
 
-    @Override
-    public void genDefUse() {
-        useOpds.add(acc);
-        useOpds.add(lOpd);
-        useOpds.add(rOpd);
-        defOpds.add(dst);
-    }
+    // @Override
+    // public void genDefUse() {
+    //     defOpds.add(dst);
+    //     useOpds.add(acc);
+    //     useOpds.add(lOpd);
+    //     useOpds.add(rOpd);
+    // }
 
     @Override
     public String toString() {
@@ -74,7 +102,7 @@ public class MIFma extends MachineInst {
         } else {
             op = "mls";
         }
-        res += op + cond + "\t" + dst.toString() + ",\t" + lOpd.toString() + ",\t" + rOpd.toString() + ",\t" + acc.toString();
+        res += op + cond + "\t" + getDst().toString() + ",\t" + getlOpd().toString() + ",\t" + getrOpd().toString() + ",\t" + getAcc().toString();
         return res;
     }
 }

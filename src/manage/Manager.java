@@ -58,6 +58,8 @@ public class Manager {
         public static final Function STOP_TIME = new Function(true, "stoptime", wrapParam(I32_TYPE), Type.VoidType.getVoidType());
     }
 
+    public final ArrayList<Function> externalFuncList = new ArrayList<>();
+
     private Manager() {
         external = true;
         addFunction(ExternFunction.GET_INT);
@@ -86,6 +88,7 @@ public class Manager {
 
     public void addFunction(Function function) {
         functions.putIfAbsent(function.getName(), function);
+        externalFuncList.add(function);
     }
 
     public boolean hasMainFunction() {
@@ -117,7 +120,7 @@ public class Manager {
         // 函数定义
         for (Function function : functions.values()) {
             if (function.hasBody()) {
-                FileDealer.addOutputString(function.getDefinition());
+                FileDealer.addOutputString(function.output());
             }
         }
         FileDealer.outputStringList(out);

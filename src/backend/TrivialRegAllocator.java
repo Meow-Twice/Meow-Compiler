@@ -306,22 +306,37 @@ public class TrivialRegAllocator {
 
     private void checkpoint() {
         if (firstUse != null) {
-            MILoad miLoad = new MILoad(curMF.getVR(vrIdx), Arm.Reg.getR(sp), firstUse);
-            miLoad.offset = genMemOffSet(offImm, miLoad);
+            Operand offset = offImm;
+            if (offImm.getImm() >= (1 << 12)) {
+                Operand dst = curMF.newVR();
+                new MIMove(dst, offImm, firstUse);
+                offset = dst;
+            }
+            new MILoad(curMF.getVR(vrIdx), rSP, offset, firstUse);
         }
         if (lastDef != null) {
-            MIStore miStore = new MIStore(lastDef, curMF.getVR(vrIdx), rSP);
-            miStore.offset = genMemOffSet(offImm, miStore);
+            MachineInst insertAfter = lastDef;
+            Operand offset = offImm;
+            if (offImm.getImm() >= (1 << 12)) {
+                Operand dst = curMF.newVR();
+                insertAfter = new MIMove(lastDef, dst, offImm);
+                offset = dst;
+            }
+            new MIStore(insertAfter, curMF.getVR(vrIdx), rSP, offset);
         }
         vrIdx = -1;
     }
 
-    public Operand genMemOffSet(Operand offImm, MachineInst miLoadStore) {
+    public Operand genMemOffSet(Operand offImm, MachineInst miLoadStore, boolean isInsertBefore) {
         if (offImm.getImm() < (1 << 12)) {
             return offImm;
         } else {
             Operand dst = curMF.newVR();
-            new MIMove(dst, offImm, miLoadStore);
+            if(isInsertBefore){
+                new MIMove(dst, offImm, miLoadStore);
+            }else{
+                new MIMove(miLoadStore, dst, offImm);
+            }
             return dst;
         }
     }
@@ -360,6 +375,8 @@ public class TrivialRegAllocator {
             for (ILinkNode iNode = mb.getEndMI(); !iNode.equals(mb.miList.head); iNode = iNode.getPrev()) {
                 MachineInst mi = (MachineInst) iNode;
                 logOut(mi.toString());
+                logOut("Prev:\t" + mi.getPrev());
+                logOut("Next:\t" + mi.getNext());
                 // System.err.println(mi);
                 // TODO : 此时考虑了Call
                 ArrayList<Operand> defs = mi.defOpds;
@@ -515,7 +532,7 @@ public class TrivialRegAllocator {
      */
     private Operand getAlias(Operand x) {
         while (coalescedNodeSet.contains(x)) {
-            x = x.alias;
+            x = x.getAlias();
         }
         return x;
     }
@@ -562,7 +579,7 @@ public class TrivialRegAllocator {
         }
         // 合并 move u, v, 将v加入 coalescedNodeSet
         coalescedNodeSet.add(v);
-        v.alias = u;
+        v.setAlias(u);
         u.moveSet.addAll(v.moveSet);
         // 对于 v 在冲突图上的每个邻结点 adj , 建立 adj, u 之间的冲突边, 且
         adjacent(v).forEach(adj -> {
@@ -597,8 +614,8 @@ public class TrivialRegAllocator {
     //-------------------------------------------------------------------------------------------------
     public void coalesce() {
         MIMove mv = workListMoveSet.iterator().next();
-        Operand u = mv.getDst();
-        Operand v = mv.getSrc();
+        Operand u = getAlias(mv.getDst());
+        Operand v = getAlias(mv.getSrc());
         if (v.isPreColored()) {
             var tmp = u;
             u = v;
@@ -689,7 +706,7 @@ public class TrivialRegAllocator {
             okColorSet.add(lr);
 
             n.adjOpdSet.forEach(w -> {
-                Operand a = w.alias;
+                Operand a = getAlias(w);
                 if (a.hasReg()) {
                     // 已着色或者预分配
                     okColorSet.remove(a.getReg());
@@ -714,7 +731,7 @@ public class TrivialRegAllocator {
         }
 
         coalescedNodeSet.forEach(mvSrc -> {
-            Operand mvDst = mvSrc.alias;
+            Operand mvDst = getAlias(mvSrc);
             colorMap.put(mvSrc, mvDst.isPreColored() ? mvDst : colorMap.get(mvDst));
         });
 

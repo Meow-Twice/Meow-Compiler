@@ -41,6 +41,6 @@ public class MICall extends MachineInst {
 
     @Override
     public String toString() {
-        return tag + " " + mcFunction.mFunc.getName();
+        return tag + "\t" + mcFunction.mFunc.getName();
     }
 }

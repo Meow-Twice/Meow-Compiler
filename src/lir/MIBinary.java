@@ -5,9 +5,9 @@ import java.io.PrintStream;
 public class MIBinary extends MachineInst {
     // Add, Sub, Rsb, Mul, Div, Mod, Lt, Le, Ge, Gt, Eq, Ne, And, Or
 
-    public Machine.Operand dOpd;
-    public Machine.Operand lOpd;
-    public Machine.Operand rOpd;
+    // public Machine.Operand dOpd;
+    // public Machine.Operand lOpd;
+    // public Machine.Operand rOpd;
     public Arm.Shift shift;
 
     public MIBinary(Tag tag, Machine.Block insertAtEnd, boolean isFloat) {
@@ -16,17 +16,22 @@ public class MIBinary extends MachineInst {
 
     public MIBinary(Tag tag, Machine.Operand dOpd, Machine.Operand lOpd, Machine.Operand rOpd, Machine.Block insertAtEnd) {
         super(tag, insertAtEnd);
-        this.dOpd = dOpd;
-        this.rOpd = rOpd;
-        this.lOpd = lOpd;
-        genDefUse();
-    }
-
-    @Override
-    public void genDefUse() {
         defOpds.add(dOpd);
         useOpds.add(lOpd);
         useOpds.add(rOpd);
+        genDefUse();
+    }
+
+    public Machine.Operand getDst() {
+        return defOpds.get(0);
+    }
+
+    public Machine.Operand getLOpd() {
+        return useOpds.get(0);
+    }
+
+    public Machine.Operand getROpd() {
+        return useOpds.get(1);
     }
 
     @Override
@@ -42,14 +47,14 @@ public class MIBinary extends MachineInst {
             case Or -> "orr";
             default -> null;
         };
-        os.print(tag_str + "\t" + dOpd.toString() + "," + lOpd.toString() + "," + rOpd.toString());
+        os.print(tag_str + "\t" + getDst().toString() + "," + getLOpd().toString() + "," + getROpd().toString());
         if (shift.shiftType != Arm.ShiftType.None) {
-            os.println("," + shift.toString());
+            os.println("," + shift);
         }
     }
 
     @Override
     public String toString() {
-        return tag.toString() + " , " + dOpd + " , " + lOpd + " , " + rOpd;
+        return tag.toString() + ",\t" + getDst() + ",\t" + getLOpd() + ",\t" + getROpd();
     }
 }

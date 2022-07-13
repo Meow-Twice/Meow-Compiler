@@ -47,6 +47,7 @@ public class Ilist<E extends ILinkNode> implements Iterable<E> {
     public void insertBefore(E node, E insertBefore) {
         node.setPrev(insertBefore.getPrev());
         node.setNext(insertBefore);
+        insertBefore.getPrev().setNext(node);
         insertBefore.setPrev(node);
         size++;
     }
@@ -54,6 +55,7 @@ public class Ilist<E extends ILinkNode> implements Iterable<E> {
     public void insertAfter(E node, E insertAfter) {
         node.setNext(insertAfter.getNext());
         node.setPrev(insertAfter);
+        insertAfter.getNext().setPrev(node);
         insertAfter.setNext(node);
         size++;
     }

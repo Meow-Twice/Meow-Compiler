@@ -1,5 +1,7 @@
 package mir;
 
+import frontend.Visitor;
+import midend.CloneInfoMap;
 import mir.type.Type;
 import mir.type.Type.*;
 
@@ -11,6 +13,7 @@ import java.util.Objects;
  */
 public class Instr extends Value {
 
+    //TODO:删除reflect
     public static int LOCAL_COUNT = 0;
 
     public static int empty_instr_cnt = 0;
@@ -72,6 +75,20 @@ public class Instr extends Value {
     protected ArrayList<Use> useList;
     protected ArrayList<Value> useValueList;
 
+    public int loopCondCount;
+
+    public boolean isInWhileCond(){
+        return loopCondCount > 0;
+    }
+
+    public int getLoopCondCount(){
+        return loopCondCount;
+    }
+
+    public void setLoopCondCount(int loopCondCount) {
+        this.loopCondCount = loopCondCount;
+    }
+
     //空指令用于在BB中做链表头/尾
     public Instr() {
         super();
@@ -79,6 +96,7 @@ public class Instr extends Value {
     }
 
     private void init() {
+        loopCondCount = Visitor.VISITOR.getLoopCondCount();
         hash = "Instr " + LOCAL_COUNT;
         prefix = LOCAL_PREFIX;
         name = LOCAL_NAME_PREFIX + LOCAL_COUNT++;
@@ -218,6 +236,18 @@ public class Instr extends Value {
         return true;
     }
 
+    //把指令复制到指定bb
+    public Instr cloneToBB(BasicBlock bb) {
+        return null;
+    }
+
+    public void fix() {
+        int len = useValueList.size();
+        for (int i = 0; i < len; i++) {
+            modifyUse(CloneInfoMap.getReflectedValue(useValueList.get(i)), i);
+        }
+    }
+
     // 二元算术运算, 结果是 i32 型
     public static class Alu extends Instr {
 
@@ -307,6 +337,14 @@ public class Instr extends Value {
             return useValueList.get(0) instanceof Constant && useValueList.get(1) instanceof Constant;
         }
 
+        @Override
+        public Instr cloneToBB(BasicBlock bb) {
+            //Instr ret = new Alu(getType(), getOp(), CloneInfoMap.getReflectedValue(getRVal1()),
+            //        CloneInfoMap.getReflectedValue(getRVal2()), bb);
+            Instr ret = new Alu(getType(), getOp(), getRVal1(), getRVal2(), bb);
+            CloneInfoMap.addValueReflect(this, ret);
+            return ret;
+        }
     }
 
     // 比较运算, 结果是 i1 型
@@ -372,6 +410,15 @@ public class Instr extends Value {
         public Value getRVal2() {
             return useValueList.get(1);
         }
+
+        @Override
+        public Instr cloneToBB(BasicBlock bb) {
+//            Instr ret =  new Icmp(getOp(), CloneInfoMap.getReflectedValue(getRVal1()),
+//                    CloneInfoMap.getReflectedValue(getRVal2()), bb);
+            Instr ret = new Icmp(getOp(), getRVal1(), getRVal2(), bb);
+            CloneInfoMap.addValueReflect(this, ret);
+            return ret;
+        }
     }
 
     public static class Fneg extends Instr {
@@ -398,6 +445,8 @@ public class Instr extends Value {
         public Value getRVal1() {
             return useValueList.get(0);
         }
+
+        //TODO:当前构造方法没有使用,当需要使用的时候,需要重写cloneToBB方法
     }
 
     // 比较运算, 结果是 i1 型
@@ -460,6 +509,15 @@ public class Instr extends Value {
         public Value getRVal2() {
             return useValueList.get(1);
         }
+
+        @Override
+        public Instr cloneToBB(BasicBlock bb) {
+//            Instr ret =  new Fcmp(getOp(), CloneInfoMap.getReflectedValue(getRVal1()),
+//                    CloneInfoMap.getReflectedValue(getRVal2()), bb);
+            Instr ret = new Fcmp(getOp(), getRVal1(), getRVal2(), bb);
+            CloneInfoMap.addValueReflect(this, ret);
+            return ret;
+        }
     }
 
     // 零扩展运算, 结果是 i32 型
@@ -485,6 +543,14 @@ public class Instr extends Value {
 
         public Value getRVal1() {
             return useValueList.get(0);
+        }
+
+        @Override
+        public Instr cloneToBB(BasicBlock bb) {
+            //Instr ret =  new Zext(CloneInfoMap.getReflectedValue(getRVal1()), bb);
+            Instr ret = new Zext(getRVal1(), bb);
+            CloneInfoMap.addValueReflect(this, ret);
+            return ret;
         }
     }
 
@@ -512,6 +578,14 @@ public class Instr extends Value {
         public Value getRVal1() {
             return useValueList.get(0);
         }
+
+        @Override
+        public Instr cloneToBB(BasicBlock bb) {
+            //Instr ret = new FPtosi(CloneInfoMap.getReflectedValue(getRVal1()), bb);
+            Instr ret = new FPtosi(getRVal1(), bb);
+            CloneInfoMap.addValueReflect(this, ret);
+            return ret;
+        }
     }
 
     public static class SItofp extends Instr {
@@ -537,6 +611,14 @@ public class Instr extends Value {
 
         public Value getRVal1() {
             return useValueList.get(0);
+        }
+
+        @Override
+        public Instr cloneToBB(BasicBlock bb) {
+            //Instr ret = new SItofp(CloneInfoMap.getReflectedValue(getRVal1()), bb);
+            Instr ret = new SItofp(getRVal1(), bb);
+            CloneInfoMap.addValueReflect(this, ret);
+            return ret;
         }
     }
 
@@ -572,6 +654,12 @@ public class Instr extends Value {
             return contentType instanceof ArrayType;
         }
 
+        @Override
+        public Instr cloneToBB(BasicBlock bb) {
+            Instr ret = new Alloc(contentType, bb);
+            CloneInfoMap.addValueReflect(this, ret);
+            return ret;
+        }
     }
 
     // 读取内存
@@ -598,6 +686,13 @@ public class Instr extends Value {
             return this.useValueList.get(0);
         }
 
+        @Override
+        public Instr cloneToBB(BasicBlock bb) {
+            //Instr ret = new Load(CloneInfoMap.getReflectedValue(getPointer()), bb);
+            Instr ret = new Load(getPointer(), bb);
+            CloneInfoMap.addValueReflect(this, ret);
+            return ret;
+        }
     }
 
     // 写入内存
@@ -634,6 +729,15 @@ public class Instr extends Value {
         public Value getPointer() {
             return this.useValueList.get(1);
         }
+
+        @Override
+        public Instr cloneToBB(BasicBlock bb) {
+//            Instr ret = new Store(CloneInfoMap.getReflectedValue(getValue()),
+//                    CloneInfoMap.getReflectedValue(getPointer()), bb);
+            Instr ret = new Store(getValue(), getPointer(), bb);
+            CloneInfoMap.addValueReflect(this, ret);
+            return ret;
+        }
     }
 
     // 数组元素寻址, 每个该指令对指针/数组解引用一层, 返回值含义等价于 `base[offset]`
@@ -662,7 +766,7 @@ public class Instr extends Value {
             return strBD.toString();
         }
 
-        public Type getBaseType() {
+        public Type getPointeeType() {
             return ((PointerType) type).getInnerType();
         }
 
@@ -681,6 +785,13 @@ public class Instr extends Value {
         public Value getIdxValueOf(int i) {
             return useValueList.get(i + 1);
         }
+
+        @Override
+        public Instr cloneToBB(BasicBlock bb) {
+            Instr ret = new GetElementPtr(getPointeeType(), getPtr(), getIdxList(), bb);
+            CloneInfoMap.addValueReflect(this, ret);
+            return ret;
+        }
     }
 
     public static class Bitcast extends Instr {
@@ -698,6 +809,18 @@ public class Instr extends Value {
         @Override
         public String toString() {
             return getName() + " = bitcast " + getSrcValue().getDescriptor() + " to " + getType();
+        }
+
+        public Type getDstType() {
+            return getType();
+        }
+
+        @Override
+        public Instr cloneToBB(BasicBlock bb) {
+            //Instr ret = new Bitcast(CloneInfoMap.getReflectedValue(getSrcValue()), getDstType(), bb);
+            Instr ret = new Bitcast(getSrcValue(), getDstType(), bb);
+            CloneInfoMap.addValueReflect(this, ret);
+            return ret;
         }
     }
 
@@ -754,13 +877,21 @@ public class Instr extends Value {
             return new ArrayList<>(useValueList.subList(1, useValueList.size()));
         }
 
+        @Override
+        public Instr cloneToBB(BasicBlock bb) {
+            ArrayList<Value> params = new ArrayList<>();
+            params.addAll(getParamList());
+            Instr ret = new Call(getFunc(), params, bb);
+            CloneInfoMap.addValueReflect(this, ret);
+            return ret;
+        }
     }
 
     // SSA Phi 指令
     public static class Phi extends Instr {
 
         //TODO:assign to 刘传, xry已改
-        private final ArrayList<Value> optionalValues;
+        //private final ArrayList<Value> optionalValues;
 
         public Phi(Type type, ArrayList<Value> optionalValues, BasicBlock parent) {
             // Phi一定插在基本块的开始, Alloc之前
@@ -769,7 +900,7 @@ public class Instr extends Value {
 //            for (Value instr : optionalValues) {
 //                assert type.equals(instr.type);
 //            }
-            this.optionalValues = optionalValues;
+            //this.optionalValues = optionalValues;
             int idx = 0;
             for (Value inst : optionalValues) {
                 setUse(inst, idx++);
@@ -805,12 +936,45 @@ public class Instr extends Value {
         }
 
         public ArrayList<Value> getOptionalValues() {
-            return this.optionalValues;
+            return useValueList;
         }
 
         public int getValueIndexInUseValueList(Value value) {
             assert useValueList.contains(value);
             return useValueList.indexOf(value);
+        }
+
+        public void addOptionalValue(Value value) {
+            int index = useValueList.size();
+            setUse(value, index);
+        }
+
+        @Override
+        public Instr cloneToBB(BasicBlock bb) {
+            ArrayList<Value> optionalValues = new ArrayList<>();
+            optionalValues.addAll(getOptionalValues());
+            Instr ret = new Phi(getType(), optionalValues, bb);
+            CloneInfoMap.addValueReflect(this, ret);
+            return ret;
+        }
+
+        public void simple(ArrayList<BasicBlock> oldPres, ArrayList<BasicBlock> newPres) {
+            ArrayList<Value> values = new ArrayList<>();
+            for (int i = 0; i < oldPres.size(); i++) {
+                if (!newPres.contains(oldPres.get(i))) {
+                    continue;
+                }
+                values.add(useValueList.get(i));
+            }
+            for (Use use: useList) {
+                use.remove();
+            }
+            useList.clear();
+            useValueList.clear();
+            int index = 0;
+            for (Value value: values) {
+                setUse(value, index++);
+            }
         }
     }
 
@@ -925,7 +1089,12 @@ public class Instr extends Value {
             modifyUse(elseTarget, 2);
         }
 
-
+        @Override
+        public Instr cloneToBB(BasicBlock bb) {
+            Instr ret = new Branch(getCond(), getThenTarget(), getElseTarget(), bb);
+            CloneInfoMap.addValueReflect(this, ret);
+            return ret;
+        }
     }
 
     // 直接跳转
@@ -952,6 +1121,12 @@ public class Instr extends Value {
             return (BasicBlock) useValueList.get(0);
         }
 
+        @Override
+        public Instr cloneToBB(BasicBlock bb) {
+            Instr ret = new Jump(getTarget(), bb);
+            CloneInfoMap.addValueReflect(this, ret);
+            return ret;
+        }
     }
 
     // 返回
@@ -988,6 +1163,17 @@ public class Instr extends Value {
             return useValueList.get(0);
         }
 
+        @Override
+        public Instr cloneToBB(BasicBlock bb) {
+            Instr ret = null;
+            if (hasValue()) {
+                ret = new Return(getRetValue(), bb);
+            } else {
+                ret = new Return(bb);
+            }
+            CloneInfoMap.addValueReflect(this, ret);
+            return ret;
+        }
     }
 
 }

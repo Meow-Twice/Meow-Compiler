@@ -41,7 +41,7 @@ public class Compiler {
             }
             System.err.println("AST out");
             Ast ast = new Parser(tokenList).parseAst();
-            Visitor visitor = new Visitor();
+            Visitor visitor = Visitor.VISITOR;
             visitor.__ONLY_PARSE_OUTSIDE_DIM = false;
             visitor.visitAst(ast);
             // Manager manager = visitor.getIr();

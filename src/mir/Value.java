@@ -1,7 +1,10 @@
 package mir;
 
+import frontend.Visitor;
 import mir.type.Type;
 import util.ILinkNode;
+
+import java.util.Objects;
 
 public class Value extends ILinkNode {
 
@@ -37,6 +40,9 @@ public class Value extends ILinkNode {
     public static final String GLOBAL_NAME_PREFIX = "g";
     public static final String LOCAL_NAME_PREFIX = "v";
     public static final String FPARAM_NAME_PREFIX = "f";
+    public static int value_num = 0;
+
+    private int hash = value_num++;
     public String prefix;
     public String name;
 
@@ -158,4 +164,17 @@ public class Value extends ILinkNode {
         return this instanceof Constant.ConstantInt;
     }
 
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Value value = (Value) o;
+        return hash == value.hash;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(hash);
+    }
 }

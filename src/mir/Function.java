@@ -67,6 +67,9 @@ public class Function extends Value {
     private HashMap<BasicBlock, ArrayList<BasicBlock>> sucMap;
     private HashSet<BasicBlock> BBs;
 
+    //loop 相关信息
+    private HashSet<BasicBlock> loopHeads = new HashSet<>();
+
 
     public Function(String name, ArrayList<Param> params, Type retType) {
         this.begin = new BasicBlock();
@@ -263,4 +266,13 @@ public class Function extends Value {
     // public boolean equals(Object obj) {
     //     return ;
     // }
+
+
+    public HashSet<BasicBlock> getLoopHeads() {
+        return loopHeads;
+    }
+
+    public void addLoopHead(BasicBlock bb) {
+        loopHeads.add(bb);
+    }
 }

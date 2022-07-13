@@ -52,35 +52,37 @@ public class CodeGen {
     private HashMap<Instr.Load, Instr.Alloc> load2alloc = new HashMap<>();
 
     //div+mod optimize
-    public static class Multiplier{
+    public static class Multiplier {
         long m;
         int l;
         int sh_post;
-        public Multiplier(long m,int l,int sh_post){
+
+        public Multiplier(long m, int l, int sh_post) {
             this.m = m;
             this.l = l;
             this.sh_post = sh_post;
         }
     }
 
-    public Multiplier chooseMultiplier(int d,int prec){
+    public Multiplier chooseMultiplier(int d, int prec) {
         int N = 32;
-        assert d!=0;
+        assert d != 0;
         assert prec >= 1 && prec <= N;
 
-        int l = (int)Math.ceil(Math.log(d)/Math.log(2));
+        int l = (int) Math.ceil(Math.log(d) / Math.log(2));
         int sh_post = l;
-        long m_low = ((long)1 << (N+l))/d;
-        long m_high = (((long)1 << (N+l))+((long)1 << (N+l-prec)))/d;
-        while((m_low >> 1) < (m_high >> 1) && sh_post > 0){
+        long m_low = ((long) 1 << (N + l)) / d;
+        long m_high = (((long) 1 << (N + l)) + ((long) 1 << (N + l - prec))) / d;
+        while ((m_low >> 1) < (m_high >> 1) && sh_post > 0) {
             m_low >>= 1;
             m_high >>= 1;
             sh_post -= 1;
         }
 
-        return new Multiplier(m_high,l,sh_post);
+        return new Multiplier(m_high, l, sh_post);
 
     }
+
     private CodeGen() {
         curFunc = null;
         curMachineFunc = null;
@@ -110,6 +112,7 @@ public class CodeGen {
             Machine.McFunction mcFunc = new Machine.McFunction(func);
             Machine.Program.PROGRAM.funcList.insertAtEnd(mcFunc);
             curFunc = func;
+            if (curFunc.getName().equals("main")) Machine.Program.PROGRAM.mainMcFunc = mcFunc;
             curMachineFunc = mcFunc;
             curMachineFunc.setVRCount(0);
             mcFuncList.add(mcFunc);
@@ -439,7 +442,7 @@ public class CodeGen {
         Value lhs = instr.getRVal1();
         Value rhs = instr.getRVal2();
         //div+mode optimize
-        if(tag == MachineInst.Tag.Div && rhs.isConstantInt()){
+        if (tag == MachineInst.Tag.Div && rhs.isConstantInt()) {
             divOptimize(instr);
             return;
         }
@@ -450,82 +453,79 @@ public class CodeGen {
         new MIBinary(tag, dVR, lVR, rVR, curMB);
     }
 
-    public void divOptimize(Instr.Alu instr){
+    public void divOptimize(Instr.Alu instr) {
         // q = n/d
         Value lhs = instr.getRVal1();
         Machine.Operand n = getVR_may_imm(lhs);
         Value rhs = instr.getRVal2();
         Machine.Operand q = getVR_no_imm(instr);
-        int d = ((Constant.ConstantInt)rhs).constIntVal;
+        int d = ((Constant.ConstantInt) rhs).constIntVal;
         int N = 32;
-        Multiplier multiplier = chooseMultiplier(Math.abs(d),N-1);
+        Multiplier multiplier = chooseMultiplier(Math.abs(d), N - 1);
         int l = multiplier.l;
         int sh_post = multiplier.sh_post;
         long m = multiplier.m;
-        if(Math.abs(d) == 1){
+        if (Math.abs(d) == 1) {
             //q = n
-            new MIMove(q,n,curMB);
+            new MIMove(q, n, curMB);
 
-        }
-        else if(Math.abs(d) == (2<<l)){
+        } else if (Math.abs(d) == (2 << l)) {
             //q = SRA(n+SRL(SRA(n,l-1),N-l),l)
             //dst1 = SRA(n,l-1)
             Machine.Operand dst1 = newVR();
-            Arm.Shift shift1 = new Arm.Shift(Arm.ShiftType.Asr,l-1);
-            new MIMove(dst1,n,shift1,curMB);
+            Arm.Shift shift1 = new Arm.Shift(Arm.ShiftType.Asr, l - 1);
+            new MIMove(dst1, n, shift1, curMB);
             //dst2 = SRL(dst1,N-l)
             Machine.Operand dst2 = newVR();
-            Arm.Shift shift2 = new Arm.Shift(Arm.ShiftType.Lsr,N-l);
-            new MIMove(dst2,dst1,shift2,curMB);
+            Arm.Shift shift2 = new Arm.Shift(Arm.ShiftType.Lsr, N - l);
+            new MIMove(dst2, dst1, shift2, curMB);
             //dst3 = n+dst2
             Machine.Operand dst3 = newVR();
-            new MIBinary(MachineInst.Tag.Add,dst3,n,dst2,curMB);
+            new MIBinary(MachineInst.Tag.Add, dst3, n, dst2, curMB);
             //q = SRA(dst3,l)
-            Arm.Shift shift3 = new Arm.Shift(Arm.ShiftType.Asr,l);
-            new MIMove(q,dst3,shift3,curMB);
-        }
-        else if(m < (2 << (N-1))){
+            Arm.Shift shift3 = new Arm.Shift(Arm.ShiftType.Asr, l);
+            new MIMove(q, dst3, shift3, curMB);
+        } else if (m < (2 << (N - 1))) {
             //q = SRA(MULSH(m,n),sh_post)-XSIGN(n)
             //dst1 = MULSH(m,n)
-            Machine.Operand m_op =  new Machine.Operand(I32,(int)m);
+            Machine.Operand m_op = new Machine.Operand(I32, (int) m);
             Machine.Operand dst1 = newVR();
-            new MILongMul(dst1,n,m_op,curMB);
+            new MILongMul(dst1, n, m_op, curMB);
             //dst2 = SRA(dst1,sh_post)
             Machine.Operand dst2 = newVR();
-            Arm.Shift shift2 = new Arm.Shift(Arm.ShiftType.Asr,sh_post);
-            new MIMove(dst2,dst1,shift2,curMB);
+            Arm.Shift shift2 = new Arm.Shift(Arm.ShiftType.Asr, sh_post);
+            new MIMove(dst2, dst1, shift2, curMB);
             //dst3 = -XSIGN(n)
             Machine.Operand dst3 = newVR();
-            new MICompare(n,new Machine.Operand(I32,0),curMB);
-            new MIMove(Lt,dst3,new Machine.Operand(I32,1),curMB);
-            new MIMove(Lt,dst3,new Machine.Operand(I32,0),curMB);
+            new MICompare(n, new Machine.Operand(I32, 0), curMB);
+            new MIMove(Lt, dst3, new Machine.Operand(I32, 1), curMB);
+            new MIMove(Lt, dst3, new Machine.Operand(I32, 0), curMB);
             //q = dst2+dst3
-            new MIBinary(MachineInst.Tag.Add,q,dst2,dst3,curMB);
-        }
-        else{
+            new MIBinary(MachineInst.Tag.Add, q, dst2, dst3, curMB);
+        } else {
             //q = SRA(n+MULSH(m-2^N,n),sh_post)-XSIGN(n)
             //dst1 = MULSH(m-2^N,n)
-            Machine.Operand m_op =  new Machine.Operand(I32,(int)(m-(2<<N)));
+            Machine.Operand m_op = new Machine.Operand(I32, (int) (m - (2 << N)));
             Machine.Operand dst1 = newVR();
-            new MILongMul(dst1,n,m_op,curMB);
+            new MILongMul(dst1, n, m_op, curMB);
             //dst2 = n+dst1
             Machine.Operand dst2 = newVR();
-            new MIBinary(MachineInst.Tag.Add,dst2,n,dst1,curMB);
+            new MIBinary(MachineInst.Tag.Add, dst2, n, dst1, curMB);
             //dst3 = SRA(dst2,sh_post)
             Machine.Operand dst3 = newVR();
-            Arm.Shift shift = new Arm.Shift(Arm.ShiftType.Asr,sh_post);
-            new MIMove(dst3,dst2,shift,curMB);
+            Arm.Shift shift = new Arm.Shift(Arm.ShiftType.Asr, sh_post);
+            new MIMove(dst3, dst2, shift, curMB);
             //dst4 = -XSIGN(n)
             Machine.Operand dst4 = newVR();
-            new MICompare(n,new Machine.Operand(I32,0),curMB);
-            new MIMove(Lt,dst4,new Machine.Operand(I32,1),curMB);
-            new MIMove(Lt,dst4,new Machine.Operand(I32,0),curMB);
+            new MICompare(n, new Machine.Operand(I32, 0), curMB);
+            new MIMove(Lt, dst4, new Machine.Operand(I32, 1), curMB);
+            new MIMove(Lt, dst4, new Machine.Operand(I32, 0), curMB);
             //q = dst3+dst4
-            new MIBinary(MachineInst.Tag.Add,q,dst3,dst4,curMB);
+            new MIBinary(MachineInst.Tag.Add, q, dst3, dst4, curMB);
         }
-        if(d<0){
+        if (d < 0) {
             //q=-q
-            new MIBinary(MachineInst.Tag.Rsb,q,q,new Machine.Operand(I32,0),curMB);
+            new MIBinary(MachineInst.Tag.Rsb, q, q, new Machine.Operand(I32, 0), curMB);
         }
     }
 

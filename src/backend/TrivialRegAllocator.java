@@ -335,9 +335,9 @@ public class TrivialRegAllocator {
             return offImm;
         } else {
             Operand dst = curMF.newVR();
-            if(isInsertBefore){
+            if (isInsertBefore) {
                 new MIMove(dst, offImm, miLoadStore);
-            }else{
+            } else {
                 new MIMove(miLoadStore, dst, offImm);
             }
             return dst;
@@ -645,7 +645,8 @@ public class TrivialRegAllocator {
     /**
      * 对于每一个 x 相关的 move, 将其从可能合并的传送指令的集合 (activeMoveSet ∪ workListMoveSet)
      * 挪到 frozenMoveSet 中, 同时 对于 x 相关 move 的另一端的操作数 v
-     * 如果 v 不是传送相关的低度数结点
+     * 如果 v 不是传送相关的低度数结点,
+     * 则将 v 从低度数传送有关结点集 freezeWorkSet 挪到低度数传送无关结点集 simplifyWorkSet
      *
      * @param x
      */
@@ -696,8 +697,8 @@ public class TrivialRegAllocator {
     public void selectSpill() {
         // Operand x = spillWorkSet.stream().reduce((a, b) -> a.heuristicVal() < b.heuristicVal() ? a : b).orElseThrow();
         Operand x = spillWorkSet.stream().reduce(Operand::select).orElseThrow();
-        simplifyWorkSet.add(x);
         spillWorkSet.remove(x);
+        simplifyWorkSet.add(x);
         freezeMoves(x);
     }
 
@@ -705,8 +706,7 @@ public class TrivialRegAllocator {
         HashMap<Operand, Operand> colorMap = new HashMap<>();
         while (selectStack.size() > 0) {
             Operand n = selectStack.pop();
-            final HashSet<Arm.Regs> okColorSet = new HashSet<>(Arrays.asList(values()).subList(0, rk - 1));
-            okColorSet.add(lr);
+            final HashSet<Arm.Regs> okColorSet = new HashSet<>(Arrays.asList(GPRs.values()).subList(0, rk - 1));
 
             n.adjOpdSet.forEach(w -> {
                 Operand a = getAlias(w);
@@ -745,8 +745,11 @@ public class TrivialRegAllocator {
                 ArrayList<Operand> defs = mi.defOpds;
                 ArrayList<Operand> uses = mi.useOpds;
                 if (defs.size() > 0) {
+                    Operand o = colorMap.get(defs.get(0));
                     assert defs.size() == 1;
-                    defs.set(0, colorMap.get(defs.get(0)));
+                    if (o != null) {
+                        defs.set(0, o);
+                    }
                 }
 
                 for (int i = 0; i < uses.size(); i++) {

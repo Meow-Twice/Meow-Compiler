@@ -10,7 +10,7 @@ import static lir.Arm.Regs.GPRs.*;
 import static lir.Machine.Operand.Type.PreColored;
 
 public class MICall extends MachineInst {
-    McFunction mcFunction;
+    public McFunction mcFunction;
 
     public MICall(McFunction mcFunction, Machine.Block insertAtEnd) {
         super(Tag.Call, insertAtEnd);

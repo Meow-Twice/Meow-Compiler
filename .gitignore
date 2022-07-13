@@ -8,6 +8,6 @@ out
 *.s
 *.S
 *.elf
+*.in
 /src/test
 /src/timeTest
-/src/descriptor

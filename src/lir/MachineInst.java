@@ -79,6 +79,19 @@ public class MachineInst extends ILinkNode {
         return tag == Tag.Call;
     }
 
+    public boolean isReturn() {
+        return tag == Tag.Return;
+    }
+
+    public boolean isBinary(){
+        return tag.ordinal() <= Tag.LongMul.ordinal();
+    }
+
+    public boolean isBranch(){
+        return tag == Tag.Branch;
+    }
+
+
     Machine.Block mb;
     Tag tag;
     boolean isFloat = false;

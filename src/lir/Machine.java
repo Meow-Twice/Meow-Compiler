@@ -19,6 +19,7 @@ public class Machine {
         public static final Program PROGRAM = new Program();
         public Ilist<McFunction> funcList = new Ilist<>();
         public ArrayList<GlobalVal> globList = new ArrayList<>();
+        public McFunction mainMcFunc;
         int pool_count = 0;
         int inst_count = 0;
 
@@ -313,11 +314,11 @@ public class Machine {
         }
 
         public String toString() {
-            return MB_Prefix + index +"_"+bb.getLabel();
+            return MB_Prefix + index + "_" + bb.getLabel();
         }
 
         public String getDebugLabel() {
-            return this +"_"+bb.getLabel();
+            return this.toString()/* +"_"+bb.getLabel()*/;
         }
     }
 
@@ -403,6 +404,10 @@ public class Machine {
 
         public void setAlias(Operand u) {
             alias = u;
+        }
+
+        public int getValue() {
+            return value;
         }
 
         // static {
@@ -505,7 +510,7 @@ public class Machine {
             }
         }
 
-        public String getPrefix(){
+        public String getPrefix() {
             return switch (type) {
                 case Virtual -> "v";
                 case Allocated, PreColored -> switch (dataType) {

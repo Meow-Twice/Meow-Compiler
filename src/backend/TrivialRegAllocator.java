@@ -216,7 +216,9 @@ public class TrivialRegAllocator {
                     Arm.Reg.getS(i).degree = Integer.MAX_VALUE;
                 }
 
+                System.err.println("RegAlloc Build start");
                 build();
+                System.err.println("RegAlloc Build end");
                 makeWorkList();
                 while (simplifyWorkSet.size() > 0 || workListMoveSet.size() > 0 || freezeWorkSet.size() > 0 || spillWorkSet.size() > 0) {
                     if (simplifyWorkSet.size() > 0) {
@@ -344,13 +346,20 @@ public class TrivialRegAllocator {
 
     public ArrayList<Machine.Block> recurMbList = new ArrayList<>();
 
+    public void logOut(String s) {
+        System.err.println(s);
+    }
+
     public void build() {
-        for (Machine.Block mb = curMF.mbList.getEnd(); !mb.equals(curMF.mbList.head); mb = (Machine.Block) mb.getPrev()) {
+        logOut("in build");
+        for (ILinkNode mbNode = curMF.mbList.getEnd(); !mbNode.equals(curMF.mbList.head); mbNode = mbNode.getPrev()) {
+            Machine.Block mb = (Machine.Block) mbNode;
             // 获取块的 liveOut
+            logOut("build mb: " + mb.getDebugLabel());
             HashSet<Operand> live = mb.liveOutSet;
-            Machine.Block finalMb = mb;
             for (ILinkNode iNode = mb.getEndMI(); !iNode.equals(mb.miList.head); iNode = iNode.getPrev()) {
                 MachineInst mi = (MachineInst) iNode;
+                logOut(mi.toString());
                 // System.err.println(mi);
                 // TODO : 此时考虑了Call
                 ArrayList<Operand> defs = mi.defOpds;
@@ -380,12 +389,12 @@ public class TrivialRegAllocator {
 
                 defs.forEach(def -> {
                     live.removeIf(Operand::needColor);
-                    def.loopCounter += finalMb.bb.getLoopDep();
+                    def.loopCounter += mb.bb.getLoopDep();
                 });
 
                 uses.forEach(use -> {
                     if (use.needColor()) live.add(use);
-                    use.loopCounter += finalMb.bb.getLoopDep();
+                    use.loopCounter += mb.bb.getLoopDep();
                 });
             }
         }

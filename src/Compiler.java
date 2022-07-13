@@ -55,12 +55,12 @@ public class Compiler {
             midEndRunner.Run();
             // DeadCodeDelete deadCodeDelete = new DeadCodeDelete(Manager.MANAGER.getFunctionList());
             // deadCodeDelete.Run();
-            Manager.MANAGER.output(arg.llvmStream);
+            Manager.MANAGER.outputLLVM(arg.llvmStream);
             CodeGen.CODEGEN.gen();
-            CodeGen.CODEGEN.outputMI();
-            // Machine.Program p = Machine.Program.PROGRAM;
-            // TrivialRegAllocator regAllocator = new TrivialRegAllocator();
-            // regAllocator.AllocateRegister(p);
+            Manager.MANAGER.outputMI();
+            Machine.Program p = Machine.Program.PROGRAM;
+            TrivialRegAllocator regAllocator = new TrivialRegAllocator();
+            regAllocator.AllocateRegister(p);
             // p.output(new PrintStream(arg.asmStream));
         } catch (Exception e) {
             e.printStackTrace();

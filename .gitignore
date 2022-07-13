@@ -4,8 +4,10 @@ out
 *.MF
 *.sy
 *.ll
+*.txt
 *.s
 *.S
 *.elf
 /src/test
 /src/timeTest
+/src/descriptor

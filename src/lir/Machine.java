@@ -235,11 +235,13 @@ public class Machine {
     }
 
     public static class Block extends ILinkNode {
-        public static String BB_Prefix = ".L_BB_";
+        // public static String BB_Prefix = ".L_BB_";
+        public static String MB_Prefix = "._MB_";
         public BasicBlock bb;
         public McFunction mcFunc;
         public MachineInst firstMIForBJ = null;
         public Ilist<MachineInst> miList = new Ilist<>();
+        static int globIndex = 0;
         int index;
         // 双向链表的头
         // MachineInst tailMI = new MachineInst();
@@ -248,8 +250,8 @@ public class Machine {
 
         // 上面这两个是空的, 专门做头和尾, 为了减少添加节点(MachineInst)的时候的空指针判断
         // DoublelyLinkedList<MachineInst> insts;
-        public Block() {
-        }
+        // public Block() {
+        // }
 
         /**
          * 获取第一条真正的指令
@@ -302,6 +304,7 @@ public class Machine {
 
         public Block(BasicBlock bb) {
             this.bb = bb;
+            index = globIndex++;
         }
 
         public void setMcFunc(McFunction mcFunc) {
@@ -310,9 +313,12 @@ public class Machine {
         }
 
         public String toString() {
-            return BB_Prefix + index;
+            return MB_Prefix + index;
         }
 
+        public String getDebugLabel() {
+            return toString()+"_"+bb.getLabel();
+        }
     }
 
     public static class Operand {

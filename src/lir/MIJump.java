@@ -18,6 +18,6 @@ public class MIJump extends MachineInst {
 
     @Override
     public String toString() {
-        return tag + mb.bb.getLabel();
+        return tag + "\t" + target.getDebugLabel();
     }
 }

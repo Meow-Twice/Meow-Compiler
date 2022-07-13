@@ -78,6 +78,10 @@ public class FileDealer {
         }
     }
 
+    public static void outputClear() {
+        outputStringList.clear();
+    }
+
     public BufferedInputStream getBufferedInputStream(){
         return bufferedInputStream;
     }

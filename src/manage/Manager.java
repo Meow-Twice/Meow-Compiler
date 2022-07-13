@@ -2,6 +2,9 @@ package manage;
 
 import frontend.semantic.Initial;
 import frontend.semantic.symbol.Symbol;
+import lir.MIComment;
+import lir.Machine;
+import lir.MachineInst;
 import mir.Function;
 import mir.GlobalVal;
 import mir.type.Type;
@@ -96,10 +99,11 @@ public class Manager {
     }
 
     public void outputLLVM(String llvmFilename) throws FileNotFoundException {
-        output(new FileOutputStream(llvmFilename + ".ll"));
+        outputLLVM(new FileOutputStream(llvmFilename + ".ll"));
     }
 
-    public void output(OutputStream out) {
+    public void outputLLVM(OutputStream out) {
+        FileDealer.outputClear();
         // 全局变量
         for (HashMap.Entry<GlobalVal.GlobalValue, Initial> entry : globals.entrySet()) {
             FileDealer.addOutputString(entry.getKey().getName() + " = dso_local global " + entry.getValue());
@@ -116,6 +120,35 @@ public class Manager {
                 FileDealer.addOutputString(function.getDefinition());
             }
         }
+        FileDealer.outputStringList(out);
+    }
+
+    static int outputMIcnt = 0;
+
+    public void outputMI() throws FileNotFoundException {
+        outputMI("mcinstOf-" + outputMIcnt++);
+    }
+
+    public void outputMI(String miFilename) throws FileNotFoundException {
+        outputMI(new FileOutputStream(miFilename + ".txt"));
+    }
+
+    public void outputMI(OutputStream out) {
+        FileDealer.outputClear();
+        Machine.Program p = Machine.Program.PROGRAM;
+        for (Machine.McFunction mcFunc : p.funcList) {
+            FileDealer.addOutputString("\n");
+            FileDealer.addOutputString(mcFunc.mFunc.getName());
+            for (Machine.Block mb : mcFunc.mbList) {
+                FileDealer.addOutputString("\n");
+                FileDealer.addOutputString(mb.getDebugLabel());
+                for (MachineInst mi : mb.miList) {
+                    String str = mi instanceof MIComment ? "" : "\t";
+                    FileDealer.addOutputString(str + mi);
+                }
+            }
+        }
+
         FileDealer.outputStringList(out);
     }
 

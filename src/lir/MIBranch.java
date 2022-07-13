@@ -24,6 +24,6 @@ public class MIBranch extends MachineInst {
 
     @Override
     public String toString() {
-        return "b\t" + cond + "\t" + trueTargetBlock.bb.getLabel();
+        return "b" + cond + "\t" + trueTargetBlock.getDebugLabel();
     }
 }

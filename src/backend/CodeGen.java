@@ -103,20 +103,6 @@ public class CodeGen {
         }
     }
 
-    public void outputMI() {
-        Machine.Program p = Machine.Program.PROGRAM;
-        for (Machine.McFunction mcFunc : p.funcList) {
-            System.out.println(mcFunc.mFunc.getName());
-            for (Machine.Block mb : mcFunc.mbList) {
-                System.out.println(mb.bb);
-                for (MachineInst mi : mb.miList) {
-                    String str = mi instanceof MIComment ? "" : "\t";
-                    System.out.println(str + mi);
-                }
-            }
-        }
-    }
-
     HashSet<Machine.Block> dfsBBSet = new HashSet<>();
 
     public void genBB(BasicBlock bb) {
@@ -297,12 +283,6 @@ public class CodeGen {
                 case call -> {
                     //move caller's r0-r3  to VR
                     Instr.Call call_inst = (Instr.Call) instr;
-                    if (call_inst.getFunc().isExternal) {
-                        // getint()临时用
-                        dealExternalFunc(call_inst.getFunc());
-                        new MIMove(getVR_may_imm(call_inst), Arm.Reg.getR(r0), curMB);
-                        break;
-                    }
                     // TODO : 函数内部可能调用其他函数, 但是在函数内部已经没有了使用哪些寄存器的信息, 目前影响未知, 可能有bug
                     ArrayList<Value> param_list = call_inst.getParamList();
                     if (!param_list.isEmpty()) {
@@ -315,6 +295,13 @@ public class CodeGen {
                             new MIMove(r0, value2opd.get(param_list.get(0)), curMB);
                         }
                     }
+                    if (call_inst.getFunc().isExternal) {
+                        // getint()临时用
+                        dealExternalFunc(call_inst.getFunc());
+                        new MIMove(getVR_may_imm(call_inst), Arm.Reg.getR(r0), curMB);
+                        break;
+                    }
+
 
                     if (param_list.size() > 1) {
                         //move r1 to VR1
@@ -386,7 +373,7 @@ public class CodeGen {
                 }
                 case move -> {
                     Machine.Operand source = getVR_may_imm(((Instr.Move) instr).getSrc());
-                    Machine.Operand target = getVR_no_imm(((Instr.Move) instr).getSrc());
+                    Machine.Operand target = getVR_no_imm(((Instr.Move) instr).getDst());
                     new MIMove(target, source, curMB);
                 }
             }

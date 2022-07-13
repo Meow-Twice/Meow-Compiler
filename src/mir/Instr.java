@@ -1165,9 +1165,11 @@ public class Instr extends Value {
 
         @Override
         public Instr cloneToBB(BasicBlock bb) {
-            Instr ret = new Return(bb);
-            if (useValueList.size() == 1) {
+            Instr ret = null;
+            if (hasValue()) {
                 ret = new Return(getRetValue(), bb);
+            } else {
+                ret = new Return(bb);
             }
             CloneInfoMap.addValueReflect(this, ret);
             return ret;

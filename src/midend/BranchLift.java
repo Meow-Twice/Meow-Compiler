@@ -27,7 +27,6 @@ public class BranchLift {
     private void branchLiftForFunc(Function function) {
         //TODO:一次只能提升一个循环的一个Branch
         for (BasicBlock head: function.getLoopHeads()) {
-            boolean tag = false;
             Loop loop = head.getLoop();
             HashMap<Integer, HashSet<Instr>> conds = loop.getConds();
             for (int key: conds.keySet()) {
@@ -40,12 +39,9 @@ public class BranchLift {
                         continue;
                     }
                     liftBrOutLoop((Instr.Branch) br, loop);
-                    tag = true;
-                    break;
+                    //TODO:只提升一个branch就直接return
+                    return;
                 }
-            }
-            if (tag) {
-                break;
             }
         }
     }

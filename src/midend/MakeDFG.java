@@ -12,6 +12,8 @@ import java.util.HashSet;
 public class MakeDFG {
 
     private ArrayList<Function> functions;
+    HashMap<BasicBlock, ArrayList<BasicBlock>> preMap = new HashMap<>();
+    HashMap<BasicBlock, ArrayList<BasicBlock>> sucMap = new HashMap<>();
 
     public MakeDFG(ArrayList<Function> functions) {
         this.functions = functions;
@@ -30,9 +32,7 @@ public class MakeDFG {
     private void RemoveDeadBB() {
         //TODO:优化删除基本块的算法
         for (Function function: functions) {
-            while (removeFuncDeadBB(function)) {
-
-            }
+            removeFuncDeadBB(function);
         }
     }
 
@@ -70,12 +70,12 @@ public class MakeDFG {
 
     //删除冗余块  一次删不完, 删除一些没有前驱的块会多出来一些新的没有前驱的块
     //可以DFS删,一次就能删完
-    private boolean removeFuncDeadBB(Function function) {
+    private void removeFuncDeadBB(Function function) {
         BasicBlock beginBB = function.getBeginBB();
         BasicBlock end = function.getEnd();
 
-        HashMap<BasicBlock, ArrayList<BasicBlock>> preMap = new HashMap<>();
-        HashMap<BasicBlock, ArrayList<BasicBlock>> sucMap = new HashMap<>();
+        preMap = new HashMap<>();
+        sucMap = new HashMap<>();
         HashSet<BasicBlock> BBs = new HashSet<>();
 
         //初始化前驱后继图
@@ -115,25 +115,19 @@ public class MakeDFG {
         }
 
         //回写基本块和函数
-        pos = beginBB;
         HashSet<BasicBlock> needRemove = new HashSet<>();
+        HashSet<BasicBlock> know = new HashSet<>();
+        DFS(function.getBeginBB(), know);
+
+        pos = beginBB;
         while (!pos.equals(end)) {
-            pos.setPrecBBs(preMap.get(pos));
-            pos.setSuccBBs(sucMap.get(pos));
-            if (pos.getPrecBBs().size() == 0 && pos != beginBB) {
+            if (!know.contains(pos)) {
                 needRemove.add(pos);
-                preMap.remove(pos);
-                sucMap.remove(pos);
-                BBs.remove(pos);
             }
             pos = (BasicBlock) pos.getNext();
         }
-        function.setPreMap(preMap);
-        function.setSucMap(sucMap);
-        function.setBBs(BBs);
 
 
-        boolean ret = false;
         for (BasicBlock bb: needRemove) {
             bb.remove();
             Instr instr = bb.getBeginInstr();
@@ -141,9 +135,17 @@ public class MakeDFG {
                 instr.remove();
                 instr = (Instr) instr.getNext();
             }
-            ret = true;
         }
-        return ret;
+    }
+
+    private void DFS(BasicBlock bb, HashSet<BasicBlock> know) {
+        if (know.contains(bb)) {
+            return;
+        }
+        know.add(bb);
+        for (BasicBlock next: sucMap.get(bb)) {
+            DFS(next, know);
+        }
     }
 
     //计算单个函数的控制流图
@@ -151,8 +153,8 @@ public class MakeDFG {
         BasicBlock beginBB = function.getBeginBB();
         BasicBlock end = function.getEnd();
 
-        HashMap<BasicBlock, ArrayList<BasicBlock>> preMap = new HashMap<>();
-        HashMap<BasicBlock, ArrayList<BasicBlock>> sucMap = new HashMap<>();
+        preMap = new HashMap<>();
+        sucMap = new HashMap<>();
         HashSet<BasicBlock> BBs = new HashSet<>();
 
         //初始化前驱后继图

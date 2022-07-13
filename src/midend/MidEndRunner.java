@@ -43,6 +43,7 @@ public class MidEndRunner {
         mathOptimize.Run();
 
 
+        //TODO:删除冗余phi,分支优化(删除无用的br/jump等),等等
 //        RemovePhi removePhi = new RemovePhi(functions);
 //        removePhi.Run();
     }

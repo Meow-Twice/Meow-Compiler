@@ -26,10 +26,10 @@ public class MidEndRunner {
         GlobalValueLocalize globalValueLocalize = new GlobalValueLocalize(functions, globalValues);
         globalValueLocalize.Run();
 
-//        FuncInline funcInline = new FuncInline(functions);
-//        funcInline.Run();
-//
-//        reMakeCFGAndLoopInfo();
+        FuncInline funcInline = new FuncInline(functions);
+        funcInline.Run();
+
+        reMakeCFGAndLoopInfo();
 
         Mem2Reg mem2Reg = new Mem2Reg(functions);
         mem2Reg.Run();

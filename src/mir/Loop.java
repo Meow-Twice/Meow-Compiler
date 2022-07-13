@@ -1,12 +1,19 @@
 package mir;
 
+import midend.CloneInfoMap;
+
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Objects;
 
 public class Loop {
 
     public static final Loop emptyLoop = new Loop();
+    private static int loop_num = 0;
 
     private Loop() {
+        this.hash = -1;
     }
 
     private String funcName = "";
@@ -15,11 +22,23 @@ public class Loop {
     private Loop parentLoop;
     public int loopDepth = -1;
     private final HashSet<Loop> childrenLoops = new HashSet<>();
-    private final HashSet<BasicBlock> nowLevelBB = new HashSet<>();
 
-    private BasicBlock startBB;
+    private int hash;
+
+    //同一循环内的BB 进一步划分为 entering header exiting latch exit
+    //entering为header的前驱
+    private HashSet<BasicBlock> nowLevelBB = new HashSet<>();
+
+    private BasicBlock header;
+    private HashSet<BasicBlock> enterings = new HashSet<>();
+    private HashSet<BasicBlock> exitings = new HashSet<>();
+    private HashSet<BasicBlock> latchs = new HashSet<>();
+    private HashSet<BasicBlock> exits = new HashSet<>();
+
+    private HashMap<Integer, HashSet<Instr>> conds = new HashMap<>();
 
     public Loop(Loop parentLoop) {
+        this.hash = loop_num++;
         this.parentLoop = parentLoop;
         this.loopDepth = parentLoop.loopDepth + 1;
         assert parentLoop.addChildLoop(this);
@@ -62,12 +81,12 @@ public class Loop {
         return nowLevelBB.add(bb);
     }
 
-    public BasicBlock getStartBB() {
-        return startBB;
+    public BasicBlock getHeader() {
+        return header;
     }
 
-    public void setStartBB(BasicBlock basicBlock) {
-        startBB = basicBlock;
+    public void setHeader(BasicBlock basicBlock) {
+        header = basicBlock;
     }
 
     @Override
@@ -77,5 +96,99 @@ public class Loop {
 
     public void setFunc(Function function) {
         funcName = function.getName();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Loop loop = (Loop) o;
+        return hash == loop.hash;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(hash);
+    }
+
+    public int getHash() {
+        return hash;
+    }
+
+    public void addEntering(BasicBlock bb) {
+        enterings.add(bb);
+        bb.setLoopEntering();
+    }
+
+    public void addLatch(BasicBlock bb) {
+        latchs.add(bb);
+        bb.setLoopLatch();
+    }
+
+    public void addExiting(BasicBlock bb) {
+        exitings.add(bb);
+        bb.setLoopExiting();
+    }
+
+    public void addExit(BasicBlock bb) {
+        exits.add(bb);
+        bb.setExit();
+    }
+
+    public void addCond(Instr instr) {
+        int condNum = instr.getLoopCondCount();
+        if (!conds.containsKey(condNum)) {
+            conds.put(condNum, new HashSet<>());
+        }
+        conds.get(condNum).add(instr);
+    }
+
+    public HashSet<BasicBlock> getNowLevelBB() {
+        return nowLevelBB;
+    }
+
+    public HashSet<BasicBlock> getExits() {
+        return exits;
+    }
+
+
+    public HashMap<Integer, HashSet<Instr>> getConds() {
+        return conds;
+    }
+
+    public HashSet<BasicBlock> getEnterings() {
+        return enterings;
+    }
+
+
+    //把一个循环复制到指定函数
+    public void cloneToFunc(Function function) {
+        for (BasicBlock bb: nowLevelBB) {
+            bb.cloneToFunc(function);
+        }
+        for (Loop next: childrenLoops) {
+            next.cloneToFunc(function);
+        }
+    }
+
+    //修正当前BB对应BB的use-def,同时修正简单的数据流:前驱后继关系
+    public void fix() {
+        for (BasicBlock bb: nowLevelBB) {
+            BasicBlock needFixBB = (BasicBlock) CloneInfoMap.getReflectedValue(bb);
+
+            ArrayList<BasicBlock> pres = new ArrayList<>();
+            for (BasicBlock pre: bb.getPrecBBs()) {
+                pres.add((BasicBlock) CloneInfoMap.getReflectedValue(pre));
+            }
+            needFixBB.setPrecBBs(pres);
+
+            ArrayList<BasicBlock> succs = new ArrayList<>();
+            for (BasicBlock succ: bb.getSuccBBs()) {
+                succs.add((BasicBlock) CloneInfoMap.getReflectedValue(succ));
+            }
+            needFixBB.setSuccBBs(succs);
+
+            needFixBB.fix();
+        }
     }
 }

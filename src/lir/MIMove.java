@@ -33,6 +33,15 @@ public class MIMove extends MachineInst {
         genDefUse();
     }
 
+    public MIMove(Machine.Operand dOpd, Machine.Operand sOpd, Arm.Shift shift,Machine.Block insertAtEnd) {
+        super(Tag.Mv, insertAtEnd);
+        this.dOpd = dOpd;
+        this.sOpd = sOpd;
+        this.cond = Arm.Cond.Any;
+        this.shift = shift;
+        insertAtEnd.insertAtEnd(this);
+        genDefUse();
+    }
 
     public MIMove(Machine.Operand dOpd, Machine.Operand sOpd, MachineInst inst) {
         super(Tag.Mv, inst);

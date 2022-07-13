@@ -246,6 +246,10 @@ public class GVNAndGCM {
         }
         // use the latest and earliest blocks to pick final positing
         // now latest is lca
+//        if (lca == null) {
+//            instr.setLatestBB(instr.getEarliestBB());
+//            return;
+//        }
         BasicBlock best = lca;
         while (!lca.equals(instr.getEarliestBB())) {
             if (lca.getLoopDep() < best.getLoopDep()) {

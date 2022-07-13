@@ -1,6 +1,8 @@
 package mir;
 
+import frontend.Visitor;
 import lir.Machine;
+import midend.CloneInfoMap;
 import mir.type.Type;
 
 import java.util.ArrayList;
@@ -40,14 +42,56 @@ public class BasicBlock extends Value {
 
 
     public Loop loop = Loop.emptyLoop;
-    public boolean isLoopStart = false;
+
+
+    public boolean isLoopHeader = false;
+    private boolean isLoopEntering = false;
+    private boolean isLoopExiting = false;
+    private boolean isLoopLatch = false;
+    private boolean isExit = false;
 
     private int domTreeDeep;
     private BasicBlock IDominator;
 
     public void setLoopStart() {
-        isLoopStart = true;
-        loop.setStartBB(this);
+        isLoopHeader = true;
+        loop.setHeader(this);
+    }
+
+    public void setLoopEntering() {
+        isLoopEntering = true;
+    }
+
+    public void setLoopExiting() {
+        isLoopExiting = true;
+    }
+
+    public void setLoopLatch() {
+        isLoopLatch = true;
+    }
+
+    public void setExit() {
+        isExit = true;
+    }
+
+    public boolean isLoopHeader() {
+        return isLoopHeader;
+    }
+
+    public boolean isLoopEntering() {
+        return isLoopEntering;
+    }
+
+    public boolean isLoopExiting() {
+        return isLoopExiting;
+    }
+
+    public boolean isLoopLatch() {
+        return isLoopLatch;
+    }
+
+    public boolean isExit() {
+        return isExit;
     }
 
     public int getLoopDep() {
@@ -194,14 +238,30 @@ public class BasicBlock extends Value {
     }
 
     public void setPrecBBs(ArrayList<BasicBlock> precBBs) {
-        if (precBBs == null) {
-            this.precBBs = new ArrayList<>();
+        if (this.precBBs.size() != 0 && arrayEq(this.precBBs, precBBs)) {
+            return;
+        }
+        if (this.precBBs.size() == 0) {
+            if (precBBs == null) {
+                this.precBBs = new ArrayList<>();
+            } else {
+                this.precBBs = precBBs;
+            }
         } else {
+            ArrayList<BasicBlock> oldPres = this.precBBs;
+            ArrayList<BasicBlock> newPres = precBBs;
+            if (oldPres.size() == newPres.size()) {
+                System.err.println("err");
+            }
+            simplyPhi(oldPres, newPres);
             this.precBBs = precBBs;
         }
     }
 
     public void setSuccBBs(ArrayList<BasicBlock> succBBs) {
+        if (this.succBBs.size() != 0 && arrayEq(this.succBBs, succBBs)) {
+            return;
+        }
         if (succBBs == null) {
             this.succBBs = new ArrayList<>();
         } else {
@@ -250,7 +310,7 @@ public class BasicBlock extends Value {
     }
 
     public void setIDominator(BasicBlock IDominator) {
-        assert this.IDominator == null;
+        //assert this.IDominator == null;
         this.IDominator = IDominator;
     }
 
@@ -271,5 +331,90 @@ public class BasicBlock extends Value {
 
     public Machine.Block getMb(){
         return mb;
+    }
+
+    public Loop getLoop() {
+        return loop;
+    }
+
+    //把当前BB复制到指定函数
+    public BasicBlock cloneToFunc(Function function) {
+        // 是循环内的BB, 复制的时候,
+        // 先创建新的循环, 然后把BB塞到新的loop里面
+        Loop srcLoop = this.loop;
+        Loop tagLoop = CloneInfoMap.loopMap.containsKey(srcLoop)?
+                CloneInfoMap.getReflectedLoop(srcLoop):
+                new Loop(CloneInfoMap.getReflectedLoop(loop.getParentLoop()));
+        tagLoop.setFunc(function);
+        CloneInfoMap.addLoopReflect(srcLoop, tagLoop);
+
+        BasicBlock ret = new BasicBlock(function, tagLoop);
+        CloneInfoMap.addValueReflect(this, ret);
+        tagLoop.addBB(ret);
+        if (this.isLoopHeader) {
+            tagLoop.setHeader(ret);
+        }
+        Instr instr = this.getBeginInstr();
+        while (instr.getNext() != null) {
+            Instr tmp = instr.cloneToBB(ret);
+            if (instr.isInWhileCond()) {
+                tmp.setLoopCondCount(++Visitor.VISITOR.curLoopCondCount);
+            }
+            instr = (Instr) instr.getNext();
+        }
+//        Instr retInstr = ret.getBeginInstr();
+//        while (retInstr.getNext() != null) {
+//            retInstr.fix();
+//            retInstr = (Instr) retInstr.getNext();
+//        }
+        return ret;
+    }
+
+    public void fix() {
+        Instr instr = this.getBeginInstr();
+        while (instr.getNext() != null) {
+            instr.fix();
+            instr = (Instr) instr.getNext();
+        }
+    }
+
+    public void modifyPre(BasicBlock old, BasicBlock now) {
+        precBBs.set(precBBs.indexOf(old), now);
+    }
+
+    public void modifySuc(BasicBlock old, BasicBlock now) {
+        succBBs.set(succBBs.indexOf(old), now);
+    }
+
+    public void addPre(BasicBlock add) {
+        precBBs.add(add);
+    }
+
+    public void addSuc(BasicBlock add) {
+        succBBs.add(add);
+    }
+
+    public void simplyPhi(ArrayList<BasicBlock> oldPres, ArrayList<BasicBlock> newPres) {
+        Instr instr = getBeginInstr();
+        while (instr.getNext() != null) {
+            if (instr instanceof Instr.Phi) {
+                ((Instr.Phi) instr).simple(oldPres, newPres);
+            }
+            instr = (Instr) instr.getNext();
+        }
+    }
+
+    private boolean arrayEq(ArrayList<BasicBlock> src, ArrayList<BasicBlock> tag) {
+        for (BasicBlock bb: src) {
+            if (!tag.contains(bb)) {
+                return false;
+            }
+        }
+        for (BasicBlock bb: tag) {
+            if (!src.contains(bb)) {
+                return false;
+            }
+        }
+        return true;
     }
 }

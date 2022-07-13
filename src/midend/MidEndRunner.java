@@ -26,10 +26,11 @@ public class MidEndRunner {
         // GlobalValueLocalize globalValueLocalize = new GlobalValueLocalize(functions, globalValues);
         // globalValueLocalize.Run();
 
-
+        //TODO:funcInline
 
         Mem2Reg mem2Reg = new Mem2Reg(functions);
         mem2Reg.Run();
+
 
 
         // DeadCodeDelete deadCodeDelete = new DeadCodeDelete(functions);
@@ -43,6 +44,53 @@ public class MidEndRunner {
 
        RemovePhi removePhi = new RemovePhi(functions);
        removePhi.Run();
+
+        Pass();
+
+        loopOptimize();
+
+
+//        RemovePhi removePhi = new RemovePhi(functions);
+//        removePhi.Run();
+    }
+
+    //死代码删除 指令融合 GVN/GCM
+    private void Pass() {
+        DeadCodeDelete deadCodeDelete = new DeadCodeDelete(functions);
+        deadCodeDelete.Run();
+
+        InstrComb instrComb = new InstrComb(functions);
+        instrComb.Run();
+
+        GVNAndGCM gvnAndGCM = new GVNAndGCM(functions);
+        gvnAndGCM.Run();
+    }
+
+    //重建数据流, 简化PHI, 重建循环关系
+    private void reMakeCFGAndLoopInfo() {
+        MakeDFG makeDFG = new MakeDFG(functions);
+        makeDFG.Run();
+
+        LoopInfo loopInfo = new LoopInfo(functions);
+        loopInfo.Run();
+
+    }
+
+    //循环优化
+    private void loopOptimize() {
+        LoopInfo loopInfo = new LoopInfo(functions);
+        loopInfo.Run();
+
+        LCSSA lcssa = new LCSSA(functions);
+        lcssa.Run();
+
+        BranchLift branchLift = new BranchLift(functions);
+        branchLift.Run();
+
+        reMakeCFGAndLoopInfo();
+
+        Pass();
+
     }
 
 }

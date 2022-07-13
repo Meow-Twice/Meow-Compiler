@@ -4,15 +4,9 @@ import java.io.PrintStream;
 
 public class MIMove extends MachineInst {
     Arm.Cond cond = Arm.Cond.Any;
-    Machine.Operand dOpd;
-    Machine.Operand sOpd;
+    // Machine.Operand dOpd;
+    // Machine.Operand sOpd;
     Arm.Shift shift = Arm.Shift.NONE_SHIFT;
-
-    public MIMove(Machine.Block insertAtEnd) {
-        super(Tag.Mv, insertAtEnd);
-        this.cond = Arm.Cond.Any;
-        genDefUse();
-    }
 
     public boolean encode_imm(int imm) {
         for (int ror = 0; ror < 32; ror += 2) {
@@ -26,48 +20,58 @@ public class MIMove extends MachineInst {
 
     public MIMove(Machine.Operand dOpd, Machine.Operand sOpd, Machine.Block insertAtEnd) {
         super(Tag.Mv, insertAtEnd);
-        this.dOpd = dOpd;
-        this.sOpd = sOpd;
+        defOpds.add(dOpd);
+        useOpds.add(sOpd);
+        // this.dOpd = dOpd;
+        // this.sOpd = sOpd;
         this.cond = Arm.Cond.Any;
-        insertAtEnd.insertAtEnd(this);
-        genDefUse();
     }
+
 
     public MIMove(Machine.Operand dOpd, Machine.Operand sOpd, Arm.Shift shift,Machine.Block insertAtEnd) {
         super(Tag.Mv, insertAtEnd);
-        this.dOpd = dOpd;
-        this.sOpd = sOpd;
+        defOpds.add(dOpd);
+        useOpds.add(sOpd);
+        // this.dOpd = dOpd;
+        // this.sOpd = sOpd;
         this.cond = Arm.Cond.Any;
         this.shift = shift;
-        insertAtEnd.insertAtEnd(this);
-        genDefUse();
+    }
+
+    public MIMove(MachineInst inst, Machine.Operand dOpd, Machine.Operand sOpd) {
+        super(inst, Tag.Mv);
+        defOpds.add(dOpd);
+        useOpds.add(sOpd);
+        // this.dOpd = dOpd;
+        // this.sOpd = sOpd;
+        this.cond = Arm.Cond.Any;
     }
 
     public MIMove(Machine.Operand dOpd, Machine.Operand sOpd, MachineInst inst) {
         super(Tag.Mv, inst);
-        this.dOpd = dOpd;
-        this.sOpd = sOpd;
+        defOpds.add(dOpd);
+        useOpds.add(sOpd);
+        // this.dOpd = dOpd;
+        // this.sOpd = sOpd;
         this.cond = Arm.Cond.Any;
-        inst.insertBefore(this);
-        genDefUse();
     }
 
     public MIMove(Arm.Cond cond, Machine.Operand dOpd, Machine.Operand sOpd, Machine.Block insertAtEnd) {
         super(Tag.Mv, insertAtEnd);
         this.cond = cond;
-        this.dOpd = dOpd;
-        this.sOpd = sOpd;
-        insertAtEnd.insertAtEnd(this);
-        genDefUse();
+        defOpds.add(dOpd);
+        useOpds.add(sOpd);
+        // this.dOpd = dOpd;
+        // this.sOpd = sOpd;
     }
 
     public boolean operator(MIMove move) {
         if (this.cond != move.cond)
             return this.cond.compareTo(move.cond) < 0;
-        if (this.dOpd != this.dOpd)
-            return this.dOpd.compareTo(this.dOpd);
-        if (this.sOpd != this.sOpd)
-            return this.sOpd.compareTo(this.sOpd);
+        if (!this.getDst().equals(this.getDst()))
+            return this.getDst().compareTo(this.getDst());
+        if (this.getSrc() != this.getSrc())
+            return this.getSrc().compareTo(this.getSrc());
         return false;
     }
 
@@ -76,24 +80,24 @@ public class MIMove extends MachineInst {
         cond = Arm.Cond.Any;
     }
 
-    @Override
-    public void genDefUse() {
-        defOpds.add(dOpd);
-        useOpds.add(sOpd);
-    }
+    // @Override
+    // public void genDefUse() {
+    //     defOpds.add(dOpd);
+    //     useOpds.add(sOpd);
+    // }
 
     @Override
     public void output(PrintStream os, Machine.McFunction f) {
         transfer_output(os);
-        if (sOpd.type == Machine.Operand.Type.Immediate && encode_imm(sOpd.value)) {
-            int imm = sOpd.value;
+        if (getSrc().type == Machine.Operand.Type.Immediate && encode_imm(getSrc().value)) {
+            int imm = getSrc().value;
             if (imm >> 16 == 0) {
-                os.println("movw" + cond + "\t" + dOpd.toString() + ",#" + imm);
+                os.println("movw" + cond + "\t" + getDst().toString() + ",#" + imm);
             } else {
-                os.println("ldr" + cond + "\t" + dOpd.toString() + ",=" + imm);
+                os.println("ldr" + cond + "\t" + getDst().toString() + ",=" + imm);
             }
         } else {
-            os.print("mov" + cond + "\t" + dOpd.toString() + "," + sOpd.toString());
+            os.print("mov" + cond + "\t" + getDst().toString() + "," + getSrc().toString());
             os.println("," + shift.toString());
         }
     }
@@ -104,19 +108,32 @@ public class MIMove extends MachineInst {
     }
 
     public Machine.Operand getDst() {
-        return dOpd;
+        return defOpds.get(0);
     }
 
     public boolean directColor() {
-        return dOpd.needColor() && sOpd.needColor() && cond == Arm.Cond.Any && shift.shiftType == Arm.ShiftType.None;
+        return getDst().needColor() && getSrc().needColor() && cond == Arm.Cond.Any && shift.shiftType == Arm.ShiftType.None;
     }
 
     public Machine.Operand getSrc() {
-        return sOpd;
+        return useOpds.get(0);
     }
 
     @Override
     public String toString() {
-        return tag.toString() + cond.toString() + '\t' + dOpd.toString() + ",\t"+sOpd.toString();
+        if (getDst() == null) {
+            assert false;
+        }
+        return tag.toString() + cond.toString() + '\t' + getDst().toString() + ",\t" + getSrc().toString();
+    }
+
+    public void setSrc(Machine.Operand offset_opd) {
+        assert offset_opd != null;
+        useOpds.set(0, offset_opd);
+    }
+
+    public void setDst(Machine.Operand dst) {
+        assert dst != null;
+        defOpds.set(0, dst);
     }
 }

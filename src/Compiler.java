@@ -60,6 +60,7 @@ public class Compiler {
             Manager.MANAGER.outputMI();
             Machine.Program p = Machine.Program.PROGRAM;
             TrivialRegAllocator regAllocator = new TrivialRegAllocator();
+            Manager.MANAGER.outputMI();
             regAllocator.AllocateRegister(p);
             // p.output(new PrintStream(arg.asmStream));
         } catch (Exception e) {

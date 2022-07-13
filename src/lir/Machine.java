@@ -63,11 +63,11 @@ public class Machine {
             } else {
                 //move to r4
                 MIMove move = new MIMove();
-                move.sOpd = offset_opd;
+                move.setSrc(offset_opd);
                 //r4
                 Machine.Operand r4 = new Operand(Allocated);
                 r4.value = 4;
-                move.dOpd = r4;
+                move.setDst(r4);
                 move.output(os, null);
                 os.println(prefix + op + "\t" + "sp, sp, " + r4.toString());
             }
@@ -313,11 +313,11 @@ public class Machine {
         }
 
         public String toString() {
-            return MB_Prefix + index;
+            return MB_Prefix + index +"_"+bb.getLabel();
         }
 
         public String getDebugLabel() {
-            return toString()+"_"+bb.getLabel();
+            return this +"_"+bb.getLabel();
         }
     }
 
@@ -351,7 +351,7 @@ public class Machine {
          * 并且 v 已放入到 已合并 Operand 集合 coalescedNodeSet时,
          * alias(v) = u
          */
-        public Operand alias;
+        private Operand alias;
         /**
          * 与此 Operand 相关的传送指令列表的集合
          */
@@ -395,6 +395,14 @@ public class Machine {
 
         public void setValue(int i) {
             value = i;
+        }
+
+        public Operand getAlias() {
+            return alias;
+        }
+
+        public void setAlias(Operand u) {
+            alias = u;
         }
 
         // static {
@@ -486,19 +494,7 @@ public class Machine {
             } else {
                 throw new AssertionError("Wrong reg: " + reg);
             }
-        }
-
-        public Operand(Type type, Arm.Reg reg) {
-            this.type = type;
-            prefix = switch (type) {
-                case Virtual -> "v";
-                case Allocated, PreColored -> switch (reg.dataType) {
-                    case F32 -> "s";
-                    case I32 -> "r";
-                    default -> throw new IllegalStateException("Unexpected reg type: " + reg.dataType);
-                };
-                case Immediate -> "#";
-            };
+            value = ((Enum<?>) reg).ordinal();
         }
 
         public boolean compareTo(Operand other) {
@@ -509,8 +505,20 @@ public class Machine {
             }
         }
 
+        public String getPrefix(){
+            return switch (type) {
+                case Virtual -> "v";
+                case Allocated, PreColored -> switch (dataType) {
+                    case F32 -> "s";
+                    case I32 -> "r";
+                    default -> throw new IllegalStateException("Unexpected reg type: " + dataType);
+                };
+                case Immediate -> "#";
+            };
+        }
+
         public String toString() {
-            return prefix + value;
+            return getPrefix() + value;
         }
 
         public double heuristicVal() {

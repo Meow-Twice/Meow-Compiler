@@ -12,6 +12,7 @@ public class GVNAndGCM {
     // 把load,store,get_element_ptr也纳入GCM考虑之中
     private ArrayList<Function> functions;
     private HashMap<Function, HashSet<Instr>> pinnedInstrMap;
+    private HashMap<BasicBlock, Instr> insertPos;
 
     private static HashSet<Instr> know;
     private BasicBlock root;
@@ -23,6 +24,7 @@ public class GVNAndGCM {
     public GVNAndGCM(ArrayList<Function> functions) {
         this.functions = functions;
         this.pinnedInstrMap = new HashMap<>();
+        this.insertPos = new HashMap<>();
 //        for (Function function: functions) {
 //            this.pinnedInstrMap.put(function, new HashSet<>());
 //        }
@@ -47,6 +49,7 @@ public class GVNAndGCM {
                     }
                     instr = (Instr) instr.getNext();
                 }
+                insertPos.put(bb, (Instr) bb.getEndInstr().getPrev());
                 bb = (BasicBlock) bb.getNext();
             }
             pinnedInstrMap.put(function, pinnedInstr);
@@ -214,12 +217,16 @@ public class GVNAndGCM {
 //        }
         BasicBlock bb = function.getBeginBB();
         while (bb.getNext() != null) {
+            ArrayList<Instr> instrs = new ArrayList<>();
             Instr instr = bb.getEndInstr();
             while (instr.getPrev() != null) {
-                if (!know.contains(instr)) {
-                    scheduleLate(instr);
-                }
+                instrs.add(instr);
                 instr = (Instr) instr.getPrev();
+            }
+            for (Instr instr1: instrs) {
+                if (!know.contains(instr1)) {
+                    scheduleLate(instr1);
+                }
             }
             bb = (BasicBlock) bb.getNext();
         }
@@ -261,6 +268,31 @@ public class GVNAndGCM {
             best = lca;
         }
         instr.setLatestBB(best);
+
+        if (!instr.getLatestBB().equals(instr.parentBB())) {
+            instr.delFromNowBB();
+            //TODO:检查 insert 位置 是在头部还是尾部
+            //i.getLatestBB().getEndInstr().insertBefore(i);
+//            Instr pos = findInsertPos(instr, instr.getLatestBB());
+//            pos.insertBefore(instr);
+//            Instr pos = instr.getLatestBB().getBeginInstr();
+//            while (pos instanceof Instr.Phi) {
+//                pos = (Instr) pos.getNext();
+//            }
+            Instr pos = null;
+//            if (instr.getLatestBB().getDomTreeDeep() < instr.parentBB().getDomTreeDeep()) {
+//                pos = insertPos.get(instr.getLatestBB());
+//            } else {
+//                pos = instr.getLatestBB().getBeginInstr();
+//                while (pos instanceof Instr.Phi) {
+//                    pos = (Instr) pos.getNext();
+//                }
+//            }
+//            pos.insertAfter(instr);
+            pos = findInsertPos(instr, instr.getLatestBB());
+            pos.insertBefore(instr);
+            instr.setBb(instr.getLatestBB());
+        }
     }
 
     private void move() {
@@ -273,12 +305,23 @@ public class GVNAndGCM {
                     instrs.add(instr);
                     instr = (Instr) instr.getNext();
                 }
+//                Instr instr = bb.getEndInstr();
+//                ArrayList<Instr> instrs = new ArrayList<>();
+//                while (instr.getPrev() != null) {
+//                    instrs.add(instr);
+//                    instr = (Instr) instr.getPrev();
+//                }
                 for (Instr i: instrs) {
                     if (!i.getLatestBB().equals(bb)) {
+                        assert false;
 //                        i.getPrev().setNext(i.getNext());
 //                        i.getNext().setPrev(i.getPrev());
                         i.delFromNowBB();
-                        i.getLatestBB().getEndInstr().insertBefore(i);
+                        //TODO:检查 insert 位置 是在头部还是尾部
+                        //i.getLatestBB().getEndInstr().insertBefore(i);
+                        Instr pos = findInsertPos(i, i.getLatestBB());
+                        pos.insertBefore(i);
+                        //i.getLatestBB().getBeginInstr().insertBefore(i);
                         i.setBb(i.getLatestBB());
                     }
                 }
@@ -303,6 +346,34 @@ public class GVNAndGCM {
             b = b.getIDominator();
         }
         return a;
+    }
+
+    private Instr findInsertPos(Instr instr, BasicBlock bb) {
+        ArrayList<Value> users = new ArrayList<>();
+        Use use = instr.getBeginUse();
+        while (use.getNext() != null) {
+            users.add(use.getUser());
+            use = (Use) use.getNext();
+        }
+        Instr later = null;
+        Instr pos = bb.getBeginInstr();
+        while (pos.getNext() != null) {
+            if (pos instanceof Instr.Phi) {
+                pos = (Instr) pos.getNext();
+                continue;
+            }
+            if (users.contains(pos)) {
+                later = pos;
+                break;
+            }
+            pos = (Instr) pos.getNext();
+        }
+
+        if (later != null) {
+            return later;
+        }
+
+        return bb.getEndInstr();
     }
 
 

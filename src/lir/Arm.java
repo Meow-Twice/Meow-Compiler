@@ -107,10 +107,10 @@ public class Arm {
         // TODO: 保证Arm.Cond与Icmp.Op, Fcmp.Op的顺序相同!!!!!!!!
         Eq("eq"),
         Ne("ne"),
-        Ge("ge"),
         Gt("gt"),
-        Le("le"),
+        Ge("ge"),
         Lt("lt"),
+        Le("le"),
         Any("");
 
         Cond(String cond) {

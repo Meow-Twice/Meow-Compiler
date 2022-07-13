@@ -133,6 +133,7 @@ public class MIDescriptor implements Descriptor {
             String str = mi instanceof MIComment ? "" : "\t";
             logOut(str + mi);
             if (mi.getCond() != Arm.Cond.Any && !mi.isBranch() && !satisfyCond(mi.getCond())) {
+                logOut("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
                 continue;
             }
             curMI = mi;
@@ -331,17 +332,17 @@ public class MIDescriptor implements Descriptor {
 
     private boolean satisfyCond(Arm.Cond cond) {
         int cmp_status = REG_SIM.CMP_STATUS;
-        // (cmp_status & CPSR_Z) == 0: lhs == rhs
-        // (cmp_status & CPSR_Z) != 0: lhs != rhs (lhs < rhs || lhs > rhs)
-        // (cmp_status & CPSR_N) == 0: lhs < rhs
-        // (cmp_status & CPSR_N) != 0: lhs >= rhs
+        // (cmp_status & CPSR_Z) != 0: lhs == rhs
+        // (cmp_status & CPSR_Z) == 0: lhs != rhs (lhs < rhs || lhs > rhs)
+        // (cmp_status & CPSR_N) != 0: lhs < rhs
+        // (cmp_status & CPSR_N) == 0: lhs >= rhs
         return switch (cond) {
             case Eq -> (cmp_status & CPSR_Z) != 0;
             case Ne -> (cmp_status & CPSR_Z) == 0;
-            case Ge -> (cmp_status & CPSR_N) != 0;
-            case Gt -> (cmp_status & CPSR_N) != 0 && (cmp_status & CPSR_Z) != 0;
-            case Le -> (cmp_status & CPSR_N) == 0 || (cmp_status & CPSR_Z) == 0;
-            case Lt -> (cmp_status & CPSR_N) == 0;
+            case Ge -> (cmp_status & CPSR_N) == 0;
+            case Gt -> (cmp_status & CPSR_N) == 0 && (cmp_status & CPSR_Z) == 0;
+            case Le -> (cmp_status & CPSR_N) != 0 || (cmp_status & CPSR_Z) != 0;
+            case Lt -> (cmp_status & CPSR_N) != 0;
             case Any -> throw new AssertionError("Wrong cmp: " + cmp_status + " compare with " + cond);
         };
     }

@@ -57,10 +57,10 @@ public class Compiler {
             // DeadCodeDelete deadCodeDelete = new DeadCodeDelete(Manager.MANAGER.getFunctionList());
             // deadCodeDelete.Run();
             Manager.MANAGER.outputLLVM(arg.llvmStream);
-            // CodeGen.CODEGEN.gen();
-            // Manager.MANAGER.outputMI();
-            // Machine.Program p = Machine.Program.PROGRAM;
-            // MIDescriptor.MI_DESCRIPTOR.run();
+            CodeGen.CODEGEN.gen();
+            Manager.MANAGER.outputMI();
+            Machine.Program p = Machine.Program.PROGRAM;
+            MIDescriptor.MI_DESCRIPTOR.run();
             // TrivialRegAllocator regAllocator = new TrivialRegAllocator();
             // Manager.MANAGER.outputMI();
             // regAllocator.AllocateRegister(p);

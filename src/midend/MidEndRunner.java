@@ -35,10 +35,12 @@ public class MidEndRunner {
         mem2Reg.Run();
 
 
-
         Pass();
 
         loopOptimize();
+
+        MathOptimize mathOptimize = new MathOptimize(functions);
+        mathOptimize.Run();
 
 
 //        RemovePhi removePhi = new RemovePhi(functions);

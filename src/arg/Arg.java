@@ -13,7 +13,12 @@ public class Arg {
     public final OutputStream asmStream; // 汇编代码输出流
     public final OutputStream llvmStream; // LLVM IR 中间代码输出流
 
-    private Arg(String src, boolean optimize, String asm, String llvm) throws FileNotFoundException {
+    public final boolean interpretMI; // 是否解释执行
+    public final InputStream interpretInputStream; // 解释执行 stdin
+    public final OutputStream interpretOutputStream; // 解释执行 stdout
+
+    private Arg(String src, boolean optimize, String asm, String llvm,
+                boolean interpret, String interpretIn, String interpretOut) throws FileNotFoundException {
         this.srcFilename = src;
         this.optimize = optimize;
         this.asmFilename = asm;
@@ -22,6 +27,10 @@ public class Arg {
         this.srcStream = new FileInputStream(srcFilename);
         this.asmStream = asm.isEmpty() ? null : new FileOutputStream(asmFilename);
         this.llvmStream = llvm.isEmpty() ? null : new FileOutputStream(llvmFilename);
+
+        this.interpretMI = interpret;
+        this.interpretInputStream = interpretIn.isEmpty() ? System.in : new FileInputStream(interpretIn);
+        this.interpretOutputStream = interpretOut.isEmpty() ? System.out : new FileOutputStream(interpretOut);
     }
 
     public boolean outputAsm() {
@@ -33,6 +42,8 @@ public class Arg {
     public static Arg parse(String[] args) {
         String src = "", asm = "", llvm = "";
         boolean optimize = false;
+        boolean interpret = false;
+        String interpretIn = "", interpretOut = "";
         for (int i = 0; i < args.length; i++) {
             // detect "-O2"
             if ("-O2".equals(args[i])) {
@@ -65,6 +76,30 @@ public class Arg {
                     throw new RuntimeException("-emit-llvm expected -o filename");
                 }
             }
+            // detect "-i"
+            if ("-I".equals(args[i])) {
+                if (interpret) {
+                    throw new RuntimeException("We got more than one interpret option.");
+                }
+                interpret = true;
+                while (i + 1 < args.length && ("-i".equals(args[i + 1]) || "-o".equals(args[i + 1]))) {
+                    if (i + 2 < args.length && "-i".equals(args[i + 1])) {
+                        if (!interpretIn.isEmpty()) {
+                            throw new RuntimeException("We got more than one interpreter input.");
+                        }
+                        interpretIn = args[i + 2];
+                        i += 2;
+                    }
+                    if (i + 2 < args.length && "-o".equals(args[i + 1])) {
+                        if (!interpretOut.isEmpty()) {
+                            throw new RuntimeException("We got more than one interpreter output.");
+                        }
+                        interpretOut = args[i + 2];
+                        i += 2;
+                    }
+                }
+                continue;
+            }
             // detect illegal flags
             if (args[i].startsWith("-")) {
                 throw new RuntimeException("invalid flag: " + args[i]);
@@ -80,7 +115,7 @@ public class Arg {
             throw new RuntimeException("source file should be specified.");
         }
         try {
-            return new Arg(src, optimize, asm, llvm);
+            return new Arg(src, optimize, asm, llvm, interpret, interpretIn, interpretOut);
         } catch (FileNotFoundException e) {
             printHelp();
             throw new RuntimeException(e);
@@ -88,6 +123,6 @@ public class Arg {
     }
 
     public static void printHelp() {
-        System.err.println("Usage: compiler {(-S|-emit-llvm) -o filename} filename [-O2]");
+        System.err.println("Usage: compiler {((-S|-emit-llvm) -o filename)|(-I [-i input_file] [-o output_file])} filename [-O2]");
     }
 }

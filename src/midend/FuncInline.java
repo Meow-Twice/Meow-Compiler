@@ -34,6 +34,11 @@ public class FuncInline {
         for (Function function: funcCanInline) {
             inlineFunc(function);
             functions.remove(function);
+            for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
+                for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+                    instr.remove();
+                }
+            }
             function.setDeleted();
         }
     }

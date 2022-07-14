@@ -1,12 +1,13 @@
 package descriptor;
 
+import backend.CodeGen;
+import frontend.semantic.Initial;
 import lir.*;
-import manage.Manager;
+import mir.GlobalVal;
+import mir.type.Type;
 
 import java.io.*;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Scanner;
+import java.util.*;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import static lir.Arm.Regs.GPRs.r0;
@@ -29,17 +30,43 @@ public class MIDescriptor implements Descriptor {
         MIX_MODE
     }
 
-    private ArrayList<Object> curVRList = new ArrayList<>();
+    private HashMap<Machine.McFunction, Stack<ArrayList<Object>>> mf2curVRListMap = new HashMap<>();
+    private ArrayList<Object> curVRList;
 
     private static class MemSimulator {
         // public static final MemSimulator MEM_SIMULATOR = new MemSimulator();
-        public static final ArrayList<Integer> STACK = new ArrayList<>();
-        public static final ArrayList<Integer> HEAP = new ArrayList<>();
+        private static final ArrayList<Object> STACK = new ArrayList<>();
+        private static final ArrayList<Object> HEAP = new ArrayList<>();
+        public static final int TOP = 0x40000000 >> 2;
+        public static final int TOTAL_SIZE = 0x7FFFFFFF >> 2 + 1;
         public static int SP = 0;
         public static int GP = 0;
 
         // private MemSimulator() {
         // }
+
+        public static int GET_OFF(int off) {
+            if (off >= TOP) {
+                off = off - TOP;
+            }
+            return off;
+        }
+
+        public static Object GET_MEM_WITH_OFF(int off) {
+            if (off >= TOP) {
+                off = off - TOP;
+                return HEAP.get(off / 4);
+            }
+            return STACK.get(off / 4);
+        }
+
+        public static void SET_MEM_VAL_WITH_OFF(Object val, int off) {
+            if (off >= TOP) {
+                off = off - TOP;
+                HEAP.set(off / 4, val);
+            }
+            STACK.set(off / 4, val);
+        }
     }
 
     private static class RegSimulator {
@@ -93,8 +120,23 @@ public class MIDescriptor implements Descriptor {
 
     public void run() throws IOException {
         MI_DESCRIPTOR.getStdin();
-
         Machine.Program p = Machine.Program.PROGRAM;
+        int curOff = MemSimulator.TOP << 2;
+        for (Map.Entry<GlobalVal.GlobalValue, Arm.Glob> g : CodeGen.CODEGEN.globptr2globOpd.entrySet()) {
+            GlobalVal.GlobalValue glob = g.getKey();
+            globName2HeapOff.put(glob.name, curOff);
+            assert glob.getType().isPointerType();
+            Type type = ((Type.PointerType) glob.getType()).getInnerType();
+            if (type.isBasicType()) {
+                curOff += 4;
+            } else {
+                assert type.isArrType();
+                curOff += 4 * ((Type.ArrayType) type).getFlattenSize();
+            }
+        }
+        for (Machine.McFunction mf : p.funcList) {
+            mf2curVRListMap.put(mf, new Stack<>());
+        }
         runMF(p.mainMcFunc);
         System.out.println(getFromReg(r0));
     }
@@ -108,6 +150,15 @@ public class MIDescriptor implements Descriptor {
         }
         curVRList = new ArrayList<>(Collections.nCopies(curMF.vrList.size(), 0));
         runMB(curMF.getBeginMB());
+    }
+
+    private void vrListStackPush() {
+        Stack<ArrayList<Object>> stack = mf2curVRListMap.get(curMF);
+        stack.push(curVRList);
+    }
+
+    private ArrayList<Object> vrListStackPop() {
+        return mf2curVRListMap.get(curMF).pop();
     }
 
     private void dealExternalFunc() {
@@ -266,8 +317,13 @@ public class MIDescriptor implements Descriptor {
                     int offset = (int) tmp;
                     offset = offset << load.getShift();
                     tmp = GET_VAL_FROM_OPD(load.getAddr());
-                    assert tmp instanceof Integer;
-                    offset += (int) tmp;
+                    if (tmp instanceof Integer) {
+                        offset += (int) tmp;
+                    } else {
+                        assert tmp instanceof String;
+                        String globAddr = (String) tmp;
+                        offset += globName2HeapOff.get(globAddr);
+                    }
                     SET_VAL_FROM_OPD(getMemValWithOffset(offset), load.getData());
                 }
                 case Store -> {
@@ -278,20 +334,17 @@ public class MIDescriptor implements Descriptor {
                     int offset = (int) tmp;
                     offset = offset << store.getShift();
                     tmp = GET_VAL_FROM_OPD(store.getAddr());
-                    if(tmp instanceof Integer){
+                    if (tmp instanceof Integer) {
                         offset += (int) tmp;
-                        tmp = GET_VAL_FROM_OPD(store.getData());
-                        if (tmp instanceof Integer) {
-                            setMemValWithOffSet((int) tmp, offset);
-                        } else {
-                            // TODO 目前不知道怎么把十进制的int转成float, 理论上前端应该插了转化?
-                            throw new AssertionError("store a float " + (float) tmp + " not done yet");
-                        }
-                    }else{
+                    } else {
                         assert tmp instanceof String;
                         String globAddr = (String) tmp;
-
+                        offset += globName2HeapOff.get(globAddr);
                     }
+                    tmp = GET_VAL_FROM_OPD(store.getData());
+                    assert tmp instanceof Float || tmp instanceof Integer;
+                    // // TODO 目前不知道怎么把十进制的int转成float, 理论上前端应该插了转化?
+                    setMemValWithOffSet(tmp, offset);
                 }
                 case Compare -> {
                     REG_SIM.CMP_STATUS = 0;
@@ -311,7 +364,9 @@ public class MIDescriptor implements Descriptor {
                 }
                 case Call -> {
                     assert mi instanceof MICall;
+                    vrListStackPush();
                     runMF(((MICall) mi).mcFunction);
+                    vrListStackPop();
                 }
                 case Global -> throw new AssertionError("not done yet");
                 case Comment -> {
@@ -327,12 +382,24 @@ public class MIDescriptor implements Descriptor {
         }
     }
 
-    private int getMemValWithOffset(int offset) {
-        return MemSimulator.STACK.get(offset / 4);
+    private HashMap<String, Integer> globName2HeapOff = new HashMap<>();
+
+    private void setMemValWithOffSet(Object val, String globAddr) {
+        int offset = globName2HeapOff.get(globAddr);
+        MemSimulator.SET_MEM_VAL_WITH_OFF(val, offset);
     }
 
-    private void setMemValWithOffSet(int val, int offset) {
-        MemSimulator.STACK.set(offset, val);
+    private Object getMemValWithOffset(String globAddr) {
+        int offset = globName2HeapOff.get(globAddr);
+        return MemSimulator.GET_MEM_WITH_OFF(offset);
+    }
+
+    private Object getMemValWithOffset(int offset) {
+        return MemSimulator.GET_MEM_WITH_OFF(offset);
+    }
+
+    private void setMemValWithOffSet(Object val, int offset) {
+        MemSimulator.SET_MEM_VAL_WITH_OFF(val, offset);
     }
 
     private boolean satisfyCond(Arm.Cond cond) {
@@ -366,9 +433,7 @@ public class MIDescriptor implements Descriptor {
         return switch (o.getType()) {
             case PreColored, Allocated -> getFromReg(o.getReg());
             case Virtual -> curVRList.get(o.getValue());
-            case Immediate ->
-                o.isGlobPtr() ? o.getGlob() : o.getImm();
-
+            case Immediate -> o.isGlobPtr() ? o.getGlob() : o.getImm();
         };
     }
 
@@ -400,24 +465,5 @@ public class MIDescriptor implements Descriptor {
             assert obj instanceof Float;
             setFPRVal(((Arm.Regs.FPRs) regEnum).ordinal(), (float) obj);
         }
-    }
-
-    /**
-     * true表示当前执行到返回语句了, 当前函数应当直接返回
-     */
-
-    public boolean exec(MachineInst mi) {
-        if (mi.isMove()) {
-            MIMove mv = (MIMove) mi;
-            Machine.Operand dst = mv.getDst();
-            Machine.Operand src = mv.getSrc();
-            Object val = GET_VAL_FROM_OPD(src);
-            SET_VAL_FROM_OPD(val, dst);
-        } else if (mi.isCall()) {
-            runMF(((MICall) mi).mcFunction);
-        } else if (mi.isReturn()) {
-            return true;
-        }
-        return false;
     }
 }

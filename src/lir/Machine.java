@@ -1,7 +1,9 @@
 package lir;
 
 import mir.BasicBlock;
+import mir.Constant;
 import mir.GlobalVal;
+import mir.Value;
 import mir.type.DataType;
 import util.ILinkNode;
 import util.Ilist;
@@ -124,11 +126,41 @@ public class Machine {
             for (GlobalVal val : globList) {
                 os.println();
                 os.println(".global" + val.name);
-                os.println("\t.type\t" + val.name + ",object");
+                os.println("\t.type\t" + val.name + ",%object");
                 os.println(val.name + ":");
 
                 //TODO for yyf:array init
+                int count = 0;
+                boolean init = false;
+                int last = 0;
 
+                for(Value value : ((GlobalVal.GlobalValue)val).initial.getFlattenInit()){
+                    if(!init){
+                        init = true;
+                        last = ((Constant.ConstantInt)value).constIntVal;
+                    }
+                    if(((Constant.ConstantInt)value).constIntVal == last){
+                        count++;
+                    }
+                    else{
+                        if(count > 1){
+                            //.zero
+                            os.println("\t.fill\t"+count+",4,"+last);
+                        }
+                        else{
+                            os.println("\t.word\t"+last);
+                        }
+                        last = ((Constant.ConstantInt)value).constIntVal;
+                        count = 1;
+                    }
+                }
+                if(count > 1){
+                    //.zero
+                    os.println("\t.fill\t"+count+",4,"+last);
+                }
+                else{
+                    os.println("\t.word\t"+last);
+                }
             }
         }
 

@@ -1,8 +1,10 @@
 package frontend.semantic;
 
+import mir.Constant;
 import mir.Value;
 import mir.type.Type;
 
+import java.lang.reflect.Array;
 import java.util.ArrayList;
 
 /**
@@ -13,6 +15,7 @@ import java.util.ArrayList;
 public abstract class Initial {
     private final Type type; // LLVM IR 的初始值是含有类型信息的
 
+    public abstract ArrayList<Value> getFlattenInit();
     @Override
     public abstract String toString();
 
@@ -41,6 +44,18 @@ public abstract class Initial {
             String init = inits.stream().map(Initial::toString).reduce((s, s2) -> s + ", " + s2).orElse("");
             return getType() + " [" + init + "]";
         }
+
+        @Override
+        public ArrayList<Value> getFlattenInit(){
+            ArrayList<Value> result = new ArrayList<>();
+            for(Initial init:inits){
+                ArrayList<Value> list1 = init.getFlattenInit();
+                for(Value value : list1){
+                    result.add(value);
+                }
+            }
+            return result;
+        }
     }
 
     public static class ValueInit extends Initial {
@@ -59,6 +74,12 @@ public abstract class Initial {
         public Value getValue() {
             return this.value;
         }
+        @Override
+        public ArrayList<Value> getFlattenInit(){
+            ArrayList<Value> result = new ArrayList<>();
+            result.add(value);
+            return result;
+        }
         
     }
 
@@ -72,6 +93,13 @@ public abstract class Initial {
         @Override
         public String toString() {
             return getType() + " zeroinitializer";
+        }
+
+        @Override
+        public ArrayList<Value> getFlattenInit(){
+            ArrayList<Value> result = new ArrayList<>();
+            result.add(new Constant.ConstantInt(0));
+            return result;
         }
     }
 
@@ -91,6 +119,13 @@ public abstract class Initial {
 
         public Value getResult() {
             return this.result;
+        }
+
+        @Override
+        public ArrayList<Value> getFlattenInit(){
+            ArrayList<Value> result = new ArrayList<>();
+            result.add(this.result);
+            return result;
         }
         
     }

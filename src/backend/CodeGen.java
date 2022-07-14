@@ -470,6 +470,7 @@ public class CodeGen {
             //q = a - dst2
             new MIBinary(MachineInst.Tag.Sub,q,a,dst2,curMB);
             return;
+
         }
         //div+mode optimize
         if (tag == MachineInst.Tag.Div && rhs.isConstantInt()) {

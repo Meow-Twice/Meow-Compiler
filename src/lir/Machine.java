@@ -437,7 +437,7 @@ public class Machine {
             return type;
         }
 
-        // 默认分配通用寄存器
+        // 目前只用于立即数
         public Operand(Type type) {
             this.type = type;
             prefix = switch (type) {

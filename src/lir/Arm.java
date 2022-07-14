@@ -4,6 +4,8 @@ import static mir.type.DataType.I32;
 import static mir.type.DataType.F32;
 import static lir.Machine.Operand.Type.*;
 
+import frontend.semantic.Initial;
+import mir.GlobalVal;
 import mir.type.DataType;
 
 
@@ -100,6 +102,18 @@ public class Arm {
         @Override
         public Regs getReg() {
             return reg;
+        }
+    }
+
+    public static class Glob extends Machine.Operand{
+        public String name;
+        public GlobalVal.GlobalValue globalValue;
+        public Initial init;
+        public Glob(GlobalVal.GlobalValue glob, Initial init){
+            super(Immediate);
+            name = glob.name;
+            this.init = init;
+            globalValue = glob;
         }
     }
 

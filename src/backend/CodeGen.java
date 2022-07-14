@@ -4,7 +4,6 @@ import frontend.semantic.Initial;
 import lir.*;
 import manage.Manager;
 import mir.*;
-import mir.type.DataType;
 import mir.type.Type;
 
 import java.util.*;
@@ -31,6 +30,7 @@ public class CodeGen {
     // 每个LLVM IR为一个值, 需要有一个虚拟寄存器(或常数->立即数)与之一一对应
     // Value到Operand的Map
     public HashMap<Value, Machine.Operand> value2opd;
+    public HashMap<GlobalVal.GlobalValue, Arm.Glob> globptr2globOpd = new HashMap<>();
 
     // Operand到Value的Map, 这个map不应该存在 , 消phi时产生的move可能造成一条Instr对应多个opd
     // public HashMap<Machine.Operand, Value> opd2value;
@@ -97,7 +97,7 @@ public class CodeGen {
 
     public void gen() {
         // curMachineFunc = new Machine.McFunction();
-        // genGlobal();
+        genGlobal();
         // TODO
 
         for (Function func : midFuncMap.values()) {
@@ -118,6 +118,7 @@ public class CodeGen {
             curMachineFunc.setVRCount(0);
             mcFuncList.add(mcFunc);
             func2mcFunc.put(func, mcFunc);
+            value2opd.clear();
 
             BasicBlock bb = func.getBeginBB();
             BasicBlock endBB = func.getEnd();
@@ -242,14 +243,14 @@ public class CodeGen {
                     //     load2alloc.put(loadInst, (Instr.Alloc) addrValue);
                     //     break;
                     // }
-                    Machine.Operand addrOpd = getVR_no_imm(addrValue);
+                    Machine.Operand addrOpd = getVR_from_ptr(addrValue);
                     Machine.Operand offsetOpd = new Machine.Operand(I32, 0);
                     new MILoad(data, addrOpd, offsetOpd, curMB);
                 }
                 case store -> {
                     Instr.Store storeInst = (Instr.Store) instr;
                     Machine.Operand data = getVR_may_imm(storeInst.getValue());
-                    Machine.Operand addr = getVR_no_imm(storeInst.getPointer());
+                    Machine.Operand addr = getVR_from_ptr(storeInst.getPointer());
                     Machine.Operand offset = new Machine.Operand(I32, 0);
                     new MIStore(data, addr, offset, curMB);
                 }
@@ -435,13 +436,14 @@ public class CodeGen {
     public void genGlobal() {
         for (Map.Entry<GlobalVal.GlobalValue, Initial> entry : globalMap.entrySet()) {
             GlobalVal.GlobalValue globalValue = entry.getKey();
-            // Initial init = entry.getValue();
-            // TODO for yyf
+            Initial init = entry.getValue();
+            // TODO 目前采用了新的写法
             //load global addr at the head of the entry bb
-            MIGlobal new_inst = new MIGlobal(globalValue, curMachineFunc.getBeginMB());
+            // MIGlobal new_inst = new MIGlobal(globalValue, curMachineFunc.getBeginMB());
             //allocate virtual reg
-            Machine.Operand vr = newVR(globalValue);
-            new_inst.dOpd = vr;
+            // Machine.Operand vr = newVR();
+            // new_inst.dOpd = vr;
+            globptr2globOpd.put(globalValue, new Arm.Glob(globalValue, init));
         }
     }
 
@@ -649,9 +651,6 @@ public class CodeGen {
      * 不可能是立即数的vr获取
      */
     public Machine.Operand getVR_no_imm(Value value) {
-        // if(value instanceof GlobalVal.GlobalValue){
-        //
-        // }
         Machine.Operand opd = value2opd.get(value);
         return opd == null ? newVR(value) : opd;
     }
@@ -676,10 +675,20 @@ public class CodeGen {
      */
     public Machine.Operand getVR_may_imm(Value value) {
         if (value instanceof Constant) {
-            // 目前是无脑用两条mov指令把立即数转到寄存器
+            // TODO 目前是无脑用两条mov指令把立即数转到寄存器
             assert value instanceof Constant.ConstantInt;
             return getImmVR((int) ((Constant) value).getConstVal());
         } else {
+            return getVR_no_imm(value);
+        }
+    }
+
+    public Machine.Operand getVR_from_ptr(Value value) {
+        if (value instanceof GlobalVal.GlobalValue) {
+            // 取出来的Operand 是立即数类型
+            return globptr2globOpd.get((GlobalVal.GlobalValue) value);
+        } else {
+            // TODO 这里应该不可能是常数
             return getVR_no_imm(value);
         }
     }

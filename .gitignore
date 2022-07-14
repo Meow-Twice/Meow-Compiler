@@ -9,5 +9,6 @@ out
 *.S
 *.elf
 *.in
+*.out
 /src/test
 /src/timeTest

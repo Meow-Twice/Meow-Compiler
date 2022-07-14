@@ -6,12 +6,13 @@ import manage.Manager;
 import mir.*;
 import mir.type.Type;
 
-import java.util.*;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
 
 import static lir.Arm.Cond.*;
 import static lir.Arm.Regs.GPRs.*;
-import static lir.Arm.Regs.GPRs.r0;
 import static mir.type.DataType.I32;
 
 public class CodeGen {
@@ -249,16 +250,16 @@ public class CodeGen {
                     curMachineFunc.addStack(((Type.ArrayType) contentType).getFlattenSize() * 4);
                 }
                 case load -> {
-                    Machine.Operand data = getVR_no_imm(instr);
                     Instr.Load loadInst = (Instr.Load) instr;
                     Value addrValue = loadInst.getPointer();
+                    Machine.Operand addrOpd = getVR_from_ptr(addrValue);
+                    Machine.Operand data = getVR_no_imm(instr);
                     // assert addrValue.getType().isPointerType();
                     // if(((Type.PointerType) addrValue.getType()).getInnerType().isPointerType()){
                     //     // 前端消多了,这个本来不应该消的,但是全消了
                     //     load2alloc.put(loadInst, (Instr.Alloc) addrValue);
                     //     break;
                     // }
-                    Machine.Operand addrOpd = getVR_from_ptr(addrValue);
                     Machine.Operand offsetOpd = new Machine.Operand(I32, 0);
                     new MILoad(data, addrOpd, offsetOpd, curMB);
                 }
@@ -795,8 +796,11 @@ public class CodeGen {
 
     public Machine.Operand getVR_from_ptr(Value value) {
         if (value instanceof GlobalVal.GlobalValue) {
+            Machine.Operand addr = newVR();
+            Arm.Glob glob = globptr2globOpd.get((GlobalVal.GlobalValue) value);
+            new MIMove(addr, glob, curMB);
             // 取出来的Operand 是立即数类型
-            return globptr2globOpd.get((GlobalVal.GlobalValue) value);
+            return addr;
         } else {
             // TODO 这里应该不可能是常数
             return getVR_no_imm(value);

@@ -1,9 +1,13 @@
 package descriptor;
 
 import backend.CodeGen;
+import frontend.semantic.Initial;
 import lir.*;
+import mir.Constant;
 import mir.GlobalVal;
+import mir.Value;
 import mir.type.Type;
+import util.FileDealer;
 
 import java.io.IOException;
 import java.util.*;
@@ -35,8 +39,9 @@ public class MIDescriptor implements Descriptor {
 
     private static class MemSimulator {
         // public static final MemSimulator MEM_SIMULATOR = new MemSimulator();
-        public static final int SP_BOTTOM = 0x40000000 >> 2;
-        public static final int TOTAL_SIZE = 0x7FFFFFFF >> 2;
+        private static final int N = 10;
+        public static final int SP_BOTTOM = 0x40000000 >> 2 >> N;
+        public static final int TOTAL_SIZE = 0x7FFFFFFF >> 2 >> N;
         private static final Object[] STACK = new Object[TOTAL_SIZE - SP_BOTTOM];
         private static final Object[] HEAP = new Object[SP_BOTTOM];
         public static int SP = 0;
@@ -55,20 +60,22 @@ public class MIDescriptor implements Descriptor {
 
         public static Object GET_MEM_WITH_OFF(int off) {
             off = off / 4;
+            assert 0 <= off;
             if (off >= SP_BOTTOM) {
                 off = TOTAL_SIZE - off;
-                return HEAP[off];
+                return STACK[off];
             }
-            return STACK[off];
+            return HEAP[off];
         }
 
         public static void SET_MEM_VAL_WITH_OFF(Object val, int off) {
             off = off / 4;
+            assert 0 <= off;
             if (off >= SP_BOTTOM) {
                 off = off - SP_BOTTOM;
-                HEAP[off] = val;
+                STACK[off] = val;
             }
-            STACK[off] = val;
+            HEAP[off] = val;
         }
     }
 
@@ -77,8 +84,8 @@ public class MIDescriptor implements Descriptor {
         }
 
         public static final RegSimulator REG_SIMULATOR = new RegSimulator();
-        public static final ArrayList<Integer> GPRS = new ArrayList<>(Arm.Regs.GPRs.values().length);
-        public static final ArrayList<Float> FPRS = new ArrayList<>(Arm.Regs.FPRs.values().length);
+        public static final ArrayList<Integer> GPRS = new ArrayList<>();
+        public static final ArrayList<Float> FPRS = new ArrayList<>();
         public int CMP_STATUS = 0;
 
         static {
@@ -121,6 +128,21 @@ public class MIDescriptor implements Descriptor {
     private Machine.Block curMB;
     private MachineInst curMI;
 
+    private static final boolean IDEA_MODE = true;
+    // private static final StringBuilder sbd = new StringBuilder();
+
+    public void output(String str) {
+        if (IDEA_MODE) {
+            sb.append(str);
+        }
+        System.out.println(str);
+    }
+
+    public void finalOut() {
+        if (IDEA_MODE)
+            FileDealer.outputToFile(sb, "output.txt");
+    }
+
     public void run() throws IOException {
         MI_DESCRIPTOR.getStdin();
         Machine.Program p = Machine.Program.PROGRAM;
@@ -128,34 +150,50 @@ public class MIDescriptor implements Descriptor {
         int curOff = 0;
         for (Map.Entry<GlobalVal.GlobalValue, Arm.Glob> g : CodeGen.CODEGEN.globptr2globOpd.entrySet()) {
             GlobalVal.GlobalValue glob = g.getKey();
+            Initial init = glob.initial;
             globName2HeapOff.put(glob.name, curOff);
             assert glob.getType().isPointerType();
             Type type = ((Type.PointerType) glob.getType()).getInnerType();
             if (type.isBasicType()) {
+                logOut(glob.name + ":" + "[" + curOff + "]" + init.getFlattenInit().get(0));
+                setMemValWithOffSet(((Constant) init.getFlattenInit().get(0)).getConstVal(), curOff);
                 curOff += 4;
             } else {
                 assert type.isArrType();
-                curOff += 4 * ((Type.ArrayType) type).getFlattenSize();
+                int idx = 0;
+                for (Value v : init.getFlattenInit()) {
+                    logOut(glob.name + "[" + idx++ + "]" + ":" + "[" + curOff + "]" + ((Constant) v).getConstVal());
+                    setMemValWithOffSet(((Constant) v).getConstVal(), curOff);
+                    curOff += 4;
+                }
+                assert true;
+                // curOff += 4 * ((Type.ArrayType) type).getFlattenSize();
             }
+            // System.err.println(1);
         }
         for (Machine.McFunction mf : p.funcList) {
             mf2curVRListMap.put(mf, new Stack<>());
         }
         runMF(p.mainMcFunc);
-        System.out.println(getFromReg(r0));
+        output(getFromReg(r0).toString());
+        finalOut();
     }
 
     public void runMF(Machine.McFunction mcFunc) {
-        curMF = mcFunc;
-        logOut("@now:\t" + mcFunc.mFunc.getName());
-        if (curMF.mFunc.isExternal) {
+        if (mcFunc.mFunc.isExternal) {
             dealExternalFunc();
             return;
         }
+        curMF = mcFunc;
+        logOut("@now:\t" + mcFunc.mFunc.getName());
         int spVal = (int) GET_VAL_FROM_OPD(Arm.Reg.getR(sp));
         SET_VAL_FROM_OPD(spVal - curMF.getStackSize(), Arm.Reg.getR(sp));
         curVRList = new ArrayList<>(Collections.nCopies(curMF.vrList.size(), 0));
-        runMB(curMF.getBeginMB());
+        Machine.Block mb = curMF.getBeginMB();
+        // 不这么run会爆栈
+        while (mb != null) {
+            mb = runMB(mb);
+        }
     }
 
     private void vrListStackPush() {
@@ -164,7 +202,8 @@ public class MIDescriptor implements Descriptor {
     }
 
     private ArrayList<Object> vrListStackPop() {
-        return mf2curVRListMap.get(curMF).pop();
+        Stack<ArrayList<Object>> stack = mf2curVRListMap.get(curMF);
+        return stack.pop();
     }
 
     private void dealExternalFunc() {
@@ -175,11 +214,11 @@ public class MIDescriptor implements Descriptor {
             int i = Integer.parseInt(s);
             setToReg(i, r0);
         } else if (curMF.mFunc.getName().equals("putint")) {
-            System.out.println(getFromReg(r0));
+            output(getFromReg(r0).toString());
         }
     }
 
-    private void runMB(Machine.Block mb) {
+    private Machine.Block runMB(Machine.Block mb) {
         curMB = mb;
         logOut("");
         logOut(mb.getDebugLabel());
@@ -316,7 +355,10 @@ public class MIDescriptor implements Descriptor {
                 }
                 case Return -> isRet = true;
                 case Load -> {
-                    assert mi instanceof MILoad;
+                    if (!(mi instanceof MILoad)) {
+                        throw new AssertionError("Not MILoad: " + mi);
+                    }
+                    // assert mi instanceof MILoad;
                     MILoad load = (MILoad) mi;
                     Object tmp = GET_VAL_FROM_OPD(load.getOffset());
                     assert tmp instanceof Integer;
@@ -358,7 +400,10 @@ public class MIDescriptor implements Descriptor {
                     MICompare cmp = (MICompare) mi;
                     Object lTmp = GET_VAL_FROM_OPD(cmp.getLOpd());
                     Object rTmp = GET_VAL_FROM_OPD(cmp.getROpd());
-                    assert lTmp instanceof Integer && rTmp instanceof Integer;
+                    if (!(lTmp instanceof Integer && rTmp instanceof Integer)) {
+                        assert false;
+                    }
+                    // assert lTmp instanceof Integer && rTmp instanceof Integer;
                     int lhs = (int) lTmp;
                     int rhs = (int) rTmp;
                     if (lhs < rhs) {
@@ -384,8 +429,10 @@ public class MIDescriptor implements Descriptor {
         assert (isRet && !isBJ) || (!isRet && isBJ);
         if (isBJ) {
             assert nextMB != null;
-            runMB(nextMB);
+            return nextMB;
+            // runMB(nextMB);
         }
+        return null;
     }
 
     private HashMap<String, Integer> globName2HeapOff = new HashMap<>();

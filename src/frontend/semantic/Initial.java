@@ -4,8 +4,8 @@ import mir.Constant;
 import mir.Value;
 import mir.type.Type;
 
-import java.lang.reflect.Array;
 import java.util.ArrayList;
+import java.util.Collections;
 
 /**
  * 储存变量初始化的初值
@@ -50,9 +50,7 @@ public abstract class Initial {
             ArrayList<Value> result = new ArrayList<>();
             for(Initial init:inits){
                 ArrayList<Value> list1 = init.getFlattenInit();
-                for(Value value : list1){
-                    result.add(value);
-                }
+                result.addAll(list1);
             }
             return result;
         }
@@ -97,9 +95,17 @@ public abstract class Initial {
 
         @Override
         public ArrayList<Value> getFlattenInit(){
-            ArrayList<Value> result = new ArrayList<>();
-            result.add(new Constant.ConstantInt(0));
-            return result;
+            int size;
+            if(getType().isArrType()){
+                size = ((Type.ArrayType) getType()).getFlattenSize();
+            }else{
+                assert getType().isBasicType();
+                size = 1;
+            }
+            return new ArrayList<>(Collections.nCopies(size, new Constant.ConstantInt(0)));
+            // ArrayList<Value> result = new ArrayList<>();
+            // result.add(new Constant.ConstantInt(0));
+            // return result;
         }
     }
 

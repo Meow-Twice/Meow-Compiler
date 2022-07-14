@@ -16,11 +16,11 @@ public class MIStore extends MachineInst {
         return cond;
     }
 
-    private Arm.Cond cond = Arm.Cond.Any;
+    // private Arm.Cond cond = Arm.Cond.Any;
 
 
     public MIStore(Machine.Operand data, Machine.Operand addr, Machine.Operand offset, Machine.Block insertAtEnd) {
-        super(Tag.Load, insertAtEnd);
+        super(Tag.Store, insertAtEnd);
         useOpds.add(data);
         useOpds.add(addr);
         useOpds.add(offset);

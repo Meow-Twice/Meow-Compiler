@@ -121,6 +121,11 @@ public class Arm {
         public String getGlob() {
             return name;
         }
+
+        @Override
+        public String toString() {
+            return "#" + name;
+        }
     }
 
     public enum Cond {

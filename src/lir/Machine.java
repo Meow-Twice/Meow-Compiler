@@ -205,6 +205,7 @@ public class Machine {
         String func_name;
         // int vrSize = 0;
         int stackSize = 0;
+        int paramStack = 0;
         public mir.Function mFunc;
         HashSet<Arm.Reg> usedCalleeSavedRegs = new HashSet<>();
         boolean useLr = false;
@@ -217,8 +218,13 @@ public class Machine {
             stackSize += i;
         }
 
+        // 方便解释器和后端生成，因为采用把参数放到caller的sp的下面若干位置的方式
+        public void addParamStack(int i) {
+            paramStack += i;
+        }
+
         public int getStackSize() {
-            return stackSize;
+            return stackSize + paramStack;
         }
 
         public void output_reg_list(PrintStream os) {

@@ -13,10 +13,31 @@ import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import static lir.Arm.Regs.GPRs.r0;
-import static lir.Arm.Regs.GPRs.sp;
+import static lir.Arm.Regs.FPRs.*;
+import static lir.Arm.Regs.GPRs.*;
+import static manage.Manager.ExternFunction.*;
 
 public class MIDescriptor implements Descriptor {
+    public void clear() {
+        totalTime = 0;
+        startTime = 0;
+        endTime = 0;
+        scanner = new Scanner(System.in);
+        sb = new StringBuilder();
+        mf2curVRListMap = new HashMap<>();
+        Arrays.fill(MemSimulator.STACK, null);
+        Arrays.fill(MemSimulator.HEAP, null);
+        RegSimulator.GPRS = new ArrayList<>();
+        RegSimulator.FPRS = new ArrayList<>();
+        for (int i = 0; i < Arm.Regs.GPRs.values().length; i++) {
+            RegSimulator.GPRS.add(0);
+        }
+        for (int i = 0; i < Arm.Regs.FPRs.values().length; i++) {
+            RegSimulator.FPRS.add((float) 0.0);
+        }
+        globName2HeapOff = new HashMap<>();
+    }
+
     public final int CPSR_N = 1 << 31;
     public final int CPSR_Z = 1 << 30;
     public static final MIDescriptor MI_DESCRIPTOR = new MIDescriptor();
@@ -84,18 +105,18 @@ public class MIDescriptor implements Descriptor {
         }
 
         public static final RegSimulator REG_SIMULATOR = new RegSimulator();
-        public static final ArrayList<Integer> GPRS = new ArrayList<>();
-        public static final ArrayList<Float> FPRS = new ArrayList<>();
+        public static ArrayList<Integer> GPRS = new ArrayList<>();
+        public static ArrayList<Float> FPRS = new ArrayList<>();
         public int CMP_STATUS = 0;
 
-        static {
-            for (int i = 0; i < Arm.Regs.GPRs.values().length; i++) {
-                GPRS.add(0);
-            }
-            for (int i = 0; i < Arm.Regs.FPRs.values().length; i++) {
-                FPRS.add((float) 0.0);
-            }
-        }
+        // static {
+        //     for (int i = 0; i < Arm.Regs.GPRs.values().length; i++) {
+        //         GPRS.add(0);
+        //     }
+        //     for (int i = 0; i < Arm.Regs.FPRs.values().length; i++) {
+        //         FPRS.add((float) 0.0);
+        //     }
+        // }
     }
 
     private int getGPRVal(int i) {
@@ -144,9 +165,10 @@ public class MIDescriptor implements Descriptor {
     }
 
     public void run() throws IOException {
-        MI_DESCRIPTOR.getStdin();
+        clear();
+        // MI_DESCRIPTOR.getStdin();
         Machine.Program p = Machine.Program.PROGRAM;
-        SET_VAL_FROM_OPD(MemSimulator.TOTAL_SIZE * 4, Arm.Reg.getR(sp));
+        setToReg(MemSimulator.TOTAL_SIZE * 4, sp);
         int curOff = 0;
         for (Map.Entry<GlobalVal.GlobalValue, Arm.Glob> g : CodeGen.CODEGEN.globptr2globOpd.entrySet()) {
             GlobalVal.GlobalValue glob = g.getKey();
@@ -179,15 +201,26 @@ public class MIDescriptor implements Descriptor {
         finalOut();
     }
 
+    long startTime = 0;
+    long endTime = 0;
+    long totalTime = 0;
+    boolean inTimeCul = false;
+
+    private void timeClear() {
+        totalTime += endTime - startTime;
+        startTime = 0;
+        endTime = 0;
+    }
+
     public void runMF(Machine.McFunction mcFunc) {
         curMF = mcFunc;
-        logOut("@now:\t" + mcFunc.mFunc.getName());
+        logOut("&<runMF>& now:\t" + mcFunc.mFunc.getName());
         if (mcFunc.mFunc.isExternal) {
             dealExternalFunc();
             return;
         }
-        int spVal = (int) GET_VAL_FROM_OPD(Arm.Reg.getR(sp));
-        SET_VAL_FROM_OPD(spVal - curMF.getStackSize(), Arm.Reg.getR(sp));
+        int spVal = (int) getFromReg(sp);
+        setToReg(spVal - curMF.getStackSize(), sp);
         curVRList = new ArrayList<>(Collections.nCopies(curMF.vrList.size(), 0));
         Machine.Block mb = curMF.getBeginMB();
         // 不这么run会爆栈
@@ -201,20 +234,78 @@ public class MIDescriptor implements Descriptor {
         stack.push(curVRList);
     }
 
-    private ArrayList<Object> vrListStackPop() {
+    private void vrListStackPop() {
         Stack<ArrayList<Object>> stack = mf2curVRListMap.get(curMF);
-        return stack.pop();
+        curVRList = stack.pop();
     }
 
     private void dealExternalFunc() {
-        if (curMF.mFunc.getName().equals("getint")) {
-            String s = inputList.poll();
+        if (curMF.mFunc.equals(GET_INT)) {
+            if (!scanner.hasNext()) {
+                throw new AssertionError("Can't get input when getint" + curMF);
+            }
+            String s = scanner.next();
             assert s != null;
             logOut(s);
             int i = Integer.parseInt(s);
             setToReg(i, r0);
-        } else if (curMF.mFunc.getName().equals("putint")) {
+        } else if (curMF.mFunc.equals(GET_CH)) {
+            if (!scanner.hasNext()) {
+                throw new AssertionError("Can't get input when getch" + curMF);
+            }
+            String s = scanner.next();
+            assert s != null && s.length() == 1;
+            logOut(s);
+            int i = s.charAt(0);
+            setToReg(i, r0);
+        } else if (curMF.mFunc.equals(GET_ARR)) {
+            String s = scanner.next();
+            int cnt = Integer.parseInt(s);
+            int baseOff = (int) getFromReg(r0);
+            for (int i = 0; i < cnt; i++) {
+                s = scanner.next();
+                int val = Integer.parseInt(s);
+                setMemValWithOffSet(val, baseOff + i * 4);
+            }
+        } else if (curMF.mFunc.equals(GET_FARR)) {
+            String s = scanner.next();
+            int cnt = Integer.parseInt(s);
+            int baseOff = (int) getFromReg(s0);
+            for (int i = 0; i < cnt; i++) {
+                s = scanner.next();
+                float val = Float.parseFloat(s);
+                setMemValWithOffSet(val, baseOff + i * 4);
+            }
+        } else if (curMF.mFunc.equals(PUT_INT)) {
             output(getFromReg(r0).toString());
+        } else if (curMF.mFunc.equals(PUT_CH)) {
+            output(Character.toString((char) (int) getFromReg(r0)));
+        } else if (curMF.mFunc.equals(PUT_FLOAT)) {
+            float value = Float.intBitsToFloat((int) getFromReg(r0));
+            output(Float.toString(value));
+        } else if (curMF.mFunc.equals(PUT_ARR)) {
+            int cnt = (int) getFromReg(r0);
+            int baseOff = (int) getFromReg(r1);
+            for (int i = 0; i < cnt; i++) {
+                Object val = getMemValWithOffset(baseOff + i * 4);
+                assert val instanceof Integer;
+                output(val.toString());
+            }
+        } else if (curMF.mFunc.equals(PUT_FARR)) {
+            int cnt = (int) getFromReg(r0);
+            int baseOff = (int) getFromReg(r1);
+            for (int i = 0; i < cnt; i++) {
+                Object val = getMemValWithOffset(baseOff + i * 4);
+                assert val instanceof Float;
+                output(val.toString());
+            }
+        } else if (curMF.mFunc.equals(START_TIME)) {
+            inTimeCul = true;
+            startTime = System.currentTimeMillis();
+        } else if (curMF.mFunc.equals(STOP_TIME)) {
+            inTimeCul = false;
+            endTime = System.currentTimeMillis();
+            timeClear();
         }
     }
 
@@ -372,6 +463,10 @@ public class MIDescriptor implements Descriptor {
                         String globAddr = (String) tmp;
                         offset += globName2HeapOff.get(globAddr);
                     }
+                    // 函数传参的时候, 修栈偏移
+                    if(load.isNeedFix()){
+                        offset = offset + curMF.getStackSize();
+                    }
                     SET_VAL_FROM_OPD(getMemValWithOffset(offset), load.getData());
                 }
                 case Store -> {
@@ -476,11 +571,11 @@ public class MIDescriptor implements Descriptor {
 
     public LinkedBlockingQueue<String> inputList = new LinkedBlockingQueue<>();
 
-    public void getStdin() {
-        while (scanner.hasNext()) {
-            inputList.offer(scanner.nextLine());
-        }
-    }
+    // public void getStdin() {
+    //     while (scanner.hasNext()) {
+    //         inputList.offer(scanner.nextLine());
+    //     }
+    // }
 
     //设为Object是为了保证int和float的兼容性
     // 可能返回int或者float或者String(glob地址)

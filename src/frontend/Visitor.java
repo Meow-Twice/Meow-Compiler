@@ -67,10 +67,10 @@ public class Visitor {
             throw new AssertionError("Wrong trimTo " + targetType);
         }
         // Value res = value;
-        if (value.getType().equals(targetType)) {
-            System.err.printf("Try to trim %s to %s\n", value, targetType);
-            // return value;
-        }
+        // if (value.getType().equals(targetType)) {
+        //     System.err.printf("Try to trim %s to %s\n", value, targetType);
+        //     // return value;
+        // }
         return switch (((BasicType) value.getType()).dataType) {
             case I1 -> switch (targetType.dataType) {
                 case I32 -> new Zext(value, curBB);

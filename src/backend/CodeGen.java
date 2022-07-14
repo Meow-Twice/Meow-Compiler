@@ -143,12 +143,14 @@ public class CodeGen {
         for (Function.Param param : curFunc.getParams()) {
             Machine.Operand opd = curMachineFunc.newVR();
             value2opd.put(param, opd);
-            if (idx <= 4) {
+            if (idx <= 3) {
                 new MIMove(opd, Arm.Reg.getR(idx), curMB);
             } else {
-                Machine.Operand offsetOpd = new Machine.Operand(I32, 4 * (idx - 4));
-                new MILoad(opd, Arm.Reg.getR(sp), offsetOpd, curMB);
-                curMachineFunc.addStack(4);
+                Machine.Operand offsetOpd = new Machine.Operand(I32, 4 * (3 - idx));
+                // 站定向下的偏移, 第四个参数 -4, 第五个参数 -8 ...修的时候只需要把这个立即数的值取出来加上getStackSize获取的栈大小即可
+                MILoad load = new MILoad(opd, Arm.Reg.getR(sp), offsetOpd, curMB);
+                curMachineFunc.addParamStack(4);
+                load.setNeedFix();
             }
             idx++;
         }
@@ -336,53 +338,58 @@ public class CodeGen {
                     Instr.Call call_inst = (Instr.Call) instr;
                     // TODO : 函数内部可能调用其他函数, 但是在函数内部已经没有了使用哪些寄存器的信息, 目前影响未知, 可能有bug
                     ArrayList<Value> param_list = call_inst.getParamList();
-                    if (!param_list.isEmpty()) {
+                    ArrayList<Machine.Operand> paramVRList = new ArrayList<>();
+                    if (param_list.size() > 0) {
                         //move r0 to VR0
                         Machine.Operand vr0 = newVR();
-                        new MIMove(vr0, Arm.Reg.getR(r0), curMB);
+                        paramVRList.add(vr0);
+                        Machine.Operand r0 = Arm.Reg.getR(GPRs.r0);
+                        new MIMove(vr0, r0, curMB);
                         //move param0 to r0
-                        if (value2opd.containsKey(param_list.get(0))) {
-                            new MIMove(Arm.Reg.getR(r0), value2opd.get(param_list.get(0)), curMB);
-                        }
+                        // Value param0 = param_list.get(0);
+                        // assert param0 instanceof Function.Param;
+                        Machine.Operand opd = value2opd.get(param_list.get(0));
+                        assert opd != null;
+                        new MIMove(r0, opd, curMB);
                     }
-                    if (call_inst.getFunc().isExternal) {
-                        // getint()临时用
-                        dealExternalFunc(call_inst, call_inst.getFunc());
-                        if (call_inst.getFunc().hasRet())
-                            new MIMove(getVR_may_imm(call_inst), Arm.Reg.getR(r0), curMB);
-                        break;
-                    }
-
-
                     if (param_list.size() > 1) {
                         //move r1 to VR1
                         Machine.Operand vr1 = newVR();
+                        paramVRList.add(vr1);
                         Machine.Operand r1 = Arm.Reg.getR(GPRs.r1);
                         new MIMove(vr1, r1, curMB);
                         //move param1 to r1
-                        if (value2opd.containsKey(param_list.get(1))) {
-                            new MIMove(r1, value2opd.get(param_list.get(1)), curMB);
-                        }
+                        // Value v1 = param_list.get(1);
+                        // assert v1 instanceof Function.Param;
+                        Machine.Operand param1 = value2opd.get(param_list.get(1));
+                        assert param1 != null;
+                        new MIMove(r1, param1, curMB);
                     }
                     if (param_list.size() > 2) {
                         //move r2 to VR2
                         Machine.Operand vr2 = newVR();
+                        paramVRList.add(vr2);
                         Machine.Operand r2 = Arm.Reg.getR(GPRs.r2);
                         new MIMove(vr2, r2, curMB);
                         //move param2 to r2
-                        if (value2opd.containsKey(param_list.get(2))) {
-                            new MIMove(r2, value2opd.get(param_list.get(2)), curMB);
-                        }
+                        // Value v2 = param_list.get(2);
+                        // assert v2 instanceof Function.Param;
+                        Machine.Operand param2 = value2opd.get(param_list.get(2));
+                        assert param2 != null;
+                        new MIMove(r2, param2, curMB);
                     }
                     if (param_list.size() > 3) {
                         //move r3 to VR3
                         Machine.Operand vr3 = newVR();
+                        paramVRList.add(vr3);
                         Machine.Operand r3 = Arm.Reg.getR(GPRs.r3);
                         new MIMove(vr3, r3, curMB);
                         //move param3 to r3
-                        if (value2opd.containsKey(param_list.get(3))) {
-                            new MIMove(r3, value2opd.get(param_list.get(3)), curMB);
-                        }
+                        // Value v3 = param_list.get(3);
+                        // assert v3 instanceof Function.Param;
+                        Machine.Operand param3 = value2opd.get(param_list.get(3));
+                        assert param3 != null;
+                        new MIMove(r3, param3, curMB);
                     }
                     if (param_list.size() > 4) {
                         //push
@@ -391,20 +398,41 @@ public class CodeGen {
                             int offset_imm = (i - 3) * -4;
                             Machine.Operand data = value2opd.get(param);
                             Machine.Operand addr = Arm.Reg.getR(GPRs.sp);
+                            // TODO 小心函数参数个数超级多, 超过立即数可以表示的大小导致的错误
                             Machine.Operand offset = new Machine.Operand(I32, offset_imm);
                             new MIStore(data, addr, offset, curMB);
                         }
                     }
+                    if (call_inst.getFunc().isExternal) {
+                        dealExternalFunc(call_inst, call_inst.getFunc());
+                        if (call_inst.getFunc().hasRet())
+                            new MIMove(getVR_may_imm(call_inst), Arm.Reg.getR(r0), curMB);
+                        break;
+                    }
                     // 栈空间移位
-                    func2mcFunc.get(call_inst.getFunc()).addStack((param_list.size() - 4) * 4);
-                    Machine.Operand dOp = new Machine.Operand(new Arm.Reg(I32, sp));
-                    Machine.Operand lOp = dOp;
+                    Function callFunc = call_inst.getFunc();
+                    Machine.McFunction callMcFunc = func2mcFunc.get(callFunc);
+                    assert callMcFunc != null;
+                    // addStack在函数开始处理参数时操作, 那里同时把param放到value2opd里面, 不需要在这addStack
+                    // if(param_list.size() > 4){
+                    //     callMcFunc.addStack((param_list.size() - 4) * 4);
+                    // }
+                    // Machine.Operand dOp = Arm.Reg.getR(sp);
+                    // Machine.Operand lOp = dOp;
                     Machine.Operand rOp = new Machine.Operand(I32, (param_list.size() - 4) * 4);
-                    new MIBinary(MachineInst.Tag.Sub, dOp, lOp, rOp, curMB);
+                    MIBinary miBinary = new MIBinary(MachineInst.Tag.Sub, Arm.Reg.getR(sp), Arm.Reg.getR(sp), rOp, curMB);
+                    // 设置一个boolean表示需要修复方便output .S时及时修复
+                    miBinary.setNeedFix();
                     // call
-                    new MICall(func2mcFunc.get(call_inst.getFunc()), curMB);
+                    new MICall(callMcFunc, curMB);
                     // 这行是取返回值
-                    new MIMove(getVR_may_imm(call_inst), Arm.Reg.getR(r0), curMB);
+                    if (callFunc.hasRet()) {
+                        new MIMove(getVR_no_imm(call_inst), Arm.Reg.getR(r0), curMB);
+                    }
+                    // 需要把挪走的r0-rx再挪回来
+                    for (int i = 0; i < paramVRList.size(); i++) {
+                        new MIMove(Arm.Reg.getR(i), paramVRList.get(i), curMB);
+                    }
                 }
                 case phi -> throw new AssertionError("Backend has phi: " + instr);
                 case pcopy -> {

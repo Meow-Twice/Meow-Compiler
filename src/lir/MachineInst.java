@@ -12,6 +12,15 @@ import static mir.Instr.Alu.Op.*;
 public class MachineInst extends ILinkNode {
     protected Arm.Cond cond = Arm.Cond.Any;
     protected Arm.Shift shift = Arm.Shift.NONE_SHIFT;
+    private boolean needFix = false;
+
+    public boolean isNeedFix(){
+        return needFix;
+    }
+
+    public void setNeedFix(){
+        needFix = true;
+    }
 
 
     public void setUse(int i, Machine.Operand set) {

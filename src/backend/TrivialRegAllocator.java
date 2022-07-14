@@ -235,9 +235,9 @@ public class TrivialRegAllocator {
                         selectSpill();
                     }
                 }
-                Manager.MANAGER.outputMI();
+                // Manager.MANAGER.outputMI();
                 assignColors();
-                Manager.MANAGER.outputMI();
+                // Manager.MANAGER.outputMI();
                 if (spilledNodeSet.size() == 0) {
                     break;
                 }
@@ -362,10 +362,10 @@ public class TrivialRegAllocator {
         return false;
     }
 
-    public ArrayList<Machine.Block> recurMbList = new ArrayList<>();
+    // public ArrayList<Machine.Block> recurMbList = new ArrayList<>();
 
     public void logOut(String s) {
-        System.err.println(s);
+        // System.err.println(s);
     }
 
     public void build() {

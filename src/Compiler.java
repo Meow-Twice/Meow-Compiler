@@ -2,15 +2,15 @@ import arg.Arg;
 import backend.CodeGen;
 import backend.TrivialRegAllocator;
 import descriptor.MIDescriptor;
+import frontend.Visitor;
 import frontend.lexer.Lexer;
 import frontend.lexer.Token;
 import frontend.lexer.TokenList;
-import frontend.Visitor;
 import frontend.syntax.Ast;
 import frontend.syntax.Parser;
 import lir.Machine;
-import midend.MidEndRunner;
 import manage.Manager;
+import midend.MidEndRunner;
 
 import java.io.*;
 
@@ -43,7 +43,7 @@ public class Compiler {
                     System.err.println(token.getType() + " " + token.getContent());
                 }
             }
-            System.err.println("AST out");
+            // System.err.println("AST out");
             Ast ast = new Parser(tokenList).parseAst();
             Visitor visitor = Visitor.VISITOR;
             visitor.__ONLY_PARSE_OUTSIDE_DIM = false;
@@ -61,10 +61,12 @@ public class Compiler {
             Manager.MANAGER.outputMI();
             Machine.Program p = Machine.Program.PROGRAM;
             MIDescriptor.MI_DESCRIPTOR.run();
-            // TrivialRegAllocator regAllocator = new TrivialRegAllocator();
-            // Manager.MANAGER.outputMI();
-            // regAllocator.AllocateRegister(p);
-            // p.output(new PrintStream(arg.asmStream));
+            TrivialRegAllocator regAllocator = new TrivialRegAllocator();
+            Manager.MANAGER.outputMI();
+            regAllocator.AllocateRegister(p);
+            Manager.MANAGER.outputMI();
+            // MIDescriptor.MI_DESCRIPTOR.run();
+            p.output(new PrintStream(arg.asmStream));
         } catch (Exception e) {
             e.printStackTrace();
             System.exit(1);

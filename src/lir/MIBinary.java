@@ -8,13 +8,14 @@ public class MIBinary extends MachineInst {
     // public Machine.Operand dOpd;
     // public Machine.Operand lOpd;
     // public Machine.Operand rOpd;
-    public Arm.Shift shift;
-    Arm.Cond cond = Arm.Cond.Any;
+    // public Arm.Shift shift;
+    // Arm.Cond cond = Arm.Cond.Any;
 
-    @Override
-    public Arm.Cond getCond() {
-        return cond;
-    }
+    // @Override
+    // public Arm.Cond getCond() {
+    //     return cond;
+    // }
+
 
     public MIBinary(Tag tag, Machine.Block insertAtEnd, boolean isFloat) {
         super(tag, insertAtEnd, isFloat);

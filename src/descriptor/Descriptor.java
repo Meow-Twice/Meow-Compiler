@@ -1,5 +1,6 @@
 package descriptor;
 
 public interface Descriptor {
-    public StringBuilder getOutput();
+    StringBuilder getOutput();
+    void clear();
 }

@@ -7,11 +7,12 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.EnumMap;
 
-import static lir.Arm.Cond.Any;
 import static mir.Instr.Alu.Op.*;
-import static mir.Instr.Alu.Op.OR;
 
 public class MachineInst extends ILinkNode {
+    protected Arm.Cond cond = Arm.Cond.Any;
+    protected Arm.Shift shift = Arm.Shift.NONE_SHIFT;
+
 
     public void setUse(int i, Machine.Operand set) {
         useOpds.set(i, set);
@@ -22,7 +23,11 @@ public class MachineInst extends ILinkNode {
     }
 
     public Arm.Cond getCond() {
-        return Any;
+        return cond;
+    }
+
+    public Arm.Shift getShift() {
+        return shift;
     }
 
     public enum Tag {
@@ -92,11 +97,11 @@ public class MachineInst extends ILinkNode {
         return tag == Tag.Return;
     }
 
-    public boolean isActuallyBino(){
+    public boolean isActuallyBino() {
         return tag.ordinal() <= Tag.FMA.ordinal();
     }
 
-    public boolean isBranch(){
+    public boolean isBranch() {
         return tag == Tag.Branch;
     }
 

@@ -3,15 +3,15 @@ package lir;
 import java.io.PrintStream;
 
 public class MIMove extends MachineInst {
-    @Override
-    public Arm.Cond getCond() {
-        return cond;
-    }
+    // @Override
+    // public Arm.Cond getCond() {
+    //     return cond;
+    // }
 
-    Arm.Cond cond = Arm.Cond.Any;
-    // Machine.Operand dOpd;
-    // Machine.Operand sOpd;
-    Arm.Shift shift = Arm.Shift.NONE_SHIFT;
+    // Arm.Cond cond = Arm.Cond.Any;
+    // // Machine.Operand dOpd;
+    // // Machine.Operand sOpd;
+    // Arm.Shift shift = Arm.Shift.NONE_SHIFT;
 
     public boolean encode_imm(int imm) {
         for (int ror = 0; ror < 32; ror += 2) {
@@ -29,7 +29,7 @@ public class MIMove extends MachineInst {
         useOpds.add(sOpd);
         // this.dOpd = dOpd;
         // this.sOpd = sOpd;
-        this.cond = Arm.Cond.Any;
+        // this.cond = Arm.Cond.Any;
     }
 
 
@@ -39,7 +39,7 @@ public class MIMove extends MachineInst {
         useOpds.add(sOpd);
         // this.dOpd = dOpd;
         // this.sOpd = sOpd;
-        this.cond = Arm.Cond.Any;
+        // this.cond = Arm.Cond.Any;
         this.shift = shift;
     }
 
@@ -49,7 +49,7 @@ public class MIMove extends MachineInst {
         useOpds.add(sOpd);
         // this.dOpd = dOpd;
         // this.sOpd = sOpd;
-        this.cond = Arm.Cond.Any;
+        // this.cond = Arm.Cond.Any;
     }
 
     public MIMove(Machine.Operand dOpd, Machine.Operand sOpd, MachineInst inst) {
@@ -58,7 +58,7 @@ public class MIMove extends MachineInst {
         useOpds.add(sOpd);
         // this.dOpd = dOpd;
         // this.sOpd = sOpd;
-        this.cond = Arm.Cond.Any;
+        // this.cond = Arm.Cond.Any;
     }
 
     public MIMove(Arm.Cond cond, Machine.Operand dOpd, Machine.Operand sOpd, Machine.Block insertAtEnd) {
@@ -82,7 +82,7 @@ public class MIMove extends MachineInst {
 
     public MIMove() {
         super(Tag.Mv);
-        cond = Arm.Cond.Any;
+        // cond = Arm.Cond.Any;
     }
 
     // @Override

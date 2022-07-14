@@ -1,16 +1,16 @@
 package descriptor;
 
 import backend.CodeGen;
-import frontend.semantic.Initial;
 import lir.*;
 import mir.GlobalVal;
 import mir.type.Type;
 
-import java.io.*;
+import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import static lir.Arm.Regs.GPRs.r0;
+import static lir.Arm.Regs.GPRs.sp;
 
 public class MIDescriptor implements Descriptor {
     public final int CPSR_N = 1 << 31;
@@ -20,7 +20,7 @@ public class MIDescriptor implements Descriptor {
     // BufferedReader stdin = new BufferedReader(new InputStreamReader(System.in));
 
     // private MemSimulator MEM_SIM = MemSimulator.MEM_SIMULATOR;
-    private RegSimulator REG_SIM = RegSimulator.REG_SIMULATOR;
+    private final RegSimulator REG_SIM = RegSimulator.REG_SIMULATOR;
     Machine.Program PROGRAM = Machine.Program.PROGRAM;
     StringBuilder sb = new StringBuilder();
 
@@ -35,10 +35,10 @@ public class MIDescriptor implements Descriptor {
 
     private static class MemSimulator {
         // public static final MemSimulator MEM_SIMULATOR = new MemSimulator();
-        private static final ArrayList<Object> STACK = new ArrayList<>();
-        private static final ArrayList<Object> HEAP = new ArrayList<>();
-        public static final int TOP = 0x40000000 >> 2;
-        public static final int TOTAL_SIZE = 0x7FFFFFFF >> 2 + 1;
+        public static final int SP_BOTTOM = 0x40000000 >> 2;
+        public static final int TOTAL_SIZE = 0x7FFFFFFF >> 2;
+        private static final Object[] STACK = new Object[TOTAL_SIZE - SP_BOTTOM];
+        private static final Object[] HEAP = new Object[SP_BOTTOM];
         public static int SP = 0;
         public static int GP = 0;
 
@@ -46,26 +46,29 @@ public class MIDescriptor implements Descriptor {
         // }
 
         public static int GET_OFF(int off) {
-            if (off >= TOP) {
-                off = off - TOP;
+            off = off / 4;
+            if (off >= SP_BOTTOM) {
+                off = TOTAL_SIZE - off;
             }
             return off;
         }
 
         public static Object GET_MEM_WITH_OFF(int off) {
-            if (off >= TOP) {
-                off = off - TOP;
-                return HEAP.get(off / 4);
+            off = off / 4;
+            if (off >= SP_BOTTOM) {
+                off = TOTAL_SIZE - off;
+                return HEAP[off];
             }
-            return STACK.get(off / 4);
+            return STACK[off];
         }
 
         public static void SET_MEM_VAL_WITH_OFF(Object val, int off) {
-            if (off >= TOP) {
-                off = off - TOP;
-                HEAP.set(off / 4, val);
+            off = off / 4;
+            if (off >= SP_BOTTOM) {
+                off = off - SP_BOTTOM;
+                HEAP[off] = val;
             }
-            STACK.set(off / 4, val);
+            STACK[off] = val;
         }
     }
 
@@ -121,7 +124,8 @@ public class MIDescriptor implements Descriptor {
     public void run() throws IOException {
         MI_DESCRIPTOR.getStdin();
         Machine.Program p = Machine.Program.PROGRAM;
-        int curOff = MemSimulator.TOP << 2;
+        SET_VAL_FROM_OPD(MemSimulator.TOTAL_SIZE * 4, Arm.Reg.getR(sp));
+        int curOff = 0;
         for (Map.Entry<GlobalVal.GlobalValue, Arm.Glob> g : CodeGen.CODEGEN.globptr2globOpd.entrySet()) {
             GlobalVal.GlobalValue glob = g.getKey();
             globName2HeapOff.put(glob.name, curOff);
@@ -142,12 +146,14 @@ public class MIDescriptor implements Descriptor {
     }
 
     public void runMF(Machine.McFunction mcFunc) {
-        logOut("@now:\t" + mcFunc.mFunc.getName());
         curMF = mcFunc;
+        logOut("@now:\t" + mcFunc.mFunc.getName());
         if (curMF.mFunc.isExternal) {
             dealExternalFunc();
             return;
         }
+        int spVal = (int) GET_VAL_FROM_OPD(Arm.Reg.getR(sp));
+        SET_VAL_FROM_OPD(spVal - curMF.getStackSize(), Arm.Reg.getR(sp));
         curVRList = new ArrayList<>(Collections.nCopies(curMF.vrList.size(), 0));
         runMB(curMF.getBeginMB());
     }
@@ -315,7 +321,7 @@ public class MIDescriptor implements Descriptor {
                     Object tmp = GET_VAL_FROM_OPD(load.getOffset());
                     assert tmp instanceof Integer;
                     int offset = (int) tmp;
-                    offset = offset << load.getShift();
+                    offset = offset << load.getShift().getShift();
                     tmp = GET_VAL_FROM_OPD(load.getAddr());
                     if (tmp instanceof Integer) {
                         offset += (int) tmp;
@@ -332,7 +338,7 @@ public class MIDescriptor implements Descriptor {
                     Object tmp = GET_VAL_FROM_OPD(store.getOffset());
                     assert tmp instanceof Integer;
                     int offset = (int) tmp;
-                    offset = offset << store.getShift();
+                    offset = offset << store.getShift().getShift();
                     tmp = GET_VAL_FROM_OPD(store.getAddr());
                     if (tmp instanceof Integer) {
                         offset += (int) tmp;

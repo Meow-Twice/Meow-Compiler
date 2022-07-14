@@ -3,20 +3,20 @@ package lir;
 import java.io.PrintStream;
 
 public class MILoad extends MachineInst {
-    public int getShift() {
-        return shift;
-    }
+    // public int getShift() {
+    //     return shift;
+    // }
 
     // public Machine.Operand data;
     // public Machine.Operand addr;
     // public Machine.Operand offset;
-    private int shift;
-    private Arm.Cond cond;
+    // private int shift;
+    // private Arm.Cond cond;
 
-    @Override
-    public Arm.Cond getCond() {
-        return cond;
-    }
+    // @Override
+    // public Arm.Cond getCond() {
+    //     return cond;
+    // }
 
     public MILoad(Machine.Operand data, Machine.Operand addr, Machine.Operand offset, Machine.Block insertAtEnd) {
         super(MachineInst.Tag.Load, insertAtEnd);
@@ -53,7 +53,7 @@ public class MILoad extends MachineInst {
     public void output(PrintStream os, Machine.McFunction f) {
         transfer_output(os);
         if (getOffset().getType() == Machine.Operand.Type.Immediate) {
-            int offset = this.getOffset().value << shift;
+            int offset = this.getOffset().value << this.shift.shift;
             os.println("ldr" + cond + "\t" + getData().toString() + ",[" + getAddr().toString() + ",#" + offset + "]");
         } else {
             os.println("ldr" + cond + "\t" + getData().toString() + ",[" + getAddr().toString() + "," + getOffset().toString() + ",LSL #" + shift + "]");

@@ -237,7 +237,7 @@ public class Machine {
             return vrCount;
         }
 
-        public final ArrayList<Operand> vrList = new ArrayList<>();
+        public ArrayList<Operand> vrList = new ArrayList<>();
 
         public Operand getVR(int idx) {
             assert idx <= vrCount;
@@ -263,6 +263,11 @@ public class Machine {
             assert vrCount == vrList.size() - 1;
             vrCount = vrCount + i;
             return vrCount;
+        }
+
+        public void clearVRCount() {
+            vrCount = 0;
+            this.vrList = new ArrayList<>();
         }
     }
 

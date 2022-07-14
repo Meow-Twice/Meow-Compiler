@@ -3,13 +3,13 @@ package lir;
 import java.io.PrintStream;
 
 public class MIStore extends MachineInst {
-    public int getShift() {
-        return shift;
-    }
+    // public int getShift() {
+    //     return shift;
+    // }
 
     // public Machine.Operand data;
     // public Machine.Operand addr;
-    private int shift = 0;
+    // private int shift = 0;
 
     @Override
     public Arm.Cond getCond() {
@@ -56,7 +56,7 @@ public class MIStore extends MachineInst {
         transfer_output(os);
         if (getOffset().getType() == Machine.Operand.Type.Immediate) {
             // TODO 这里没有检查立即数是否能被编码
-            int offset = this.getOffset().value << shift;
+            int offset = this.getOffset().value << getShift().shift;
             os.println("str" + cond + "\t" + getData().toString() + ",[" + getAddr().toString() + ",#" + offset + "]");
         } else {
             os.println("str" + cond + "\t" + getData().toString() + ",[" + getAddr().toString() + "," + getOffset().toString() + ",LSL #" + shift + "]");

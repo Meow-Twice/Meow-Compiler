@@ -11,6 +11,7 @@ import java.util.HashMap;
 
 import static lir.Arm.Cond.*;
 import static lir.Arm.Regs.GPRs.*;
+import static lir.Arm.Regs.GPRs.r0;
 import static mir.type.DataType.I32;
 
 public class CodeGen {
@@ -115,7 +116,7 @@ public class CodeGen {
             curFunc = func;
             if (curFunc.getName().equals("main")) Machine.Program.PROGRAM.mainMcFunc = mcFunc;
             curMachineFunc = mcFunc;
-            curMachineFunc.setVRCount(0);
+            curMachineFunc.clearVRCount();
             mcFuncList.add(mcFunc);
             func2mcFunc.put(func, mcFunc);
             value2opd.clear();
@@ -130,11 +131,25 @@ public class CodeGen {
                 bb = (BasicBlock) bb.getNext();
             }
             bb = func.getBeginBB();
-            // endBB = func.getEndBB();
-            // while (!bb.equals(endBB)) {
+            curMB = bb.getMb();
+            dealParam();
             genBB(bb);
-            // bb = (BasicBlock) bb.getNext();
-            // }
+        }
+    }
+
+    private void dealParam() {
+        int idx = 0;
+        for (Function.Param param : curFunc.getParams()) {
+            Machine.Operand opd = curMachineFunc.newVR();
+            value2opd.put(param, opd);
+            if (idx <= 4) {
+                new MIMove(opd, Arm.Reg.getR(idx), curMB);
+            } else {
+                Machine.Operand offsetOpd = new Machine.Operand(I32, 4 * (idx - 4));
+                new MILoad(opd, Arm.Reg.getR(sp), offsetOpd, curMB);
+                curMachineFunc.addStack(4);
+            }
+            idx++;
         }
     }
 
@@ -323,11 +338,10 @@ public class CodeGen {
                     if (!param_list.isEmpty()) {
                         //move r0 to VR0
                         Machine.Operand vr0 = newVR();
-                        Machine.Operand r0 = new Machine.Operand(new Arm.Reg(I32, Arm.Regs.GPRs.r0));
-                        new MIMove(vr0, r0, curMB);
+                        new MIMove(vr0, Arm.Reg.getR(r0), curMB);
                         //move param0 to r0
                         if (value2opd.containsKey(param_list.get(0))) {
-                            new MIMove(r0, value2opd.get(param_list.get(0)), curMB);
+                            new MIMove(Arm.Reg.getR(r0), value2opd.get(param_list.get(0)), curMB);
                         }
                     }
                     if (call_inst.getFunc().isExternal) {
@@ -451,24 +465,23 @@ public class CodeGen {
         MachineInst.Tag tag = MachineInst.Tag.map.get(instr.getOp());
         Value lhs = instr.getRVal1();
         Value rhs = instr.getRVal2();
-        if(tag == MachineInst.Tag.Mod){
+        if (tag == MachineInst.Tag.Mod) {
             Machine.Operand q = getVR_no_imm(instr);
             //q = a%b = a-(a/b)*b
             //dst1 = a/b
             Machine.Operand a = getVR_may_imm(lhs);
             Machine.Operand b = getVR_may_imm(rhs);
             Machine.Operand dst1 = newVR();
-            if(rhs.isConstantInt()){
-                divOptimize_mod(lhs,rhs,dst1);
-            }
-            else{
-                new MIBinary(MachineInst.Tag.Div,dst1,a,b,curMB);
+            if (rhs.isConstantInt()) {
+                divOptimize_mod(lhs, rhs, dst1);
+            } else {
+                new MIBinary(MachineInst.Tag.Div, dst1, a, b, curMB);
             }
             //dst2 = dst1*b
             Machine.Operand dst2 = newVR();
-            new MIBinary(MachineInst.Tag.Mul,dst2,dst1,b,curMB);
+            new MIBinary(MachineInst.Tag.Mul, dst2, dst1, b, curMB);
             //q = a - dst2
-            new MIBinary(MachineInst.Tag.Sub,q,a,dst2,curMB);
+            new MIBinary(MachineInst.Tag.Sub, q, a, dst2, curMB);
             return;
 
         }
@@ -484,7 +497,7 @@ public class CodeGen {
         new MIBinary(tag, dVR, lVR, rVR, curMB);
     }
 
-    public void divOptimize_mod(Value lValue,Value rValue,Machine.Operand q_op) {
+    public void divOptimize_mod(Value lValue, Value rValue, Machine.Operand q_op) {
         // q = n/d
         Value lhs = lValue;
         Machine.Operand n = getVR_may_imm(lhs);

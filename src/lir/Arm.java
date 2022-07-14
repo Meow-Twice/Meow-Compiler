@@ -1,12 +1,13 @@
 package lir;
 
-import static mir.type.DataType.I32;
-import static mir.type.DataType.F32;
-import static lir.Machine.Operand.Type.*;
-
 import frontend.semantic.Initial;
 import mir.GlobalVal;
 import mir.type.DataType;
+
+import static lir.Machine.Operand.Type.Immediate;
+import static lir.Machine.Operand.Type.PreColored;
+import static mir.type.DataType.F32;
+import static mir.type.DataType.I32;
 
 
 public class Arm {
@@ -74,10 +75,10 @@ public class Arm {
         private static final Reg[] fprPool = new Reg[Regs.FPRs.values().length];
 
         static {
-            for(Regs.GPRs gpr : Regs.GPRs.values()){
+            for (Regs.GPRs gpr : Regs.GPRs.values()) {
                 gprPool[gpr.ordinal()] = new Reg(I32, gpr);
             }
-            for(Regs.FPRs fpr : Regs.FPRs.values()){
+            for (Regs.FPRs fpr : Regs.FPRs.values()) {
                 fprPool[fpr.ordinal()] = new Reg(F32, fpr);
             }
         }
@@ -105,18 +106,19 @@ public class Arm {
         }
     }
 
-    public static class Glob extends Machine.Operand{
+    public static class Glob extends Machine.Operand {
         public String name;
         public GlobalVal.GlobalValue globalValue;
         public Initial init;
-        public Glob(GlobalVal.GlobalValue glob, Initial init){
+
+        public Glob(GlobalVal.GlobalValue glob, Initial init) {
             super(Immediate);
             name = glob.name;
             this.init = init;
             globalValue = glob;
         }
 
-        public String getGlob(){
+        public String getGlob() {
             return name;
         }
     }
@@ -188,6 +190,10 @@ public class Arm {
         public Shift(ShiftType shiftType, int shift) {
             this.shiftType = shiftType;
             this.shift = shift;
+        }
+
+        public int getShift() {
+            return shift;
         }
 
         public String toString() {

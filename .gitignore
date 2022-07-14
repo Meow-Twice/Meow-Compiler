@@ -10,5 +10,6 @@ out
 *.elf
 *.in
 *.out
+*.err
 /src/test
 /src/timeTest

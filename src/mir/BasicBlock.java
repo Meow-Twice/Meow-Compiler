@@ -320,8 +320,8 @@ public class BasicBlock extends Value {
 
     @Override
     public String toString() {
-        return this.label + ":\t\t\t\t\t; loopDepth: " + loop.loopDepth + ";\t" + loop;
-        //return this.label;
+        //return this.label + ":\t\t\t\t\t; loopDepth: " + loop.loopDepth + ";\t" + loop;
+        return this.label;
     }
 
     private Machine.Block mb = null;

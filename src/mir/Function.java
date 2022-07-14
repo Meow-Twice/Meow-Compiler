@@ -54,7 +54,7 @@ public class Function extends Value {
 //    private final Type retType; // 返回值类型, 如果为 null 则表示 param
 
 
-    private Type retType;
+    private Type retType = null;
     private ArrayList<Param> params;
 
     //TODO: entry是否需要保留
@@ -112,7 +112,7 @@ public class Function extends Value {
     }
 
     public boolean hasRet() {
-        return retType != null;
+        return !retType.isVoidType();
     }
 
     //优化所需方法

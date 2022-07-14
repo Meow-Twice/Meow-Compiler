@@ -349,7 +349,7 @@ public class CodeGen {
                         //move param0 to r0
                         // Value param0 = param_list.get(0);
                         // assert param0 instanceof Function.Param;
-                        Machine.Operand opd = value2opd.get(param_list.get(0));
+                        Machine.Operand opd = getVR_may_imm(param_list.get(0));
                         assert opd != null;
                         new MIMove(r0, opd, curMB);
                     }
@@ -362,7 +362,7 @@ public class CodeGen {
                         //move param1 to r1
                         // Value v1 = param_list.get(1);
                         // assert v1 instanceof Function.Param;
-                        Machine.Operand param1 = value2opd.get(param_list.get(1));
+                        Machine.Operand param1 = getVR_may_imm(param_list.get(1));
                         assert param1 != null;
                         new MIMove(r1, param1, curMB);
                     }
@@ -375,7 +375,7 @@ public class CodeGen {
                         //move param2 to r2
                         // Value v2 = param_list.get(2);
                         // assert v2 instanceof Function.Param;
-                        Machine.Operand param2 = value2opd.get(param_list.get(2));
+                        Machine.Operand param2 = getVR_may_imm(param_list.get(2));
                         assert param2 != null;
                         new MIMove(r2, param2, curMB);
                     }
@@ -388,7 +388,7 @@ public class CodeGen {
                         //move param3 to r3
                         // Value v3 = param_list.get(3);
                         // assert v3 instanceof Function.Param;
-                        Machine.Operand param3 = value2opd.get(param_list.get(3));
+                        Machine.Operand param3 = getVR_may_imm(param_list.get(3));
                         assert param3 != null;
                         new MIMove(r3, param3, curMB);
                     }
@@ -407,7 +407,7 @@ public class CodeGen {
                     if (call_inst.getFunc().isExternal) {
                         dealExternalFunc(call_inst, call_inst.getFunc());
                         if (call_inst.getFunc().hasRet())
-                            new MIMove(getVR_may_imm(call_inst), Arm.Reg.getR(r0), curMB);
+                            new MIMove(getVR_no_imm(call_inst), Arm.Reg.getR(r0), curMB);
                         break;
                     }
                     // 栈空间移位

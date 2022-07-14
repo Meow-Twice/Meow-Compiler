@@ -129,7 +129,7 @@ public class Manager {
     static int outputMIcnt = 0;
 
     public void outputMI() throws FileNotFoundException {
-        outputMI("mcinstOf-" + outputMIcnt++);
+        outputMI("lirOutput-" + outputMIcnt++);
     }
 
     public void outputMI(String miFilename) throws FileNotFoundException {

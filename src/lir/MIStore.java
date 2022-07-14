@@ -65,6 +65,7 @@ public class MIStore extends MachineInst {
 
     @Override
     public String toString() {
-        return tag.toString() + cond + '\t' + getData() + ",[" + getAddr() + "," + getOffset() + "," + shift + "]";
+        return tag.toString() + cond + '\t' + getData() + ",\t[" + getAddr() + ",\t" + getOffset() +
+                (shift.shiftType == Arm.ShiftType.None ? "" : ("\t," + shift)) + "]";
     }
 }

@@ -166,7 +166,7 @@ public class Arm {
 
     public enum ShiftType {
         // no shifting
-        None("!None"),
+        None(""),
         // arithmetic right
         Asr("asr"),
         // logic left
@@ -202,15 +202,14 @@ public class Arm {
         }
 
         public String toString() {
-            String op = switch (shiftType) {
-                case Asr -> "asr";
-                case Lsl -> "lsl";
-                case Lsr -> "lsr";
-                case Ror -> "ror";
-                case Rrx -> "rrx";
-                default -> null;
+            return switch (shiftType) {
+                case Asr -> "asr #" + this.shift;
+                case Lsl -> "lsl #" + this.shift;
+                case Lsr -> "lsr #" + this.shift;
+                case Ror -> "ror #" + this.shift;
+                case Rrx -> "rrx #" + this.shift;
+                default -> "";
             };
-            return op + " #" + this.shift;
         }
     }
 }

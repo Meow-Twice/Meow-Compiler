@@ -24,7 +24,8 @@ public class MIDescriptor implements Descriptor {
         endTime = 0;
         // scanner = new Scanner(System.in);
         scanner = new Scanner(FileDealer.getNewBufferedInputStream());
-        sb = new StringBuilder();
+        out = new StringBuilder();
+        err = new StringBuilder();
         mf2curVRListMap = new HashMap<>();
         Arrays.fill(MemSimulator.STACK, null);
         Arrays.fill(MemSimulator.HEAP, null);
@@ -49,7 +50,7 @@ public class MIDescriptor implements Descriptor {
     // private MemSimulator MEM_SIM = MemSimulator.MEM_SIMULATOR;
     private final RegSimulator REG_SIM = RegSimulator.REG_SIMULATOR;
     Machine.Program PROGRAM = Machine.Program.PROGRAM;
-    StringBuilder sb = new StringBuilder();
+    static StringBuilder out = new StringBuilder();
 
     enum RunningState {
         BEFORE_MODE,//刚生成代码
@@ -86,9 +87,13 @@ public class MIDescriptor implements Descriptor {
             assert 0 <= off;
             if (off >= SP_BOTTOM) {
                 off = TOTAL_SIZE - off;
-                return STACK[off];
+                Object val = STACK[off];
+                logOut("! GET\t"+val+"\tfrom\tSTACK+\t"+off);
+                return val;
             }
-            return HEAP[off];
+            Object val =  HEAP[off];
+            logOut("! GET\t"+val+"\tfrom\tHEAP+\t"+off);
+            return val;
         }
 
         public static void SET_MEM_VAL_WITH_OFF(Object val, int off) {
@@ -96,8 +101,11 @@ public class MIDescriptor implements Descriptor {
             assert 0 <= off;
             if (off >= SP_BOTTOM) {
                 off = off - SP_BOTTOM;
+                logOut("! SET\t"+val+"\tto\t\tSTACK+\t"+off);
                 STACK[off] = val;
+                return;
             }
+            logOut("! SET\t"+val+"\tto\t\tHEAP+\t"+off);
             HEAP[off] = val;
         }
     }
@@ -140,32 +148,41 @@ public class MIDescriptor implements Descriptor {
 
     @Override
     public StringBuilder getOutput() {
-        return sb;
+        return out;
     }
 
-    private void logOut(String s) {
-        System.err.println(s);
+    private static StringBuilder err = new StringBuilder();
+
+    public static void logOut(String s) {
+        if (OUT_TO_FILE) {
+            err.append(s).append("\n");
+        } else {
+            System.err.println(s);
+        }
     }
 
     private Machine.McFunction curMF;
     private Machine.Block curMB;
     private MachineInst curMI;
 
-    private static final boolean IDEA_MODE = true;
+    private static final boolean OUT_TO_FILE = true;
     // private static final StringBuilder sbd = new StringBuilder();
 
-    public void output(String str) {
-        if (IDEA_MODE) {
-            sb.append(str).append("\n");
+    public static void output(String str) {
+        if (OUT_TO_FILE) {
+            out.append(str);
+        } else {
+            System.out.println(str);
         }
-        System.out.println(str);
     }
 
     public static int outputTimes = 0;
 
     public void finalOut() {
-        if (IDEA_MODE)
-            FileDealer.outputToFile(sb, "system" + outputTimes++ + ".out");
+        if (OUT_TO_FILE) {
+            FileDealer.outputToFile(out, "system" + outputTimes + ".out");
+            FileDealer.outputToFile(err, "system" + outputTimes++ + ".err");
+        }
     }
 
     public void run() throws IOException {
@@ -584,15 +601,18 @@ public class MIDescriptor implements Descriptor {
     //设为Object是为了保证int和float的兼容性
     // 可能返回int或者float或者String(glob地址)
     private Object GET_VAL_FROM_OPD(Machine.Operand o) {
-        return switch (o.getType()) {
+        Object val = switch (o.getType()) {
             case PreColored, Allocated -> getFromReg(o.getReg());
             case Virtual -> curVRList.get(o.getValue());
             case Immediate -> o.isGlobPtr() ? o.getGlob() : o.getImm();
         };
+        logOut("^ get\t" + val + "\tfrom\t" + o);
+        return val;
     }
 
     //设为Object是为了保证int和float的兼容性
     private void SET_VAL_FROM_OPD(Object val, Machine.Operand o) {
+        logOut("^ set\t" + val + "\tto\t\t" + o);
         switch (o.getType()) {
             case PreColored, Allocated -> setToReg(val, o.getReg());
             case Virtual -> curVRList.set(o.getValue(), val);

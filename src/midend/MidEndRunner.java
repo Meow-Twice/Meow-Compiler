@@ -95,6 +95,10 @@ public class MidEndRunner {
         reMakeCFGAndLoopInfo();
 //
         Pass();
+
+        //TODO:循环展开
+
+        //TODO:循环融合
     }
 
     private void outputLLVM() {

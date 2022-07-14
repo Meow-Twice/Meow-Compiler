@@ -205,4 +205,13 @@ public class Loop {
             needFixBB.fix();
         }
     }
+
+    //简单循环符合下述形式:
+    //for(int i = X; i < Y; i = i + Z) {
+    //  xxx
+    //  i不能被更改,没有break,continue
+    //}
+    private boolean isSimpleLoop() {
+        return header.getPrecBBs().size() == 2 && latchs.size() == 1 && exitings.size() == 1 && exits.size() == 1;
+    }
 }

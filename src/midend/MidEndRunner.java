@@ -46,6 +46,8 @@ public class MidEndRunner {
         BranchOptimize branchOptimize = new BranchOptimize(functions);
         branchOptimize.Run();
 
+        //前驱后继关系已经维护
+        //拆分MakeCFG
         reMakeCFGAndLoopInfo();
 
         Pass();

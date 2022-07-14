@@ -11,6 +11,7 @@ import frontend.syntax.Parser;
 import lir.Machine;
 import manage.Manager;
 import midend.MidEndRunner;
+import midend.RemovePhi;
 
 import java.io.*;
 
@@ -54,9 +55,12 @@ public class Compiler {
             // Manager.MANAGER.outputLLVM();
             MidEndRunner midEndRunner = new MidEndRunner(Manager.MANAGER.getFunctionList());
             midEndRunner.Run();
+            Manager.MANAGER.outputLLVM(arg.llvmStream);
+
+            RemovePhi removePhi = new RemovePhi(midEndRunner.functions);
+            removePhi.Run();
             // DeadCodeDelete deadCodeDelete = new DeadCodeDelete(Manager.MANAGER.getFunctionList());
             // deadCodeDelete.Run();
-            Manager.MANAGER.outputLLVM(arg.llvmStream);
             CodeGen.CODEGEN.gen();
             Manager.MANAGER.outputMI();
             Machine.Program p = Machine.Program.PROGRAM;

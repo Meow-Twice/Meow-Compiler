@@ -4,7 +4,6 @@ import frontend.semantic.Initial;
 import manage.Manager;
 import mir.Function;
 import mir.GlobalVal;
-import mir.Value;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -50,8 +49,6 @@ public class MidEndRunner {
         // loopOptimize();
 
 
-       RemovePhi removePhi = new RemovePhi(functions);
-       removePhi.Run();
     }
 
     //死代码删除 指令融合 GVN/GCM

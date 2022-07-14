@@ -31,19 +31,30 @@ public class MidEndRunner {
 
         reMakeCFGAndLoopInfo();
 
+        GlobalValueLocalize globalValueLocalize_1 = new GlobalValueLocalize(functions, globalValues);
+        globalValueLocalize_1.Run();
+
         Mem2Reg mem2Reg = new Mem2Reg(functions);
         mem2Reg.Run();
-
 
         Pass();
 
         loopOptimize();
 
+
+        //TODO:删除冗余phi,分支优化(删除无用的br/jump等),等等
+        BranchOptimize branchOptimize = new BranchOptimize(functions);
+        branchOptimize.Run();
+
+        reMakeCFGAndLoopInfo();
+
+        Pass();
+
         MathOptimize mathOptimize = new MathOptimize(functions);
         mathOptimize.Run();
 
 
-        //TODO:删除冗余phi,分支优化(删除无用的br/jump等),等等
+
 //        RemovePhi removePhi = new RemovePhi(functions);
 //        removePhi.Run();
     }
@@ -84,6 +95,15 @@ public class MidEndRunner {
         reMakeCFGAndLoopInfo();
 //
         Pass();
+    }
+
+    private void outputLLVM() {
+        try {
+            Manager.MANAGER.outputLLVM();
+        } catch (Exception e) {
+
+
+        }
     }
 
 }

@@ -12,6 +12,17 @@ import java.util.*;
 public class Function extends Value {
     private final String name;
 
+    private boolean isDeleted = false;
+
+    public void setDeleted() {
+        isDeleted = true;
+    }
+
+    public boolean getDeleted() {
+        return isDeleted;
+    }
+
+
 
     public static class Param extends Value {
 
@@ -277,14 +288,15 @@ public class Function extends Value {
         loopHeads.add(bb);
     }
 
-    public void inlineToFunc(Function tagFunc, BasicBlock retBB, Instr.Call call) {
+    public void inlineToFunc(Function tagFunc, BasicBlock retBB, Instr.Call call, Loop loop) {
         Instr.Phi retPhi = null;
         if (retBB.getEndInstr() instanceof Instr.Phi) {
             retPhi = (Instr.Phi) retBB.getBeginInstr();
         }
         BasicBlock bb = getBeginBB();
         while (bb.getNext() != null) {
-            bb.cloneToFunc(tagFunc);
+            bb.cloneToFunc(tagFunc, loop);
+            //bb.cloneToFunc(tagFunc);
             bb = (BasicBlock) bb.getNext();
         }
 

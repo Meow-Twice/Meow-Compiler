@@ -320,8 +320,8 @@ public class BasicBlock extends Value {
 
     @Override
     public String toString() {
-        //return this.label + ":\t\t\t\t\t; loopDepth: " + loop.loopDepth + ";\t" + loop;
-        return this.label;
+        return this.label + ":\t\t\t\t\t; loopDepth: " + loop.loopDepth + ";\t" + loop;
+        //return this.label;
     }
 
     private Machine.Block mb = null;
@@ -369,6 +369,58 @@ public class BasicBlock extends Value {
 //        }
         return ret;
     }
+
+    //函数内联的时候,维护循环信息,方便GCM
+    public BasicBlock cloneToFunc(Function function, Loop loop) {
+        // 是循环内的BB, 复制的时候,
+        // 先创建新的循环, 然后把BB塞到新的loop里面
+        Loop srcLoop = null;
+        Loop tagLoop = null;
+
+
+        if (this.loop.getLoopDepth() == 0) {
+            srcLoop = this.loop;
+            tagLoop = loop;
+
+//            srcLoop = this.loop;
+//            tagLoop = CloneInfoMap.loopMap.containsKey(srcLoop)?
+//                    CloneInfoMap.getReflectedLoop(srcLoop):
+//                    new Loop(parentLoop);
+//            tagLoop.setFunc(function);
+            CloneInfoMap.addLoopReflect(srcLoop, tagLoop);
+        } else {
+            srcLoop = this.loop;
+            tagLoop = CloneInfoMap.loopMap.containsKey(srcLoop)?
+                    CloneInfoMap.getReflectedLoop(srcLoop):
+                    new Loop(CloneInfoMap.getReflectedLoop(srcLoop.getParentLoop()));
+            tagLoop.setFunc(function);
+            CloneInfoMap.addLoopReflect(srcLoop, tagLoop);
+        }
+
+
+        BasicBlock ret = new BasicBlock(function, tagLoop);
+        CloneInfoMap.addValueReflect(this, ret);
+        tagLoop.addBB(ret);
+        if (this.isLoopHeader) {
+            tagLoop.setHeader(ret);
+        }
+        Instr instr = this.getBeginInstr();
+        while (instr.getNext() != null) {
+            Instr tmp = instr.cloneToBB(ret);
+            if (instr.isInWhileCond()) {
+                tmp.setLoopCondCount(++Visitor.VISITOR.curLoopCondCount);
+            }
+            instr = (Instr) instr.getNext();
+        }
+//        Instr retInstr = ret.getBeginInstr();
+//        while (retInstr.getNext() != null) {
+//            retInstr.fix();
+//            retInstr = (Instr) retInstr.getNext();
+//        }
+        return ret;
+    }
+
+
 
     public void fix() {
         Instr instr = this.getBeginInstr();

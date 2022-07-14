@@ -18,6 +18,140 @@ import static lir.Arm.Regs.GPRs.*;
 import static manage.Manager.ExternFunction.*;
 
 public class MIDescriptor implements Descriptor {
+
+    private static class MemSimulator {
+        // public static final MemSimulator MEM_SIMULATOR = new MemSimulator();
+        private static final int N = 10;
+        public static final int SP_BOTTOM = 0x40000000 >> 2 >> N;
+        public static final int TOTAL_SIZE = 0x7FFFFFFF >> 2 >> N;
+        private static final Object[] STACK = new Object[TOTAL_SIZE - SP_BOTTOM];
+        private static final Object[] HEAP = new Object[SP_BOTTOM];
+
+        public static Object GET_MEM_WITH_OFF(int off) {
+            off = off / 4;
+            assert 0 <= off;
+            if (off >= SP_BOTTOM) {
+                off = TOTAL_SIZE - off;
+                Object val = STACK[off];
+                logOut("! GET\t" + val + "\tfrom\tSTACK+\t" + off);
+                return val;
+            }
+            Object val = HEAP[off];
+            logOut("! GET\t" + val + "\tfrom\tHEAP+\t" + off);
+            return val;
+        }
+
+        public static void SET_MEM_VAL_WITH_OFF(Object val, int off) {
+            off = off / 4;
+            assert 0 <= off;
+            if (off >= SP_BOTTOM) {
+                off = off - SP_BOTTOM;
+                logOut("! SET\t" + val + "\tto\t\tSTACK+\t" + off);
+                STACK[off] = val;
+                return;
+            }
+            logOut("! SET\t" + val + "\tto\t\tHEAP+\t" + off);
+            HEAP[off] = val;
+        }
+    }
+
+    private static class RegSimulator {
+        private RegSimulator() {
+        }
+
+        public static final RegSimulator REG_SIMULATOR = new RegSimulator();
+        public static ArrayList<Integer> GPRS = new ArrayList<>();
+        public static ArrayList<Float> FPRS = new ArrayList<>();
+        public int CMP_STATUS = 0;
+
+    }
+
+    private int getGPRVal(int i) {
+        return RegSimulator.GPRS.get(i);
+    }
+
+    private void setGPRVal(int i, int val) {
+        RegSimulator.GPRS.set(i, val);
+    }
+
+    private float getFPRVal(int i) {
+        return RegSimulator.FPRS.get(i);
+    }
+
+
+    private void setFPRVal(int i, float val) {
+        RegSimulator.FPRS.set(i, val);
+    }
+
+    public static final MIDescriptor MI_DESCRIPTOR = new MIDescriptor();
+    Scanner scanner/* = new Scanner(System.in)*/;
+    // BufferedReader stdin = new BufferedReader(new InputStreamReader(System.in));
+    // BufferedInputStream stdin;
+    // private MemSimulator MEM_SIM = MemSimulator.MEM_SIMULATOR;
+    private final RegSimulator REG_SIM = RegSimulator.REG_SIMULATOR;
+    // Machine.Program PROGRAM = Machine.Program.PROGRAM;
+    static StringBuilder out = new StringBuilder();
+
+    // enum RunningState {
+    //     BEFORE_MODE,//刚生成代码
+    //     AFTER_MODE,//分配完所有寄存器
+    //     MIX_MODE
+    // }
+
+    private static StringBuilder err = new StringBuilder();
+    private static final boolean OUT_TO_FILE = true;
+    // private static final StringBuilder sbd = new StringBuilder();
+
+    long startTime = 0;
+    long endTime = 0;
+    long totalTime = 0;
+    boolean inTimeCul = false;
+
+    public final int CPSR_N = 1 << 31;
+    public final int CPSR_Z = 1 << 30;
+    private HashMap<Machine.McFunction, Stack<ArrayList<Object>>> mf2curVRListMap = new HashMap<>();
+    private ArrayList<Object> curVRList;
+    private Machine.McFunction curMF;
+    private Machine.Block curMB;
+    private MachineInst curMI;
+
+    private void timeClear() {
+        totalTime += endTime - startTime;
+        startTime = 0;
+        endTime = 0;
+    }
+
+
+    @Override
+    public StringBuilder getOutput() {
+        return out;
+    }
+
+    public static void logOut(String s) {
+        if (OUT_TO_FILE) {
+            err.append(s).append("\n");
+        } else {
+            System.err.println(s);
+        }
+    }
+
+    public static void output(String str) {
+        if (OUT_TO_FILE) {
+            out.append(str);
+        } else {
+            System.out.println(str);
+        }
+    }
+
+    public static int outputTimes = 0;
+
+    public void finalOut() {
+        if (OUT_TO_FILE) {
+            FileDealer.outputToFile(out, "system" + outputTimes + ".out");
+            FileDealer.outputToFile(err, "system" + outputTimes++ + ".err");
+        }
+    }
+
     public void clear() {
         totalTime = 0;
         startTime = 0;
@@ -40,150 +174,6 @@ public class MIDescriptor implements Descriptor {
         globName2HeapOff = new HashMap<>();
     }
 
-    public final int CPSR_N = 1 << 31;
-    public final int CPSR_Z = 1 << 30;
-    public static final MIDescriptor MI_DESCRIPTOR = new MIDescriptor();
-    Scanner scanner = new Scanner(System.in);
-    // BufferedReader stdin = new BufferedReader(new InputStreamReader(System.in));
-    // BufferedInputStream stdin;
-
-    // private MemSimulator MEM_SIM = MemSimulator.MEM_SIMULATOR;
-    private final RegSimulator REG_SIM = RegSimulator.REG_SIMULATOR;
-    Machine.Program PROGRAM = Machine.Program.PROGRAM;
-    static StringBuilder out = new StringBuilder();
-
-    enum RunningState {
-        BEFORE_MODE,//刚生成代码
-        AFTER_MODE,//分配完所有寄存器
-        MIX_MODE
-    }
-
-    private HashMap<Machine.McFunction, Stack<ArrayList<Object>>> mf2curVRListMap = new HashMap<>();
-    private ArrayList<Object> curVRList;
-
-    private static class MemSimulator {
-        // public static final MemSimulator MEM_SIMULATOR = new MemSimulator();
-        private static final int N = 10;
-        public static final int SP_BOTTOM = 0x40000000 >> 2 >> N;
-        public static final int TOTAL_SIZE = 0x7FFFFFFF >> 2 >> N;
-        private static final Object[] STACK = new Object[TOTAL_SIZE - SP_BOTTOM];
-        private static final Object[] HEAP = new Object[SP_BOTTOM];
-        public static int SP = 0;
-        public static int GP = 0;
-
-        // private MemSimulator() {
-        // }
-
-        public static int GET_OFF(int off) {
-            off = off / 4;
-            if (off >= SP_BOTTOM) {
-                off = TOTAL_SIZE - off;
-            }
-            return off;
-        }
-
-        public static Object GET_MEM_WITH_OFF(int off) {
-            off = off / 4;
-            assert 0 <= off;
-            if (off >= SP_BOTTOM) {
-                off = TOTAL_SIZE - off;
-                Object val = STACK[off];
-                logOut("! GET\t"+val+"\tfrom\tSTACK+\t"+off);
-                return val;
-            }
-            Object val =  HEAP[off];
-            logOut("! GET\t"+val+"\tfrom\tHEAP+\t"+off);
-            return val;
-        }
-
-        public static void SET_MEM_VAL_WITH_OFF(Object val, int off) {
-            off = off / 4;
-            assert 0 <= off;
-            if (off >= SP_BOTTOM) {
-                off = off - SP_BOTTOM;
-                logOut("! SET\t"+val+"\tto\t\tSTACK+\t"+off);
-                STACK[off] = val;
-                return;
-            }
-            logOut("! SET\t"+val+"\tto\t\tHEAP+\t"+off);
-            HEAP[off] = val;
-        }
-    }
-
-    private static class RegSimulator {
-        private RegSimulator() {
-        }
-
-        public static final RegSimulator REG_SIMULATOR = new RegSimulator();
-        public static ArrayList<Integer> GPRS = new ArrayList<>();
-        public static ArrayList<Float> FPRS = new ArrayList<>();
-        public int CMP_STATUS = 0;
-
-        // static {
-        //     for (int i = 0; i < Arm.Regs.GPRs.values().length; i++) {
-        //         GPRS.add(0);
-        //     }
-        //     for (int i = 0; i < Arm.Regs.FPRs.values().length; i++) {
-        //         FPRS.add((float) 0.0);
-        //     }
-        // }
-    }
-
-    private int getGPRVal(int i) {
-        return REG_SIM.GPRS.get(i);
-    }
-
-    private int setGPRVal(int i, int val) {
-        return REG_SIM.GPRS.set(i, val);
-    }
-
-    private float getFPRVal(int i) {
-        return REG_SIM.FPRS.get(i);
-    }
-
-
-    private float setFPRVal(int i, float val) {
-        return REG_SIM.FPRS.set(i, val);
-    }
-
-    @Override
-    public StringBuilder getOutput() {
-        return out;
-    }
-
-    private static StringBuilder err = new StringBuilder();
-
-    public static void logOut(String s) {
-        if (OUT_TO_FILE) {
-            err.append(s).append("\n");
-        } else {
-            System.err.println(s);
-        }
-    }
-
-    private Machine.McFunction curMF;
-    private Machine.Block curMB;
-    private MachineInst curMI;
-
-    private static final boolean OUT_TO_FILE = true;
-    // private static final StringBuilder sbd = new StringBuilder();
-
-    public static void output(String str) {
-        if (OUT_TO_FILE) {
-            out.append(str);
-        } else {
-            System.out.println(str);
-        }
-    }
-
-    public static int outputTimes = 0;
-
-    public void finalOut() {
-        if (OUT_TO_FILE) {
-            FileDealer.outputToFile(out, "system" + outputTimes + ".out");
-            FileDealer.outputToFile(err, "system" + outputTimes++ + ".err");
-        }
-    }
 
     public void run() throws IOException {
         clear();
@@ -220,17 +210,6 @@ public class MIDescriptor implements Descriptor {
         runMF(p.mainMcFunc);
         output(getFromReg(r0).toString());
         finalOut();
-    }
-
-    long startTime = 0;
-    long endTime = 0;
-    long totalTime = 0;
-    boolean inTimeCul = false;
-
-    private void timeClear() {
-        totalTime += endTime - startTime;
-        startTime = 0;
-        endTime = 0;
     }
 
     public void runMF(Machine.McFunction mcFunc) {

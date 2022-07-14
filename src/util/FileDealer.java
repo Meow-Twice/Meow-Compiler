@@ -37,8 +37,14 @@ public class FileDealer {
     //     return inputFile;
     // }
 
-    public static InputStream getInputStream(){
-        return inputStream;
+    public static BufferedInputStream getNewBufferedInputStream(){
+        try {
+            inputStream = new FileInputStream("system.in");
+            bufferedInputStream = new BufferedInputStream(inputStream);
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+        return bufferedInputStream;
     }
 
     public static void tryClearOutputString(String s){
@@ -82,9 +88,9 @@ public class FileDealer {
         outputStringList.clear();
     }
 
-    public BufferedInputStream getBufferedInputStream(){
-        return bufferedInputStream;
-    }
+    // public BufferedInputStream getBufferedInputStream(){
+    //     return bufferedInputStream;
+    // }
 
     public static void addOutputString(String s){
         outputStringList.add(s);

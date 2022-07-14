@@ -13,7 +13,7 @@ import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import static lir.Arm.Regs.FPRs.*;
+import static lir.Arm.Regs.FPRs.s0;
 import static lir.Arm.Regs.GPRs.*;
 import static manage.Manager.ExternFunction.*;
 
@@ -22,7 +22,8 @@ public class MIDescriptor implements Descriptor {
         totalTime = 0;
         startTime = 0;
         endTime = 0;
-        scanner = new Scanner(System.in);
+        // scanner = new Scanner(System.in);
+        scanner = new Scanner(FileDealer.getNewBufferedInputStream());
         sb = new StringBuilder();
         mf2curVRListMap = new HashMap<>();
         Arrays.fill(MemSimulator.STACK, null);
@@ -43,6 +44,7 @@ public class MIDescriptor implements Descriptor {
     public static final MIDescriptor MI_DESCRIPTOR = new MIDescriptor();
     Scanner scanner = new Scanner(System.in);
     // BufferedReader stdin = new BufferedReader(new InputStreamReader(System.in));
+    // BufferedInputStream stdin;
 
     // private MemSimulator MEM_SIM = MemSimulator.MEM_SIMULATOR;
     private final RegSimulator REG_SIM = RegSimulator.REG_SIMULATOR;
@@ -159,9 +161,11 @@ public class MIDescriptor implements Descriptor {
         System.out.println(str);
     }
 
+    public static int outputTimes = 0;
+
     public void finalOut() {
         if (IDEA_MODE)
-            FileDealer.outputToFile(sb, "output.txt");
+            FileDealer.outputToFile(sb, "system" + outputTimes++ + ".out");
     }
 
     public void run() throws IOException {
@@ -464,7 +468,7 @@ public class MIDescriptor implements Descriptor {
                         offset += globName2HeapOff.get(globAddr);
                     }
                     // 函数传参的时候, 修栈偏移
-                    if(load.isNeedFix()){
+                    if (load.isNeedFix()) {
                         offset = offset + curMF.getStackSize();
                     }
                     SET_VAL_FROM_OPD(getMemValWithOffset(offset), load.getData());

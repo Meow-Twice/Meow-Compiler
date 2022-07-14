@@ -65,7 +65,7 @@ public class Compiler {
             Manager.MANAGER.outputMI();
             regAllocator.AllocateRegister(p);
             Manager.MANAGER.outputMI();
-            // MIDescriptor.MI_DESCRIPTOR.run();
+            MIDescriptor.MI_DESCRIPTOR.run();
             p.output(new PrintStream(arg.asmStream));
         } catch (Exception e) {
             e.printStackTrace();

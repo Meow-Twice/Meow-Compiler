@@ -46,7 +46,14 @@ public class Loop {
     }
 
     public int getLoopDepth(){
-        return loopDepth;
+        //return loopDepth;
+        int ret = 0;
+        Loop loop = this;
+        while (loop.getParentLoop().equals(emptyLoop)) {
+            loop = loop.getParentLoop();
+            ret++;
+        }
+        return ret;
     }
 
     // 慎用，visitor用不到到这个

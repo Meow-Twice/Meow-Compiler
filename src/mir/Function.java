@@ -277,14 +277,14 @@ public class Function extends Value {
         loopHeads.add(bb);
     }
 
-    public void inlineToFunc(Function tagFunc, BasicBlock retBB, Instr.Call call) {
+    public void inlineToFunc(Function tagFunc, BasicBlock retBB, Instr.Call call, Loop parentLoop) {
         Instr.Phi retPhi = null;
         if (retBB.getEndInstr() instanceof Instr.Phi) {
             retPhi = (Instr.Phi) retBB.getBeginInstr();
         }
         BasicBlock bb = getBeginBB();
         while (bb.getNext() != null) {
-            bb.cloneToFunc(tagFunc);
+            bb.cloneToFunc(tagFunc, parentLoop);
             bb = (BasicBlock) bb.getNext();
         }
 

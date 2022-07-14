@@ -5,8 +5,7 @@ import mir.Function;
 import mir.Instr;
 import mir.Use;
 
-import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.*;
 
 public class FuncInline {
 
@@ -15,26 +14,75 @@ public class FuncInline {
     //TODO: 递归的内联
 
     private ArrayList<Function> functions;
-    private HashSet<Function> funcCanInline;
+    private ArrayList<Function> funcCanInline;
+
+    private HashMap<Function, HashSet<Function>> reserveMap;
+    private HashMap<Function, Integer> inNum;
+    private Queue<Function> queue;
+
 
     public FuncInline(ArrayList<Function> functions) {
         this.functions = functions;
-        this.funcCanInline = new HashSet<>();
+        this.funcCanInline = new ArrayList<>();
+        this.reserveMap = new HashMap<>();
+        this.inNum = new HashMap<>();
+        this.queue = new LinkedList<>();
     }
 
     public void Run() {
         GetFuncCanInline();
         for (Function function: funcCanInline) {
             inlineFunc(function);
+            functions.remove(function);
         }
     }
 
     private void GetFuncCanInline() {
-        funcCanInline.clear();
+//        for (Function function: functions) {
+//            if (canInline(function)) {
+//                funcCanInline.add(function);
+//            }
+//        }
+        makeReserveMap();
+        topologySort();
+    }
+
+    //f1调用f2 添加一条f2到f1的边
+    private void makeReserveMap() {
         for (Function function: functions) {
-            if (canInline(function)) {
-                funcCanInline.add(function);
+            reserveMap.put(function, new HashSet<>());
+            if (!inNum.containsKey(function)) {
+                inNum.put(function, 0);
             }
+            Use use = function.getBeginUse();
+            while (use.getNext() != null) {
+                Function userFunc = use.getUser().parentBB().getFunction();
+                reserveMap.get(function).add(userFunc);
+                if (!inNum.containsKey(userFunc)) {
+                    inNum.put(userFunc, 0);
+                }
+                inNum.put(userFunc, inNum.get(userFunc) + 1);
+                use = (Use) use.getNext();
+            }
+        }
+    }
+
+    private void topologySort() {
+        for (Function function: inNum.keySet()) {
+            if (inNum.get(function) == 0 && !function.getName().equals("main")) {
+                queue.add(function);
+            }
+        }
+        while (!queue.isEmpty()) {
+            Function pos = queue.peek();
+            funcCanInline.add(pos);
+            for (Function next: reserveMap.get(pos)) {
+                inNum.put(next, inNum.get(next) - 1);
+                if (inNum.get(next) == 0 && !next.getName().equals("main")) {
+                    queue.add(next);
+                }
+            }
+            queue.poll();
         }
     }
 
@@ -81,7 +129,7 @@ public class FuncInline {
             instr.modifyAllUseThisToUseA(retPhi);
         }
 
-        function.inlineToFunc(inFunction, retBB, call);
+        function.inlineToFunc(inFunction, retBB, call, beforeCallBB.getLoop().getParentLoop());
 
         //instr.cloneToBB(callBB);
         instr.remove();

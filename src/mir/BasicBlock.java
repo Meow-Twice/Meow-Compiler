@@ -371,16 +371,31 @@ public class BasicBlock extends Value {
     }
 
     //函数内联的时候,维护循环信息,方便GCM
-    public BasicBlock cloneToFunc(Function function, Loop parentLoop) {
+    public BasicBlock cloneToFunc(Function function, Loop loop) {
         // 是循环内的BB, 复制的时候,
         // 先创建新的循环, 然后把BB塞到新的loop里面
-        Loop srcLoop = this.loop;
-        Loop tagLoop = CloneInfoMap.loopMap.containsKey(srcLoop)?
-                CloneInfoMap.getReflectedLoop(srcLoop):
-                new Loop(parentLoop);
-        tagLoop.setFunc(function);
-        CloneInfoMap.addLoopReflect(srcLoop, tagLoop);
+        Loop srcLoop = null;
+        Loop tagLoop = null;
 
+
+        if (this.loop.getLoopDepth() == 0) {
+            srcLoop = this.loop;
+            tagLoop = loop;
+
+//            srcLoop = this.loop;
+//            tagLoop = CloneInfoMap.loopMap.containsKey(srcLoop)?
+//                    CloneInfoMap.getReflectedLoop(srcLoop):
+//                    new Loop(parentLoop);
+//            tagLoop.setFunc(function);
+            CloneInfoMap.addLoopReflect(srcLoop, tagLoop);
+        } else {
+            srcLoop = this.loop;
+            tagLoop = CloneInfoMap.loopMap.containsKey(srcLoop)?
+                    CloneInfoMap.getReflectedLoop(srcLoop):
+                    new Loop(CloneInfoMap.getReflectedLoop(srcLoop.getParentLoop()));
+            tagLoop.setFunc(function);
+            CloneInfoMap.addLoopReflect(srcLoop, tagLoop);
+        }
 
 
         BasicBlock ret = new BasicBlock(function, tagLoop);

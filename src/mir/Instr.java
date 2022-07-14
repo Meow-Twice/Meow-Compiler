@@ -922,6 +922,9 @@ public class Instr extends Value {
             for (int i = 0; i < len; i++) {
                 Value value = useValueList.get(i);
 //                if (value instanceof Constant) {
+                if (parentBB().getPrecBBs().size() <= i) {
+                    System.err.println("err");
+                }
                 ret.append("[ ").append(value.getName()).append(", %").append(parentBB().getPrecBBs().get(i).getLabel()).append(" ]");
 //                } else if (value instanceof Instr) {
 //                    ret += "[ " + value.getName() + ", %" + ((Instr) value).parentBB() + " ]";

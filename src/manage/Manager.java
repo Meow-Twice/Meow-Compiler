@@ -110,6 +110,9 @@ public class Manager {
         }
         // 函数定义
         for (Function function : functions.values()) {
+            if (function.getDeleted()) {
+                continue;
+            }
             if (function.hasBody()) {
                 FileDealer.addOutputString(function.getDefinition());
             }

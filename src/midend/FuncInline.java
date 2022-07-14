@@ -34,6 +34,7 @@ public class FuncInline {
         for (Function function: funcCanInline) {
             inlineFunc(function);
             functions.remove(function);
+            function.setDeleted();
         }
     }
 
@@ -129,7 +130,7 @@ public class FuncInline {
             instr.modifyAllUseThisToUseA(retPhi);
         }
 
-        function.inlineToFunc(inFunction, retBB, call, beforeCallBB.getLoop().getParentLoop());
+        function.inlineToFunc(inFunction, retBB, call, beforeCallBB.getLoop());
 
         //instr.cloneToBB(callBB);
         instr.remove();

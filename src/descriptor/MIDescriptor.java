@@ -278,14 +278,19 @@ public class MIDescriptor implements Descriptor {
                     int offset = (int) tmp;
                     offset = offset << store.getShift();
                     tmp = GET_VAL_FROM_OPD(store.getAddr());
-                    assert tmp instanceof Integer;
-                    offset += (int) tmp;
-                    tmp = GET_VAL_FROM_OPD(store.getData());
-                    if (tmp instanceof Integer) {
-                        setMemValWithOffSet((int) tmp, offset);
-                    } else {
-                        // TODO 目前不知道怎么把十进制的int转成float, 理论上前端应该插了转化?
-                        throw new AssertionError("store a float " + (float) tmp + " not done yet");
+                    if(tmp instanceof Integer){
+                        offset += (int) tmp;
+                        tmp = GET_VAL_FROM_OPD(store.getData());
+                        if (tmp instanceof Integer) {
+                            setMemValWithOffSet((int) tmp, offset);
+                        } else {
+                            // TODO 目前不知道怎么把十进制的int转成float, 理论上前端应该插了转化?
+                            throw new AssertionError("store a float " + (float) tmp + " not done yet");
+                        }
+                    }else{
+                        assert tmp instanceof String;
+                        String globAddr = (String) tmp;
+
                     }
                 }
                 case Compare -> {
@@ -356,11 +361,14 @@ public class MIDescriptor implements Descriptor {
     }
 
     //设为Object是为了保证int和float的兼容性
+    // 可能返回int或者float或者String(glob地址)
     private Object GET_VAL_FROM_OPD(Machine.Operand o) {
         return switch (o.getType()) {
             case PreColored, Allocated -> getFromReg(o.getReg());
             case Virtual -> curVRList.get(o.getValue());
-            case Immediate -> o.getImm();
+            case Immediate ->
+                o.isGlobPtr() ? o.getGlob() : o.getImm();
+
         };
     }
 

@@ -409,6 +409,14 @@ public class Machine {
             return value;
         }
 
+        public boolean isGlobPtr() {
+            return this instanceof Arm.Glob;
+        }
+
+        public String getGlob(){
+            throw new AssertionError("not glob but try to load");
+        }
+
         // static {
         //     // 调用了子类, 所以不行
         //     int i;

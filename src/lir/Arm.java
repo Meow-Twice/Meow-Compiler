@@ -115,6 +115,10 @@ public class Arm {
             this.init = init;
             globalValue = glob;
         }
+
+        public String getGlob(){
+            return name;
+        }
     }
 
     public enum Cond {

@@ -133,7 +133,7 @@ public class MIDescriptor implements Descriptor {
 
     public void output(String str) {
         if (IDEA_MODE) {
-            sb.append(str);
+            sb.append(str).append("\n");
         }
         System.out.println(str);
     }
@@ -180,12 +180,12 @@ public class MIDescriptor implements Descriptor {
     }
 
     public void runMF(Machine.McFunction mcFunc) {
+        curMF = mcFunc;
+        logOut("@now:\t" + mcFunc.mFunc.getName());
         if (mcFunc.mFunc.isExternal) {
             dealExternalFunc();
             return;
         }
-        curMF = mcFunc;
-        logOut("@now:\t" + mcFunc.mFunc.getName());
         int spVal = (int) GET_VAL_FROM_OPD(Arm.Reg.getR(sp));
         SET_VAL_FROM_OPD(spVal - curMF.getStackSize(), Arm.Reg.getR(sp));
         curVRList = new ArrayList<>(Collections.nCopies(curMF.vrList.size(), 0));
@@ -416,7 +416,9 @@ public class MIDescriptor implements Descriptor {
                 case Call -> {
                     assert mi instanceof MICall;
                     vrListStackPush();
+                    Machine.McFunction tmp = curMF;
                     runMF(((MICall) mi).mcFunction);
+                    curMF = tmp;
                     vrListStackPop();
                 }
                 case Global -> throw new AssertionError("not done yet");

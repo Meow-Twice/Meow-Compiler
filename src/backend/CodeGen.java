@@ -336,7 +336,8 @@ public class CodeGen {
                 case call -> {
                     //move caller's r0-r3  to VR
                     Instr.Call call_inst = (Instr.Call) instr;
-                    // TODO : 函数内部可能调用其他函数, 但是在函数内部已经没有了使用哪些寄存器的信息, 目前影响未知, 可能有bug
+                    // TODO : 函数内部可能调用其他函数, 但是在函数内部已经没有了Caller使用哪些寄存器的信息, 目前影响未知, 可能有bug
+                    // TODO: ayame解决方案是在 callee 头 push 和 callee 尾部 pop 那些 callee 要用到的寄存器, 暂定此方案
                     ArrayList<Value> param_list = call_inst.getParamList();
                     ArrayList<Machine.Operand> paramVRList = new ArrayList<>();
                     if (param_list.size() > 0) {

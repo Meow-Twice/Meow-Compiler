@@ -307,7 +307,7 @@ public class CodeGen {
                     assert !ptrValue.isConstant();
                     Machine.Operand dstVR = getVR_no_imm(gep);
                     // Machine.Operand curAddrVR = getVR_no_imm(ptrValue);
-                    Machine.Operand basePtrVR = getVR_no_imm(ptrValue);
+                    Machine.Operand basePtrVR = getVR_from_ptr(ptrValue);
                     Machine.Operand curAddrVR = newVR();
                     new MIMove(curAddrVR, basePtrVR, curMB);
                     int totalConstOff = 0;

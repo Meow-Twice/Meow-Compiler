@@ -549,13 +549,14 @@ public class MIDescriptor implements Descriptor {
                     int offset = (int) tmp;
                     offset = offset << load.getShift().getShift();
                     tmp = GET_VAL_FROM_OPD(load.getAddr());
-                    if (tmp instanceof Integer) {
-                        offset += (int) tmp;
-                    } else {
-                        assert tmp instanceof String;
-                        String globAddr = (String) tmp;
-                        offset += globName2HeapOff.get(globAddr);
-                    }
+                    assert tmp instanceof Integer;
+                    // if (tmp instanceof Integer) {
+                    offset += (int) tmp;
+                    // } else {
+                    //     assert tmp instanceof String;
+                    //     String globAddr = (String) tmp;
+                    //     offset += globName2HeapOff.get(globAddr);
+                    // }
                     // 函数传参的时候, 修栈偏移
                     if (load.isNeedFix()) {
                         offset = offset + curMF.getStackSize();
@@ -570,13 +571,14 @@ public class MIDescriptor implements Descriptor {
                     int offset = (int) tmp;
                     offset = offset << store.getShift().getShift();
                     tmp = GET_VAL_FROM_OPD(store.getAddr());
-                    if (tmp instanceof Integer) {
-                        offset += (int) tmp;
-                    } else {
-                        assert tmp instanceof String;
-                        String globAddr = (String) tmp;
-                        offset += globName2HeapOff.get(globAddr);
-                    }
+                    assert tmp instanceof Integer;
+                    // if (tmp instanceof Integer) {
+                    offset += (int) tmp;
+                    // } else {
+                    //     assert tmp instanceof String;
+                    //     String globAddr = (String) tmp;
+                    //     offset += globName2HeapOff.get(globAddr);
+                    // }
                     tmp = GET_VAL_FROM_OPD(store.getData());
                     if (!(tmp instanceof Float || tmp instanceof Integer)) {
                         throw new AssertionError("GET VAL=\t(" + tmp + ")\t<-\t" + store.getData() + "\t{" + mi + "}");
@@ -682,7 +684,7 @@ public class MIDescriptor implements Descriptor {
         Object val = switch (o.getType()) {
             case PreColored, Allocated -> getFromReg(o.getReg());
             case Virtual -> curVRList.get(o.getValue());
-            case Immediate -> o.isGlobPtr() ? o.getGlob() : o.getImm();
+            case Immediate -> o.isGlobPtr() ? globName2HeapOff.get(o.getGlob()) : o.getImm();
         };
         // String vStr = val instanceof Integer ? Integer.toHexString((int)val) : Float.toHexString((float)val);
         logOut("^ get\t" + val + "\tfrom\t" + o);

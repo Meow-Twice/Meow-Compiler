@@ -783,6 +783,9 @@ public class Instr extends Value {
         }
 
         public Value getIdxValueOf(int i) {
+            if(i+1 >= useValueList.size()){
+                throw new AssertionError("get idx : "+ i+1 + "\t" + this);
+            }
             return useValueList.get(i + 1);
         }
 

@@ -52,7 +52,7 @@ public class Compiler {
             // Manager manager = visitor.getIr();
             // GlobalValueLocalize globalValueLocalize = new GlobalValueLocalize(funcManager.globals);
             // globalValueLocalize.Run();
-            // Manager.MANAGER.outputLLVM();
+            Manager.MANAGER.outputLLVM();
             MidEndRunner midEndRunner = new MidEndRunner(Manager.MANAGER.getFunctionList());
             midEndRunner.Run();
             if (arg.outputLLVM()) {

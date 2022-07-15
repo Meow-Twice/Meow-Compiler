@@ -20,7 +20,7 @@ import static lir.Arm.Regs.GPRs.*;
 import static manage.Manager.ExternFunction.*;
 
 public class MIDescriptor implements Descriptor {
-    private static final boolean OUT_TO_FILE = true;
+    private static final boolean OUT_TO_FILE = false;
 
     private InputStream input = System.in;
     private OutputStream output = System.out;
@@ -35,7 +35,7 @@ public class MIDescriptor implements Descriptor {
 
     private static class MemSimulator {
         // public static final MemSimulator MEM_SIMULATOR = new MemSimulator();
-        private static final int N = 2;
+        private static final int N = 1;
         public static final int SP_BOTTOM = 0x40000000 >> 2 >> N;
         public static final int TOTAL_SIZE = 0x7FFFFFFF >> 2 >> N;
         private static final Object[] MEM = new Object[TOTAL_SIZE];
@@ -50,16 +50,16 @@ public class MIDescriptor implements Descriptor {
             }
             if (off >= SP_BOTTOM) {
                 Object val = MEM[off];
+                logOut("! GET\t" + val + "\tfrom\tSTACK+\t0x" + Integer.toHexString(off * 4));
                 if (val == null) {
                     throw new AssertionError("");
                 }
-                logOut("! GET\t" + val + "\tfrom\tSTACK+\t0x" + Integer.toHexString(off * 4));
             } else {
                 Object val = MEM[off];
+                logOut("! GET\t" + val + "\tfrom\tHEAP+\t0x" + Integer.toHexString(off * 4));
                 if (val == null) {
                     throw new AssertionError("");
                 }
-                logOut("! GET\t" + val + "\tfrom\tHEAP+\t0x" + Integer.toHexString(off * 4));
 
             }
             return MEM[off];
@@ -80,16 +80,16 @@ public class MIDescriptor implements Descriptor {
             }
             MEM[off] = val;
             if (off >= SP_BOTTOM) {
+                logOut("! SET\t" + val + "\tto\t\tSTACK+\t0x" + Integer.toHexString(off * 4));
                 if (val == null) {
                     throw new AssertionError("");
                 }
-                logOut("! SET\t" + val + "\tto\t\tSTACK+\t0x" + Integer.toHexString(off * 4));
                 //     STACK[off] = val;
             } else {
+                logOut("! SET\t" + val + "\tto\t\tHEAP+\t0x" + Integer.toHexString(off * 4));
                 if (val == null) {
                     throw new AssertionError("");
                 }
-                logOut("! SET\t" + val + "\tto\t\tHEAP+\t0x" + Integer.toHexString(off * 4));
                 // HEAP[off] = val;
             }
         }
@@ -359,19 +359,21 @@ public class MIDescriptor implements Descriptor {
             output(Float.toString(value));
         } else if (func.equals(PUT_ARR)) {
             int cnt = (int) getFromReg(r0);
+            output(cnt + ":");
             int baseOff = (int) getFromReg(r1);
             for (int i = 0; i < cnt; i++) {
                 Object val = getMemValWithOffset(baseOff + i * 4);
                 assert val instanceof Integer;
-                output(val.toString());
+                output(" " + val);
             }
         } else if (func.equals(PUT_FARR)) {
             int cnt = (int) getFromReg(r0);
+            output(cnt + ":");
             int baseOff = (int) getFromReg(r1);
             for (int i = 0; i < cnt; i++) {
                 Object val = getMemValWithOffset(baseOff + i * 4);
                 assert val instanceof Float;
-                output(val.toString());
+                output(" " + val);
             }
         } else if (func.equals(START_TIME)) {
             inTimeCul = true;

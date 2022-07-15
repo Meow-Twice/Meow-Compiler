@@ -20,7 +20,7 @@ import static lir.Arm.Regs.GPRs.*;
 import static manage.Manager.ExternFunction.*;
 
 public class MIDescriptor implements Descriptor {
-    private static final boolean OUT_TO_FILE = false;
+    private static final boolean OUT_TO_FILE = true;
 
     private InputStream input = System.in;
     private OutputStream output = System.out;

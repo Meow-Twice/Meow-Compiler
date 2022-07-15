@@ -62,7 +62,7 @@ public class MILoad extends MachineInst {
 
     @Override
     public String toString() {
-        return tag.toString() + cond.toString() + '\t' + getData() + ",\t[" + getAddr() + ",\t" + getOffset() +
+        return tag.toString() + cond.toString() + '\t' + getData() + ",\t[" + getAddr() + ",\t" + (this.isNeedFix() ? getOffset().value + this.mb.mcFunc.getStackSize() : getOffset()) +
                 (shift.shiftType == Arm.ShiftType.None ? "" : ("\t," + shift)) + "\t]";
     }
 }

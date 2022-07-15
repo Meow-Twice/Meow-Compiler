@@ -18,6 +18,12 @@ public class MachineInst extends ILinkNode {
         return needFix;
     }
 
+    /**
+     * main函数刚进有一个sp自减, 不过这时候自减的偏移一定是0
+     * dealParam时, 刚开始对一个函数进行CodeGen时进行超过四个之外的参数时的load
+     * return之前要对sp进行加操作
+     * 调用一个非库的函数之前需要sp偏移
+     */
     public void setNeedFix(){
         needFix = true;
     }

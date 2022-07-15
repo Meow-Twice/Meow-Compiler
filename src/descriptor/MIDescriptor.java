@@ -34,7 +34,7 @@ public class MIDescriptor implements Descriptor {
 
     private static class MemSimulator {
         // public static final MemSimulator MEM_SIMULATOR = new MemSimulator();
-        private static final int N = 10;
+        private static final int N = 2;
         public static final int SP_BOTTOM = 0x40000000 >> 2 >> N;
         public static final int TOTAL_SIZE = 0x7FFFFFFF >> 2 >> N;
         private static final Object[] STACK = new Object[TOTAL_SIZE - SP_BOTTOM];
@@ -46,11 +46,17 @@ public class MIDescriptor implements Descriptor {
             if (off >= SP_BOTTOM) {
                 off = TOTAL_SIZE - off;
                 Object val = STACK[off];
-                logOut("! GET\t" + val + "\tfrom\tSTACK+\t" + off);
+                logOut("! GET\t" + val + "\tfrom\tSTACK+\t0x" + Integer.toHexString(off * 4));
+                if (val == null) {
+                    throw new AssertionError("");
+                }
                 return val;
             }
             Object val = HEAP[off];
-            logOut("! GET\t" + val + "\tfrom\tHEAP+\t" + off);
+            logOut("! GET\t" + val + "\tfrom\tHEAP+\t0x" + Integer.toHexString(off * 4));
+            if (val == null) {
+                throw new AssertionError("");
+            }
             return val;
         }
 
@@ -58,12 +64,18 @@ public class MIDescriptor implements Descriptor {
             off = off / 4;
             assert 0 <= off;
             if (off >= SP_BOTTOM) {
-                off = off - SP_BOTTOM;
-                logOut("! SET\t" + val + "\tto\t\tSTACK+\t" + off);
+                off = TOTAL_SIZE - off;
+                logOut("! SET\t" + val + "\tto\t\tSTACK+\t0x" + Integer.toHexString(off * 4));
+                if (val == null) {
+                    throw new AssertionError("");
+                }
                 STACK[off] = val;
                 return;
             }
-            logOut("! SET\t" + val + "\tto\t\tHEAP+\t" + off);
+            logOut("! SET\t" + val + "\tto\t\tHEAP+\t0x" + Integer.toHexString(off * 4));
+            if (val == null) {
+                throw new AssertionError("");
+            }
             HEAP[off] = val;
         }
     }
@@ -364,6 +376,9 @@ public class MIDescriptor implements Descriptor {
             switch (curMI.getType()) {
                 case Add -> {
                     assert lVal instanceof Integer && rVal instanceof Integer;
+                    if (miBinary.isNeedFix()) {
+                        rVal = (int) rVal + curMF.getStackSize();
+                    }
                     SET_VAL_FROM_OPD((int) lVal + (int) rVal, miBinary.getDst());
                 }
                 case FAdd -> {
@@ -372,6 +387,9 @@ public class MIDescriptor implements Descriptor {
                 }
                 case Sub -> {
                     assert lVal instanceof Integer && rVal instanceof Integer;
+                    if (miBinary.isNeedFix()) {
+                        rVal = (int) rVal + curMF.getStackSize();
+                    }
                     SET_VAL_FROM_OPD((int) lVal - (int) rVal, miBinary.getDst());
                 }
                 case FSub -> {
@@ -617,6 +635,7 @@ public class MIDescriptor implements Descriptor {
             case Virtual -> curVRList.get(o.getValue());
             case Immediate -> o.isGlobPtr() ? o.getGlob() : o.getImm();
         };
+        // String vStr = val instanceof Integer ? Integer.toHexString((int)val) : Float.toHexString((float)val);
         logOut("^ get\t" + val + "\tfrom\t" + o);
         return val;
     }

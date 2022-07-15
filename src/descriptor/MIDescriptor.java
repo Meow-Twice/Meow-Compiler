@@ -1,17 +1,17 @@
 package descriptor;
 
 import backend.CodeGen;
+import frontend.lexer.Lexer;
 import frontend.semantic.Initial;
 import lir.*;
 import mir.Constant;
+import mir.Function;
 import mir.GlobalVal;
 import mir.Value;
 import mir.type.Type;
 import util.FileDealer;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.util.*;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -109,9 +109,10 @@ public class MIDescriptor implements Descriptor {
     }
 
     public static final MIDescriptor MI_DESCRIPTOR = new MIDescriptor();
-    Scanner scanner/* = new Scanner(System.in)*/;
+    // Scanner scanner/* = new Scanner(System.in)*/;
     // BufferedReader stdin = new BufferedReader(new InputStreamReader(System.in));
     // BufferedInputStream stdin;
+    BufferedInputStream bufferedInputStream;
     // private MemSimulator MEM_SIM = MemSimulator.MEM_SIMULATOR;
     private final RegSimulator REG_SIM = RegSimulator.REG_SIMULATOR;
     // Machine.Program PROGRAM = Machine.Program.PROGRAM;
@@ -191,7 +192,8 @@ public class MIDescriptor implements Descriptor {
         startTime = 0;
         endTime = 0;
         // scanner = new Scanner(System.in);
-        scanner = new Scanner(FileDealer.getNewBufferedInputStream(input));
+        bufferedInputStream = new BufferedInputStream(input);
+        // scanner = new Scanner(FileDealer.getNewBufferedInputStream(input));
         out = new StringBuilder();
         err = new StringBuilder();
         mf2curVRListMap = new HashMap<>();
@@ -273,51 +275,74 @@ public class MIDescriptor implements Descriptor {
         curVRList = stack.pop();
     }
 
+    private String genStr(String funcName) {
+
+        StringBuilder sb = new StringBuilder();
+        int c = Lexer.getInstance().myGetc(bufferedInputStream);
+        if (c == -1) {
+            throw new AssertionError("Can't get input when " + funcName + curMF);
+        }
+        while (c == (int) '\r' || c == (int) '\n' || c == (int) ' ' || c == '\t') {
+            c = Lexer.getInstance().myGetc(bufferedInputStream);
+        }
+        while (c != -1 && c != (int) '\r' && c != (int) '\n' && c != (int) ' ' && c != '\t') {
+            sb.append((char) c);
+            c = Lexer.getInstance().myGetc(bufferedInputStream);
+        }
+        return sb.toString();
+    }
+
     private void dealExternalFunc() {
-        if (curMF.mFunc.equals(GET_INT)) {
-            if (!scanner.hasNext()) {
-                throw new AssertionError("Can't get input when getint" + curMF);
-            }
-            String s = scanner.next();
-            assert s != null;
+        Function func = curMF.mFunc;
+        if (func.equals(GET_INT)) {
+            String s = genStr(func.getName());
             logOut(s);
             int i = Integer.parseInt(s);
             setToReg(i, r0);
-        } else if (curMF.mFunc.equals(GET_CH)) {
-            if (!scanner.hasNext()) {
-                throw new AssertionError("Can't get input when getch" + curMF);
+        } else if (func.equals(GET_CH)) {
+            // Scanner scanner = new Scanner(bufferedInputStream);
+
+            int c = Lexer.getInstance().myGetc(bufferedInputStream);
+            if (c == -1) {
+                throw new AssertionError("Can't get input when getch\t" + curMF);
             }
-            String s = scanner.next();
-            assert s != null && s.length() == 1;
-            logOut(s);
-            int i = s.charAt(0);
-            setToReg(i, r0);
-        } else if (curMF.mFunc.equals(GET_ARR)) {
-            String s = scanner.next();
+            // System.err.println(scanner.next());
+            // BufferedReader bufferedReader = new BufferedInputStream(scanner);
+            // System.err.println(scanner.next("[.]"));
+            // String s = scanner.next("[.]");
+            // System.err.println(s);
+            // assert s != null && s.length() == 1;
+            // logOut(s);
+            // int i = s.charAt(0);
+            setToReg(c, r0);
+        } else if (func.equals(GET_ARR)) {
+            String s = genStr(func.getName());
             int cnt = Integer.parseInt(s);
             int baseOff = (int) getFromReg(r0);
             for (int i = 0; i < cnt; i++) {
-                s = scanner.next();
+                s = genStr(func.getName());
                 int val = Integer.parseInt(s);
                 setMemValWithOffSet(val, baseOff + i * 4);
             }
-        } else if (curMF.mFunc.equals(GET_FARR)) {
-            String s = scanner.next();
+            setToReg(cnt, r0);
+        } else if (func.equals(GET_FARR)) {
+            String s = genStr(func.getName());
             int cnt = Integer.parseInt(s);
             int baseOff = (int) getFromReg(s0);
             for (int i = 0; i < cnt; i++) {
-                s = scanner.next();
+                s = genStr(func.getName());
                 float val = Float.parseFloat(s);
                 setMemValWithOffSet(val, baseOff + i * 4);
             }
-        } else if (curMF.mFunc.equals(PUT_INT)) {
+            setToReg(cnt, r0);
+        } else if (func.equals(PUT_INT)) {
             output(getFromReg(r0).toString());
-        } else if (curMF.mFunc.equals(PUT_CH)) {
+        } else if (func.equals(PUT_CH)) {
             output(Character.toString((char) (int) getFromReg(r0)));
-        } else if (curMF.mFunc.equals(PUT_FLOAT)) {
+        } else if (func.equals(PUT_FLOAT)) {
             float value = Float.intBitsToFloat((int) getFromReg(r0));
             output(Float.toString(value));
-        } else if (curMF.mFunc.equals(PUT_ARR)) {
+        } else if (func.equals(PUT_ARR)) {
             int cnt = (int) getFromReg(r0);
             int baseOff = (int) getFromReg(r1);
             for (int i = 0; i < cnt; i++) {
@@ -325,7 +350,7 @@ public class MIDescriptor implements Descriptor {
                 assert val instanceof Integer;
                 output(val.toString());
             }
-        } else if (curMF.mFunc.equals(PUT_FARR)) {
+        } else if (func.equals(PUT_FARR)) {
             int cnt = (int) getFromReg(r0);
             int baseOff = (int) getFromReg(r1);
             for (int i = 0; i < cnt; i++) {
@@ -333,14 +358,14 @@ public class MIDescriptor implements Descriptor {
                 assert val instanceof Float;
                 output(val.toString());
             }
-        } else if (curMF.mFunc.equals(START_TIME)) {
+        } else if (func.equals(START_TIME)) {
             inTimeCul = true;
             startTime = System.currentTimeMillis();
-        } else if (curMF.mFunc.equals(STOP_TIME)) {
+        } else if (func.equals(STOP_TIME)) {
             inTimeCul = false;
             endTime = System.currentTimeMillis();
             timeClear();
-        } else if (curMF.mFunc.equals(MEM_SET)) {
+        } else if (func.equals(MEM_SET)) {
             int baseOff = (int) getFromReg(r0);
             int ele = (int) getFromReg(r1);
             int size = (int) getFromReg(r2);

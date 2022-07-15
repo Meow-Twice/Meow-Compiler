@@ -49,7 +49,7 @@ public class Lexer {
         return lexer;
     }
 
-    private static int myGetc(BufferedInputStream bis) {
+    public int myGetc(BufferedInputStream bis) {
         int c = 0;
         try {
             c = bis.read();

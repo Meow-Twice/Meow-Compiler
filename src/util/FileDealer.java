@@ -37,13 +37,8 @@ public class FileDealer {
     //     return inputFile;
     // }
 
-    public static BufferedInputStream getNewBufferedInputStream(){
-        try {
-            inputStream = new FileInputStream("system.in");
-            bufferedInputStream = new BufferedInputStream(inputStream);
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        }
+    public static BufferedInputStream getNewBufferedInputStream(InputStream in){
+        bufferedInputStream = new BufferedInputStream(in);
         return bufferedInputStream;
     }
 
@@ -55,8 +50,15 @@ public class FileDealer {
         tryOutputStringList.add(s);
     }
 
-    public static void outputToFile(StringBuilder strBD, String s) {
+    public static void outputToStream(StringBuilder strBD, OutputStream s) {
+        try {
+            s.write(strBD.toString().getBytes(StandardCharsets.UTF_8));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
+    public static void outputToFile(StringBuilder strBD, String s) {
         File f = new File(s);
         FileOutputStream fop = null;
         try {

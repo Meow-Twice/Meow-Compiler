@@ -10,6 +10,8 @@ import mir.type.Type;
 import util.FileDealer;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.*;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -18,6 +20,17 @@ import static lir.Arm.Regs.GPRs.*;
 import static manage.Manager.ExternFunction.*;
 
 public class MIDescriptor implements Descriptor {
+
+    private InputStream input = System.in;
+    private OutputStream output = System.out;
+
+    public void setInput(InputStream in) {
+        this.input = in;
+    }
+
+    public void setOutput(OutputStream out) {
+        this.output = out;
+    }
 
     private static class MemSimulator {
         // public static final MemSimulator MEM_SIMULATOR = new MemSimulator();
@@ -147,8 +160,8 @@ public class MIDescriptor implements Descriptor {
 
     public void finalOut() {
         if (OUT_TO_FILE) {
-            FileDealer.outputToFile(out, "system" + outputTimes + ".out");
-            FileDealer.outputToFile(err, "system" + outputTimes++ + ".err");
+            FileDealer.outputToStream(out, output);
+            FileDealer.outputToFile(err, "stderr" + outputTimes++ + ".txt");
         }
     }
 
@@ -157,7 +170,7 @@ public class MIDescriptor implements Descriptor {
         startTime = 0;
         endTime = 0;
         // scanner = new Scanner(System.in);
-        scanner = new Scanner(FileDealer.getNewBufferedInputStream());
+        scanner = new Scanner(FileDealer.getNewBufferedInputStream(input));
         out = new StringBuilder();
         err = new StringBuilder();
         mf2curVRListMap = new HashMap<>();

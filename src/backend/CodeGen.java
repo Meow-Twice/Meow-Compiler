@@ -6,10 +6,7 @@ import manage.Manager;
 import mir.*;
 import mir.type.Type;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
+import java.util.*;
 
 import static lir.Arm.Cond.*;
 import static lir.Arm.Regs.GPRs.*;
@@ -115,7 +112,11 @@ public class CodeGen {
             Machine.McFunction mcFunc = new Machine.McFunction(func);
             Machine.Program.PROGRAM.funcList.insertAtEnd(mcFunc);
             curFunc = func;
-            if (curFunc.getName().equals("main")) Machine.Program.PROGRAM.mainMcFunc = mcFunc;
+            boolean isMain = false;
+            if (curFunc.getName().equals("main")) {
+                isMain = true;
+                Machine.Program.PROGRAM.mainMcFunc = mcFunc;
+            }
             curMachineFunc = mcFunc;
             curMachineFunc.clearVRCount();
             mcFuncList.add(mcFunc);
@@ -133,10 +134,24 @@ public class CodeGen {
             }
             bb = func.getBeginBB();
             curMB = bb.getMb();
-            dealParam();
-            genBB(bb);
+            if(isMain){
+                Machine.Operand rOp = new Machine.Operand(I32, -curMachineFunc.getStackSize());
+                MIBinary miBinary = new MIBinary(MachineInst.Tag.Sub, Arm.Reg.getR(sp), Arm.Reg.getR(sp), rOp, curMB);
+                miBinary.setNeedFix();
+            }else{
+                dealParam();
+            }
+            // 改写为循环加运行速度
+            nextBBList = new LinkedList<>();
+            nextBBList.push(bb);
+            while (nextBBList.size() > 0){
+                BasicBlock visitBB = nextBBList.pop();
+                genBB(visitBB);
+            }
         }
     }
+
+    LinkedList<BasicBlock> nextBBList;
 
     private void dealParam() {
         int idx = 0;
@@ -162,7 +177,7 @@ public class CodeGen {
         curMB = bb.getMb();
         dfsBBSet.add(curMB);
         curMB.setMcFunc(curMachineFunc);
-        ArrayList<Machine.Block> nextBlockList = new ArrayList<>();
+        // ArrayList<BasicBlock> nextBlockList = new ArrayList<>();
         Instr instr = bb.getBeginInstr();
         while (!instr.equals(bb.getEnd())) {
             if (_DEBUG_OUTPUT_MIR_INTO_COMMENT) {
@@ -173,7 +188,7 @@ public class CodeGen {
                 case bino -> genBinaryInst((Instr.Alu) instr);
                 case jump -> {
                     Machine.Block mb = ((Instr.Jump) instr).getTarget().getMb();
-                    if (!dfsBBSet.contains(mb)) nextBlockList.add(mb);
+                    if (!dfsBBSet.contains(mb)) nextBBList.push(mb.bb);
                     new MIJump(mb, curMB);
                 }
                 case icmp, fcmp -> genCmp(instr);
@@ -183,8 +198,8 @@ public class CodeGen {
                     Instr condValue = (Instr) brInst.getCond();
                     Machine.Block trueBlock = brInst.getThenTarget().getMb();
                     Machine.Block falseBlock = brInst.getElseTarget().getMb();
-                    if (!dfsBBSet.contains(trueBlock)) nextBlockList.add(trueBlock);
-                    if (!dfsBBSet.contains(falseBlock)) nextBlockList.add(falseBlock);
+                    if (!dfsBBSet.contains(falseBlock)) nextBBList.push(falseBlock.bb);
+                    if (!dfsBBSet.contains(trueBlock)) nextBBList.push(trueBlock.bb);
                     CMPAndArmCond t = cmpInst2MICmpMap.get(condValue);
                     if (t != null) {
                         curMB.firstMIForBJ = t.CMP;
@@ -222,9 +237,12 @@ public class CodeGen {
                     Instr.Return returnInst = (Instr.Return) instr;
                     if (returnInst.hasValue()) {
                         Machine.Operand retOpd = getVR_may_imm(returnInst.getRetValue());
-                        curMB.firstMIForBJ = new MIMove(new Machine.Operand(Arm.Reg.getR(0)), retOpd, curMB);
-                        new MIReturn(curMB);
+                        curMB.firstMIForBJ = new MIMove(Arm.Reg.getR(r0), retOpd, curMB);
                     }
+                    Machine.Operand rOp = new Machine.Operand(I32, curMachineFunc.getStackSize());
+                    MIBinary miBinary = new MIBinary(MachineInst.Tag.Add, Arm.Reg.getR(sp), Arm.Reg.getR(sp), rOp, curMB);
+                    miBinary.setNeedFix();
+                    new MIReturn(curMB);
                 }
                 case zext -> {
                     Machine.Operand dst = getVR_no_imm(instr);
@@ -245,7 +263,7 @@ public class CodeGen {
                     // 这里已经不可能Alloc一个Int或者Float了
                     assert contentType.isArrType();
                     Machine.Operand addr = getVR_no_imm(allocInst);
-                    Machine.Operand spReg = new Machine.Operand(Arm.Reg.getR(sp));
+                    Machine.Operand spReg = Arm.Reg.getR(sp);
                     Machine.Operand offset = new Machine.Operand(I32, curMachineFunc.getStackSize());
                     new MIBinary(MachineInst.Tag.Add, addr, spReg, offset, curMB);
                     // 栈空间移位
@@ -404,28 +422,25 @@ public class CodeGen {
                             new MIStore(data, addr, offset, curMB);
                         }
                     }
-                    if (call_inst.getFunc().isExternal) {
-                        dealExternalFunc(call_inst, call_inst.getFunc());
-                        if (call_inst.getFunc().hasRet())
-                            new MIMove(getVR_no_imm(call_inst), Arm.Reg.getR(r0), curMB);
-                        break;
-                    }
                     // 栈空间移位
                     Function callFunc = call_inst.getFunc();
                     Machine.McFunction callMcFunc = func2mcFunc.get(callFunc);
-                    assert callMcFunc != null;
-                    // addStack在函数开始处理参数时操作, 那里同时把param放到value2opd里面, 不需要在这addStack
-                    // if(param_list.size() > 4){
-                    //     callMcFunc.addStack((param_list.size() - 4) * 4);
-                    // }
-                    // Machine.Operand dOp = Arm.Reg.getR(sp);
-                    // Machine.Operand lOp = dOp;
-                    Machine.Operand rOp = new Machine.Operand(I32, (param_list.size() - 4) * 4);
-                    MIBinary miBinary = new MIBinary(MachineInst.Tag.Sub, Arm.Reg.getR(sp), Arm.Reg.getR(sp), rOp, curMB);
-                    // 设置一个boolean表示需要修复方便output .S时及时修复
-                    miBinary.setNeedFix();
-                    // call
-                    new MICall(callMcFunc, curMB);
+                    if (call_inst.getFunc().isExternal) {
+                        Machine.McFunction mf = func2mcFunc.get(call_inst.getFunc());
+                        assert mf != null;
+                        new MICall(mf, curMB);
+                        if (call_inst.getFunc().hasRet())
+                            new MIMove(getVR_no_imm(call_inst), Arm.Reg.getR(r0), curMB);
+                    } else {
+                        assert callMcFunc != null;
+                        Machine.Operand rOp = new Machine.Operand(I32, -callMcFunc.getStackSize());
+                        MIBinary miBinary = new MIBinary(MachineInst.Tag.Sub, Arm.Reg.getR(sp), Arm.Reg.getR(sp), rOp, curMB);
+                        // 设置一个boolean表示需要修复方便output .S时及时修复
+                        miBinary.setNeedFix();
+                        // call
+                        new MICall(callMcFunc, curMB);
+
+                    }
                     // 这行是取返回值
                     if (callFunc.hasRet()) {
                         new MIMove(getVR_no_imm(call_inst), Arm.Reg.getR(r0), curMB);
@@ -459,22 +474,10 @@ public class CodeGen {
             }
             instr = (Instr) instr.getNext();
         }
-        for (Machine.Block mb : nextBlockList) {
-            genBB(mb.bb);
-        }
-    }
-
-    private void dealExternalFunc(Instr.Call call, Function func) {
-        // getint()临时用
-        Machine.McFunction mf = func2mcFunc.get(func);
-        assert mf != null;
-        // 应该在外面写下面这一段
-        // if (func.hasRet()) {
-        //     Machine.Operand vr = getVR_no_imm(call);
-        //     new MIMove(vr, Arm.Reg.getR(r0), curMB);
+        // return nextBlockList;
+        // for (Machine.Block mb : nextBlockList) {
+        //     genBB(mb.bb);
         // }
-        new MICall(mf, curMB);
-        // return;
     }
 
     public void genGlobal() {

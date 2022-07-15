@@ -29,7 +29,7 @@ public class Manager {
     public final HashMap<GlobalVal.GlobalValue, Initial> globals = new HashMap<>();
     private final HashMap<String, Function> functions = new HashMap<>(); // 函数定义
 
-    public int RK = 2;
+    public int RK = 12;
     public int SK = 5;
 
     public ArrayList<Function> getFunctionList() {

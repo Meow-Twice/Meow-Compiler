@@ -134,32 +134,29 @@ public class Machine {
                 boolean init = false;
                 int last = 0;
 
-                for(Value value : ((GlobalVal.GlobalValue)val).initial.getFlattenInit()){
-                    if(!init){
+                for (Value value : ((GlobalVal.GlobalValue) val).initial.getFlattenInit()) {
+                    if (!init) {
                         init = true;
-                        last = ((Constant.ConstantInt)value).constIntVal;
+                        last = ((Constant.ConstantInt) value).constIntVal;
                     }
-                    if(((Constant.ConstantInt)value).constIntVal == last){
+                    if (((Constant.ConstantInt) value).constIntVal == last) {
                         count++;
-                    }
-                    else{
-                        if(count > 1){
+                    } else {
+                        if (count > 1) {
                             //.zero
-                            os.println("\t.fill\t"+count+",4,"+last);
+                            os.println("\t.fill\t" + count + ",4," + last);
+                        } else {
+                            os.println("\t.word\t" + last);
                         }
-                        else{
-                            os.println("\t.word\t"+last);
-                        }
-                        last = ((Constant.ConstantInt)value).constIntVal;
+                        last = ((Constant.ConstantInt) value).constIntVal;
                         count = 1;
                     }
                 }
-                if(count > 1){
+                if (count > 1) {
                     //.zero
-                    os.println("\t.fill\t"+count+",4,"+last);
-                }
-                else{
-                    os.println("\t.word\t"+last);
+                    os.println("\t.fill\t" + count + ",4," + last);
+                } else {
+                    os.println("\t.word\t" + last);
                 }
             }
         }
@@ -456,7 +453,7 @@ public class Machine {
             return this instanceof Arm.Glob;
         }
 
-        public String getGlob(){
+        public String getGlob() {
             throw new AssertionError("not glob but try to load");
         }
 
@@ -575,7 +572,11 @@ public class Machine {
         }
 
         public String toString() {
-            return getPrefix() + value;
+            if (this instanceof Arm.Reg) {
+                return getReg().toString();
+            } else {
+                return getPrefix() + value;
+            }
         }
 
         public double heuristicVal() {

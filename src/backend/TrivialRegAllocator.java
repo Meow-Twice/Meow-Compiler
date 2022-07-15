@@ -2,7 +2,6 @@ package backend;
 
 import lir.*;
 import lir.Machine.Operand;
-import manage.Manager;
 import mir.type.DataType;
 import util.ILinkNode;
 
@@ -10,7 +9,7 @@ import java.io.FileNotFoundException;
 import java.util.*;
 import java.util.stream.Stream;
 
-import static lir.Arm.Regs.GPRs.*;
+import static lir.Arm.Regs.GPRs.GPRs;
 import static lir.Arm.Regs.GPRs.sp;
 import static mir.type.DataType.I32;
 
@@ -20,7 +19,9 @@ public class TrivialRegAllocator {
     private final CodeGen CODEGEN = CodeGen.CODEGEN;
     private final Arm.Reg rSP = Arm.Reg.getR(sp);
 
-    private int rk = 0;
+    private final boolean DEBUG_STDIN_OUT = true;
+
+    private int rk = 12;
     private int sk = 0;
 
     private DataType dataType = I32;
@@ -208,8 +209,8 @@ public class TrivialRegAllocator {
                 workListMoveSet = new HashSet<>();
                 activeMoveSet = new HashSet<>();
 
-                rk = Manager.MANAGER.RK;
-                sk = Manager.MANAGER.SK;
+                // rk = Manager.MANAGER.RK;
+                // sk = Manager.MANAGER.SK;
                 for (int i = 0; i < rk; i++) {
                     Arm.Reg.getR(i).degree = Integer.MAX_VALUE;
                 }
@@ -365,11 +366,12 @@ public class TrivialRegAllocator {
     // public ArrayList<Machine.Block> recurMbList = new ArrayList<>();
 
     public void logOut(String s) {
-        // System.err.println(s);
+        if (DEBUG_STDIN_OUT)
+            System.err.println(s);
     }
 
     public void build() {
-        logOut("in build");
+        // logOut("in build");
         for (ILinkNode mbNode = curMF.mbList.getEnd(); !mbNode.equals(curMF.mbList.head); mbNode = mbNode.getPrev()) {
             Machine.Block mb = (Machine.Block) mbNode;
             // 获取块的 liveOut
@@ -377,9 +379,9 @@ public class TrivialRegAllocator {
             HashSet<Operand> live = mb.liveOutSet;
             for (ILinkNode iNode = mb.getEndMI(); !iNode.equals(mb.miList.head); iNode = iNode.getPrev()) {
                 MachineInst mi = (MachineInst) iNode;
-                logOut(mi.toString());
-                logOut("Prev:\t" + mi.getPrev());
-                logOut("Next:\t" + mi.getNext());
+                // logOut(mi.toString());
+                // logOut("Prev:\t" + mi.getPrev());
+                // logOut("Next:\t" + mi.getNext());
                 // System.err.println(mi);
                 // TODO : 此时考虑了Call
                 ArrayList<Operand> defs = mi.defOpds;
@@ -620,7 +622,7 @@ public class TrivialRegAllocator {
         Operand u = getAlias(mv.getDst());
         Operand v = getAlias(mv.getSrc());
         if (v.isPreColored()) {
-            var tmp = u;
+            Operand tmp = u;
             u = v;
             v = tmp;
         }
@@ -703,13 +705,15 @@ public class TrivialRegAllocator {
     }
 
     public void assignColors() {
+        logOut("Start to assign colors");
         HashMap<Operand, Operand> colorMap = new HashMap<>();
         while (selectStack.size() > 0) {
-            Operand n = selectStack.pop();
+            Operand opdInSelect = selectStack.pop();
             final HashSet<Arm.Regs> okColorSet = new HashSet<>(Arrays.asList(GPRs.values()).subList(0, rk - 1));
-
-            n.adjOpdSet.forEach(w -> {
-                Operand a = getAlias(w);
+            // logOut("--- rk = \t"+rk);
+            // logOut(okColorSet.toString());
+            opdInSelect.adjOpdSet.forEach(adj -> {
+                Operand a = getAlias(adj);
                 if (a.hasReg()) {
                     // 已着色或者预分配
                     okColorSet.remove(a.getReg());
@@ -722,10 +726,10 @@ public class TrivialRegAllocator {
             });
 
             if (okColorSet.isEmpty()) {
-                spilledNodeSet.add(n);
+                spilledNodeSet.add(opdInSelect);
             } else {
                 Arm.Regs color = okColorSet.iterator().next();
-                colorMap.put(n, new Operand(color));
+                colorMap.put(opdInSelect, new Operand(color));
             }
         }
 
@@ -735,6 +739,7 @@ public class TrivialRegAllocator {
 
         coalescedNodeSet.forEach(mvSrc -> {
             Operand mvDst = getAlias(mvSrc);
+            logOut("CoalescedNode Colored: " + mvSrc + "\t<-\t" + (mvDst.isPreColored() ? mvDst : colorMap.get(mvDst)));
             colorMap.put(mvSrc, mvDst.isPreColored() ? mvDst : colorMap.get(mvDst));
         });
 
@@ -742,12 +747,14 @@ public class TrivialRegAllocator {
             for (MachineInst mi : mb.miList) {
                 // TODO 这里不考虑Call
                 if (mi.isCall()) continue;
+                logOut("Consider " + mi);
                 ArrayList<Operand> defs = mi.defOpds;
                 ArrayList<Operand> uses = mi.useOpds;
                 if (defs.size() > 0) {
                     Operand o = colorMap.get(defs.get(0));
                     assert defs.size() == 1;
                     if (o != null) {
+                        logOut("- Def\t" + defs.get(0) + "\tassign: " + o);
                         defs.set(0, o);
                     }
                 }
@@ -756,6 +763,7 @@ public class TrivialRegAllocator {
                     assert uses.get(i) != null;
                     Operand set = colorMap.get(uses.get(i));
                     if (set != null) {
+                        logOut("- Use\t" + uses.get(i) + "\tassign: " + set);
                         mi.setUse(i, set);
                     }
                 }

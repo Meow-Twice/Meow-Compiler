@@ -328,6 +328,13 @@ public class MIDescriptor implements Descriptor {
             inTimeCul = false;
             endTime = System.currentTimeMillis();
             timeClear();
+        } else if (curMF.mFunc.equals(MEM_SET)) {
+            int baseOff = (int) getFromReg(r0);
+            int ele = (int) getFromReg(r1);
+            int size = (int) getFromReg(r2);
+            for (int i = 0; i < size; i += 4) {
+                setMemValWithOffSet(ele, baseOff + i);
+            }
         }
     }
 
@@ -507,7 +514,10 @@ public class MIDescriptor implements Descriptor {
                         offset += globName2HeapOff.get(globAddr);
                     }
                     tmp = GET_VAL_FROM_OPD(store.getData());
-                    assert tmp instanceof Float || tmp instanceof Integer;
+                    if (!(tmp instanceof Float || tmp instanceof Integer)) {
+                        throw new AssertionError("GET VAL=\t(" + tmp + ")\t<-\t" + store.getData() + "\t{" + mi + "}");
+                    }
+                    // assert tmp instanceof Float || tmp instanceof Integer;
                     // // TODO 目前不知道怎么把十进制的int转成float, 理论上前端应该插了转化?
                     setMemValWithOffSet(tmp, offset);
                 }

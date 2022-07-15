@@ -35,55 +35,60 @@ public class MIDescriptor implements Descriptor {
 
     private static class MemSimulator {
         // public static final MemSimulator MEM_SIMULATOR = new MemSimulator();
-        private static final int N = 0;
+        private static final int N = 3;
         public static final int SP_BOTTOM = 0x40000000 >> 2 >> N;
         public static final int TOTAL_SIZE = 0x7FFFFFFF >> 2 >> N;
-        private static final Object[] STACK = new Object[TOTAL_SIZE - SP_BOTTOM];
-        private static final Object[] HEAP = new Object[SP_BOTTOM];
+        private static final Object[] MEM = new Object[TOTAL_SIZE];
+        // private static final Object[] STACK = new Object[TOTAL_SIZE - SP_BOTTOM];
+        // private static final Object[] HEAP = new Object[SP_BOTTOM];
 
         public static Object GET_MEM_WITH_OFF(int off) {
             off = off / 4;
             assert 0 <= off;
-            if(off >= TOTAL_SIZE){
-                throw new AssertionError(Integer.toHexString(off)+"\t > "+Integer.toHexString(TOTAL_SIZE));
+            if (off >= TOTAL_SIZE) {
+                throw new AssertionError(Integer.toHexString(off) + "\t > " + Integer.toHexString(TOTAL_SIZE));
             }
-            if (off >= SP_BOTTOM) {
-                off = TOTAL_SIZE - off;
-                Object val = STACK[off];
-                logOut("! GET\t" + val + "\tfrom\tSTACK+\t0x" + Integer.toHexString(off * 4));
-                if (val == null) {
-                    throw new AssertionError("");
-                }
-                return val;
-            }
-            Object val = HEAP[off];
-            logOut("! GET\t" + val + "\tfrom\tHEAP+\t0x" + Integer.toHexString(off * 4));
-            if (val == null) {
-                throw new AssertionError("");
-            }
-            return val;
+            return MEM[off];
+            // if (off >= SP_BOTTOM) {
+            //     off = TOTAL_SIZE - off;
+            //     Object val = STACK[off];
+            //     logOut("! GET\t" + val + "\tfrom\tSTACK+\t0x" + Integer.toHexString(off * 4));
+            //     if (val == null) {
+            //         throw new AssertionError("");
+            //     }
+            //     return val;
+            // }
+            // Object val = HEAP[off];
+            // logOut("! GET\t" + val + "\tfrom\tHEAP+\t0x" + Integer.toHexString(off * 4));
+            // if (val == null) {
+            //     throw new AssertionError("");
+            // }
+            // return val;
         }
 
         public static void SET_MEM_VAL_WITH_OFF(Object val, int off) {
             off = off / 4;
-            assert 0 <= off;
-            if(off >= TOTAL_SIZE){
-                throw new AssertionError(Integer.toHexString(off)+"\t > "+Integer.toHexString(TOTAL_SIZE));
+            if (off < 0) {
+                throw new AssertionError(Integer.toHexString(off) + "\t < 0");
             }
-            if (off >= SP_BOTTOM) {
-                off = TOTAL_SIZE - off;
-                logOut("! SET\t" + val + "\tto\t\tSTACK+\t0x" + Integer.toHexString(off * 4));
-                if (val == null) {
-                    throw new AssertionError("");
-                }
-                STACK[off] = val;
-                return;
+            if (off >= TOTAL_SIZE) {
+                throw new AssertionError(Integer.toHexString(off) + "\t > " + Integer.toHexString(TOTAL_SIZE));
             }
-            logOut("! SET\t" + val + "\tto\t\tHEAP+\t0x" + Integer.toHexString(off * 4));
-            if (val == null) {
-                throw new AssertionError("");
-            }
-            HEAP[off] = val;
+            MEM[off] = val;
+            // if (off >= SP_BOTTOM) {
+            //     off = TOTAL_SIZE - off;
+            //     logOut("! SET\t" + val + "\tto\t\tSTACK+\t0x" + Integer.toHexString(off * 4));
+            //     if (val == null) {
+            //         throw new AssertionError("");
+            //     }
+            //     STACK[off] = val;
+            //     return;
+            // }
+            // logOut("! SET\t" + val + "\tto\t\tHEAP+\t0x" + Integer.toHexString(off * 4));
+            // if (val == null) {
+            //     throw new AssertionError("");
+            // }
+            // HEAP[off] = val;
         }
     }
 
@@ -203,8 +208,9 @@ public class MIDescriptor implements Descriptor {
         out = new StringBuilder();
         err = new StringBuilder();
         mf2curVRListMap = new HashMap<>();
-        Arrays.fill(MemSimulator.STACK, null);
-        Arrays.fill(MemSimulator.HEAP, null);
+        Arrays.fill(MemSimulator.MEM, null);
+        // Arrays.fill(MemSimulator.STACK, null);
+        // Arrays.fill(MemSimulator.HEAP, null);
         RegSimulator.GPRS = new ArrayList<>();
         RegSimulator.FPRS = new ArrayList<>();
         for (int i = 0; i < Arm.Regs.GPRs.values().length; i++) {
@@ -221,7 +227,7 @@ public class MIDescriptor implements Descriptor {
         clear();
         // MI_DESCRIPTOR.getStdin();
         Machine.Program p = Machine.Program.PROGRAM;
-        setToReg(MemSimulator.TOTAL_SIZE * 4, sp);
+        setToReg(MemSimulator.SP_BOTTOM * 4, sp);
         int curOff = 0;
         for (Map.Entry<GlobalVal.GlobalValue, Arm.Glob> g : CodeGen.CODEGEN.globptr2globOpd.entrySet()) {
             GlobalVal.GlobalValue glob = g.getKey();
@@ -262,7 +268,7 @@ public class MIDescriptor implements Descriptor {
             return;
         }
         int spVal = (int) getFromReg(sp);
-        setToReg(spVal - curMF.getStackSize(), sp);
+        // setToReg(spVal - curMF.getStackSize(), sp);
         curVRList = new ArrayList<>(Collections.nCopies(curMF.vrList.size(), 0));
         Machine.Block mb = curMF.getBeginMB();
         // 不这么run会爆栈
@@ -419,7 +425,11 @@ public class MIDescriptor implements Descriptor {
                 case Sub -> {
                     assert lVal instanceof Integer && rVal instanceof Integer;
                     if (miBinary.isNeedFix()) {
-                        rVal = (int) rVal + curMF.getStackSize();
+                        if (miBinary.callee != null) {
+                            rVal = (int) rVal + miBinary.callee.getStackSize();
+                        } else {
+                            rVal = (int) rVal + curMF.getStackSize();
+                        }
                     }
                     SET_VAL_FROM_OPD((int) lVal - (int) rVal, miBinary.getDst());
                 }
@@ -568,6 +578,9 @@ public class MIDescriptor implements Descriptor {
                     }
                     // assert tmp instanceof Float || tmp instanceof Integer;
                     // // TODO 目前不知道怎么把十进制的int转成float, 理论上前端应该插了转化?
+                    if (offset > MemSimulator.TOTAL_SIZE * 4) {
+                        throw new AssertionError("");
+                    }
                     setMemValWithOffSet(tmp, offset);
                 }
                 case Compare -> {

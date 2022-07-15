@@ -431,7 +431,6 @@ public class CodeGen {
                             new MIStore(data, addr, offset, curMB);
                         }
                     }
-                    // 栈空间移位
                     Function callFunc = call_inst.getFunc();
                     Machine.McFunction callMcFunc = func2mcFunc.get(callFunc);
                     if (call_inst.getFunc().isExternal) {
@@ -444,11 +443,12 @@ public class CodeGen {
                         if (callMcFunc == null) {
                             throw new AssertionError("Callee is null");
                         }
+                        // 栈空间移位
                         // assert callMcFunc != null;
                         Machine.Operand rOp = new Machine.Operand(I32, 0);
                         MIBinary miBinary = new MIBinary(MachineInst.Tag.Sub, Arm.Reg.getR(sp), Arm.Reg.getR(sp), rOp, curMB);
                         // 设置一个boolean表示需要修复方便output .S时及时修复
-                        miBinary.setNeedFix();
+                        miBinary.setNeedFix(callMcFunc);
                         // call
                         new MICall(callMcFunc, curMB);
 

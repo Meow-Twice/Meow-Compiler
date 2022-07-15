@@ -427,7 +427,7 @@ public class CodeGen {
                         for (int i = 4; i < param_list.size(); i++) {
                             Value param = param_list.get(i);
                             int offset_imm = (i - 3) * -4;
-                            Machine.Operand data = value2opd.get(param);
+                            Machine.Operand data = getVR_may_imm(param);
                             Machine.Operand addr = Arm.Reg.getR(GPRs.sp);
                             // TODO 小心函数参数个数超级多, 超过立即数可以表示的大小导致的错误
                             Machine.Operand offset = new Machine.Operand(I32, offset_imm);

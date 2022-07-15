@@ -102,7 +102,7 @@ public class MIFma extends MachineInst {
         } else {
             op = "mls";
         }
-        res += op + cond + "\t" + getDst().toString() + ",\t" + getlOpd().toString() + ",\t" + getrOpd().toString() + ",\t" + getAcc().toString();
+        res += op + cond + "\t" + getDst().toString() + ",\t" + getAcc().toString() + ",\t" + getlOpd().toString() + ",\t" + getrOpd().toString();
         return res;
     }
 }

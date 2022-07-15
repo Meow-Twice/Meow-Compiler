@@ -20,6 +20,7 @@ import static lir.Arm.Regs.GPRs.*;
 import static manage.Manager.ExternFunction.*;
 
 public class MIDescriptor implements Descriptor {
+    private static final boolean OUT_TO_FILE = true;
 
     private InputStream input = System.in;
     private OutputStream output = System.out;
@@ -34,7 +35,7 @@ public class MIDescriptor implements Descriptor {
 
     private static class MemSimulator {
         // public static final MemSimulator MEM_SIMULATOR = new MemSimulator();
-        private static final int N = 2;
+        private static final int N = 0;
         public static final int SP_BOTTOM = 0x40000000 >> 2 >> N;
         public static final int TOTAL_SIZE = 0x7FFFFFFF >> 2 >> N;
         private static final Object[] STACK = new Object[TOTAL_SIZE - SP_BOTTOM];
@@ -43,6 +44,9 @@ public class MIDescriptor implements Descriptor {
         public static Object GET_MEM_WITH_OFF(int off) {
             off = off / 4;
             assert 0 <= off;
+            if(off >= TOTAL_SIZE){
+                throw new AssertionError(Integer.toHexString(off)+"\t > "+Integer.toHexString(TOTAL_SIZE));
+            }
             if (off >= SP_BOTTOM) {
                 off = TOTAL_SIZE - off;
                 Object val = STACK[off];
@@ -63,6 +67,9 @@ public class MIDescriptor implements Descriptor {
         public static void SET_MEM_VAL_WITH_OFF(Object val, int off) {
             off = off / 4;
             assert 0 <= off;
+            if(off >= TOTAL_SIZE){
+                throw new AssertionError(Integer.toHexString(off)+"\t > "+Integer.toHexString(TOTAL_SIZE));
+            }
             if (off >= SP_BOTTOM) {
                 off = TOTAL_SIZE - off;
                 logOut("! SET\t" + val + "\tto\t\tSTACK+\t0x" + Integer.toHexString(off * 4));
@@ -126,7 +133,6 @@ public class MIDescriptor implements Descriptor {
     // }
 
     private static StringBuilder err = new StringBuilder();
-    private static final boolean OUT_TO_FILE = true;
     // private static final StringBuilder sbd = new StringBuilder();
 
     long startTime = 0;

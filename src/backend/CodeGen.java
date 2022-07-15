@@ -134,17 +134,17 @@ public class CodeGen {
             }
             bb = func.getBeginBB();
             curMB = bb.getMb();
-            if(isMain){
+            if (isMain) {
                 Machine.Operand rOp = new Machine.Operand(I32, -curMachineFunc.getStackSize());
                 MIBinary miBinary = new MIBinary(MachineInst.Tag.Sub, Arm.Reg.getR(sp), Arm.Reg.getR(sp), rOp, curMB);
                 miBinary.setNeedFix();
-            }else{
+            } else {
                 dealParam();
             }
             // 改写为循环加运行速度
             nextBBList = new LinkedList<>();
             nextBBList.push(bb);
-            while (nextBBList.size() > 0){
+            while (nextBBList.size() > 0) {
                 BasicBlock visitBB = nextBBList.pop();
                 genBB(visitBB);
             }
@@ -291,19 +291,19 @@ public class CodeGen {
                     new MIStore(data, addr, offset, curMB);
                 }
                 case gep -> {
-                    int offsetCount;
                     Instr.GetElementPtr gep = (Instr.GetElementPtr) instr;
                     Value ptrValue = gep.getPtr();
+                    int offsetCount = gep.getOffsetCount();
                     /**
                      * 当前的 baseType
                      */
                     Type curBaseType = ((Type.PointerType) ptrValue.getType()).getInnerType();
-                    if (curBaseType.isBasicType()) {
-                        offsetCount = 1;
-                    } else {
-                        assert curBaseType.isArrType();
-                        offsetCount = ((Type.ArrayType) curBaseType).getDimSize();
-                    }
+                    // if (curBaseType.isBasicType()) {
+                    //     offsetCount = 1;
+                    // } else {
+                    //     assert curBaseType.isArrType();
+                    //     offsetCount = ((Type.ArrayType) curBaseType).getDimSize();
+                    // }
                     assert !ptrValue.isConstant();
                     Machine.Operand dstVR = getVR_no_imm(gep);
                     Machine.Operand curAddrVR = getVR_no_imm(ptrValue);
@@ -312,12 +312,15 @@ public class CodeGen {
                         Value curIdxValue = gep.getIdxValueOf(i);
                         int offUnit = 4;
                         if (curBaseType.isArrType()) {
-                            offUnit = 4 * ((Type.ArrayType) curBaseType).getBaseFlattenSize();
+                            offUnit = 4 * ((Type.ArrayType) curBaseType).getFlattenSize();
+                            // offUnit = 4 * ((Type.ArrayType) curBaseType).getBaseFlattenSize();
                             curBaseType = ((Type.ArrayType) curBaseType).getBaseType();
                         }
                         if (curIdxValue.isConstantInt()) {
+                            // 每一个常数下标都会累加到 totalConstOff 中
                             totalConstOff += offUnit * (int) ((Constant.ConstantInt) curIdxValue).getConstVal();
                             if (i == offsetCount - 1) {
+                                // 这里的设计比较微妙
                                 if (totalConstOff == 0) {
                                     new MIMove(dstVR, curAddrVR, curMB);
                                 } else {
@@ -330,14 +333,10 @@ public class CodeGen {
                             /*} else if ((offUnit & (offUnit - 1)) == 0) {*/
                             // TODO
                         } else {
-                            Machine.Operand curIdxVR = getVR_may_imm(curIdxValue);
-                            if (i == offsetCount - 1 && totalConstOff != 0) {
-                                Machine.Operand immVR = getImmVR(totalConstOff);
-                                // TODO 是否需要避免寄存器分配时出现use的VR与def的VR相同的情况
-                                new MIBinary(MachineInst.Tag.Add, curAddrVR, curAddrVR, immVR, curMB);
-                            }
+                            // TODO 是否需要避免寄存器分配时出现use的VR与def的VR相同的情况
+                            assert !curIdxValue.isConstant();
+                            Machine.Operand curIdxVR = getVR_no_imm(curIdxValue);
                             Machine.Operand offUnitImmVR = getImmVR(offUnit);
-
                             /**
                              * Fma
                              * smmla:Rn + (Rm * Rs)[63:32] or smmls:Rd := Rn – (Rm * Rs)[63:32]
@@ -347,8 +346,11 @@ public class CodeGen {
                             // Machine.Operand tmpDst = newVR();
                             // new MIFma(true,false, tmpDst, curAddrVR, curIdxVR ,offUnitImmVR, curMB);
                             // curAddrVR = tmpDst;
-                            // TODO 是否需要避免寄存器分配时出现use的VR与def的VR相同的情况
                             new MIFma(true, false, curAddrVR, curAddrVR, curIdxVR, offUnitImmVR, curMB);
+                            if (i == offsetCount - 1 && totalConstOff != 0) {
+                                Machine.Operand immVR = getImmVR(totalConstOff);
+                                new MIBinary(MachineInst.Tag.Add, curAddrVR, curAddrVR, immVR, curMB);
+                            }
                         }
                     }
 

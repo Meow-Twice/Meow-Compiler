@@ -212,7 +212,7 @@ public class Type {
             if(baseType.isArrType()){
                 return ((ArrayType) baseType).getDimSize() + 1;
             }
-            return 0;
+            return 1;
         }
 
         public int getBaseFlattenSize(){

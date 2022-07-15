@@ -77,11 +77,11 @@ public class Instr extends Value {
 
     public int loopCondCount;
 
-    public boolean isInWhileCond(){
+    public boolean isInWhileCond() {
         return loopCondCount > 0;
     }
 
-    public int getLoopCondCount(){
+    public int getLoopCondCount() {
         return loopCondCount;
     }
 
@@ -783,8 +783,8 @@ public class Instr extends Value {
         }
 
         public Value getIdxValueOf(int i) {
-            if(i+1 >= useValueList.size()){
-                throw new AssertionError("get idx : "+ i+1 + "\t" + this);
+            if (i + 1 >= useValueList.size()) {
+                throw new AssertionError("Out of gep idx : " + i + 1 + "\t" + this);
             }
             return useValueList.get(i + 1);
         }
@@ -969,13 +969,13 @@ public class Instr extends Value {
                 }
                 values.add(useValueList.get(i));
             }
-            for (Use use: useList) {
+            for (Use use : useList) {
                 use.remove();
             }
             useList.clear();
             useValueList.clear();
             int index = 0;
-            for (Value value: values) {
+            for (Value value : values) {
                 setUse(value, index++);
             }
         }

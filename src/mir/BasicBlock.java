@@ -321,6 +321,9 @@ public class BasicBlock extends Value {
     @Override
     public String toString() {
         //return this.label + ":\t\t\t\t\t; loopDepth: " + loop.loopDepth + ";\t" + loop;
+        if (isLoopHeader) {
+            return this.label + loop.infoString();
+        }
         return this.label;
     }
 

@@ -379,7 +379,9 @@ public class GVNAndGCM {
 
 
 
-
+    // TODO:考虑数组变量读写的GCM 指针是SSA形式 但是内存不是
+    //  考虑移动load,store是否会产生影响
+    //  移动的上下限是对同一个数组的最近的load/store?
     private boolean isPinned(Instr instr) {
         return instr instanceof Instr.Jump || instr instanceof Instr.Branch ||
                 instr instanceof Instr.Phi || instr instanceof Instr.Return ||

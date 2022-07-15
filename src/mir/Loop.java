@@ -37,6 +37,18 @@ public class Loop {
 
     private HashMap<Integer, HashSet<Instr>> conds = new HashMap<>();
 
+    //归纳变量相关信息:
+    private Value idcAlu;
+    private Value idcPHI;
+    private Value idcInit;
+    private Value idcEnd;
+    private Value idcStep;
+
+    private boolean idcSet = false;
+
+    private int idcTimes;
+
+
     public Loop(Loop parentLoop) {
         this.hash = loop_num++;
         this.parentLoop = parentLoop;
@@ -174,6 +186,13 @@ public class Loop {
         return enterings;
     }
 
+    public HashSet<BasicBlock> getLatchs() {
+        return latchs;
+    }
+
+    public HashSet<BasicBlock> getExitings() {
+        return exitings;
+    }
 
     //把一个循环复制到指定函数
     public void cloneToFunc(Function function) {
@@ -211,7 +230,74 @@ public class Loop {
     //  xxx
     //  i不能被更改,没有break,continue
     //}
-    private boolean isSimpleLoop() {
+    public boolean isSimpleLoop() {
         return header.getPrecBBs().size() == 2 && latchs.size() == 1 && exitings.size() == 1 && exits.size() == 1;
+    }
+
+    public String infoString() {
+        String ret = "\n";
+        ret += "Header: ";
+        ret += header.getLabel() + " pre_num: " + String.valueOf(header.getPrecBBs().size());
+        ret += "\n";
+
+        ret += "latch: ";
+        for (BasicBlock bb: latchs) {
+            ret += " " + bb.getLabel();
+        }
+        ret += "\n";
+
+        ret += "exiting: ";
+        for (BasicBlock bb: exitings) {
+            ret += " " + bb.getLabel();
+        }ret += "\n";
+
+        ret += "exit: ";
+        for (BasicBlock bb: exits) {
+            ret += " " + bb.getLabel();
+        }
+        ret += "\n";
+
+        if (isSimpleLoop() && isIdcSet()) {
+            ret += "idcAlu: " + idcAlu.toString() + "\n";
+            ret += "idcPHI: " + idcPHI.toString() + "\n";
+            ret += "idcInit: " + idcInit.toString() + "\n";
+            ret += "idcEnd: " + idcEnd.toString() + "\n";
+            ret += "idcStep: " + idcStep.toString() + "\n";
+        }
+
+        return ret;
+    }
+
+    public void setIdc(Value idcAlu, Value idcPHI, Value idcInit, Value idcEnd, Value idcStep) {
+        this.idcAlu = idcAlu;
+        this.idcPHI = idcPHI;
+        this.idcInit = idcInit;
+        this.idcEnd = idcEnd;
+        this.idcStep = idcStep;
+        this.idcSet = true;
+    }
+
+    public Value getIdcAlu() {
+        return idcAlu;
+    }
+
+    public Value getIdcPHI() {
+        return idcPHI;
+    }
+
+    public Value getIdcInit() {
+        return idcInit;
+    }
+
+    public Value getIdcEnd() {
+        return idcEnd;
+    }
+
+    public Value getIdcStep() {
+        return idcStep;
+    }
+
+    public boolean isIdcSet() {
+        return idcSet;
     }
 }

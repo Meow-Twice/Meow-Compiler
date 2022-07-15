@@ -55,7 +55,9 @@ public class Compiler {
             // Manager.MANAGER.outputLLVM();
             MidEndRunner midEndRunner = new MidEndRunner(Manager.MANAGER.getFunctionList());
             midEndRunner.Run();
-            Manager.MANAGER.outputLLVM(arg.llvmStream);
+            if (arg.outputLLVM()) {
+                Manager.MANAGER.outputLLVM(arg.llvmStream);
+            }
 
             RemovePhi removePhi = new RemovePhi(midEndRunner.functions);
             removePhi.Run();
@@ -74,7 +76,9 @@ public class Compiler {
             regAllocator.AllocateRegister(p);
             Manager.MANAGER.outputMI();
 //            MIDescriptor.MI_DESCRIPTOR.run(); // 分配寄存器后
-            p.output(new PrintStream(arg.asmStream));
+            if (arg.outputAsm()) {
+                p.output(new PrintStream(arg.asmStream));
+            }
         } catch (Exception e) {
             e.printStackTrace();
             System.exit(1);

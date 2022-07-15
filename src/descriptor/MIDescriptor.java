@@ -104,6 +104,7 @@ public class MIDescriptor implements Descriptor {
     private final RegSimulator REG_SIM = RegSimulator.REG_SIMULATOR;
     // Machine.Program PROGRAM = Machine.Program.PROGRAM;
     static StringBuilder out = new StringBuilder();
+    static boolean endsWithLF = false; // 当前 out 的最后是否以换行符结尾
 
     // enum RunningState {
     //     BEFORE_MODE,//刚生成代码
@@ -154,6 +155,14 @@ public class MIDescriptor implements Descriptor {
         } else {
             System.out.println(str);
         }
+        endsWithLF = str.endsWith("\n");
+    }
+
+    public static void outputWithNewline(String str) {
+        if (!endsWithLF) {
+            output("\n");
+        }
+        output(str);
     }
 
     public static int outputTimes = 0;
@@ -221,7 +230,7 @@ public class MIDescriptor implements Descriptor {
             mf2curVRListMap.put(mf, new Stack<>());
         }
         runMF(p.mainMcFunc);
-        output(getFromReg(r0).toString());
+        outputWithNewline(getFromReg(r0).toString()); // 如果正常 stdout 的最后一行没有换行，需要先添加换行再输出返回值
         finalOut();
     }
 

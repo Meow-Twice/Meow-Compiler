@@ -19,7 +19,7 @@ public class TrivialRegAllocator {
     private final CodeGen CODEGEN = CodeGen.CODEGEN;
     private final Arm.Reg rSP = Arm.Reg.getR(sp);
 
-    private final boolean DEBUG_STDIN_OUT = true;
+    private final boolean DEBUG_STDIN_OUT = false;
 
     private int rk = 12;
     private int sk = 0;

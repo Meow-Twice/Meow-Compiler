@@ -292,25 +292,28 @@ public class CodeGen {
                 }
                 case gep -> {
                     int offsetCount;
-                    Instr.GetElementPtr gepInst = (Instr.GetElementPtr) instr;
-                    Value ptrValue = gepInst.getPtr();
-                    Type.PointerType addrValueType = ((Type.PointerType) ptrValue.getType());
-                    if (addrValueType.isBasicType()) {
+                    Instr.GetElementPtr gep = (Instr.GetElementPtr) instr;
+                    Value ptrValue = gep.getPtr();
+                    /**
+                     * 当前的 baseType
+                     */
+                    Type curBaseType = ((Type.PointerType) ptrValue.getType()).getInnerType();
+                    if (curBaseType.isBasicType()) {
                         offsetCount = 1;
                     } else {
-                        assert addrValueType.getInnerType().isArrType();
-                        offsetCount = ((Type.ArrayType) addrValueType.getInnerType()).getDimSize();
+                        assert curBaseType.isArrType();
+                        offsetCount = ((Type.ArrayType) curBaseType).getDimSize();
                     }
                     assert !ptrValue.isConstant();
-                    Machine.Operand dstVR = getVR_no_imm(gepInst);
+                    Machine.Operand dstVR = getVR_no_imm(gep);
                     Machine.Operand curAddrVR = getVR_no_imm(ptrValue);
-                    Type curType = addrValueType.getInnerType();
                     int totalConstOff = 0;
                     for (int i = 0; i < offsetCount; i++) {
-                        Value curIdxValue = gepInst.getIdxValueOf(i);
+                        Value curIdxValue = gep.getIdxValueOf(i);
                         int offUnit = 4;
-                        if (curType.isArrType()) {
-                            offUnit = 4 * ((Type.ArrayType) curType).getBaseFlattenSize();
+                        if (curBaseType.isArrType()) {
+                            offUnit = 4 * ((Type.ArrayType) curBaseType).getBaseFlattenSize();
+                            curBaseType = ((Type.ArrayType) curBaseType).getBaseType();
                         }
                         if (curIdxValue.isConstantInt()) {
                             totalConstOff += offUnit * (int) ((Constant.ConstantInt) curIdxValue).getConstVal();

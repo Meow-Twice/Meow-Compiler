@@ -37,20 +37,43 @@ public class LoopIdcVarInfo {
         if (!loop.isSimpleLoop()) {
             return;
         }
+        //fixme:认为函数的Head和exiting是一个块的时候再进行展开
+        if (!loop.getExitings().contains(loop.getHeader())) {
+            return;
+        }
 
         Instr headBr = loop.getHeader().getEndInstr(); // br i1 %v6, label %b3, label %b4
+        if (!(headBr instanceof Instr.Branch)) {
+            return;
+        }
         assert headBr instanceof Instr.Branch;
         Value headBrCond = ((Instr.Branch) headBr).getCond(); // %v6 = icmp slt i32 %v19, 10
         Value idcPHI, idcEnd;
-        if (((Instr.Icmp) headBrCond).getRVal1() instanceof Instr.Phi) {
-            idcPHI = ((Instr.Icmp) headBrCond).getRVal1();
-            idcEnd = ((Instr.Icmp) headBrCond).getRVal2();
-        } else if ((((Instr.Icmp) headBrCond).getRVal2() instanceof Instr.Phi)) {
-            idcPHI = ((Instr.Icmp) headBrCond).getRVal2();
-            idcEnd = ((Instr.Icmp) headBrCond).getRVal1();
+        if (headBrCond instanceof Instr.Icmp) {
+            if (((Instr.Icmp) headBrCond).getRVal1() instanceof Instr.Phi) {
+                idcPHI = ((Instr.Icmp) headBrCond).getRVal1();
+                idcEnd = ((Instr.Icmp) headBrCond).getRVal2();
+            } else if ((((Instr.Icmp) headBrCond).getRVal2() instanceof Instr.Phi)) {
+                idcPHI = ((Instr.Icmp) headBrCond).getRVal2();
+                idcEnd = ((Instr.Icmp) headBrCond).getRVal1();
+            } else {
+                return;
+            }
+        } else if (headBrCond instanceof Instr.Fcmp) {
+            if (((Instr.Fcmp) headBrCond).getRVal1() instanceof Instr.Phi) {
+                idcPHI = ((Instr.Fcmp) headBrCond).getRVal1();
+                idcEnd = ((Instr.Fcmp) headBrCond).getRVal2();
+            } else if ((((Instr.Fcmp) headBrCond).getRVal2() instanceof Instr.Phi)) {
+                idcPHI = ((Instr.Fcmp) headBrCond).getRVal2();
+                idcEnd = ((Instr.Fcmp) headBrCond).getRVal1();
+            } else {
+                return;
+            }
         } else {
             return;
         }
+
+
         assert idcPHI instanceof Instr.Phi;
         Value phiRVal1 = ((Instr.Phi) idcPHI).getUseValueList().get(0);
         Value phiRVal2 = ((Instr.Phi) idcPHI).getUseValueList().get(1);
@@ -72,9 +95,23 @@ public class LoopIdcVarInfo {
             return;
         }
 
-//        if (((Instr.Alu) idcAlu).getOp().equals(Instr.Alu.Op.ADD) || ((Instr.Alu) idcAlu).getOp().equals(Instr.Alu.Op.SUB)) {
-//            loop.setIdc(idcAlu, idcPHI, idcInit, idcEnd, idcStep);
-//        }
-        loop.setIdc(idcAlu, idcPHI, idcInit, idcEnd, idcStep);
+        if (!(((Instr.Alu) idcAlu).getOp().equals(Instr.Alu.Op.ADD) ||
+                ((Instr.Alu) idcAlu).getOp().equals(Instr.Alu.Op.SUB) ||
+                ((Instr.Alu) idcAlu).getOp().equals(Instr.Alu.Op.FADD) ||
+                ((Instr.Alu) idcAlu).getOp().equals(Instr.Alu.Op.FSUB))) {
+            return;
+        }
+        assert idcAlu.getType().equals(idcPHI.getType());
+        assert idcPHI.getType().equals(idcInit.getType());
+        assert idcInit.getType().equals(idcEnd.getType());
+        assert idcEnd.getType().equals(idcStep.getType());
+        //i = 10 - i; i = 10 / i;
+        //fixme:上述归纳方式,暂时不考虑
+        if (((Instr.Alu) idcAlu).getOp().equals(Instr.Alu.Op.SUB) || ((Instr.Alu) idcAlu).getOp().equals(Instr.Alu.Op.DIV)) {
+            if (((Instr.Alu) idcAlu).getRVal2() instanceof Instr.Phi) {
+                return;
+            }
+        }
+        loop.setIdc(idcAlu, idcPHI, headBrCond, idcInit, idcEnd, idcStep);
     }
 }

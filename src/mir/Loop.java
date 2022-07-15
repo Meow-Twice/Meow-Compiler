@@ -40,6 +40,7 @@ public class Loop {
     //归纳变量相关信息:
     private Value idcAlu;
     private Value idcPHI;
+    private Value idcCmp;
     private Value idcInit;
     private Value idcEnd;
     private Value idcStep;
@@ -47,6 +48,8 @@ public class Loop {
     private boolean idcSet = false;
 
     private int idcTimes;
+
+    private boolean idcTimeSet = false;
 
 
     public Loop(Loop parentLoop) {
@@ -230,12 +233,18 @@ public class Loop {
     //  xxx
     //  i不能被更改,没有break,continue
     //}
+    // head = exiting need?
     public boolean isSimpleLoop() {
         return header.getPrecBBs().size() == 2 && latchs.size() == 1 && exitings.size() == 1 && exits.size() == 1;
     }
 
     public String infoString() {
         String ret = "\n";
+        ret += "Hash: ";
+        ret += String.valueOf(hash);
+        ret += "\n";
+
+
         ret += "Header: ";
         ret += header.getLabel() + " pre_num: " + String.valueOf(header.getPrecBBs().size());
         ret += "\n";
@@ -260,6 +269,7 @@ public class Loop {
         if (isSimpleLoop() && isIdcSet()) {
             ret += "idcAlu: " + idcAlu.toString() + "\n";
             ret += "idcPHI: " + idcPHI.toString() + "\n";
+            ret += "idcCmp: " + idcCmp.toString() + "\n";
             ret += "idcInit: " + idcInit.toString() + "\n";
             ret += "idcEnd: " + idcEnd.toString() + "\n";
             ret += "idcStep: " + idcStep.toString() + "\n";
@@ -268,9 +278,10 @@ public class Loop {
         return ret;
     }
 
-    public void setIdc(Value idcAlu, Value idcPHI, Value idcInit, Value idcEnd, Value idcStep) {
+    public void setIdc(Value idcAlu, Value idcPHI, Value idcCmp, Value idcInit, Value idcEnd, Value idcStep) {
         this.idcAlu = idcAlu;
         this.idcPHI = idcPHI;
+        this.idcCmp = idcCmp;
         this.idcInit = idcInit;
         this.idcEnd = idcEnd;
         this.idcStep = idcStep;
@@ -283,6 +294,10 @@ public class Loop {
 
     public Value getIdcPHI() {
         return idcPHI;
+    }
+
+    public Value getIdcCmp() {
+        return idcCmp;
     }
 
     public Value getIdcInit() {
@@ -299,5 +314,18 @@ public class Loop {
 
     public boolean isIdcSet() {
         return idcSet;
+    }
+
+    public void setIdcTimes(int idcTimes) {
+        this.idcTimes = idcTimes;
+        this.idcTimeSet = true;
+    }
+
+    public int getIdcTimes() {
+        return idcTimes;
+    }
+
+    public boolean isIdcTimeSet() {
+        return idcTimeSet;
     }
 }

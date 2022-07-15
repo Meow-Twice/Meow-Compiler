@@ -472,4 +472,19 @@ public class BasicBlock extends Value {
         }
         return true;
     }
+
+    //修改转跳和前驱后继关系
+    //仅在LoopUnRoll中使用
+    //this(entering) -> A(Head) -> B
+    public void modifySucAToB(BasicBlock A, BasicBlock B) {
+        Instr instr = getEndInstr();
+        if (instr instanceof Instr.Branch) {
+            int index = instr.getUseValueList().indexOf(A);
+            instr.modifyUse(B, index);
+        } else {
+            instr.modifyUse(B, 0);
+        }
+        this.modifySuc(A, B);
+        B.modifyPre(A, this);
+    }
 }

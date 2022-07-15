@@ -35,7 +35,7 @@ public class MIDescriptor implements Descriptor {
 
     private static class MemSimulator {
         // public static final MemSimulator MEM_SIMULATOR = new MemSimulator();
-        private static final int N = 3;
+        private static final int N = 2;
         public static final int SP_BOTTOM = 0x40000000 >> 2 >> N;
         public static final int TOTAL_SIZE = 0x7FFFFFFF >> 2 >> N;
         private static final Object[] MEM = new Object[TOTAL_SIZE];
@@ -48,18 +48,22 @@ public class MIDescriptor implements Descriptor {
             if (off >= TOTAL_SIZE) {
                 throw new AssertionError(Integer.toHexString(off) + "\t > " + Integer.toHexString(TOTAL_SIZE));
             }
+            if (off >= SP_BOTTOM) {
+                Object val = MEM[off];
+                if (val == null) {
+                    throw new AssertionError("");
+                }
+                logOut("! GET\t" + val + "\tfrom\tSTACK+\t0x" + Integer.toHexString(off * 4));
+            } else {
+                Object val = MEM[off];
+                if (val == null) {
+                    throw new AssertionError("");
+                }
+                logOut("! GET\t" + val + "\tfrom\tHEAP+\t0x" + Integer.toHexString(off * 4));
+
+            }
             return MEM[off];
-            // if (off >= SP_BOTTOM) {
-            //     off = TOTAL_SIZE - off;
-            //     Object val = STACK[off];
-            //     logOut("! GET\t" + val + "\tfrom\tSTACK+\t0x" + Integer.toHexString(off * 4));
-            //     if (val == null) {
-            //         throw new AssertionError("");
-            //     }
-            //     return val;
-            // }
             // Object val = HEAP[off];
-            // logOut("! GET\t" + val + "\tfrom\tHEAP+\t0x" + Integer.toHexString(off * 4));
             // if (val == null) {
             //     throw new AssertionError("");
             // }
@@ -75,20 +79,19 @@ public class MIDescriptor implements Descriptor {
                 throw new AssertionError(Integer.toHexString(off) + "\t > " + Integer.toHexString(TOTAL_SIZE));
             }
             MEM[off] = val;
-            // if (off >= SP_BOTTOM) {
-            //     off = TOTAL_SIZE - off;
-            //     logOut("! SET\t" + val + "\tto\t\tSTACK+\t0x" + Integer.toHexString(off * 4));
-            //     if (val == null) {
-            //         throw new AssertionError("");
-            //     }
-            //     STACK[off] = val;
-            //     return;
-            // }
-            // logOut("! SET\t" + val + "\tto\t\tHEAP+\t0x" + Integer.toHexString(off * 4));
-            // if (val == null) {
-            //     throw new AssertionError("");
-            // }
-            // HEAP[off] = val;
+            if (off >= SP_BOTTOM) {
+                if (val == null) {
+                    throw new AssertionError("");
+                }
+                logOut("! SET\t" + val + "\tto\t\tSTACK+\t0x" + Integer.toHexString(off * 4));
+                //     STACK[off] = val;
+            } else {
+                if (val == null) {
+                    throw new AssertionError("");
+                }
+                logOut("! SET\t" + val + "\tto\t\tHEAP+\t0x" + Integer.toHexString(off * 4));
+                // HEAP[off] = val;
+            }
         }
     }
 

@@ -104,7 +104,7 @@ public class MIDescriptor implements Descriptor {
     private final RegSimulator REG_SIM = RegSimulator.REG_SIMULATOR;
     // Machine.Program PROGRAM = Machine.Program.PROGRAM;
     static StringBuilder out = new StringBuilder();
-    static boolean endsWithLF = false; // 当前 out 的最后是否以换行符结尾
+    static boolean endsWithLF = true; // 当前 out 的最后是否以空行结尾, 初始状态为 true
 
     // enum RunningState {
     //     BEFORE_MODE,//刚生成代码

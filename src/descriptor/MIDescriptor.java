@@ -242,7 +242,7 @@ public class MIDescriptor implements Descriptor {
             mf2curVRListMap.put(mf, new Stack<>());
         }
         runMF(p.mainMcFunc);
-        outputWithNewline(getFromReg(r0).toString()); // 如果正常 stdout 的最后一行没有换行，需要先添加换行再输出返回值
+        outputWithNewline(String.valueOf(((int) getFromReg(r0)) & 255)); // 如果正常 stdout 的最后一行没有换行，需要先添加换行再输出返回值
         finalOut();
     }
 
@@ -368,7 +368,7 @@ public class MIDescriptor implements Descriptor {
             MIBinary miBinary = null;
             Object lVal = null;
             Object rVal = null;
-            if (curMI.isActuallyBino()) {
+            if (curMI instanceof MIBinary) {
                 miBinary = (MIBinary) curMI;
                 lVal = GET_VAL_FROM_OPD(miBinary.getLOpd());
                 rVal = GET_VAL_FROM_OPD(miBinary.getROpd());
@@ -627,7 +627,7 @@ public class MIDescriptor implements Descriptor {
     //     }
     // }
 
-    //设为Object是为了保证int和float的兼容性
+    // 设为Object是为了保证int和float的兼容性
     // 可能返回int或者float或者String(glob地址)
     private Object GET_VAL_FROM_OPD(Machine.Operand o) {
         Object val = switch (o.getType()) {
@@ -640,7 +640,7 @@ public class MIDescriptor implements Descriptor {
         return val;
     }
 
-    //设为Object是为了保证int和float的兼容性
+    // 设为Object是为了保证int和float的兼容性
     private void SET_VAL_FROM_OPD(Object val, Machine.Operand o) {
         logOut("^ set\t" + val + "\tto\t\t" + o);
         switch (o.getType()) {

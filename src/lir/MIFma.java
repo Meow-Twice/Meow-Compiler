@@ -44,7 +44,7 @@ public class MIFma extends MachineInst {
 
     boolean add;
     boolean sign;
-    Arm.Cond cond;
+    // Arm.Cond cond;
 
     public MIFma(boolean add, boolean sign, Machine.Block insertAtEnd, boolean isFloat) {
         super(Tag.FMA, insertAtEnd, isFloat);
@@ -78,7 +78,7 @@ public class MIFma extends MachineInst {
         } else {
             op = "mls";
         }
-        os.println(op + cond + "\t" + getDst().toString() + "," + getlOpd().toString() + "," + getrOpd().toString() + "," + getAcc().toString());
+        os.println(op + cond + "\t" + getDst().toString() + "," + getAcc().toString() + "," + getlOpd().toString() + "," + getrOpd().toString());
 
     }
 

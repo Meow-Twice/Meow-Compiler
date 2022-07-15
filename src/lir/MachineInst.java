@@ -113,7 +113,7 @@ public class MachineInst extends ILinkNode {
     }
 
     public boolean isActuallyBino() {
-        return tag.ordinal() <= Tag.FMA.ordinal();
+        return tag.ordinal() < Tag.FMA.ordinal();
     }
 
     public boolean isBranch() {

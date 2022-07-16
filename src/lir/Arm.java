@@ -99,6 +99,13 @@ public class Arm {
             return fprPool[s.ordinal()];
         }
 
+        public static Reg[] getGPRPool() {
+            return gprPool;
+        }
+
+        public static Reg[] getFPRPool() {
+            return fprPool;
+        }
 
         @Override
         public Regs getReg() {

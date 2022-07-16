@@ -224,6 +224,10 @@ public class Machine {
             return stackSize + paramStack;
         }
 
+        public int getStackExceptParamSize() {
+            return stackSize + paramStack;
+        }
+
         public void output_reg_list(PrintStream os) {
             int i = 0;
             for (Arm.Reg reg : usedCalleeSavedRegs) {
@@ -571,6 +575,18 @@ public class Machine {
             };
         }
 
+        @Override
+        public boolean equals(Object obj) {
+            if (obj == this) return true;
+            if (!(obj instanceof Operand)) {
+                return false;
+            }
+            return ((Operand) obj).type == this.type
+                    && ((Operand) obj).value == this.value
+                    && ((Operand) obj).dataType == this.dataType;
+        }
+
+        @Override
         public String toString() {
             if (this instanceof Arm.Reg) {
                 return getReg().toString();

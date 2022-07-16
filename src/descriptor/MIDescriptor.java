@@ -20,7 +20,7 @@ import static lir.Arm.Regs.GPRs.*;
 import static manage.Manager.ExternFunction.*;
 
 public class MIDescriptor implements Descriptor {
-    private static final boolean OUT_TO_FILE = false;
+    private static final boolean OUT_TO_FILE = true;
 
     private InputStream input = System.in;
     private OutputStream output = System.out;
@@ -35,7 +35,7 @@ public class MIDescriptor implements Descriptor {
 
     private static class MemSimulator {
         // public static final MemSimulator MEM_SIMULATOR = new MemSimulator();
-        private static final int N = 3;
+        private static final int N = 2;
         public static final int SP_BOTTOM = 0x40000000 >> N;
         public static final int TOTAL_SIZE = 0x7FFFFFFF >> N;
         private static final Object[] MEM = new Object[TOTAL_SIZE];

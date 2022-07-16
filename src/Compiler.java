@@ -1,6 +1,5 @@
 import arg.Arg;
 import backend.CodeGen;
-import backend.TrivialRegAllocator;
 import descriptor.MIDescriptor;
 import frontend.Visitor;
 import frontend.lexer.Lexer;
@@ -71,10 +70,10 @@ public class Compiler {
             MIDescriptor.MI_DESCRIPTOR.setOutput(arg.interpretOutputStream);
             // 用参数给定的输入输出流后，分配寄存器前和分配寄存器后只运行一遍解释器，否则后者的输出会覆盖前者
             MIDescriptor.MI_DESCRIPTOR.run(); // 分配寄存器前
-            TrivialRegAllocator regAllocator = new TrivialRegAllocator();
-            Manager.MANAGER.outputMI();
-            regAllocator.AllocateRegister(p);
-            Manager.MANAGER.outputMI();
+            // TrivialRegAllocator regAllocator = new TrivialRegAllocator();
+            // Manager.MANAGER.outputMI();
+            // regAllocator.AllocateRegister(p);
+            // Manager.MANAGER.outputMI();
             // MIDescriptor.MI_DESCRIPTOR.run(); // 分配寄存器后
             // if (arg.outputAsm()) {
             //     p.output(new PrintStream(arg.asmStream));

@@ -135,7 +135,8 @@ public class CodeGen {
             bb = func.getBeginBB();
             curMB = bb.getMb();
             if (isMain) {
-                Machine.Operand rOp = new Machine.Operand(I32, -curMachineFunc.getStackSize());
+                Machine.Operand rOp = new Machine.Operand(I32, 0);
+                // Machine.Operand rOp = new Machine.Operand(I32, -curMachineFunc.getStackSize());
                 MIBinary miBinary = new MIBinary(MachineInst.Tag.Sub, Arm.Reg.getR(sp), Arm.Reg.getR(sp), rOp, curMB);
                 miBinary.setNeedFix();
             } else {
@@ -267,7 +268,7 @@ public class CodeGen {
                     assert contentType.isArrType();
                     Machine.Operand addr = getVR_no_imm(allocInst);
                     Machine.Operand spReg = Arm.Reg.getR(sp);
-                    Machine.Operand offset = new Machine.Operand(I32, curMachineFunc.getStackSize());
+                    Machine.Operand offset = new Machine.Operand(I32, curMachineFunc.getStackExceptParamSize());
                     new MIBinary(MachineInst.Tag.Add, addr, spReg, offset, curMB);
                     // 栈空间移位
                     curMachineFunc.addStack(((Type.ArrayType) contentType).getFlattenSize() * 4);

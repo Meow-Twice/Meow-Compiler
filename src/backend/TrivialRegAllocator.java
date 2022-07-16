@@ -18,7 +18,7 @@ public class TrivialRegAllocator {
     private final CodeGen CODEGEN = CodeGen.CODEGEN;
     private final Arm.Reg rSP = Arm.Reg.getR(sp);
 
-    private final boolean DEBUG_STDIN_OUT = false;
+    private final boolean DEBUG_STDIN_OUT = true;
 
     private int rk = 12;
     private int sk = 0;
@@ -229,7 +229,11 @@ public class TrivialRegAllocator {
                 makeWorkList();
                 while (simplifyWorkSet.size() > 0 || workListMoveSet.size() > 0 || freezeWorkSet.size() > 0 || spillWorkSet.size() > 0) {
                     if (simplifyWorkSet.size() > 0) {
-                        simplify();
+                        Iterator<Operand> iter = simplifyWorkSet.iterator();
+                        Operand x = iter.next();
+                        iter.remove();
+                        selectStack.push(x);
+                        adjacent(x).forEach(this::decrementDegree);
                     }
                     if (workListMoveSet.size() > 0) {
                         coalesce();
@@ -274,7 +278,7 @@ public class TrivialRegAllocator {
 
     private void dealSpillNode(Operand x) {
         for (Machine.Block mb : curMF.mbList) {
-            offImm = new Operand(I32, curMF.getStackSize());
+            offImm = new Operand(I32, curMF.getStackExceptParamSize());
             // generate a MILoad before first use, and a MIStore after last def
             firstUse = null;
             lastDef = null;
@@ -349,24 +353,10 @@ public class TrivialRegAllocator {
         }
         vrIdx = -1;
     }
-    //
-    // public Operand genMemOffSet(Operand offImm, MachineInst miLoadStore, boolean isInsertBefore) {
-    //     if (offImm.getImm() < (1 << 12)) {
-    //         return offImm;
-    //     } else {
-    //         Operand dst = curMF.newVR();
-    //         if (isInsertBefore) {
-    //             new MIMove(dst, offImm, miLoadStore);
-    //         } else {
-    //             new MIMove(miLoadStore, dst, offImm);
-    //         }
-    //         return dst;
-    //     }
-    // }
 
     public void addEdge(Operand u, Operand v) {
         AdjPair adjPair = new AdjPair(u, v);
-        if (!(adjSet.contains(adjPair) && u.equals(v))) {
+        if (!(adjSet.contains(adjPair) || u.equals(v))) {
             adjSet.add(adjPair);
             adjSet.add(new AdjPair(v, u));
             if (!u.isPreColored()) {
@@ -379,28 +369,6 @@ public class TrivialRegAllocator {
             }
         }
     }
-
-    /*
-    public boolean addEdge(Operand u, Operand v) {
-        AdjPair adjPair = new AdjPair(u, v);
-        if (!(adjSet.contains(adjPair) && u.equals(v))) {
-            adjSet.add(adjPair);
-            adjSet.add(new AdjPair(v, u));
-            if (!u.isPreColored()) {
-                u.addAdj(v);
-                u.degree++;
-            }
-            if (!v.isPreColored()) {
-                v.addAdj(u);
-                v.degree++;
-            }
-            return true;
-        }
-        return false;
-    }
-    */
-
-    // public ArrayList<Machine.Block> recurMbList = new ArrayList<>();
 
     public void logOut(String s) {
         if (DEBUG_STDIN_OUT)
@@ -408,18 +376,23 @@ public class TrivialRegAllocator {
     }
 
     public void build() {
+        for (Arm.Reg reg : Arm.Reg.getGPRPool()) {
+            reg.loopCounter = 0;
+        }
+        for (Arm.Reg reg : Arm.Reg.getFPRPool()) {
+            reg.loopCounter = 0;
+        }
+        for (Operand o : curMF.vrList) {
+            o.loopCounter = 0;
+        }
         // logOut("in build");
         for (ILinkNode mbNode = curMF.mbList.getEnd(); !mbNode.equals(curMF.mbList.head); mbNode = mbNode.getPrev()) {
             Machine.Block mb = (Machine.Block) mbNode;
             // 获取块的 liveOut
             logOut("build mb: " + mb.getDebugLabel());
-            HashSet<Operand> live = mb.liveOutSet;
+            HashSet<Operand> live = new HashSet<>(mb.liveOutSet);
             for (ILinkNode iNode = mb.getEndMI(); !iNode.equals(mb.miList.head); iNode = iNode.getPrev()) {
                 MachineInst mi = (MachineInst) iNode;
-                // logOut(mi.toString());
-                // logOut("Prev:\t" + mi.getPrev());
-                // logOut("Next:\t" + mi.getNext());
-                // System.err.println(mi);
                 // TODO : 此时考虑了Call
                 ArrayList<Operand> defs = mi.defOpds;
                 ArrayList<Operand> uses = mi.useOpds;
@@ -433,28 +406,53 @@ public class TrivialRegAllocator {
                         workListMoveSet.add(mv);
                     }
                 }
-                // defs.forEach(def -> {
-                //     if (def.needColor()) {
-                //         live.add(def);
-                //     }
-                // });
-                defs.stream().filter(Operand::needColor).forEach(live::add);
-                // defs.forEach(def -> {
-                //     if (def.needColor()) {
-                //         live.forEach(l -> addEdge(l, def));
-                //     }
-                // });
-                defs.stream().filter(Operand::needColor).forEach(def -> live.forEach(l -> addEdge(l, def)));
 
-                defs.forEach(def -> {
-                    live.removeIf(Operand::needColor);
-                    def.loopCounter += mb.bb.getLoopDep();
-                });
+                if (defs.size() == 1) {
+                    Operand def = defs.get(0);
+                    // 构建冲突图
+                    if (def.needColor()) {
+                        // 该mi的def与当前所有活跃寄存器以及该指令的其他def均冲突
+                        for (Operand l : live) {
+                            addEdge(l, def);
+                        }
+                        def.loopCounter += mb.bb.getLoopDep();
+                    }
+                } else if (defs.size() > 1) {
+                    // 一个指令的不同def也会相互冲突
 
-                uses.forEach(use -> {
-                    if (use.needColor()) live.add(use);
-                    use.loopCounter += mb.bb.getLoopDep();
-                });
+                    for (Operand def : defs) {
+                        if (def.needColor()) {
+                            live.add(def);
+                        }
+                    }
+                    // defs.stream().filter(Operand::needColor).forEach(live::add);
+
+                    // 构建冲突图
+                    for (Operand def : defs) {
+                        if (def.needColor()) {
+                            // 该mi的def与当前所有活跃寄存器以及该指令的其他def均冲突
+                            for (Operand l : live) {
+                                addEdge(l, def);
+                            }
+                        }
+                    }
+                    // defs.stream().filter(Operand::needColor).forEach(def -> live.forEach(l -> addEdge(l, def)));
+
+                    for (Operand def : defs) {
+                        if (def.needColor()) {
+                            live.remove(def);
+                            def.loopCounter += mb.bb.getLoopDep();
+                        }
+                    }
+                }
+
+                // 使用的虚拟或预着色寄存器为活跃寄存器
+                for (Operand use : uses) {
+                    if (use.needColor()) {
+                        live.add(use);
+                        use.loopCounter += mb.bb.getLoopDep();
+                    }
+                }
             }
         }
     }
@@ -492,9 +490,8 @@ public class TrivialRegAllocator {
      *
      */
     private void makeWorkList() {
-        for (int i = 0; i < curMF.getVRSize(); i++) {
+        for(Operand vr : curMF.vrList){
             // initial
-            Operand vr = new Operand(i);
             if (vr.degree >= rk) {
                 spillWorkSet.add(vr);
             } else if (nodeMoves(vr).size() > 0) {
@@ -564,14 +561,6 @@ public class TrivialRegAllocator {
         }
     }
 
-    private void simplify() {
-        Iterator<Operand> iter = simplifyWorkSet.iterator();
-        Operand x = iter.next();
-        iter.remove();
-        selectStack.push(x);
-        adjacent(x).forEach(this::decrementDegree);
-    }
-
     /**
      * 当 move y, x 已被合并, x.alias = y, x 被放入 coalescedNodeSet 中
      */
@@ -588,16 +577,7 @@ public class TrivialRegAllocator {
             // 低度数传送有关结点删除 x , 且低度数传送无关结点添加 x
             freezeWorkSet.remove(x);
             simplifyWorkSet.add(x);
-            // tools.changeWorkSet(x, freezeWorkSet, simplifyWorkSet);
-            // changeWorkSet(x, freezeWorkSet, simplifyWorkSet);
         }
-    }
-
-    /**
-     * u 为低度数结点, 或者 u 已经预着色, 或者 (u, v)冲突
-     */
-    public boolean ok(Operand adj, Operand v) {
-        return adj.degree < rk || adj.isPreColored() || adjSet.contains(new AdjPair(adj, v));
     }
 
     /**
@@ -635,18 +615,8 @@ public class TrivialRegAllocator {
         if (u.degree >= rk && freezeWorkSet.contains(u)) {
             freezeWorkSet.remove(u);
             spillWorkSet.add(u);
-            // changeWorkSet(u, freezeWorkSet, spillWorkSet);
         }
     }
-
-    // private void changeWorkSet(MIMove x, HashSet<MIMove> from, HashSet<MIMove> to) {
-    //     from.remove(x);
-    //     to.add(x);
-    // }
-    // private void changeWorkSet(Operand x, HashSet<Operand> from, HashSet<Operand> to) {
-    //     from.remove(x);
-    //     to.add(x);
-    // }
 
     /**
      * 保守的,
@@ -721,17 +691,6 @@ public class TrivialRegAllocator {
             }
         }
     }
-
-    // /**
-    //  * 从低度数的传送有关的结点中随机选择一个进行冻结
-    //  */
-    // public void freeze() {
-    //     Operand u = freezeWorkSet.iterator().next();
-    //     freezeWorkSet.remove(u);
-    //     simplifyWorkSet.add(u);
-    //     freezeMoves(u);
-    // }
-
 
     public void assignColors() {
         logOut("Start to assign colors");

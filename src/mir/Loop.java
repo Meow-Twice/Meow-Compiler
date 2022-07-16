@@ -216,13 +216,15 @@ public class Loop {
             for (BasicBlock pre: bb.getPrecBBs()) {
                 pres.add((BasicBlock) CloneInfoMap.getReflectedValue(pre));
             }
-            needFixBB.setPrecBBs(pres);
+            //needFixBB.setPrecBBs(pres);
+            needFixBB.modifyPres(pres);
 
             ArrayList<BasicBlock> succs = new ArrayList<>();
             for (BasicBlock succ: bb.getSuccBBs()) {
                 succs.add((BasicBlock) CloneInfoMap.getReflectedValue(succ));
             }
-            needFixBB.setSuccBBs(succs);
+            //needFixBB.setSuccBBs(succs);
+            needFixBB.modifySucs(succs);
 
             needFixBB.fix();
         }

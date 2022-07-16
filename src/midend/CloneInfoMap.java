@@ -49,4 +49,9 @@ public class CloneInfoMap {
 //        bbNeedFix.remove(bb);
 //    }
 
+    public static void clear() {
+        loopMap.clear();
+        valueMap.clear();
+    }
+
 }

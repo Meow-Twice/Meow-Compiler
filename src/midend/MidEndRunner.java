@@ -51,9 +51,9 @@ public class MidEndRunner {
 //        reMakeCFGAndLoopInfo();
 //
 //        Pass();
-
-        MathOptimize mathOptimize = new MathOptimize(functions);
-        mathOptimize.Run();
+//
+//        MathOptimize mathOptimize = new MathOptimize(functions);
+//        mathOptimize.Run();
 
 
 

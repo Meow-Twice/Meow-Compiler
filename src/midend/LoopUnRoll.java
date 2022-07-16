@@ -128,6 +128,7 @@ public class LoopUnRoll {
     }
 
     private void DoLoopUnRoll(Loop loop) {
+        Function function = loop.getHeader().getFunction();
         int times = loop.getIdcTimes();
         int cnt = cntDFS(loop);
         if (cnt * times > loop_unroll_up_lines) {
@@ -155,7 +156,7 @@ public class LoopUnRoll {
         entering.modifySucAToB(head, headNext);
         latch.modifySucAToB(head, exit);
         //headNext 只有head一个前驱
-
+        assert headNext.getPrecBBs().size() == 1;
 
 
         //修正exit的LCSSA PHI
@@ -187,11 +188,55 @@ public class LoopUnRoll {
         head.remove();
 
         //维护bbInWhile这些块的Loop信息
+        //维护块中指令的isInWhileCond信息
         HashSet<BasicBlock> bbInWhile = loop.getNowLevelBB();
         bbInWhile.remove(head);
+        if (loop.getLoopDepth() == 1) {
+            for (BasicBlock bb: bbInWhile) {
+                for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+                    if (instr.isInWhileCond()) {
+                        instr.setLoopCondCount(-1);
+                    }
+                }
+            }
+        }
+
+        Loop parentLoop = loop.getParentLoop();
+        for (BasicBlock bb: bbInWhile) {
+            bb.modifyLoop(parentLoop);
+        }
 
         //fixme:复制time / time - 1?份
+        BasicBlock oldBegin = headNext;
+        BasicBlock oldLatch = latch;
+        //times = 0;
+        for (int i = 0; i < times - 1; i++) {
+            CloneInfoMap.clear();
+            for (BasicBlock bb: bbInWhile) {
+                bb.cloneToFunc_LUR(function);
+            }
+            for (BasicBlock bb: bbInWhile) {
+                BasicBlock newBB = (BasicBlock) CloneInfoMap.getReflectedValue(bb);
+                newBB.fixPreSuc(bb);
+                newBB.fix();
+            }
+            BasicBlock newBegin = (BasicBlock) CloneInfoMap.getReflectedValue(oldBegin);
+            BasicBlock newLatch = (BasicBlock) CloneInfoMap.getReflectedValue(oldLatch);
 
+            oldLatch.modifySuc(exit, newBegin);
+            ArrayList<BasicBlock> pres = new ArrayList<>();
+            pres.add(oldLatch);
+            newBegin.modifyPres(pres);
+            oldLatch.modifyBrAToB(entering, newBegin);
+
+            oldBegin = newBegin;
+            oldLatch = newLatch;
+            HashSet<BasicBlock> newBBInWhile = new HashSet<>();
+            for (BasicBlock bb: bbInWhile) {
+                newBBInWhile.add((BasicBlock) CloneInfoMap.getReflectedValue(bb));
+            }
+            bbInWhile = newBBInWhile;
+        }
     }
 
     private int cntDFS(Loop loop) {

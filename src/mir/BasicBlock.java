@@ -138,6 +138,19 @@ public class BasicBlock extends Value {
         loop.addBB(this);
     }
 
+    //在循环展开的时候,维护BB的循环信息
+    public void modifyLoop(Loop loop) {
+        this.loop = loop;
+        loop.addBB(this);
+        //展开后的部分,在原来的父循环中,只是基本的循环内部块
+        //
+        isLoopHeader = false;
+        isLoopEntering = false;
+        isLoopExiting = false;
+        isLoopLatch = false;
+        isExit = false;
+    }
+
 
 //    @Override
 //    public String getDescriptor() {
@@ -423,6 +436,35 @@ public class BasicBlock extends Value {
         return ret;
     }
 
+    //循环展开的时候,复制bb
+    public BasicBlock cloneToFunc_LUR(Function function) {
+        Loop tagLoop = getLoop();
+        BasicBlock ret = new BasicBlock(function, tagLoop);
+        CloneInfoMap.addValueReflect(this, ret);
+        Instr instr = this.getBeginInstr();
+        while (instr.getNext() != null) {
+            Instr tmp = instr.cloneToBB(ret);
+            if (instr.isInWhileCond()) {
+                tmp.setLoopCondCount(++Visitor.VISITOR.curLoopCondCount);
+            }
+            instr = (Instr) instr.getNext();
+        }
+        return ret;
+    }
+
+    public void fixPreSuc(BasicBlock oldBB) {
+        ArrayList<BasicBlock> pres = new ArrayList<>();
+        for (BasicBlock pre: oldBB.getPrecBBs()) {
+            pres.add((BasicBlock) CloneInfoMap.getReflectedValue(pre));
+        }
+        modifyPres(pres);
+
+        ArrayList<BasicBlock> succs = new ArrayList<>();
+        for (BasicBlock succ: oldBB.getSuccBBs()) {
+            succs.add((BasicBlock) CloneInfoMap.getReflectedValue(succ));
+        }
+        modifySucs(succs);
+    }
 
 
     public void fix() {
@@ -439,6 +481,14 @@ public class BasicBlock extends Value {
 
     public void modifySuc(BasicBlock old, BasicBlock now) {
         succBBs.set(succBBs.indexOf(old), now);
+    }
+
+    public void modifyPres(ArrayList<BasicBlock> precBBs) {
+        this.precBBs = precBBs;
+    }
+
+    public void modifySucs(ArrayList<BasicBlock> succBBs) {
+        this.succBBs = succBBs;
     }
 
     public void addPre(BasicBlock add) {
@@ -476,6 +526,8 @@ public class BasicBlock extends Value {
     //修改转跳和前驱后继关系
     //仅在LoopUnRoll中使用
     //this(entering) -> A(Head) -> B
+
+    //同时维护了B的前驱
     public void modifySucAToB(BasicBlock A, BasicBlock B) {
         Instr instr = getEndInstr();
         if (instr instanceof Instr.Branch) {
@@ -486,5 +538,15 @@ public class BasicBlock extends Value {
         }
         this.modifySuc(A, B);
         B.modifyPre(A, this);
+    }
+
+    public void modifyBrAToB(BasicBlock A, BasicBlock B) {
+        Instr instr = getEndInstr();
+        if (instr instanceof Instr.Branch) {
+            int index = instr.getUseValueList().indexOf(A);
+            instr.modifyUse(B, index);
+        } else {
+            instr.modifyUse(B, 0);
+        }
     }
 }

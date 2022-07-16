@@ -35,9 +35,9 @@ public class MIDescriptor implements Descriptor {
 
     private static class MemSimulator {
         // public static final MemSimulator MEM_SIMULATOR = new MemSimulator();
-        private static final int N = 1;
-        public static final int SP_BOTTOM = 0x40000000 >> 2 >> N;
-        public static final int TOTAL_SIZE = 0x7FFFFFFF >> 2 >> N;
+        private static final int N = 3;
+        public static final int SP_BOTTOM = 0x40000000 >> N;
+        public static final int TOTAL_SIZE = 0x7FFFFFFF >> N;
         private static final Object[] MEM = new Object[TOTAL_SIZE];
         // private static final Object[] STACK = new Object[TOTAL_SIZE - SP_BOTTOM];
         // private static final Object[] HEAP = new Object[SP_BOTTOM];

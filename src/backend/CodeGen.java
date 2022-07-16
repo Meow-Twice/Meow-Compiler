@@ -188,6 +188,7 @@ public class CodeGen {
                 case bino -> genBinaryInst((Instr.Alu) instr);
                 case jump -> {
                     Machine.Block mb = ((Instr.Jump) instr).getTarget().getMb();
+                    curMB.succMB.add(mb);
                     if (!dfsBBSet.contains(mb)) nextBBList.push(mb.bb);
                     new MIJump(mb, curMB);
                 }
@@ -198,6 +199,8 @@ public class CodeGen {
                     Instr condValue = (Instr) brInst.getCond();
                     Machine.Block trueBlock = brInst.getThenTarget().getMb();
                     Machine.Block falseBlock = brInst.getElseTarget().getMb();
+                    curMB.succMB.add(trueBlock);
+                    curMB.succMB.add(falseBlock);
                     if (!dfsBBSet.contains(falseBlock)) nextBBList.push(falseBlock.bb);
                     if (!dfsBBSet.contains(trueBlock)) nextBBList.push(trueBlock.bb);
                     CMPAndArmCond t = cmpInst2MICmpMap.get(condValue);

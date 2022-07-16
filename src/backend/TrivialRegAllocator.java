@@ -28,27 +28,26 @@ public class TrivialRegAllocator {
 
     void livenessAnalysis(Machine.McFunction mcFunc) {
         for (Machine.Block mb : mcFunc.mbList) {
-            mb.liveUseSet.clear();
-            mb.defSet.clear();
+            mb.liveUseSet = new HashSet<>();
+            mb.defSet = new HashSet<>();
             for (MachineInst mi : mb.miList) {
                 ArrayList<Operand> defs = mi.defOpds;
                 ArrayList<Operand> uses = mi.useOpds;
                 // liveuse 计算
                 uses.forEach(use -> {
-                    if (!use.isImm() && mb.defSet.contains(use)) {
+                    if (!use.isImm() && !mb.defSet.contains(use)) {
                         mb.liveUseSet.add(use);
                     }
                 });
                 // def 计算
                 defs.forEach(def -> {
-                    if (!def.isImm() && mb.liveUseSet.contains(def)) {
+                    if (!def.isImm() && !mb.liveUseSet.contains(def)) {
                         mb.defSet.add(def);
                     }
                 });
             }
             mb.liveInSet = mb.liveUseSet;
-            mb.liveOutSet.clear();
-
+            mb.liveOutSet = new HashSet<>();
         }
 
         // 计算LiveIn和LiveOut
@@ -59,14 +58,14 @@ public class TrivialRegAllocator {
                 final Machine.Block finalMb = (Machine.Block) mb;
                 // 任意succ的liveInSet如果有更新, 则可能更新 (只可能增加, 增量为newLiveOut) 当前MB的liveIn,
                 // 且当前MB如果需要更新liveIn, 只可能新增且新增的Opd一定出自newLiveOut
-                HashSet<Operand> newLiveOut = new HashSet<>();
-                finalMb.successor.forEach(succMB -> {
-                    succMB.liveInSet.forEach(liveIn -> {
-                        if (finalMb.liveOutSet.add(liveIn)) {
-                            newLiveOut.add(liveIn);
-                        }
-                    });
-                });
+                ArrayList<Operand> newLiveOut = new ArrayList<>();
+                finalMb.succMB.forEach(succMB ->
+                        succMB.liveInSet.forEach(liveIn -> {
+                            if (finalMb.liveOutSet.add(liveIn)) {
+                                logOut(liveIn.toString());
+                                newLiveOut.add(liveIn);
+                            }
+                        }));
                 changed = newLiveOut.size() > 0;
                 // newLiveOut.retainAll(mb.defSet);
                 // 从 newLiveOut 删除了不存在于 mb.defSet 的元素

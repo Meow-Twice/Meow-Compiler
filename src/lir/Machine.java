@@ -329,7 +329,7 @@ public class Machine {
 
         //pred and successor
         public ArrayList<Block> pred = new ArrayList<>();
-        public ArrayList<Block> successor = new ArrayList<>();
+        public ArrayList<Block> succMB = new ArrayList<>();
         public MachineInst con_tran = null;
         public HashSet<Operand> liveUseSet = new HashSet<>();
         public HashSet<Operand> defSet = new HashSet<>();

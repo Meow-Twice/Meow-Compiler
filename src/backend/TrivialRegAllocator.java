@@ -46,8 +46,8 @@ public class TrivialRegAllocator {
                     }
                 });
             }
-            logOut(mb.getDebugLabel()+"\tdefSet:\t"+mb.defSet.toString());
-            logOut(mb.getDebugLabel()+"\tuseSet:\t"+mb.liveUseSet.toString());
+            logOut(mb.getDebugLabel() + "\tdefSet:\t" + mb.defSet.toString());
+            logOut(mb.getDebugLabel() + "\tuseSet:\t" + mb.liveUseSet.toString());
             mb.liveInSet = new HashSet<>(mb.liveUseSet);
             mb.liveOutSet = new HashSet<>();
         }
@@ -187,11 +187,13 @@ public class TrivialRegAllocator {
         public boolean equals(Object obj) {
             if (obj == this) return true;
             if (!(obj instanceof AdjPair)) return false;
-            return u.equals(((AdjPair) obj).u) && v.equals(((AdjPair) obj).v);
+            return (u.equals(((AdjPair) obj).u) && v.equals(((AdjPair) obj).v))
+                    || (u.equals(((AdjPair) obj).v) && v.equals(((AdjPair) obj).u));
         }
     }
 
     public Machine.McFunction curMF;
+    public int MAX_DEGREE = Integer.MAX_VALUE >> 1;
 
     public void AllocateRegister(Machine.Program program) {
         for (Machine.McFunction mcFunc : program.funcList) {
@@ -215,15 +217,15 @@ public class TrivialRegAllocator {
                 // rk = Manager.MANAGER.RK;
                 // sk = Manager.MANAGER.SK;
                 for (int i = 0; i < rk; i++) {
-                    Arm.Reg.getR(i).degree = Integer.MAX_VALUE;
+                    Arm.Reg.getR(i).degree = MAX_DEGREE;
                 }
                 // for (int i = 0; i < sk; i++) {
                 //     Arm.Reg.getS(i).degree = Integer.MAX_VALUE;
                 // }
 
-                logOut("RegAlloc Build start");
+                // logOut("RegAlloc Build start");
                 build();
-                logOut("RegAlloc Build end");
+                // logOut("RegAlloc Build end");
                 makeWorkList();
                 while (simplifyWorkSet.size() > 0 || workListMoveSet.size() > 0 || freezeWorkSet.size() > 0 || spillWorkSet.size() > 0) {
                     if (simplifyWorkSet.size() > 0) {
@@ -233,10 +235,24 @@ public class TrivialRegAllocator {
                         coalesce();
                     }
                     if (freezeWorkSet.size() > 0) {
-                        freeze();
+                        /**
+                         * 从低度数的传送有关的结点中随机选择一个进行冻结
+                         */
+                        Operand x = freezeWorkSet.iterator().next();
+                        freezeWorkSet.remove(x);
+                        simplifyWorkSet.add(x);
+                        freezeMoves(x);
                     }
                     if (spillWorkSet.size() > 0) {
-                        selectSpill();
+                        /**
+                         * 从低度数结点集(simplifyWorkSet)中启发式选取结点 x , 挪到高度数结点集(spillWorkSet)中
+                         * 冻结 x 及其相关 move
+                         */
+                        // Operand x = spillWorkSet.stream().reduce((a, b) -> a.heuristicVal() < b.heuristicVal() ? a : b).orElseThrow();
+                        Operand x = spillWorkSet.stream().reduce(Operand::select).orElseThrow();
+                        spillWorkSet.remove(x);
+                        simplifyWorkSet.add(x);
+                        freezeMoves(x);
                     }
                 }
                 // Manager.MANAGER.outputMI();
@@ -333,21 +349,38 @@ public class TrivialRegAllocator {
         }
         vrIdx = -1;
     }
+    //
+    // public Operand genMemOffSet(Operand offImm, MachineInst miLoadStore, boolean isInsertBefore) {
+    //     if (offImm.getImm() < (1 << 12)) {
+    //         return offImm;
+    //     } else {
+    //         Operand dst = curMF.newVR();
+    //         if (isInsertBefore) {
+    //             new MIMove(dst, offImm, miLoadStore);
+    //         } else {
+    //             new MIMove(miLoadStore, dst, offImm);
+    //         }
+    //         return dst;
+    //     }
+    // }
 
-    public Operand genMemOffSet(Operand offImm, MachineInst miLoadStore, boolean isInsertBefore) {
-        if (offImm.getImm() < (1 << 12)) {
-            return offImm;
-        } else {
-            Operand dst = curMF.newVR();
-            if (isInsertBefore) {
-                new MIMove(dst, offImm, miLoadStore);
-            } else {
-                new MIMove(miLoadStore, dst, offImm);
+    public void addEdge(Operand u, Operand v) {
+        AdjPair adjPair = new AdjPair(u, v);
+        if (!(adjSet.contains(adjPair) && u.equals(v))) {
+            adjSet.add(adjPair);
+            adjSet.add(new AdjPair(v, u));
+            if (!u.isPreColored()) {
+                u.addAdj(v);
+                u.degree++;
             }
-            return dst;
+            if (!v.isPreColored()) {
+                v.addAdj(u);
+                v.degree++;
+            }
         }
     }
 
+    /*
     public boolean addEdge(Operand u, Operand v) {
         AdjPair adjPair = new AdjPair(u, v);
         if (!(adjSet.contains(adjPair) && u.equals(v))) {
@@ -365,6 +398,7 @@ public class TrivialRegAllocator {
         }
         return false;
     }
+    */
 
     // public ArrayList<Machine.Block> recurMbList = new ArrayList<>();
 
@@ -454,13 +488,16 @@ public class TrivialRegAllocator {
         return nodeMoves(x).size() > 0;
     }
 
+    /**
+     *
+     */
     private void makeWorkList() {
         for (int i = 0; i < curMF.getVRSize(); i++) {
             // initial
             Operand vr = new Operand(i);
             if (vr.degree >= rk) {
                 spillWorkSet.add(vr);
-            } else if (moveRelated(vr)) {
+            } else if (nodeMoves(vr).size() > 0) {
                 freezeWorkSet.add(vr);
             } else {
                 simplifyWorkSet.add(vr);
@@ -519,7 +556,7 @@ public class TrivialRegAllocator {
             enableMoves(x);
             // TODO: 这里trivial写的是insert, 很怪
             spillWorkSet.remove(x);
-            if (moveRelated(x)) {
+            if (nodeMoves(x).size() > 0) {
                 freezeWorkSet.add(x);
             } else {
                 simplifyWorkSet.add(x);
@@ -546,7 +583,7 @@ public class TrivialRegAllocator {
     }
 
     public void addWorkList(Operand x) {
-        if (!x.isPreColored() && !moveRelated(x) && x.degree < rk) {
+        if (!x.isPreColored() && (nodeMoves(x).size() == 0) && x.degree < rk) {
             // 当 x 需要被染色, x 并不与 move 相关, x 的度 <= k - 1
             // 低度数传送有关结点删除 x , 且低度数传送无关结点添加 x
             freezeWorkSet.remove(x);
@@ -685,27 +722,16 @@ public class TrivialRegAllocator {
         }
     }
 
-    /**
-     * 从低度数的传送有关的结点中随机选择一个进行冻结
-     */
-    public void freeze() {
-        Operand u = freezeWorkSet.iterator().next();
-        freezeWorkSet.remove(u);
-        simplifyWorkSet.add(u);
-        freezeMoves(u);
-    }
+    // /**
+    //  * 从低度数的传送有关的结点中随机选择一个进行冻结
+    //  */
+    // public void freeze() {
+    //     Operand u = freezeWorkSet.iterator().next();
+    //     freezeWorkSet.remove(u);
+    //     simplifyWorkSet.add(u);
+    //     freezeMoves(u);
+    // }
 
-    /**
-     * 从低度数结点集(simplifyWorkSet)中启发式选取结点 x , 挪到高度数结点集(spillWorkSet)中
-     * 冻结 x 及其相关 move
-     */
-    public void selectSpill() {
-        // Operand x = spillWorkSet.stream().reduce((a, b) -> a.heuristicVal() < b.heuristicVal() ? a : b).orElseThrow();
-        Operand x = spillWorkSet.stream().reduce(Operand::select).orElseThrow();
-        spillWorkSet.remove(x);
-        simplifyWorkSet.add(x);
-        freezeMoves(x);
-    }
 
     public void assignColors() {
         logOut("Start to assign colors");

@@ -444,8 +444,8 @@ public class CodeGen {
                         Machine.McFunction mf = func2mcFunc.get(call_inst.getFunc());
                         assert mf != null;
                         new MICall(mf, curMB);
-                        if (call_inst.getFunc().hasRet())
-                            new MIMove(getVR_no_imm(call_inst), Arm.Reg.getR(r0), curMB);
+                        // if (call_inst.getFunc().hasRet())
+                        //     new MIMove(getVR_no_imm(call_inst), Arm.Reg.getR(r0), curMB);
                     } else {
                         if (callMcFunc == null) {
                             throw new AssertionError("Callee is null");

@@ -239,7 +239,7 @@ public class CodeGen {
                         Machine.Operand retOpd = getVR_may_imm(returnInst.getRetValue());
                         curMB.firstMIForBJ = new MIMove(Arm.Reg.getR(r0), retOpd, curMB);
                     }
-                    Machine.Operand rOp = new Machine.Operand(I32, curMachineFunc.getStackSize());
+                    Machine.Operand rOp = new Machine.Operand(I32, 0);
                     MIBinary miBinary = new MIBinary(MachineInst.Tag.Add, Arm.Reg.getR(sp), Arm.Reg.getR(sp), rOp, curMB);
                     miBinary.setNeedFix();
                     new MIReturn(curMB);

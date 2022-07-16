@@ -63,6 +63,6 @@ public class MIBinary extends MachineInst {
     @Override
     public String toString() {
         return tag.toString() + "\t" + getDst() + ",\t" + getLOpd() + ",\t" +
-                (isNeedFix() ? getROpd().value + this.mb.mcFunc.getStackSize() : getROpd());
+                (isNeedFix() ? getROpd().value + (this.callee == null ? this.mb.mcFunc.getStackSize() : this.callee.getStackSize()) : getROpd());
     }
 }

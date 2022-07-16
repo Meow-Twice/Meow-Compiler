@@ -615,6 +615,7 @@ public class MIDescriptor implements Descriptor {
                     Machine.McFunction tmp = curMF;
                     runMF(((MICall) mi).mcFunction);
                     curMF = tmp;
+                    logOut("<--> return to "+curMF.mFunc.getName());
                     vrListStackPop();
                 }
                 case Global -> throw new AssertionError("not done yet");

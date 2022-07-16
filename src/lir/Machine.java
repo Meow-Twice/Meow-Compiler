@@ -528,15 +528,15 @@ public class Machine {
             };
         }
 
-        public Operand(Arm.Reg reg) {
-            this.type = PreColored;
-            this.reg = reg.reg;
-            prefix = switch (reg.dataType) {
-                case F32 -> "s";
-                case I32 -> "r";
-                default -> throw new IllegalStateException("Unexpected reg type: " + reg.dataType);
-            };
-        }
+        // public Operand(Arm.Reg reg) {
+        //     this.type = PreColored;
+        //     this.reg = reg.reg;
+        //     prefix = switch (reg.dataType) {
+        //         case F32 -> "s";
+        //         case I32 -> "r";
+        //         default -> throw new IllegalStateException("Unexpected reg type: " + reg.dataType);
+        //     };
+        // }
 
         public Operand(Arm.Regs reg) {
             this.type = Allocated;

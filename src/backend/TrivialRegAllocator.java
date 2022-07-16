@@ -5,7 +5,6 @@ import lir.Machine.Operand;
 import mir.type.DataType;
 import util.ILinkNode;
 
-import java.io.FileNotFoundException;
 import java.util.*;
 import java.util.stream.Stream;
 
@@ -31,6 +30,7 @@ public class TrivialRegAllocator {
             mb.liveUseSet = new HashSet<>();
             mb.defSet = new HashSet<>();
             for (MachineInst mi : mb.miList) {
+                if (mi instanceof MIComment) continue;
                 ArrayList<Operand> defs = mi.defOpds;
                 ArrayList<Operand> uses = mi.useOpds;
                 // liveuse 计算
@@ -46,7 +46,9 @@ public class TrivialRegAllocator {
                     }
                 });
             }
-            mb.liveInSet = mb.liveUseSet;
+            logOut(mb.getDebugLabel()+"\tdefSet:\t"+mb.defSet.toString());
+            logOut(mb.getDebugLabel()+"\tuseSet:\t"+mb.liveUseSet.toString());
+            mb.liveInSet = new HashSet<>(mb.liveUseSet);
             mb.liveOutSet = new HashSet<>();
         }
 
@@ -75,6 +77,8 @@ public class TrivialRegAllocator {
                         finalMb.liveInSet.add(newOut);
                     }
                 });
+                logOut(((Machine.Block) mb).getDebugLabel() + " liveInSet:\t" + finalMb.liveInSet.toString());
+                logOut(((Machine.Block) mb).getDebugLabel() + " liveOutSet:\t" + finalMb.liveOutSet.toString());
             }
             int i = 0;
         }
@@ -189,7 +193,7 @@ public class TrivialRegAllocator {
 
     public Machine.McFunction curMF;
 
-    public void AllocateRegister(Machine.Program program) throws FileNotFoundException {
+    public void AllocateRegister(Machine.Program program) {
         for (Machine.McFunction mcFunc : program.funcList) {
             curMF = mcFunc;
             while (true) {

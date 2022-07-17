@@ -159,6 +159,18 @@ public class LoopUnRoll {
         assert headNext.getPrecBBs().size() == 1;
 
 
+        HashMap<Value, Value> reachDefFromEntering = new HashMap();
+        HashMap<Value, Value> reachDefFromLatch = new HashMap();
+        for (Instr instr = head.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+            if (!(instr instanceof Instr.Phi)) {
+                break;
+            }
+            int index = head.getPrecBBs().indexOf(entering);
+            reachDefFromEntering.put(instr, instr.getUseValueList().get(index));
+            reachDefFromLatch.put(instr, instr.getUseValueList().get(1 - index));
+        }
+
+
         //修正exit的LCSSA PHI
         assert exit.getPrecBBs().size() == 1;
         for (Instr instr = exit.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {

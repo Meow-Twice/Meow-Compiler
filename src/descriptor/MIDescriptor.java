@@ -291,13 +291,14 @@ public class MIDescriptor implements Descriptor {
             return;
         }
         if (runningState == RunningState.AFTER_MODE) {
-        int i = 0;
-        int cnt = curMF.mFunc.getParams().size();
-        cnt = Math.min(cnt, 4);
-        ArrayList<Integer> pl = new ArrayList<>();
-        for(i = 0; i < cnt; i++){
-            pl.add(RegSimulator.GPRS.get(i));
-        }
+            int i;
+            int cnt = curMF.mFunc.getParams().size();
+            cnt = Math.min(cnt, 4);
+            ArrayList<Integer> pl = new ArrayList<>();
+            for (i = 0; i < cnt; i++) {
+                pl.add(RegSimulator.GPRS.get(i));
+            }
+            int sp = RegSimulator.GPRS.get(13);
             Stack<ArrayList<Integer>> s1 = curMF2GPRs.get(curMF);
             s1.push(RegSimulator.GPRS);
             RegSimulator.GPRS = new ArrayList<>(pl);
@@ -307,6 +308,7 @@ public class MIDescriptor implements Descriptor {
             for (i = cnt; i < Arm.Regs.GPRs.values().length; i++) {
                 RegSimulator.GPRS.add(0);
             }
+            RegSimulator.GPRS.set(13, sp);
             assert Arm.Regs.GPRs.values().length == RegSimulator.GPRS.size();
             for (i = 0; i < Arm.Regs.FPRs.values().length; i++) {
                 RegSimulator.FPRS.add((float) 0.0);
@@ -320,11 +322,13 @@ public class MIDescriptor implements Descriptor {
         while (mb != null) {
             mb = runMB(mb);
         }
-        int r0 = (int )getFromReg(GPRs.r0);
+        int r0 = (int) getFromReg(GPRs.r0);
+        int sp = (int) getFromReg(GPRs.sp);
         if (runningState == RunningState.AFTER_MODE) {
             Stack<ArrayList<Integer>> s1 = curMF2GPRs.get(curMF);
             RegSimulator.GPRS = s1.pop();
             RegSimulator.GPRS.set(0, r0);
+            RegSimulator.GPRS.set(13, sp);
             Stack<ArrayList<Float>> s2 = curMF2FPRs.get(curMF);
             RegSimulator.FPRS = s2.pop();
         }

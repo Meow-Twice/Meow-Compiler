@@ -238,18 +238,20 @@ public class TrivialRegAllocator {
                     }
                 }
 
-                while (simplifyWorkSet.size() > 0 || workListMoveSet.size() > 0 || freezeWorkSet.size() > 0 || spillWorkSet.size() > 0) {
+                while (simplifyWorkSet.size() + workListMoveSet.size() + freezeWorkSet.size() + spillWorkSet.size() > 0) {
                     if (simplifyWorkSet.size() > 0) {
+                        // 从度数低的结点集中随机选择一个从图中删除放到 selectStack 里
                         Iterator<Operand> iter = simplifyWorkSet.iterator();
                         Operand x = iter.next();
                         iter.remove();
                         selectStack.push(x);
+
                         adjacent(x).forEach(this::decrementDegree);
                     }
-                    if (workListMoveSet.size() > 0) {
+                    else if (workListMoveSet.size() > 0) {
                         coalesce();
                     }
-                    if (freezeWorkSet.size() > 0) {
+                    else if (freezeWorkSet.size() > 0) {
                         /**
                          * 从低度数的传送有关的结点中随机选择一个进行冻结
                          */
@@ -258,7 +260,7 @@ public class TrivialRegAllocator {
                         simplifyWorkSet.add(x);
                         freezeMoves(x);
                     }
-                    if (spillWorkSet.size() > 0) {
+                    else if (spillWorkSet.size() > 0) {
                         /**
                          * 从低度数结点集(simplifyWorkSet)中启发式选取结点 x , 挪到高度数结点集(spillWorkSet)中
                          * 冻结 x 及其相关 move
@@ -494,38 +496,38 @@ public class TrivialRegAllocator {
      * 有可能合并的传送指令从 activeMoveSet 挪到 workListMoveSet
      */
     // EnableMoves({x} u Adjacent(x))
-    private void enableMoves(Operand x) {
-        nodeMoves(x).stream().filter(activeMoveSet::contains).forEach(mv -> {
-            activeMoveSet.remove(mv);
-            workListMoveSet.add(mv);
-            // tools.changeWorkSet(mv, activeMoveSet, workListMoveSet);
-        });
-        adjacent(x).forEach(adj -> nodeMoves(adj).stream().filter(activeMoveSet::contains).forEach(mv -> {
-            activeMoveSet.remove(mv);
-            workListMoveSet.add(mv);
-        }));
-    }
     // private void enableMoves(Operand x) {
-    //     for (MIMove mv : nodeMoves(x)) {
-    //         // 考虑 x 关联的可能合并的 move
-    //         if (activeMoveSet.contains(mv)) {
-    //             // 未做好合并准备的集合如果包含mv, 就挪到workListMoveSet中
-    //             activeMoveSet.remove(mv);
-    //             workListMoveSet.add(mv);
-    //         }
-    //     }
-    //     for (Operand adj : adjacent(x)) {
-    //         // 对于o的每个实际邻接冲突adj
-    //         for (MIMove mv : nodeMoves(adj)) {
-    //             // adj关联的move, 如果是有可能合并的move
-    //             if(activeMoveSet.contains(mv)){
-    //                 // 未做好合并准备的集合如果包含mv, 就挪到workListMoveSet中
-    //                 activeMoveSet.remove(mv);
-    //                 workListMoveSet.add(mv);
-    //             }
-    //         }
-    //     }
+    //     nodeMoves(x).stream().filter(activeMoveSet::contains).forEach(mv -> {
+    //         activeMoveSet.remove(mv);
+    //         workListMoveSet.add(mv);
+    //         // tools.changeWorkSet(mv, activeMoveSet, workListMoveSet);
+    //     });
+    //     adjacent(x).forEach(adj -> nodeMoves(adj).stream().filter(activeMoveSet::contains).forEach(mv -> {
+    //         activeMoveSet.remove(mv);
+    //         workListMoveSet.add(mv);
+    //     }));
     // }
+    private void enableMoves(Operand x) {
+        for (MIMove mv : nodeMoves(x)) {
+            // 考虑 x 关联的可能合并的 move
+            if (activeMoveSet.contains(mv)) {
+                // 未做好合并准备的集合如果包含mv, 就挪到workListMoveSet中
+                activeMoveSet.remove(mv);
+                workListMoveSet.add(mv);
+            }
+        }
+        for (Operand adj : adjacent(x)) {
+            // 对于o的每个实际邻接冲突adj
+            for (MIMove mv : nodeMoves(adj)) {
+                // adj关联的move, 如果是有可能合并的move
+                if(activeMoveSet.contains(mv)){
+                    // 未做好合并准备的集合如果包含mv, 就挪到workListMoveSet中
+                    activeMoveSet.remove(mv);
+                    workListMoveSet.add(mv);
+                }
+            }
+        }
+    }
 
     /**
      * 从图中去掉一个结点需要减少该结点的当前各个邻结点的度数.
@@ -559,28 +561,16 @@ public class TrivialRegAllocator {
         return x;
     }
 
+    /**
+     * 当 x 需要被染色, x 并不与 move 相关, x 的度 <= k - 1
+     * 低度数传送有关结点删除 x , 且低度数传送无关结点添加 x
+     * @param x
+     */
     public void addWorkList(Operand x) {
         if (!x.isPreColored() && (nodeMoves(x).size() == 0) && x.degree < rk) {
-            // 当 x 需要被染色, x 并不与 move 相关, x 的度 <= k - 1
-            // 低度数传送有关结点删除 x , 且低度数传送无关结点添加 x
             freezeWorkSet.remove(x);
             simplifyWorkSet.add(x);
         }
-    }
-
-    /**
-     * u 的冲突邻接点是否均满足:
-     * 要么为低度数结点, 要么预着色, 要么与 v 邻接
-     */
-    public boolean adjOk(Operand u, Operand v) {
-        for (Operand adj : adjacent(u)) {
-            if (!(adj.degree < rk
-                    || adj.isPreColored()
-                    || adjSet.contains(new AdjPair(adj, v)))) {
-                return false;
-            }
-        }
-        return true;
     }
 
     // 合并move u <- v
@@ -766,7 +756,7 @@ public class TrivialRegAllocator {
         for (Machine.Block mb : curMF.mbList) {
             for (MachineInst mi : mb.miList) {
                 // TODO 这里不考虑Call
-                if (mi.isCall()) continue;
+                if (mi.isCall()|| mi.isComment()) continue;
                 logOut("Consider " + mi);
                 ArrayList<Operand> defs = mi.defOpds;
                 ArrayList<Operand> uses = mi.useOpds;

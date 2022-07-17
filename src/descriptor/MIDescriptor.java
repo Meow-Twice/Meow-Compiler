@@ -33,6 +33,15 @@ public class MIDescriptor implements Descriptor {
         this.output = out;
     }
 
+    private RunningState runningState = RunningState.BEFORE_MODE;
+    public void setRegMode() {
+        runningState = RunningState.AFTER_MODE;
+    }
+
+    private boolean isAfterRegAlloc(){
+        return runningState == RunningState.AFTER_MODE;
+    }
+
     private static class MemSimulator {
         // public static final MemSimulator MEM_SIMULATOR = new MemSimulator();
         private static final int N = 2;
@@ -134,11 +143,11 @@ public class MIDescriptor implements Descriptor {
     static StringBuilder out = new StringBuilder();
     static boolean endsWithLF = true; // 当前 out 的最后是否以空行结尾, 初始状态为 true
 
-    // enum RunningState {
-    //     BEFORE_MODE,//刚生成代码
-    //     AFTER_MODE,//分配完所有寄存器
-    //     MIX_MODE
-    // }
+    enum RunningState {
+        BEFORE_MODE,//刚生成代码
+        AFTER_MODE,//分配完所有寄存器
+        MIX_MODE
+    }
 
     private static StringBuilder err = new StringBuilder();
     // private static final StringBuilder sbd = new StringBuilder();
@@ -682,6 +691,7 @@ public class MIDescriptor implements Descriptor {
     // 设为Object是为了保证int和float的兼容性
     // 可能返回int或者float或者String(glob地址)
     private Object GET_VAL_FROM_OPD(Machine.Operand o) {
+        if(isAfterRegAlloc() && o.isVirtual())throw new AssertionError("Still has vr: "+o);
         Object val = switch (o.getType()) {
             case PreColored, Allocated -> getFromReg(o.getReg());
             case Virtual -> curVRList.get(o.getValue());
@@ -694,6 +704,7 @@ public class MIDescriptor implements Descriptor {
 
     // 设为Object是为了保证int和float的兼容性
     private void SET_VAL_FROM_OPD(Object val, Machine.Operand o) {
+        if(isAfterRegAlloc() && o.isVirtual())throw new AssertionError("Still has vr: "+o);
         logOut("^ set\t" + val + "\tto\t\t" + o);
         switch (o.getType()) {
             case PreColored, Allocated -> setToReg(val, o.getReg());

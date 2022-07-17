@@ -23,23 +23,23 @@ public class MidEndRunner {
         MakeDFG makeDFG = new MakeDFG(functions);
         makeDFG.Run();
 
-        GlobalValueLocalize globalValueLocalize = new GlobalValueLocalize(functions, globalValues);
-        globalValueLocalize.Run();
-
-        FuncInline funcInline = new FuncInline(functions);
-        funcInline.Run();
-
-        reMakeCFGAndLoopInfo();
-
-        GlobalValueLocalize globalValueLocalize_1 = new GlobalValueLocalize(functions, globalValues);
-        globalValueLocalize_1.Run();
+//        GlobalValueLocalize globalValueLocalize = new GlobalValueLocalize(functions, globalValues);
+//        globalValueLocalize.Run();
+//
+//        FuncInline funcInline = new FuncInline(functions);
+//        funcInline.Run();
+//
+//        reMakeCFGAndLoopInfo();
+//
+//        GlobalValueLocalize globalValueLocalize_1 = new GlobalValueLocalize(functions, globalValues);
+//        globalValueLocalize_1.Run();
 
         Mem2Reg mem2Reg = new Mem2Reg(functions);
         mem2Reg.Run();
 
-        Pass();
+        //Pass();
 
-        loopOptimize();
+        //loopOptimize();
 
 
         //TODO:删除冗余phi,分支优化(删除无用的br/jump等),等等
@@ -54,6 +54,7 @@ public class MidEndRunner {
 //
 //        MathOptimize mathOptimize = new MathOptimize(functions);
 //        mathOptimize.Run();
+
 
 
 
@@ -95,23 +96,20 @@ public class MidEndRunner {
         branchLift.Run();
 
         reMakeCFGAndLoopInfo();
-//
-        Pass();
-
-        // TODO:获取迭代变量idcVar的相关信息
-        LoopIdcVarInfo loopIdcVarInfo = new LoopIdcVarInfo(functions);
-        loopIdcVarInfo.Run();
-
-        // TODO:循环展开
-        LoopUnRoll loopUnRoll = new LoopUnRoll(functions);
-        loopUnRoll.Run();
-
-        reMakeCFGAndLoopInfo();
-
-//        DeadCodeDelete deadCodeDelete = new DeadCodeDelete(functions);
-//        deadCodeDelete.Run();
 
         //Pass();
+
+        // TODO:获取迭代变量idcVar的相关信息
+//        LoopIdcVarInfo loopIdcVarInfo = new LoopIdcVarInfo(functions);
+//        loopIdcVarInfo.Run();
+//
+//        // TODO:循环展开
+//        LoopUnRoll loopUnRoll = new LoopUnRoll(functions);
+//        loopUnRoll.Run();
+//
+//        reMakeCFGAndLoopInfo();
+//
+//        Pass();
 
         // TODO:循环融合
 

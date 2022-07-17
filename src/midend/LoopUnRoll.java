@@ -269,15 +269,31 @@ public class LoopUnRoll {
 
                             //TODO:不能立刻更改
                             instr.modifyUse(C, j);
-                            reachDefAfterLatch.put(C, D);
-                            reachDefAfterLatch.remove(B);
-                            Value A = endToBegin.get(C);
-                            beginToEnd.put(A, D);
-                            endToBegin.put(D, A);
-                            endToBegin.remove(C);
+//                            reachDefAfterLatch.put(C, D);
+//                            reachDefAfterLatch.remove(B);
+//                            Value A = endToBegin.get(C);
+//                            beginToEnd.put(A, D);
+//                            endToBegin.put(D, A);
+//                            endToBegin.remove(C);
                         }
                     }
                 }
+            }
+
+            HashSet<Value> values = new HashSet<>();
+            for (Value value: reachDefAfterLatch.keySet()) {
+                values.add(value);
+            }
+
+            for (Value B: values) {
+                Value C = reachDefAfterLatch.get(B);
+                Value D = CloneInfoMap.getReflectedValue(reachDefAfterLatch.get(B));
+                reachDefAfterLatch.put(C, D);
+                reachDefAfterLatch.remove(B);
+                Value A = endToBegin.get(C);
+                beginToEnd.put(A, D);
+                endToBegin.put(D, A);
+                endToBegin.remove(C);
             }
 
 

@@ -14,6 +14,7 @@ import java.util.Objects;
  */
 public class BasicBlock extends Value {
     private static final boolean NEED_CFG_INFO = false;
+    private static final boolean NEED_LOOP_INFO = true;
     private static final boolean ENABLE_DEBUG = true;
     private Function function;
 //    private ILinkNode head = new EmptyNode();
@@ -57,6 +58,10 @@ public class BasicBlock extends Value {
     public void setLoopStart() {
         isLoopHeader = true;
         loop.setHeader(this);
+    }
+
+    public void setLoopHeader() {
+        isLoopHeader = true;
     }
 
     public void setLoopEntering() {
@@ -335,6 +340,12 @@ public class BasicBlock extends Value {
     @Override
     public String toString() {
         if (!NEED_CFG_INFO) {
+            if (NEED_LOOP_INFO) {
+                if (isLoopHeader) {
+                    return this.label + loop.infoString();
+                }
+                return this.label;
+            }
             return this.label;
         }
         //return this.label + ":\t\t\t\t\t; loopDepth: " + loop.loopDepth + ";\t" + loop;
@@ -456,11 +467,16 @@ public class BasicBlock extends Value {
         tagLoop.addBB(ret);
         if (this.isLoopHeader) {
             tagLoop.setHeader(ret);
+            ret.setLoopHeader();
         }
         Instr instr = this.getBeginInstr();
         while (instr.getNext() != null) {
             Instr tmp = instr.cloneToBB(ret);
-            if (instr.isInWhileCond()) {
+//            if (instr.isInWhileCond()) {
+//                tmp.setLoopCondCount(++Visitor.VISITOR.curLoopCondCount);
+//            }
+            //loopCondCount的映射,记录在CloneInfoMap中
+            if (ret.getLoopDep() > 0) {
                 tmp.setLoopCondCount(++Visitor.VISITOR.curLoopCondCount);
             }
             instr = (Instr) instr.getNext();

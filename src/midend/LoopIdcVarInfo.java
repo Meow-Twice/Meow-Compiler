@@ -86,6 +86,9 @@ public class LoopIdcVarInfo {
             idcAlu = phiRVal2;
             idcInit = phiRVal1;
         }
+        if (!(idcAlu instanceof Instr.Alu)) {
+            return;
+        }
         Value idcStep;
         if (((Instr.Alu) idcAlu).getRVal1().equals(idcPHI)) {
             idcStep = ((Instr.Alu) idcAlu).getRVal2();

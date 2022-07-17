@@ -421,8 +421,8 @@ public class BasicBlock extends Value {
         Instr instr = this.getBeginInstr();
         while (instr.getNext() != null) {
             Instr tmp = instr.cloneToBB(ret);
-            if (instr.isInWhileCond()) {
-                tmp.setLoopCondCount(++Visitor.VISITOR.curLoopCondCount);
+            if (instr.isInLoopCond()) {
+                tmp.setCondCount(++Visitor.VISITOR.curLoopCondCount);
             }
             instr = (Instr) instr.getNext();
         }
@@ -477,7 +477,7 @@ public class BasicBlock extends Value {
 //            }
             //loopCondCount的映射,记录在CloneInfoMap中
             if (ret.getLoopDep() > 0) {
-                tmp.setLoopCondCount(++Visitor.VISITOR.curLoopCondCount);
+                tmp.setCondCount(++Visitor.VISITOR.curLoopCondCount);
             }
             instr = (Instr) instr.getNext();
         }
@@ -497,8 +497,8 @@ public class BasicBlock extends Value {
         Instr instr = this.getBeginInstr();
         while (instr.getNext() != null) {
             Instr tmp = instr.cloneToBB(ret);
-            if (instr.isInWhileCond()) {
-                tmp.setLoopCondCount(++Visitor.VISITOR.curLoopCondCount);
+            if (instr.isInLoopCond()) {
+                tmp.setCondCount(++Visitor.VISITOR.curLoopCondCount);
             }
             instr = (Instr) instr.getNext();
         }

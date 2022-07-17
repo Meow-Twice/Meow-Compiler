@@ -165,7 +165,7 @@ public class Loop {
     }
 
     public void addCond(Instr instr) {
-        int condNum = instr.getLoopCondCount();
+        int condNum = instr.getCondCount();
         if (!conds.containsKey(condNum)) {
             conds.put(condNum, new HashSet<>());
         }

@@ -75,18 +75,22 @@ public class Instr extends Value {
     protected ArrayList<Use> useList;
     protected ArrayList<Value> useValueList;
 
-    public int loopCondCount;
+    private int condCount;
+    private boolean inLoopCond =false;
 
-    public boolean isInWhileCond(){
-        return loopCondCount > 0;
+    public void setInLoopCond(){
+        inLoopCond = true;}
+
+    public boolean isInLoopCond(){
+        return inLoopCond;
     }
 
-    public int getLoopCondCount(){
-        return loopCondCount;
+    public int getCondCount(){
+        return condCount;
     }
 
-    public void setLoopCondCount(int loopCondCount) {
-        this.loopCondCount = loopCondCount;
+    public void setCondCount(int condCount) {
+        this.condCount = condCount;
     }
 
     //空指令用于在BB中做链表头/尾
@@ -96,7 +100,8 @@ public class Instr extends Value {
     }
 
     private void init() {
-        loopCondCount = Visitor.VISITOR.getLoopCondCount();
+        inLoopCond = Visitor.VISITOR.isInLoopCond();
+        condCount = Visitor.VISITOR.getCondCount();
         hash = "Instr " + LOCAL_COUNT;
         prefix = LOCAL_PREFIX;
         name = LOCAL_NAME_PREFIX + LOCAL_COUNT++;

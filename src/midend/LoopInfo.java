@@ -53,7 +53,7 @@ public class LoopInfo {
             Instr instr = bb.getBeginInstr();
             Loop loop = bb.getLoop();
             while (instr.getNext() != null) {
-                if (instr.isInWhileCond()) {
+                if (instr.isInLoopCond()) {
                     loop.addCond(instr);
                 }
                 instr = (Instr) instr.getNext();

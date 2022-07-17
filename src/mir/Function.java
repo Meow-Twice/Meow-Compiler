@@ -190,7 +190,7 @@ public class Function extends Value {
             body.append(block).append(":\n");
             while (node.hasNext()) {
                 if (debug_for_lc) {
-                    body.append("  ").append(node).append("     ").append(((Instr) node).getLoopCondCount()).append("\n");
+                    body.append("  ").append(node).append("     ").append(((Instr) node).getCondCount()).append("\n");
                 } else {
                     body.append("  ").append(node).append("\n");
                 }

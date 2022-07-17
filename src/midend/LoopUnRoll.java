@@ -1,6 +1,5 @@
 package midend;
 
-import frontend.syntax.Ast;
 import mir.*;
 
 import java.util.ArrayList;
@@ -219,8 +218,8 @@ public class LoopUnRoll {
         if (loop.getLoopDepth() == 1) {
             for (BasicBlock bb: bbInWhile) {
                 for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
-                    if (instr.isInWhileCond()) {
-                        instr.setLoopCondCount(-1);
+                    if (instr.isInLoopCond()) {
+                        instr.setCondCount(-1);
                     }
                 }
             }

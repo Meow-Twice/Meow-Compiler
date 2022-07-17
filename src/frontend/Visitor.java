@@ -37,11 +37,15 @@ public class Visitor {
     // 实时更新表示Instr是否在循环中
     public boolean inLoop = false;
 
-    // 实时更新表示Instr是否在循环包含的Cond中
-    public boolean inLoopCond = false;
+    // 实时更新表示Instr是否在Cond中
+    private boolean inCond = false;
 
-    public int getLoopCondCount() {
-        return inLoopCond ? curLoopCondCount : -1;
+    public int getCondCount() {
+        return inCond ? curLoopCondCount : -1;
+    }
+
+    public boolean isInLoopCond() {
+        return inLoop && inCond;
     }
 
     private Function curFunc = null; // 当前正在分析的函数
@@ -391,14 +395,8 @@ public class Visitor {
         }
     }
 
-    private void setLoopCond(){
-        if(inLoop){
-            inLoopCond = true;
-        }
-    }
-
-    private void dealLoopCondCount() {
-        if (inLoopCond) {
+    private void dealCondCount() {
+        if (inCond) {
             curLoopCondCount++;
         }
     }
@@ -424,7 +422,7 @@ public class Visitor {
             BasicBlock nextBlock = new BasicBlock(curFunc, curLoop); // 实为trueBlock的前驱
             new Branch(first, nextBlock, falseBlock, curBB);
             curBB = nextBlock;
-            dealLoopCondCount();
+            dealCondCount();
             first = trimTo(visitExp(nextExp), I1_TYPE);
         }
         return first;
@@ -463,7 +461,7 @@ public class Visitor {
             }
             new Branch(first, trueBlock, nextBlock, curBB);
             curBB = nextBlock;
-            dealLoopCondCount();
+            dealCondCount();
             first = visitCondLAnd(nextExp, falseBlock);
             assert first.getType().isInt1Type();
         }
@@ -481,25 +479,25 @@ public class Visitor {
         }
         BasicBlock followBlock = new BasicBlock(curFunc, curLoop);
         if (hasElseBlock) {
-            setLoopCond();
-            dealLoopCondCount();
+            inCond = true;
+            dealCondCount();
             Value cond = visitCondLOr(ifStmt.getCond(), thenBlock, elseBlock);
             assert cond.getType().isInt1Type();
             new Branch(cond, thenBlock, elseBlock, curBB);
             curBB = thenBlock;
-            inLoopCond = false;
+            inCond = false;
             visitStmt(thenTarget);
             new Jump(followBlock, curBB);
             curBB = elseBlock;
             visitStmt(elseTarget);
         } else {
-            setLoopCond();
-            dealLoopCondCount();
+            inCond = true;
+            dealCondCount();
             Value cond = visitCondLOr(ifStmt.getCond(), thenBlock, followBlock);
             assert cond.getType().isInt1Type();
             new Branch(cond, thenBlock, followBlock, curBB);
             curBB = thenBlock;
-            inLoopCond = false;
+            inCond = false;
             visitStmt(thenTarget); // currentBlock may be modified
         }
         new Jump(followBlock, curBB);
@@ -516,13 +514,13 @@ public class Visitor {
         BasicBlock follow = new BasicBlock(curFunc, curLoop.getParentLoop());
         curBB = condBlock;
         inLoop = true;
-        setLoopCond();
-        dealLoopCondCount();
+        inCond = true;
+        dealCondCount();
         Value cond = visitCondLOr(whileStmt.getCond(), body, follow);
         assert cond.getType().isInt1Type();
         new Branch(cond, body, follow, curBB);
         curBB = body;
-        inLoopCond = false;
+        inCond = false;
         loopHeads.push(condBlock);
         loopFollows.push(follow);
         visitStmt(whileStmt.getBody());

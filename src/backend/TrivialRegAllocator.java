@@ -20,7 +20,7 @@ public class TrivialRegAllocator {
 
     private final boolean DEBUG_STDIN_OUT = false;
 
-    private int rk = 7;
+    private int rk = 12;
     private int sk = 32;
 
     private DataType dataType = I32;
@@ -96,7 +96,8 @@ public class TrivialRegAllocator {
      */
 
     /**
-     * 低度数的传送(mv)无关的结点
+     * 欲从图中删除的结点集
+     * 初始为低度数的传送(mv)无关的结点集, 实际上在select_spill的时候会把下一轮需要挪出去的点放到这里
      */
     HashSet<Operand> simplifyWorkSet = new HashSet<>();
 
@@ -304,6 +305,7 @@ public class TrivialRegAllocator {
                         // Operand x = spillWorkSet.stream().reduce((a, b) -> a.heuristicVal() < b.heuristicVal() ? a : b).orElseThrow();
                         // Operand x = spillWorkSet.stream().reduce(Operand::select).orElseThrow();
                         // TODO 为什么这里可以先挪到simplifyWorkSet里面啊
+                        // simplifyWorkSet真正含义是希望将结点移出冲突图
                         simplifyWorkSet.add(x);
                         freezeMoves(x);
                         spillWorkSet.remove(x);

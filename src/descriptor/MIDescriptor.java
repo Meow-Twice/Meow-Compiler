@@ -34,11 +34,12 @@ public class MIDescriptor implements Descriptor {
     }
 
     private RunningState runningState = RunningState.BEFORE_MODE;
+
     public void setRegMode() {
         runningState = RunningState.AFTER_MODE;
     }
 
-    private boolean isAfterRegAlloc(){
+    private boolean isAfterRegAlloc() {
         return runningState == RunningState.AFTER_MODE;
     }
 
@@ -183,7 +184,7 @@ public class MIDescriptor implements Descriptor {
         } else {
             System.err.println(s);
         }
-        if(err.length() > 1000000){
+        if (err.length() > 1000000) {
             FileDealer.outputToFile(err, "stderr" + outputTimes++ + ".txt");
             err = new StringBuilder();
         }
@@ -224,6 +225,10 @@ public class MIDescriptor implements Descriptor {
         out = new StringBuilder();
         err = new StringBuilder();
         mf2curVRListMap = new HashMap<>();
+        if (runningState == RunningState.AFTER_MODE) {
+            curMF2GPRs = new HashMap<>();
+            curMF2FPRs = new HashMap<>();
+        }
         Arrays.fill(MemSimulator.MEM, null);
         // Arrays.fill(MemSimulator.STACK, null);
         // Arrays.fill(MemSimulator.HEAP, null);
@@ -285,6 +290,28 @@ public class MIDescriptor implements Descriptor {
             dealExternalFunc();
             return;
         }
+        if (runningState == RunningState.AFTER_MODE) {
+        int i = 0;
+        int cnt = curMF.mFunc.getParams().size();
+        cnt = Math.min(cnt, 4);
+        ArrayList<Integer> pl = new ArrayList<>();
+        for(i = 0; i < cnt; i++){
+            pl.add(RegSimulator.GPRS.get(i));
+        }
+            Stack<ArrayList<Integer>> s1 = curMF2GPRs.get(curMF);
+            s1.push(RegSimulator.GPRS);
+            RegSimulator.GPRS = new ArrayList<>(pl);
+            Stack<ArrayList<Float>> s2 = curMF2FPRs.get(curMF);
+            s2.push(RegSimulator.FPRS);
+            RegSimulator.FPRS = new ArrayList<>();
+            for (i = cnt; i < Arm.Regs.GPRs.values().length; i++) {
+                RegSimulator.GPRS.add(0);
+            }
+            assert Arm.Regs.GPRs.values().length == RegSimulator.GPRS.size();
+            for (i = 0; i < Arm.Regs.FPRs.values().length; i++) {
+                RegSimulator.FPRS.add((float) 0.0);
+            }
+        }
         int spVal = (int) getFromReg(sp);
         // setToReg(spVal - curMF.getStackSize(), sp);
         curVRList = new ArrayList<>(Collections.nCopies(curMF.vrList.size(), 0));
@@ -292,6 +319,14 @@ public class MIDescriptor implements Descriptor {
         // 不这么run会爆栈
         while (mb != null) {
             mb = runMB(mb);
+        }
+        int r0 = (int )getFromReg(GPRs.r0);
+        if (runningState == RunningState.AFTER_MODE) {
+            Stack<ArrayList<Integer>> s1 = curMF2GPRs.get(curMF);
+            RegSimulator.GPRS = s1.pop();
+            RegSimulator.GPRS.set(0, r0);
+            Stack<ArrayList<Float>> s2 = curMF2FPRs.get(curMF);
+            RegSimulator.FPRS = s2.pop();
         }
     }
 
@@ -302,27 +337,11 @@ public class MIDescriptor implements Descriptor {
     private void vrListStackPush() {
         Stack<ArrayList<Object>> stack = mf2curVRListMap.get(curMF);
         stack.push(curVRList);
-        Stack<ArrayList<Integer>> s1 = curMF2GPRs.get(curMF);
-        s1.push(RegSimulator.GPRS);
-        RegSimulator.GPRS = new ArrayList<>();
-        Stack<ArrayList<Float>> s2 = curMF2FPRs.get(curMF);
-        s2.push(RegSimulator.FPRS);
-        RegSimulator.FPRS = new ArrayList<>();
-        for (int i = 0; i < Arm.Regs.GPRs.values().length; i++) {
-            RegSimulator.GPRS.add(0);
-        }
-        for (int i = 0; i < Arm.Regs.FPRs.values().length; i++) {
-            RegSimulator.FPRS.add((float) 0.0);
-        }
     }
 
     private void vrListStackPop() {
         Stack<ArrayList<Object>> stack = mf2curVRListMap.get(curMF);
         curVRList = stack.pop();
-        Stack<ArrayList<Integer>> s1 = curMF2GPRs.get(curMF);
-        RegSimulator.GPRS = s1.pop();
-        Stack<ArrayList<Float>> s2 = curMF2FPRs.get(curMF);
-        RegSimulator.FPRS = s2.pop();
     }
 
     private String genStr(String funcName) {
@@ -650,7 +669,7 @@ public class MIDescriptor implements Descriptor {
                     Machine.McFunction tmp = curMF;
                     runMF(((MICall) mi).mcFunction);
                     curMF = tmp;
-                    logOut("<--> return to "+curMF.mFunc.getName());
+                    logOut("<--> return to " + curMF.mFunc.getName());
                     vrListStackPop();
                 }
                 case Global -> throw new AssertionError("not done yet");
@@ -717,7 +736,7 @@ public class MIDescriptor implements Descriptor {
     // 设为Object是为了保证int和float的兼容性
     // 可能返回int或者float或者String(glob地址)
     private Object GET_VAL_FROM_OPD(Machine.Operand o) {
-        if(isAfterRegAlloc() && o.isVirtual())throw new AssertionError("Still has vr: "+o);
+        if (isAfterRegAlloc() && o.isVirtual()) throw new AssertionError("Still has vr: " + o);
         Object val = switch (o.getType()) {
             case PreColored, Allocated -> getFromReg(o.getReg());
             case Virtual -> curVRList.get(o.getValue());
@@ -730,7 +749,7 @@ public class MIDescriptor implements Descriptor {
 
     // 设为Object是为了保证int和float的兼容性
     private void SET_VAL_FROM_OPD(Object val, Machine.Operand o) {
-        if(isAfterRegAlloc() && o.isVirtual())throw new AssertionError("Still has vr: "+o);
+        if (isAfterRegAlloc() && o.isVirtual()) throw new AssertionError("Still has vr: " + o);
         logOut("^ set\t" + val + "\tto\t\t" + o);
         switch (o.getType()) {
             case PreColored, Allocated -> setToReg(val, o.getReg());

@@ -322,6 +322,7 @@ public class TrivialRegAllocator {
                 spilledNodeSet.forEach(this::dealSpillNode);
                 logOut("endSpill");
             }
+            curMF.setUsedCalleeSavedRegs();
             logOut(curMF.mFunc.getName()+"done");
         }
     }

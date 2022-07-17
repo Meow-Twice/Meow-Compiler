@@ -4,14 +4,33 @@ import mir.type.Type;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Objects;
 
 public class Constant extends Value {
+    private static int const_num = 0;
+
+    private int hash = const_num++;
+
     public Constant(Type type) {
         this.type = type;
     }
 
     public Object getConstVal() {
         return null;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        if (!super.equals(o)) return false;
+        Constant constant = (Constant) o;
+        return hash == constant.hash;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(super.hashCode(), hash);
     }
 
     public static class ConstantInt extends Constant {

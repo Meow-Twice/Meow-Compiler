@@ -13,6 +13,7 @@ import java.util.Objects;
  * 基本块, 具有标签名属性, 内部的代码以链表形式组织
  */
 public class BasicBlock extends Value {
+    private static final boolean NEED_CFG_INFO = false;
     private static final boolean ENABLE_DEBUG = true;
     private Function function;
 //    private ILinkNode head = new EmptyNode();
@@ -333,11 +334,47 @@ public class BasicBlock extends Value {
 
     @Override
     public String toString() {
-        //return this.label + ":\t\t\t\t\t; loopDepth: " + loop.loopDepth + ";\t" + loop;
-        if (isLoopHeader) {
-            return this.label + loop.infoString();
+        if (!NEED_CFG_INFO) {
+            return this.label;
         }
-        return this.label;
+        //return this.label + ":\t\t\t\t\t; loopDepth: " + loop.loopDepth + ";\t" + loop;
+        String ret = this.getLabel() + "\n";
+        ret += "pres: ";
+        for (BasicBlock bb: precBBs) {
+            ret += bb.getLabel() + " ";
+        }
+        ret += "\n";
+
+        ret += "sucs: ";
+        for (BasicBlock bb: succBBs) {
+            ret += bb.getLabel() + " ";
+        }
+        ret += "\n";
+
+        ret += "doms: ";
+        for (BasicBlock bb: doms) {
+            ret += bb.getLabel() + " ";
+        }
+        ret += "\n";
+
+        ret += "idoms: ";
+        for (BasicBlock bb: idoms) {
+            ret += bb.getLabel() + " ";
+        }
+        ret += "\n";
+
+        ret += "DF: ";
+        for (BasicBlock bb: DF) {
+            ret += bb.getLabel() + " ";
+        }
+        ret += "\n";
+
+        if (isLoopHeader) {
+            //return this.label + loop.infoString();
+            return ret + loop.infoString();
+        }
+        //return this.label;
+        return ret;
     }
 
     private Machine.Block mb = null;

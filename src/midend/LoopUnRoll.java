@@ -159,34 +159,39 @@ public class LoopUnRoll {
         assert headNext.getPrecBBs().size() == 1;
 
 
-        HashMap<Value, Value> reachDefFromEntering = new HashMap();
-        HashMap<Value, Value> reachDefFromLatch = new HashMap();
+        HashMap<Value, Value> reachDefBeforeHead = new HashMap();
+        HashMap<Value, Value> reachDefAfterLatch = new HashMap();
+        HashMap<Value, Value> beginToEnd = new HashMap<>();
+        HashMap<Value, Value> endToBegin = new HashMap<>();
         for (Instr instr = head.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
             if (!(instr instanceof Instr.Phi)) {
                 break;
             }
             int index = head.getPrecBBs().indexOf(entering);
-            reachDefFromEntering.put(instr, instr.getUseValueList().get(index));
-            reachDefFromLatch.put(instr, instr.getUseValueList().get(1 - index));
+            reachDefBeforeHead.put(instr, instr.getUseValueList().get(index));
+            reachDefAfterLatch.put(instr.getUseValueList().get(index), instr.getUseValueList().get(1 - index));
+            beginToEnd.put(instr.getUseValueList().get(index), instr.getUseValueList().get(1 - index));
+            endToBegin.put(instr.getUseValueList().get(1 - index), instr.getUseValueList().get(index));
         }
 
 
         //修正exit的LCSSA PHI
-        assert exit.getPrecBBs().size() == 1;
-        for (Instr instr = exit.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
-            if (!(instr instanceof Instr.Phi)) {
-                break;
-            }
-            //fixme:测试
-            // 当前采用的写法基于一些特性,如定义一定是PHI?,这些特性需要测试
-            Value value = instr.getUseValueList().get(0);
-            assert value instanceof Instr;
-            if (((Instr) value).parentBB().equals(head)) {
-                assert value instanceof Instr.Phi;
-                int index = head.getPrecBBs().indexOf(latch);
-                instr.modifyUse(((Instr.Phi) value).getUseValueList().get(index), 0);
-            }
-        }
+        //TODO:移动到复制所有BB time次之后
+//        assert exit.getPrecBBs().size() == 1;
+//        for (Instr instr = exit.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+//            if (!(instr instanceof Instr.Phi)) {
+//                break;
+//            }
+//            //fixme:测试
+//            // 当前采用的写法基于一些特性,如定义一定是PHI?,这些特性需要测试
+//            Value value = instr.getUseValueList().get(0);
+//            assert value instanceof Instr;
+//            if (((Instr) value).parentBB().equals(head)) {
+//                assert value instanceof Instr.Phi;
+//                int index = head.getPrecBBs().indexOf(latch);
+//                instr.modifyUse(((Instr.Phi) value).getUseValueList().get(index), 0);
+//            }
+//        }
 
         //修正对head中phi的使用
         for (Instr instr = head.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
@@ -194,7 +199,15 @@ public class LoopUnRoll {
                 break;
             }
             int index = head.getPrecBBs().indexOf(entering);
-            instr.modifyAllUseThisToUseA(instr.getUseValueList().get(index));
+            //instr.modifyAllUseThisToUseA(instr.getUseValueList().get(index));
+            Use use = (Use) instr.getBeginUse().getNext();
+            while (use.getNext() != null) {
+                Instr user = use.getUser();
+                if (!instr.parentBB().equals(exit)) {
+                    user.modifyUse(instr.getUseValueList().get(index), use.getIdx());
+                }
+                use = (Use) use.getNext();
+            }
         }
 
         head.remove();
@@ -236,10 +249,37 @@ public class LoopUnRoll {
             BasicBlock newLatch = (BasicBlock) CloneInfoMap.getReflectedValue(oldLatch);
 
             oldLatch.modifySuc(exit, newBegin);
+            exit.modifyPre(oldLatch, newLatch);
             ArrayList<BasicBlock> pres = new ArrayList<>();
             pres.add(oldLatch);
             newBegin.modifyPres(pres);
             oldLatch.modifyBrAToB(entering, newBegin);
+
+            //修改引用,更新reach_def_after_latch
+            //fixme:考虑const的情况
+            for (BasicBlock temp: bbInWhile) {
+                BasicBlock bb = (BasicBlock) CloneInfoMap.getReflectedValue(temp);
+                for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+                    ArrayList<Value> values = instr.getUseValueList();
+                    for (int j = 0; j < values.size(); j++) {
+                        Value B = values.get(j);
+                        if (reachDefAfterLatch.containsKey(B)) {
+                            Value C = reachDefAfterLatch.get(B);
+                            Value D = CloneInfoMap.getReflectedValue(reachDefAfterLatch.get(B));
+
+                            //TODO:不能立刻更改
+                            instr.modifyUse(C, j);
+                            reachDefAfterLatch.put(C, D);
+                            reachDefAfterLatch.remove(B);
+                            Value A = endToBegin.get(C);
+                            beginToEnd.put(A, D);
+                            endToBegin.put(D, A);
+                            endToBegin.remove(C);
+                        }
+                    }
+                }
+            }
+
 
             oldBegin = newBegin;
             oldLatch = newLatch;
@@ -248,6 +288,28 @@ public class LoopUnRoll {
                 newBBInWhile.add((BasicBlock) CloneInfoMap.getReflectedValue(bb));
             }
             bbInWhile = newBBInWhile;
+        }
+
+        //修正exit的LCSSA PHI
+        for (Instr instr = exit.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+            if (!(instr instanceof Instr.Phi)) {
+                break;
+            }
+            //fixme:测试
+            // 当前采用的写法基于一些特性,如定义一定是PHI?,这些特性需要测试
+            Value value = instr.getUseValueList().get(0);
+            //assert value instanceof Instr;
+            if (((Instr) value).parentBB().equals(head)) {
+                assert value instanceof Instr.Phi;
+                int index = head.getPrecBBs().indexOf(entering);
+                Value B = ((Instr.Phi) value).getUseValueList().get(index);
+                instr.modifyUse(beginToEnd.get(B), 0);
+            }
+        }
+
+        //删除head
+        for (Instr instr = head.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+            instr.remove();
         }
     }
 

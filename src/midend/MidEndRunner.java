@@ -106,6 +106,13 @@ public class MidEndRunner {
         LoopUnRoll loopUnRoll = new LoopUnRoll(functions);
         loopUnRoll.Run();
 
+        reMakeCFGAndLoopInfo();
+
+//        DeadCodeDelete deadCodeDelete = new DeadCodeDelete(functions);
+//        deadCodeDelete.Run();
+
+        //Pass();
+
         // TODO:循环融合
 
         // TODO:强度削弱

@@ -1,6 +1,7 @@
 package mir;
 import manage.Manager;
 import midend.CloneInfoMap;
+import midend.OutParam;
 import mir.type.Type;
 import util.ILinkNode;
 
@@ -10,7 +11,6 @@ import java.util.*;
  * 函数声明 (+ 函数体 = 函数定义)
  */
 public class Function extends Value {
-    private static final boolean debug_for_lc = true;
     private final String name;
 
     private boolean isDeleted = false;
@@ -189,8 +189,8 @@ public class Function extends Value {
             ILinkNode node = block.getEntry();
             body.append(block).append(":\n");
             while (node.hasNext()) {
-                if (debug_for_lc) {
-                    body.append("  ").append(node).append("     ").append(((Instr) node).getCondCount()).append("\n");
+                if (OutParam.COND_CNT_DEBUG_FOR_LC) {
+                    body.append("  ").append(node).append("     ").append(((Instr) node).getCondCount()).append(" ").append(((Instr) node).isInLoopCond()).append("\n");
                 } else {
                     body.append("  ").append(node).append("\n");
                 }

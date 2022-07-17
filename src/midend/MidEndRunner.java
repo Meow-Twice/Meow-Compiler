@@ -23,37 +23,37 @@ public class MidEndRunner {
         MakeDFG makeDFG = new MakeDFG(functions);
         makeDFG.Run();
 
-//        GlobalValueLocalize globalValueLocalize = new GlobalValueLocalize(functions, globalValues);
-//        globalValueLocalize.Run();
-//
-//        FuncInline funcInline = new FuncInline(functions);
-//        funcInline.Run();
-//
-//        reMakeCFGAndLoopInfo();
-//
-//        GlobalValueLocalize globalValueLocalize_1 = new GlobalValueLocalize(functions, globalValues);
-//        globalValueLocalize_1.Run();
+        GlobalValueLocalize globalValueLocalize = new GlobalValueLocalize(functions, globalValues);
+        globalValueLocalize.Run();
+
+        FuncInline funcInline = new FuncInline(functions);
+        funcInline.Run();
+
+        reMakeCFGAndLoopInfo();
+
+        GlobalValueLocalize globalValueLocalize_1 = new GlobalValueLocalize(functions, globalValues);
+        globalValueLocalize_1.Run();
 
         Mem2Reg mem2Reg = new Mem2Reg(functions);
         mem2Reg.Run();
 
-        //Pass();
+        Pass();
 
-        //loopOptimize();
+        loopOptimize();
 
 
         //TODO:删除冗余phi,分支优化(删除无用的br/jump等),等等
-//        BranchOptimize branchOptimize = new BranchOptimize(functions);
-//        branchOptimize.Run();
-//
-//        //前驱后继关系已经维护
-//        //拆分MakeCFG
-//        reMakeCFGAndLoopInfo();
-//
-//        Pass();
-//
-//        MathOptimize mathOptimize = new MathOptimize(functions);
-//        mathOptimize.Run();
+        BranchOptimize branchOptimize = new BranchOptimize(functions);
+        branchOptimize.Run();
+
+        //前驱后继关系已经维护
+        //拆分MakeCFG
+        reMakeCFGAndLoopInfo();
+
+        Pass();
+
+        MathOptimize mathOptimize = new MathOptimize(functions);
+        mathOptimize.Run();
 
 
 
@@ -86,30 +86,34 @@ public class MidEndRunner {
 
     //循环优化
     private void loopOptimize() {
+        outputLLVM();
+
         LoopInfo loopInfo = new LoopInfo(functions);
         loopInfo.Run();
 
         LCSSA lcssa = new LCSSA(functions);
         lcssa.Run();
 
+        //outputLLVM();
+
         BranchLift branchLift = new BranchLift(functions);
         branchLift.Run();
 
         reMakeCFGAndLoopInfo();
 
-        //Pass();
+        Pass();
 
         // TODO:获取迭代变量idcVar的相关信息
-//        LoopIdcVarInfo loopIdcVarInfo = new LoopIdcVarInfo(functions);
-//        loopIdcVarInfo.Run();
-//
-//        // TODO:循环展开
-//        LoopUnRoll loopUnRoll = new LoopUnRoll(functions);
-//        loopUnRoll.Run();
-//
-//        reMakeCFGAndLoopInfo();
-//
-//        Pass();
+        LoopIdcVarInfo loopIdcVarInfo = new LoopIdcVarInfo(functions);
+        loopIdcVarInfo.Run();
+
+        // TODO:循环展开
+        LoopUnRoll loopUnRoll = new LoopUnRoll(functions);
+        loopUnRoll.Run();
+
+        reMakeCFGAndLoopInfo();
+
+        Pass();
 
         // TODO:循环融合
 

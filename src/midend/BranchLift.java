@@ -94,6 +94,11 @@ public class BranchLift {
 
         Instr.Branch elseBr = (Instr.Branch) CloneInfoMap.getReflectedValue(thenBr);
         Instr brInTransBB = thenBr.cloneToBB(transBB);
+        if (transBB.getLoopDep() > 0) {
+            brInTransBB.setInLoopCond();
+            brInTransBB.setCondCount(thenBr.getCondCount());
+        }
+
         brInTransBB.modifyUse(thenHead, 1);
         brInTransBB.modifyUse(elseHead, 2);
 

@@ -172,6 +172,10 @@ public class Loop {
         conds.get(condNum).add(instr);
     }
 
+    public void clearCond() {
+        conds.clear();
+    }
+
     public HashSet<BasicBlock> getNowLevelBB() {
         return nowLevelBB;
     }

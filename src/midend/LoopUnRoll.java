@@ -127,9 +127,13 @@ public class LoopUnRoll {
     }
 
     private void DoLoopUnRoll(Loop loop) {
+        CloneInfoMap.clear();
         Function function = loop.getHeader().getFunction();
         int times = loop.getIdcTimes();
         int cnt = cntDFS(loop);
+        /*if (!loop.getChildrenLoops().isEmpty()) {
+            return;
+        }*/
         if (cnt * times > loop_unroll_up_lines) {
             return;
         }
@@ -169,8 +173,11 @@ public class LoopUnRoll {
             int index = head.getPrecBBs().indexOf(entering);
             reachDefBeforeHead.put(instr, instr.getUseValueList().get(index));
             reachDefAfterLatch.put(instr.getUseValueList().get(index), instr.getUseValueList().get(1 - index));
-            beginToEnd.put(instr.getUseValueList().get(index), instr.getUseValueList().get(1 - index));
-            endToBegin.put(instr.getUseValueList().get(1 - index), instr.getUseValueList().get(index));
+//            beginToEnd.put(instr.getUseValueList().get(index), instr.getUseValueList().get(1 - index));
+//            endToBegin.put(instr.getUseValueList().get(1 - index), instr.getUseValueList().get(index));
+
+            beginToEnd.put(instr, instr.getUseValueList().get(1 - index));
+            endToBegin.put(instr.getUseValueList().get(1 - index), instr);
         }
 
 
@@ -199,10 +206,10 @@ public class LoopUnRoll {
             }
             int index = head.getPrecBBs().indexOf(entering);
             //instr.modifyAllUseThisToUseA(instr.getUseValueList().get(index));
-            Use use = (Use) instr.getBeginUse().getNext();
+            Use use = (Use) instr.getBeginUse();
             while (use.getNext() != null) {
                 Instr user = use.getUser();
-                if (!instr.parentBB().equals(exit)) {
+                if (!user.parentBB().equals(exit)) {
                     user.modifyUse(instr.getUseValueList().get(index), use.getIdx());
                 }
                 use = (Use) use.getNext();
@@ -219,7 +226,7 @@ public class LoopUnRoll {
             for (BasicBlock bb: bbInWhile) {
                 for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
                     if (instr.isInLoopCond()) {
-                        instr.setCondCount(-1);
+                        instr.setNotInLoopCond();
                     }
                 }
             }
@@ -306,20 +313,25 @@ public class LoopUnRoll {
         }
 
         //修正exit的LCSSA PHI
-        for (Instr instr = exit.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
-            if (!(instr instanceof Instr.Phi)) {
-                break;
-            }
-            //fixme:测试
-            // 当前采用的写法基于一些特性,如定义一定是PHI?,这些特性需要测试
-            Value value = instr.getUseValueList().get(0);
-            //assert value instanceof Instr;
-            if (((Instr) value).parentBB().equals(head)) {
-                assert value instanceof Instr.Phi;
-                int index = head.getPrecBBs().indexOf(entering);
-                Value B = ((Instr.Phi) value).getUseValueList().get(index);
-                instr.modifyUse(beginToEnd.get(B), 0);
-            }
+//        for (Instr instr = exit.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+//            if (!(instr instanceof Instr.Phi)) {
+//                break;
+//            }
+//            //fixme:测试
+//            // 当前采用的写法基于一些特性,如定义一定是PHI?,这些特性需要测试
+//            Value value = instr.getUseValueList().get(0);
+//            assert value instanceof Instr;
+//            if (((Instr) value).parentBB().equals(head)) {
+//                assert value instanceof Instr.Phi;
+//                //int index = head.getPrecBBs().indexOf(entering);
+//                //Value B = ((Instr.Phi) value).getUseValueList().get(index);
+//                instr.modifyUse(beginToEnd.get(value), 0);
+//            }
+//        }
+        //fixme:07-18-01:13
+        //考虑一下函数内联pass的位置
+        for (Value value: beginToEnd.keySet()) {
+            value.modifyAllUseThisToUseA(beginToEnd.get(value));
         }
 
         //删除head

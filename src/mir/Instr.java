@@ -79,10 +79,19 @@ public class Instr extends Value {
     private boolean inLoopCond =false;
 
     public void setInLoopCond(){
-        inLoopCond = true;}
+        inLoopCond = true;
+    }
+
+    public void setNotInLoopCond() {
+        inLoopCond = false;
+    }
 
     public boolean isInLoopCond(){
         return inLoopCond;
+    }
+
+    public boolean isCond() {
+        return condCount > 0;
     }
 
     public int getCondCount(){

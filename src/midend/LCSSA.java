@@ -71,18 +71,36 @@ public class LCSSA {
         while (use.getNext() != null) {
             Instr user = use.getUser();
             BasicBlock userBB = user.parentBB();
+            //fixme:time 07-18-00:15 考虑正确性
             //PHI对其的使用其实是在PHI的前驱对它的使用
             //与GCM的scheduleLate采用同一思想
+            //对于正常的PHI不能重新计算到达定义,因为有些定义已经没有了
+            //初始化S?
+//            if (user instanceof Instr.Phi) {
+//                if (!user.equals(phi)) {
+//                    use = (Use) use.getNext();
+//                    continue;
+//                }
+//            }
+//
+//            useInstrMap.put(use.getUser(), use.getIdx());
+
             if (user instanceof Instr.Phi) {
-                if (!user.equals(phi)) {
+                if (userBB.getLoop().equals(loop)) {
                     use = (Use) use.getNext();
                     continue;
                 }
             }
-//            if (!userBB.getLoop().equals(loop)) {
-//                useInstrMap.put(use.getUser(), use.getIdx());
-//            }
-            useInstrMap.put(use.getUser(), use.getIdx());
+
+            if (user instanceof Instr.Phi) {
+                int index = use.getIdx();
+                userBB = userBB.getPrecBBs().get(index);
+            }
+            if (!userBB.getLoop().equals(loop)) {
+                useInstrMap.put(use.getUser(), use.getIdx());
+            }
+
+
             use = (Use) use.getNext();
         }
         RenameDFS(S, bb.getFunction().getBeginBB(), useInstrMap, defInstrs);

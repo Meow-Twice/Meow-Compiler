@@ -3,6 +3,7 @@ package mir;
 import frontend.Visitor;
 import lir.Machine;
 import midend.CloneInfoMap;
+import midend.OutParam;
 import mir.type.Type;
 
 import java.util.ArrayList;
@@ -13,8 +14,7 @@ import java.util.Objects;
  * 基本块, 具有标签名属性, 内部的代码以链表形式组织
  */
 public class BasicBlock extends Value {
-    private static final boolean NEED_CFG_INFO = false;
-    private static final boolean NEED_LOOP_INFO = true;
+
     private static final boolean ENABLE_DEBUG = true;
     private Function function;
 //    private ILinkNode head = new EmptyNode();
@@ -339,8 +339,8 @@ public class BasicBlock extends Value {
 
     @Override
     public String toString() {
-        if (!NEED_CFG_INFO) {
-            if (NEED_LOOP_INFO) {
+        if (!OutParam.BB_NEED_CFG_INFO) {
+            if (OutParam.BB_NEED_LOOP_INFO) {
                 if (isLoopHeader) {
                     return this.label + loop.infoString();
                 }
@@ -402,6 +402,7 @@ public class BasicBlock extends Value {
     }
 
     //把当前BB复制到指定函数
+    //br外提的时候使用
     public BasicBlock cloneToFunc(Function function) {
         // 是循环内的BB, 复制的时候,
         // 先创建新的循环, 然后把BB塞到新的loop里面
@@ -422,8 +423,17 @@ public class BasicBlock extends Value {
         while (instr.getNext() != null) {
             Instr tmp = instr.cloneToBB(ret);
             if (instr.isInLoopCond()) {
-                tmp.setCondCount(++Visitor.VISITOR.curLoopCondCount);
+                tmp.setInLoopCond();
             }
+            if (instr.isCond()) {
+                int srcCnt = instr.getCondCount();
+                int tagCnt = CloneInfoMap.loopCondCntMap.containsKey(srcCnt) ?
+                        CloneInfoMap.getLoopCondCntReflect(srcCnt) :
+                        ++Visitor.VISITOR.curLoopCondCount;
+                CloneInfoMap.addLoopCondCntReflect(srcCnt, tagCnt);
+                tmp.setCondCount(tagCnt);
+            }
+
             instr = (Instr) instr.getNext();
         }
 //        Instr retInstr = ret.getBeginInstr();
@@ -477,8 +487,18 @@ public class BasicBlock extends Value {
 //            }
             //loopCondCount的映射,记录在CloneInfoMap中
             if (ret.getLoopDep() > 0) {
-                tmp.setCondCount(++Visitor.VISITOR.curLoopCondCount);
+                //tmp.setLoopCondCount(++Visitor.VISITOR.curLoopCondCount);
+                tmp.setInLoopCond();
             }
+            if (instr.isCond()) {
+                int srcCnt = instr.getCondCount();
+                int tagCnt = CloneInfoMap.loopCondCntMap.containsKey(srcCnt) ?
+                        CloneInfoMap.getLoopCondCntReflect(srcCnt) :
+                        ++Visitor.VISITOR.curLoopCondCount;
+                CloneInfoMap.addLoopCondCntReflect(srcCnt, tagCnt);
+                tmp.setCondCount(tagCnt);
+            }
+
             instr = (Instr) instr.getNext();
         }
 //        Instr retInstr = ret.getBeginInstr();
@@ -498,8 +518,17 @@ public class BasicBlock extends Value {
         while (instr.getNext() != null) {
             Instr tmp = instr.cloneToBB(ret);
             if (instr.isInLoopCond()) {
-                tmp.setCondCount(++Visitor.VISITOR.curLoopCondCount);
+                tmp.setInLoopCond();
             }
+            if (instr.isCond()) {
+                int srcCnt = instr.getCondCount();
+                int tagCnt = CloneInfoMap.loopCondCntMap.containsKey(srcCnt) ?
+                        CloneInfoMap.getLoopCondCntReflect(srcCnt) :
+                        ++Visitor.VISITOR.curLoopCondCount;
+                CloneInfoMap.addLoopCondCntReflect(srcCnt, tagCnt);
+                tmp.setCondCount(tagCnt);
+            }
+
             instr = (Instr) instr.getNext();
         }
         return ret;

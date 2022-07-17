@@ -20,8 +20,17 @@ public class LoopInfo {
     }
 
     public void Run() {
+        clearLoopCond();
         makeInfo();
+    }
 
+    private void clearLoopCond() {
+        for (Function function: functions) {
+            for (BasicBlock head: function.getLoopHeads()) {
+                Loop loop = head.getLoop();
+                loop.clearCond();
+            }
+        }
     }
 
     private void makeInfo() {
@@ -49,6 +58,7 @@ public class LoopInfo {
 
         know.add(bb);
 
+        //clear
         if (bb.getLoopDep() > 0) {
             Instr instr = bb.getBeginInstr();
             Loop loop = bb.getLoop();

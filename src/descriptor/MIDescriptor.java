@@ -270,6 +270,8 @@ public class MIDescriptor implements Descriptor {
         }
         for (Machine.McFunction mf : p.funcList) {
             mf2curVRListMap.put(mf, new Stack<>());
+            curMF2GPRs.put(mf, new Stack<>());
+            curMF2FPRs.put(mf, new Stack<>());
         }
         runMF(p.mainMcFunc);
         outputWithNewline(String.valueOf(((int) getFromReg(r0)) & 255)); // 如果正常 stdout 的最后一行没有换行，需要先添加换行再输出返回值
@@ -293,14 +295,34 @@ public class MIDescriptor implements Descriptor {
         }
     }
 
+    private HashMap<Machine.McFunction, Stack<ArrayList<Integer>>> curMF2GPRs = new HashMap<>();
+
+    private HashMap<Machine.McFunction, Stack<ArrayList<Float>>> curMF2FPRs = new HashMap<>();
+
     private void vrListStackPush() {
         Stack<ArrayList<Object>> stack = mf2curVRListMap.get(curMF);
         stack.push(curVRList);
+        Stack<ArrayList<Integer>> s1 = curMF2GPRs.get(curMF);
+        s1.push(RegSimulator.GPRS);
+        RegSimulator.GPRS = new ArrayList<>();
+        Stack<ArrayList<Float>> s2 = curMF2FPRs.get(curMF);
+        s2.push(RegSimulator.FPRS);
+        RegSimulator.FPRS = new ArrayList<>();
+        for (int i = 0; i < Arm.Regs.GPRs.values().length; i++) {
+            RegSimulator.GPRS.add(0);
+        }
+        for (int i = 0; i < Arm.Regs.FPRs.values().length; i++) {
+            RegSimulator.FPRS.add((float) 0.0);
+        }
     }
 
     private void vrListStackPop() {
         Stack<ArrayList<Object>> stack = mf2curVRListMap.get(curMF);
         curVRList = stack.pop();
+        Stack<ArrayList<Integer>> s1 = curMF2GPRs.get(curMF);
+        RegSimulator.GPRS = s1.pop();
+        Stack<ArrayList<Float>> s2 = curMF2FPRs.get(curMF);
+        RegSimulator.FPRS = s2.pop();
     }
 
     private String genStr(String funcName) {

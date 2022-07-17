@@ -18,9 +18,9 @@ public class TrivialRegAllocator {
     private final CodeGen CODEGEN = CodeGen.CODEGEN;
     private final Arm.Reg rSP = Arm.Reg.getR(sp);
 
-    private final boolean DEBUG_STDIN_OUT = true;
+    private final boolean DEBUG_STDIN_OUT = false;
 
-    private int rk = 4;
+    private int rk = 7;
     private int sk = 32;
 
     private DataType dataType = I32;
@@ -285,7 +285,7 @@ public class TrivialRegAllocator {
                     if (spillWorkSet.size() > 0) {
                         logOut("selectSpill");
                         /**
-                         * 从低度数结点集(simplifyWorkSet)中启发式选取结点 x , 挪到高度数结点集(spillWorkSet)中
+                         * 从高度数结点集(spillWorkSet)中启发式选取结点 x , 挪到低度数结点集(simplifyWorkSet)中
                          * 冻结 x 及其相关 move
                          */
                         Iterator<Operand> it = spillWorkSet.iterator();
@@ -300,11 +300,14 @@ public class TrivialRegAllocator {
                                 max = h;
                             }
                         }
+                        logOut("select: "+x+"\t"+"add to simplifyWorkSet");
                         // Operand x = spillWorkSet.stream().reduce((a, b) -> a.heuristicVal() < b.heuristicVal() ? a : b).orElseThrow();
                         // Operand x = spillWorkSet.stream().reduce(Operand::select).orElseThrow();
+                        // TODO 为什么这里可以先挪到simplifyWorkSet里面啊
                         simplifyWorkSet.add(x);
                         freezeMoves(x);
                         spillWorkSet.remove(x);
+                        logOut("select: "+x+"\t"+"remove from spillWorkSet");
                     }
                 }
                 // Manager.MANAGER.outputMI();
@@ -478,6 +481,7 @@ public class TrivialRegAllocator {
 
                 if (defs.size() == 1) {
                     Operand def = defs.get(0);
+                    live.add(def);
                     // 构建冲突图
                     if (def.needColor()) {
                         // 该mi的def与当前所有活跃寄存器以及该指令的其他def均冲突
@@ -780,6 +784,7 @@ public class TrivialRegAllocator {
             if (!activeMoveSet.remove(mv)) {
                 workListMoveSet.remove(mv);
             }
+            logOut(mv+"\t: activeMoveSet, workListMoveSet -> frozenMoveSet");
             frozenMoveSet.add(mv);
 
             // 这个很怪, 跟书上不一样
@@ -800,6 +805,7 @@ public class TrivialRegAllocator {
                 // nodeMoves(v) = v.moveSet ∩ (activeMoveSet ∪ workListMoveSet)
                 freezeWorkSet.remove(v);
                 simplifyWorkSet.add(v);
+                logOut(v+"\t freezeWorkSet-> simplifyWorkSet");
             }
         }
     }

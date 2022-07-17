@@ -18,9 +18,9 @@ public class TrivialRegAllocator {
     private final CodeGen CODEGEN = CodeGen.CODEGEN;
     private final Arm.Reg rSP = Arm.Reg.getR(sp);
 
-    private final boolean DEBUG_STDIN_OUT = false;
+    private final boolean DEBUG_STDIN_OUT = true;
 
-    private int rk = 12;
+    private int rk = 4;
     private int sk = 32;
 
     private DataType dataType = I32;
@@ -64,7 +64,7 @@ public class TrivialRegAllocator {
                 finalMb.succMB.forEach(succMB ->
                         succMB.liveInSet.forEach(liveIn -> {
                             if (finalMb.liveOutSet.add(liveIn)) {
-                                logOut(liveIn.toString());
+                                // logOut(liveIn.toString());
                                 newLiveOut.add(liveIn);
                             }
                         }));
@@ -190,6 +190,11 @@ public class TrivialRegAllocator {
             return (u.equals(((AdjPair) obj).u) && v.equals(((AdjPair) obj).v))
                     /*|| (u.equals(((AdjPair) obj).v) && v.equals(((AdjPair) obj).u))*/;
         }
+
+        @Override
+        public String toString() {
+            return "(" + u+" ,\t"+v+")";
+        }
     }
 
     public Machine.McFunction curMF;
@@ -223,10 +228,11 @@ public class TrivialRegAllocator {
                 //     Arm.Reg.getS(i).degree = Integer.MAX_VALUE;
                 // }
 
-                // logOut("RegAlloc Build start");
+                logOut("RegAlloc Build start");
                 build();
-                // logOut("RegAlloc Build end");
+                logOut("RegAlloc Build end");
 
+                logOut(curMF.vrList.toString());
                 // makeWorkList
                 for (Operand vr : curMF.vrList) {
                     // initial
@@ -238,26 +244,36 @@ public class TrivialRegAllocator {
                         simplifyWorkSet.add(vr);
                     }
                 }
+                logOut("spillWorkSet:\t"+spillWorkSet.toString());
+                logOut("freezeWorkSet:\t"+freezeWorkSet.toString());
+                logOut("simplifyWorkSet:\t"+simplifyWorkSet.toString());
 
                 while (simplifyWorkSet.size() + workListMoveSet.size() + freezeWorkSet.size() + spillWorkSet.size() > 0) {
                     if (simplifyWorkSet.size() > 0) {
+                        logOut("-- simplify");
+                        logOut(simplifyWorkSet.toString());
                         // 从度数低的结点集中随机选择一个从图中删除放到 selectStack 里
                         Iterator<Operand> iter = simplifyWorkSet.iterator();
                         Operand x = iter.next();
                         simplifyWorkSet.remove(x);
                         selectStack.push(x);
+                        logOut(String.format("selectStack.push(%s)",x));
                         for (Operand adj : x.adjOpdSet) {
                             // 对于 x 的邻接冲突结点adj, 如果不是已经被删除的或者已合并的
                             if (!(selectStack.contains(adj) || coalescedNodeSet.contains(adj))) {
+                                logOut(String.format("decrementDegree(%s)",adj));
                                 decrementDegree(adj);
                             }
                         }
                         // adjacent(x).forEach(this::decrementDegree);
                     }
                     if (workListMoveSet.size() > 0) {
+                        logOut("-- coalesce");
+                        logOut("workListMoveSet:\t"+workListMoveSet);
                         coalesce();
                     }
                     if (freezeWorkSet.size() > 0) {
+                        logOut("freeze");
                         /**
                          * 从低度数的传送有关的结点中随机选择一个进行冻结
                          */
@@ -267,6 +283,7 @@ public class TrivialRegAllocator {
                         freezeMoves(x);
                     }
                     if (spillWorkSet.size() > 0) {
+                        logOut("selectSpill");
                         /**
                          * 从低度数结点集(simplifyWorkSet)中启发式选取结点 x , 挪到高度数结点集(spillWorkSet)中
                          * 冻结 x 及其相关 move
@@ -296,8 +313,11 @@ public class TrivialRegAllocator {
                 if (spilledNodeSet.size() == 0) {
                     break;
                 }
+                logOut("needSpill");
                 spilledNodeSet.forEach(this::dealSpillNode);
+                logOut("endSpill");
             }
+            logOut(curMF.mFunc.getName()+"done");
         }
     }
 
@@ -338,7 +358,7 @@ public class TrivialRegAllocator {
                     }
                 }
                 for (int idx = 0; idx < uses.size(); idx++) {
-                    Operand use = uses.get(checkCount);
+                    Operand use = uses.get(idx);
                     if (use.equals(x)) {
                         // Load
                         if (vrIdx == -1) {
@@ -397,6 +417,7 @@ public class TrivialRegAllocator {
         if (!(adjSet.contains(adjPair) || u.equals(v))) {
             adjSet.add(adjPair);
             adjSet.add(new AdjPair(v, u));
+            logOut("\tAddEdge: "+u+"\t,\t"+v);
             if (!u.isPreColored()) {
                 u.addAdj(v);
                 u.degree++;
@@ -417,14 +438,17 @@ public class TrivialRegAllocator {
         for (Arm.Reg reg : Arm.Reg.getGPRPool()) {
             reg.loopCounter = 0;
             reg.degree = MAX_DEGREE;
+            reg.adjOpdSet = new HashSet<>();
         }
         for (Arm.Reg reg : Arm.Reg.getFPRPool()) {
             reg.loopCounter = 0;
             reg.degree = MAX_DEGREE;
+            reg.adjOpdSet = new HashSet<>();
         }
         for (Operand o : curMF.vrList) {
             o.loopCounter = 0;
             o.degree = 0;
+            o.adjOpdSet = new HashSet<>();
         }
         // logOut("in build");
         for (ILinkNode mbNode = curMF.mbList.getEnd(); !mbNode.equals(curMF.mbList.head); mbNode = mbNode.getPrev()) {
@@ -434,9 +458,11 @@ public class TrivialRegAllocator {
             HashSet<Operand> live = new HashSet<>(mb.liveOutSet);
             for (ILinkNode iNode = mb.getEndMI(); !iNode.equals(mb.miList.head); iNode = iNode.getPrev()) {
                 MachineInst mi = (MachineInst) iNode;
+                if(mi.isComment())continue;
                 // TODO : 此时考虑了Call
                 ArrayList<Operand> defs = mi.defOpds;
                 ArrayList<Operand> uses = mi.useOpds;
+                logOut(mi+"\tlive begin:\t"+live);
                 if (mi.isMove()) {
                     MIMove mv = (MIMove) mi;
                     if (mv.directColor()) {
@@ -460,6 +486,7 @@ public class TrivialRegAllocator {
                         }
                         def.loopCounter += mb.bb.getLoopDep();
                     }
+                    live.remove(def);
                 } else if (defs.size() > 1) {
                     // 一个指令的不同def也会相互冲突
                     for (Operand def : defs) {
@@ -619,6 +646,7 @@ public class TrivialRegAllocator {
         if (!x.isPreColored() && (nodeMoves(x).size() == 0) && x.degree < rk) {
             freezeWorkSet.remove(x);
             simplifyWorkSet.add(x);
+            logOut(String.format("%s\t from freezeWorkSet to simplifyWorkSet", x));
         }
     }
 
@@ -670,14 +698,17 @@ public class TrivialRegAllocator {
             u = v;
             v = tmp;
         }
+        logOut(String.format("workListMoveSet.remove(%s)",mv));
         workListMoveSet.remove(mv);
         if (u.equals(v)) {
             coalescedMoveSet.add(mv);
+            logOut(String.format("coalescedMoveSet.add(%s)",mv));
             addWorkList(u);
         } else if (v.isPreColored() || adjSet.contains(new AdjPair(u, v))) {
             // 这里似乎必须用adjSet判断
             // 两边都是预着色则不可能合并, 因为上面已经在 move u, v 的情况下将 u, v 互换, 如果v仍然是预着色说明u, v均为预着色
             constrainedMoveSet.add(mv);
+            logOut(String.format("constrainedMoveSet.add(%s)",mv));
             addWorkList(u);
             addWorkList(v);
         } else {
@@ -778,9 +809,8 @@ public class TrivialRegAllocator {
         HashMap<Operand, Operand> colorMap = new HashMap<>();
         while (selectStack.size() > 0) {
             Operand toBeColored = selectStack.pop();
-            final HashSet<Arm.Regs> okColorSet = new HashSet<>(Arrays.asList(GPRs.values()).subList(0, rk));
+            final TreeSet<Arm.Regs> okColorSet = new TreeSet<>(Arrays.asList(GPRs.values()).subList(0, rk));
             // logOut("--- rk = \t"+rk);
-            // logOut(okColorSet.toString());
 
             // 把待分配颜色的结点的邻接结点的颜色去除
             toBeColored.adjOpdSet.forEach(adj -> {
@@ -795,6 +825,7 @@ public class TrivialRegAllocator {
                     }
                 }
             });
+            // logOut(okColorSet.toString());
 
             if (okColorSet.isEmpty()) {
                 // 如果没有可分配的颜色则溢出

@@ -14,24 +14,25 @@ public class MachineInst extends ILinkNode {
     protected Arm.Shift shift = Arm.Shift.NONE_SHIFT;
     private boolean needFix = false;
 
-    public boolean isNeedFix(){
+    public boolean isNeedFix() {
         return needFix;
     }
 
     public Machine.McFunction callee;
+
     /**
      * main函数刚进有一个sp自减, 不过这时候自减的偏移一定是0
      * dealParam时, 刚开始对一个函数进行CodeGen时进行超过四个之外的参数时的load
      * return之前要对sp进行加操作
      */
-    public void setNeedFix(){
+    public void setNeedFix() {
         needFix = true;
     }
 
     /**
      * 调用一个非库的函数之前需要sp偏移
      */
-    public void setNeedFix(Machine.McFunction callee){
+    public void setNeedFix(Machine.McFunction callee) {
         this.callee = callee;
         needFix = true;
     }
@@ -55,6 +56,10 @@ public class MachineInst extends ILinkNode {
 
     public boolean isComment() {
         return tag == Tag.Comment;
+    }
+
+    public void setDef(Machine.Operand operand) {
+        defOpds.set(0, operand);
     }
 
     public enum Tag {

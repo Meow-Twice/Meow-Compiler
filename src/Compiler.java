@@ -74,7 +74,7 @@ public class Compiler {
             TrivialRegAllocator regAllocator = new TrivialRegAllocator();
             // Manager.MANAGER.outputMI();
             regAllocator.AllocateRegister(p);
-            Manager.MANAGER.outputMI();
+            // Manager.MANAGER.outputMI();
             MIDescriptor.MI_DESCRIPTOR.setRegMode();
             MIDescriptor.MI_DESCRIPTOR.run(); // 分配寄存器后
             // if (arg.outputAsm()) {

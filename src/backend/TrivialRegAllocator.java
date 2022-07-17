@@ -6,7 +6,6 @@ import mir.type.DataType;
 import util.ILinkNode;
 
 import java.util.*;
-import java.util.stream.Stream;
 
 import static lir.Arm.Regs.GPRs.GPRs;
 import static lir.Arm.Regs.GPRs.sp;
@@ -226,7 +225,19 @@ public class TrivialRegAllocator {
                 // logOut("RegAlloc Build start");
                 build();
                 // logOut("RegAlloc Build end");
-                makeWorkList();
+
+                // makeWorkList
+                for (Operand vr : curMF.vrList) {
+                    // initial
+                    if (vr.degree >= rk) {
+                        spillWorkSet.add(vr);
+                    } else if (nodeMoves(vr).size() > 0) {
+                        freezeWorkSet.add(vr);
+                    } else {
+                        simplifyWorkSet.add(vr);
+                    }
+                }
+
                 while (simplifyWorkSet.size() > 0 || workListMoveSet.size() > 0 || freezeWorkSet.size() > 0 || spillWorkSet.size() > 0) {
                     if (simplifyWorkSet.size() > 0) {
                         Iterator<Operand> iter = simplifyWorkSet.iterator();
@@ -459,7 +470,7 @@ public class TrivialRegAllocator {
 
     /**
      * 获取有效冲突
-     * 对于o, 删除在selectStackList(冲突图中已删除的结点list), 和已合并的mov的src(dst在其他工作表中)
+     * 对于o, 除在selectStackList(冲突图中已删除的结点list), 和已合并的mov的src(dst在其他工作表中)
      */
     private HashSet<Operand> adjacent(Operand o) {
         HashSet<Operand> validConflictOpdSet = new HashSet<>(o.adjOpdSet);
@@ -477,29 +488,6 @@ public class TrivialRegAllocator {
         HashSet<MIMove> canCoalesceSet = new HashSet<>(x.moveSet);
         canCoalesceSet.removeIf(r -> !(activeMoveSet.contains(r) || workListMoveSet.contains(r)));
         return canCoalesceSet;
-    }
-
-    /**
-     * 结点 o 仍然有关联的move指令
-     */
-    private boolean moveRelated(Operand x) {
-        return nodeMoves(x).size() > 0;
-    }
-
-    /**
-     *
-     */
-    private void makeWorkList() {
-        for(Operand vr : curMF.vrList){
-            // initial
-            if (vr.degree >= rk) {
-                spillWorkSet.add(vr);
-            } else if (nodeMoves(vr).size() > 0) {
-                freezeWorkSet.add(vr);
-            } else {
-                simplifyWorkSet.add(vr);
-            }
-        }
     }
 
     /**
@@ -618,20 +606,22 @@ public class TrivialRegAllocator {
         }
     }
 
-    /**
-     * 保守的,
-     * 将 v 的冲突结点全部加到 u 的冲突结点中去
-     */
-    public boolean conservative(HashSet<Operand> adjU, HashSet<Operand> adjV) {
-        return Stream.concat(adjU.stream(), adjV.stream()).filter(x -> x.degree >= rk).count() < rk;
-    }
+    // /**
+    //  * 保守的,
+    //  * 将 v 的冲突结点全部加到 u 的冲突结点中去
+    //  */
+    // public boolean conservative(HashSet<Operand> adjU, HashSet<Operand> adjV) {
+    //     return Stream.concat(adjU.stream(), adjV.stream()).collect(Collectors.toSet()).stream().filter(x -> x.degree >= rk).count() < rk;
+    // }
 
     //-------------------------------------------------------------------------------------------------
     public void coalesce() {
         MIMove mv = workListMoveSet.iterator().next();
+        // u <- v
         Operand u = getAlias(mv.getDst());
         Operand v = getAlias(mv.getSrc());
         if (v.isPreColored()) {
+            // 冲突图是无向图, 这里避免把mv归到受限一类而尽可能让v不是预着色的
             Operand tmp = u;
             u = v;
             v = tmp;
@@ -641,16 +631,58 @@ public class TrivialRegAllocator {
             coalescedMoveSet.add(mv);
             addWorkList(u);
         } else if (v.isPreColored() || adjSet.contains(new AdjPair(u, v))) {
+            // 这里似乎必须用adjSet判断
             constrainedMoveSet.add(mv);
             addWorkList(u);
             addWorkList(v);
-        } else if ((u.isPreColored() && adjOk(u, v))
-                || (!u.isPreColored() && conservative(adjacent(u), adjacent(v)))) {
-            coalescedMoveSet.add(mv);
-            combine(u, v);
-            addWorkList(u);
         } else {
-            activeMoveSet.add(mv);
+            if (u.isPreColored()) {
+                /**
+                 * u 的冲突邻接点是否均满足:
+                 * 要么为低度数结点, 要么预着色, 要么与 v 邻接
+                 */
+                boolean flag = true;
+                for (Operand adj : adjacent(u)) {
+                    if (adj.degree >= rk && !adj.isPreColored() && !adjSet.contains(new AdjPair(adj, v))) {
+                        // adjSet.contains(new AdjPair(adj, v))这个感觉可以改成 v.adjOpdSet.contains(adj)
+                        flag = false;
+                    }
+                }
+                if (flag) {
+                    coalescedMoveSet.add(mv);
+                    combine(u, v);
+                    addWorkList(u);
+                } else {
+                    activeMoveSet.add(mv);
+                }
+            } else {
+                HashSet<Operand> union = new HashSet<>(u.adjOpdSet);
+                union.removeIf(r -> selectStack.contains(r) || coalescedNodeSet.contains(r));
+                union.addAll(v.adjOpdSet);
+                // union.removeIf(r -> selectStack.contains(r) || coalescedNodeSet.contains(r));
+                int cnt = 0;
+                for (Operand x : union) {
+                    if (!selectStack.contains(x) && !coalescedNodeSet.contains(x) && x.degree >= rk) {
+                        // if (x.degree >= rk) {
+                        cnt++;
+                    }
+                }
+                if (cnt < rk) {
+                    coalescedMoveSet.add(mv);
+                    combine(u, v);
+                    addWorkList(u);
+                } else {
+                    activeMoveSet.add(mv);
+                }
+            }
+            /*if ((u.isPreColored() && adjOk(u, v))
+                    || (!u.isPreColored() && conservative(adjacent(u), adjacent(v)))) {
+                coalescedMoveSet.add(mv);
+                combine(u, v);
+                addWorkList(u);
+            } else {
+                activeMoveSet.add(mv);
+            }*/
         }
     }
 

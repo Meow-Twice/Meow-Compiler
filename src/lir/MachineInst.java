@@ -53,6 +53,10 @@ public class MachineInst extends ILinkNode {
         return shift;
     }
 
+    public boolean isComment() {
+        return tag == Tag.Comment;
+    }
+
     public enum Tag {
         // Binary
         Add,

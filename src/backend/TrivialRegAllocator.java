@@ -245,13 +245,28 @@ public class TrivialRegAllocator {
                         Operand x = iter.next();
                         iter.remove();
                         selectStack.push(x);
-
-                        adjacent(x).forEach(this::decrementDegree);
-                    }
-                    else if (workListMoveSet.size() > 0) {
+                        for (Operand adj : x.adjOpdSet) {
+                            if (!(selectStack.contains(adj) || coalescedNodeSet.contains(adj))) {
+                                decrementDegree(adj);
+                                /*private void decrementDegree(Operand x) {
+                                    x.degree--;
+                                    if (x.degree == rk - 1) {
+                                        enableMoves(x);
+                                        // TODO: 这里trivial写的是insert, 很怪
+                                        spillWorkSet.remove(x);
+                                        if (nodeMoves(x).size() > 0) {
+                                            freezeWorkSet.add(x);
+                                        } else {
+                                            simplifyWorkSet.add(x);
+                                        }
+                                    }
+                                }*/
+                            }
+                        }
+                        // adjacent(x).forEach(this::decrementDegree);
+                    } else if (workListMoveSet.size() > 0) {
                         coalesce();
-                    }
-                    else if (freezeWorkSet.size() > 0) {
+                    } else if (freezeWorkSet.size() > 0) {
                         /**
                          * 从低度数的传送有关的结点中随机选择一个进行冻结
                          */
@@ -259,8 +274,7 @@ public class TrivialRegAllocator {
                         freezeWorkSet.remove(x);
                         simplifyWorkSet.add(x);
                         freezeMoves(x);
-                    }
-                    else if (spillWorkSet.size() > 0) {
+                    } else if (spillWorkSet.size() > 0) {
                         /**
                          * 从低度数结点集(simplifyWorkSet)中启发式选取结点 x , 挪到高度数结点集(spillWorkSet)中
                          * 冻结 x 及其相关 move
@@ -472,16 +486,20 @@ public class TrivialRegAllocator {
 
     /**
      * 获取有效冲突
+     * x.adjOpdSet \ (selectStack u coalescedNodeSet)
      * 对于o, 除在selectStackList(冲突图中已删除的结点list), 和已合并的mov的src(dst在其他工作表中)
+     * @param x
+     * @return
      */
-    private HashSet<Operand> adjacent(Operand o) {
-        HashSet<Operand> validConflictOpdSet = new HashSet<>(o.adjOpdSet);
+    private HashSet<Operand> adjacent(Operand x) {
+        HashSet<Operand> validConflictOpdSet = new HashSet<>(x.adjOpdSet);
         validConflictOpdSet.removeIf(r -> selectStack.contains(r) || coalescedNodeSet.contains(r));
         return validConflictOpdSet;
     }
 
     /**
-     * 取 x 的 moveSet 交 (activeMoveSet 并 workListMoveSet)
+     * 取 x.moveSet ∩ (activeMoveSet ∪ workListMoveSet)
+     * 去掉
      * 1. 已经合并的传送指令的集合 coalescedMoveSet
      * 2. src 和 dst 相冲突的传送指令集合 constrainedMoveSet
      * 3. 不再考虑合并的传送指令集合 frozenMoveSet
@@ -496,7 +514,7 @@ public class TrivialRegAllocator {
      * 有可能合并的传送指令从 activeMoveSet 挪到 workListMoveSet
      */
     // EnableMoves({x} u Adjacent(x))
-    // private void enableMoves(Operand x) {
+    /* private void enableMoves(Operand x) {
     //     nodeMoves(x).stream().filter(activeMoveSet::contains).forEach(mv -> {
     //         activeMoveSet.remove(mv);
     //         workListMoveSet.add(mv);
@@ -507,27 +525,28 @@ public class TrivialRegAllocator {
     //         workListMoveSet.add(mv);
     //     }));
     // }
-    private void enableMoves(Operand x) {
-        for (MIMove mv : nodeMoves(x)) {
-            // 考虑 x 关联的可能合并的 move
-            if (activeMoveSet.contains(mv)) {
-                // 未做好合并准备的集合如果包含mv, 就挪到workListMoveSet中
-                activeMoveSet.remove(mv);
-                workListMoveSet.add(mv);
-            }
-        }
-        for (Operand adj : adjacent(x)) {
-            // 对于o的每个实际邻接冲突adj
-            for (MIMove mv : nodeMoves(adj)) {
-                // adj关联的move, 如果是有可能合并的move
-                if(activeMoveSet.contains(mv)){
-                    // 未做好合并准备的集合如果包含mv, 就挪到workListMoveSet中
-                    activeMoveSet.remove(mv);
-                    workListMoveSet.add(mv);
-                }
-            }
-        }
-    }
+    // private void enableMoves(Operand x) {
+    //     for (MIMove mv : nodeMoves(x)) {
+    //         // 考虑 x 关联的可能合并的 move
+    //         if (activeMoveSet.contains(mv)) {
+    //             // 未做好合并准备的集合如果包含mv, 就挪到workListMoveSet中
+    //             activeMoveSet.remove(mv);
+    //             workListMoveSet.add(mv);
+    //         }
+    //     }
+    //     for (Operand adj : adjacent(x)) {
+    //         // 对于o的每个实际邻接冲突adj
+    //         for (MIMove mv : nodeMoves(adj)) {
+    //             // adj关联的move, 如果是有可能合并的move
+    //             if (activeMoveSet.contains(mv)) {
+    //                 // 未做好合并准备的集合如果包含mv, 就挪到workListMoveSet中
+    //                 activeMoveSet.remove(mv);
+    //                 workListMoveSet.add(mv);
+    //             }
+    //         }
+    //     }
+    // }
+    */
 
     /**
      * 从图中去掉一个结点需要减少该结点的当前各个邻结点的度数.
@@ -540,7 +559,26 @@ public class TrivialRegAllocator {
     private void decrementDegree(Operand x) {
         x.degree--;
         if (x.degree == rk - 1) {
-            enableMoves(x);
+            for (MIMove mv : nodeMoves(x)) {
+                // 考虑 x 关联的可能合并的 move
+                if (activeMoveSet.contains(mv)) {
+                    // 未做好合并准备的集合如果包含mv, 就挪到workListMoveSet中
+                    activeMoveSet.remove(mv);
+                    workListMoveSet.add(mv);
+                }
+            }
+            for (Operand adj : adjacent(x)) {
+                // 对于o的每个实际邻接冲突adj
+                for (MIMove mv : nodeMoves(adj)) {
+                    // adj关联的move, 如果是有可能合并的move
+                    if (activeMoveSet.contains(mv)) {
+                        // 未做好合并准备的集合如果包含mv, 就挪到workListMoveSet中
+                        activeMoveSet.remove(mv);
+                        workListMoveSet.add(mv);
+                    }
+                }
+            }
+            // enableMoves(x);
             // TODO: 这里trivial写的是insert, 很怪
             spillWorkSet.remove(x);
             if (nodeMoves(x).size() > 0) {
@@ -564,6 +602,7 @@ public class TrivialRegAllocator {
     /**
      * 当 x 需要被染色, x 并不与 move 相关, x 的度 <= k - 1
      * 低度数传送有关结点删除 x , 且低度数传送无关结点添加 x
+     *
      * @param x
      */
     public void addWorkList(Operand x) {
@@ -756,7 +795,7 @@ public class TrivialRegAllocator {
         for (Machine.Block mb : curMF.mbList) {
             for (MachineInst mi : mb.miList) {
                 // TODO 这里不考虑Call
-                if (mi.isCall()|| mi.isComment()) continue;
+                if (mi.isCall() || mi.isComment()) continue;
                 logOut("Consider " + mi);
                 ArrayList<Operand> defs = mi.defOpds;
                 ArrayList<Operand> uses = mi.useOpds;

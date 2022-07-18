@@ -20,7 +20,7 @@ public class TrivialRegAllocator {
 
     private final boolean DEBUG_STDIN_OUT = false;
 
-    private int rk = 6;
+    private int rk = 12;
     private int sk = 32;
 
     private DataType dataType = I32;
@@ -226,7 +226,7 @@ public class TrivialRegAllocator {
     }
 
     public Machine.McFunction curMF;
-    public int MAX_DEGREE = Integer.MAX_VALUE >> 1;
+    public int MAX_DEGREE = Integer.MAX_VALUE >> 2;
 
     public void AllocateRegister(Machine.Program program) {
         for (Machine.McFunction mcFunc : program.funcList) {
@@ -472,16 +472,22 @@ public class TrivialRegAllocator {
             reg.loopCounter = 0;
             reg.degree = MAX_DEGREE;
             reg.adjOpdSet = new HashSet<>();
+            reg.moveSet = new HashSet<>();
+            reg.setAlias(null);
         }
         for (Arm.Reg reg : Arm.Reg.getFPRPool()) {
             reg.loopCounter = 0;
             reg.degree = MAX_DEGREE;
             reg.adjOpdSet = new HashSet<>();
+            reg.moveSet = new HashSet<>();
+            reg.setAlias(null);
         }
         for (Operand o : curMF.vrList) {
             o.loopCounter = 0;
             o.degree = 0;
             o.adjOpdSet = new HashSet<>();
+            o.moveSet = new HashSet<>();
+            o.setAlias(null);
         }
         // logOut("in build");
         for (ILinkNode mbNode = curMF.mbList.getEnd(); !mbNode.equals(curMF.mbList.head); mbNode = mbNode.getPrev()) {

@@ -61,6 +61,7 @@ public class Compiler {
 
             RemovePhi removePhi = new RemovePhi(midEndRunner.functions);
             removePhi.Run();
+            Manager.MANAGER.outputLLVM();
             // DeadCodeDelete deadCodeDelete = new DeadCodeDelete(Manager.MANAGER.getFunctionList());
             // deadCodeDelete.Run();
             CodeGen.CODEGEN.gen();

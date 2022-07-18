@@ -20,7 +20,7 @@ import static lir.Arm.Regs.GPRs.*;
 import static manage.Manager.ExternFunction.*;
 
 public class MIDescriptor implements Descriptor {
-    private static final boolean OUT_TO_FILE = true;
+    private static final boolean OUT_TO_FILE = false;
 
     private InputStream input = System.in;
     private OutputStream output = System.out;
@@ -248,7 +248,7 @@ public class MIDescriptor implements Descriptor {
         clear();
         // MI_DESCRIPTOR.getStdin();
         Machine.Program p = Machine.Program.PROGRAM;
-        setToReg(MemSimulator.SP_BOTTOM * 4, sp);
+        setToReg(MemSimulator.TOTAL_SIZE * 4, sp);
         int curOff = 0;
         for (Map.Entry<GlobalVal.GlobalValue, Arm.Glob> g : CodeGen.CODEGEN.globptr2globOpd.entrySet()) {
             GlobalVal.GlobalValue glob = g.getKey();
@@ -292,27 +292,27 @@ public class MIDescriptor implements Descriptor {
         }
         if (runningState == RunningState.AFTER_MODE) {
             int i;
-            int cnt = curMF.mFunc.getParams().size();
-            cnt = Math.min(cnt, 4);
-            ArrayList<Integer> pl = new ArrayList<>();
-            for (i = 0; i < cnt; i++) {
-                pl.add(RegSimulator.GPRS.get(i));
-            }
+            // int cnt = curMF.mFunc.getParams().size();
+            // cnt = Math.min(cnt, 4);
+            // ArrayList<Integer> pl = new ArrayList<>();
+            // for (i = 0; i < cnt; i++) {
+            //     pl.add(RegSimulator.GPRS.get(i));
+            // }
             int sp = RegSimulator.GPRS.get(13);
             Stack<ArrayList<Integer>> s1 = curMF2GPRs.get(curMF);
             s1.push(RegSimulator.GPRS);
-            RegSimulator.GPRS = new ArrayList<>(pl);
+            RegSimulator.GPRS = new ArrayList<>(RegSimulator.GPRS);
             Stack<ArrayList<Float>> s2 = curMF2FPRs.get(curMF);
             s2.push(RegSimulator.FPRS);
-            RegSimulator.FPRS = new ArrayList<>();
-            for (i = cnt; i < Arm.Regs.GPRs.values().length; i++) {
-                RegSimulator.GPRS.add(0);
-            }
-            RegSimulator.GPRS.set(13, sp);
+            RegSimulator.FPRS = new ArrayList<>(RegSimulator.FPRS);
+            // for (i = cnt; i < Arm.Regs.GPRs.values().length; i++) {
+            //     RegSimulator.GPRS.add(0);
+            // }
+            // RegSimulator.GPRS.set(13, sp);
             assert Arm.Regs.GPRs.values().length == RegSimulator.GPRS.size();
-            for (i = 0; i < Arm.Regs.FPRs.values().length; i++) {
-                RegSimulator.FPRS.add((float) 0.0);
-            }
+            // for (i = 0; i < Arm.Regs.FPRs.values().length; i++) {
+            //     RegSimulator.FPRS.add((float) 0.0);
+            // }
         }
         int spVal = (int) getFromReg(sp);
         // setToReg(spVal - curMF.getStackSize(), sp);

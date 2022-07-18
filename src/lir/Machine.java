@@ -276,6 +276,24 @@ public class Machine {
             vrCount = 0;
             this.vrList = new ArrayList<>();
         }
+
+        public HashSet<Arm.Reg> setUsedCalleeSavedRegs() {
+            usedCalleeSavedRegs = new HashSet<>();
+            for (var mb : mbList) {
+
+                for (var mi : mb.miList) {
+                    var defs = mi.defOpds;
+                    for (Operand def : mi.defOpds) {
+                        usedCalleeSavedRegs.add((Arm.Reg) def);
+                    }
+                    for (Operand use : mi.useOpds) {
+                        if (use.isImm()) continue;
+                        usedCalleeSavedRegs.add((Arm.Reg) use);
+                    }
+                }
+            }
+            return usedCalleeSavedRegs;
+        }
     }
 
     public static class Block extends ILinkNode {

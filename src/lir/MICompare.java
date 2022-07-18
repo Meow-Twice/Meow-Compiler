@@ -34,7 +34,13 @@ public class MICompare extends MachineInst{
     @Override
     public void output(PrintStream os, Machine.McFunction f){
         transfer_output(os);
-        os.println("cmp\t"+getLOpd().toString()+","+getROpd().toString());
+        if(!isFloat) {
+            os.println("cmp\t" + getLOpd().toString() + "," + getROpd().toString());
+        }
+        else{
+            os.println("vcmpe.f32\t" + getLOpd().toString() + "," + getROpd().toString());
+            os.println("vmrs\tAPSR_nzcv, FPSCR");
+        }
     }
 
     @Override

@@ -52,12 +52,21 @@ public class MIBinary extends MachineInst {
             case Div -> "sdiv";
             case And -> "and";
             case Or -> "orr";
+            case FAdd -> "vadd.f32";
+            case FSub -> "vsub.f32";
+            case FDiv -> "vdiv.f32";
+            case FMul -> "vmul.f32";
             default -> null;
         };
-        os.print(tag_str + "\t" + getDst().toString() + "," + getLOpd().toString() + "," + getROpd().toString());
-        if (shift.shiftType != Arm.ShiftType.None) {
-            os.println("," + shift);
-        }
+
+            os.print(tag_str + "\t" + getDst().toString() + "," + getLOpd().toString() + "," + getROpd().toString());
+            if (shift.shiftType != Arm.ShiftType.None) {
+                os.print("," + shift);
+            }
+            os.print("\n");
+
+
+
     }
 
     @Override

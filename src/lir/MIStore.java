@@ -54,12 +54,21 @@ public class MIStore extends MachineInst {
     @Override
     public void output(PrintStream os, Machine.McFunction f) {
         transfer_output(os);
-        if (getOffset().getType() == Machine.Operand.Type.Immediate) {
-            // TODO 这里没有检查立即数是否能被编码
-            int offset = this.getOffset().value << getShift().shift;
-            os.println("str" + cond + "\t" + getData().toString() + ",[" + getAddr().toString() + ",#" + offset + "]");
-        } else {
-            os.println("str" + cond + "\t" + getData().toString() + ",[" + getAddr().toString() + "," + getOffset().toString() + ",LSL #" + shift + "]");
+        if(!isFloat) {
+            if (getOffset().getType() == Machine.Operand.Type.Immediate) {
+                int offset = this.getOffset().value << getShift().shift;
+                os.println("str" + cond + "\t" + getData().toString() + ",[" + getAddr().toString() + ",#" + offset + "]");
+            } else {
+                os.println("str" + cond + "\t" + getData().toString() + ",[" + getAddr().toString() + "," + getOffset().toString() + ",LSL #" + shift + "]");
+            }
+        }
+        else{
+            if (getOffset().getType() == Machine.Operand.Type.Immediate) {
+                int offset = this.getOffset().value << getShift().shift;
+                os.println("vstr" + cond +".32"+ "\t" + getData().toString() + ",[" + getAddr().toString() + ",#" + offset + "]");
+            } else {
+                os.println("vstr" + cond +".32"+ "\t" + getData().toString() + ",[" + getAddr().toString() + "," + getOffset().toString() + ",LSL #" + shift + "]");
+            }
         }
     }
 

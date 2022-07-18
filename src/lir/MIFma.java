@@ -92,17 +92,29 @@ public class MIFma extends MachineInst {
 
     @Override
     public String toString() {
-        String res = "";
-        if (sign) {
-            res += "sm";
-        }
-        String op;
-        if (add) {
-            op = "mla";
+        if (!isFloat) {
+            String res = "";
+            if (sign) {
+                res += "sm";
+            }
+            String op;
+            if (add) {
+                op = "mla";
+            } else {
+                op = "mls";
+            }
+            res += op + cond + "\t" + getDst().toString() + ",\t" + getAcc().toString() + ",\t" + getlOpd().toString() + ",\t" + getrOpd().toString();
+            return res;
         } else {
-            op = "mls";
+            String res = "";
+            String op;
+            if (add) {
+                op = "vmla";
+            } else {
+                op = "vmls";
+            }
+            res += op + cond +".f32"+ "\t" + getDst().toString() + ",\t" + getAcc().toString() + ",\t" + getlOpd().toString() + ",\t" + getrOpd().toString();
+            return res;
         }
-        res += op + cond + "\t" + getDst().toString() + ",\t" + getAcc().toString() + ",\t" + getlOpd().toString() + ",\t" + getrOpd().toString();
-        return res;
     }
 }

@@ -52,11 +52,21 @@ public class MILoad extends MachineInst {
     @Override
     public void output(PrintStream os, Machine.McFunction f) {
         transfer_output(os);
-        if (getOffset().getType() == Machine.Operand.Type.Immediate) {
-            int offset = this.getOffset().value << this.shift.shift;
-            os.println("ldr" + cond + "\t" + getData().toString() + ",[" + getAddr().toString() + ",#" + offset + "]");
-        } else {
-            os.println("ldr" + cond + "\t" + getData().toString() + ",[" + getAddr().toString() + "," + getOffset().toString() + ",LSL #" + shift + "]");
+        if(!isFloat) {
+            if (getOffset().getType() == Machine.Operand.Type.Immediate) {
+                int offset = this.getOffset().value << this.shift.shift;
+                os.println("ldr" + cond + "\t" + getData().toString() + ",[" + getAddr().toString() + ",#" + offset + "]");
+            } else {
+                os.println("ldr" + cond + "\t" + getData().toString() + ",[" + getAddr().toString() + "," + getOffset().toString() + ",LSL #" + shift + "]");
+            }
+        }
+        else{
+            if (getOffset().getType() == Machine.Operand.Type.Immediate) {
+                int offset = this.getOffset().value << this.shift.shift;
+                os.println("vldr" + cond +".32"+ "\t" + getData().toString() + ",[" + getAddr().toString() + ",#" + offset + "]");
+            } else {
+                os.println("vldr" + cond +".32"+ "\t" + getData().toString() + ",[" + getAddr().toString() + "," + getOffset().toString() + ",LSL #" + shift + "]");
+            }
         }
     }
 

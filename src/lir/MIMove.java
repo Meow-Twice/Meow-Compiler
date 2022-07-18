@@ -96,12 +96,27 @@ public class MIMove extends MachineInst {
         transfer_output(os);
         if (getSrc().type == Machine.Operand.Type.Immediate && encode_imm(getSrc().value)) {
             int imm = getSrc().value;
-            if (imm >> 16 == 0) {
-                os.println("movw" + cond + "\t" + getDst().toString() + ",#" + imm);
-            } else {
-                os.println("ldr" + cond + "\t" + getDst().toString() + ",=" + imm);
+            /*
+            if(getDst().type == float){
+                os.println("vldr" + cond +".32"+ "\t" + getDst().toString() + ",=" + imm);
             }
+            */
+            //else{
+                if (imm >> 16 == 0) {
+                    os.println("movw" + cond + "\t" + getDst().toString() + ",#" + imm);
+                } else {
+                    os.println("ldr" + cond + "\t" + getDst().toString() + ",=" + imm);
+                }
+            //}
         } else {
+            //TODO:这里需要考虑Dst为s寄存器
+            /*
+            if(getDst().type == float){
+                os.print("vmov" + cond +".32"+ "\t" + getDst().toString() + "," + getSrc().toString());
+                os.println("," + shift.toString());
+
+            }
+            */
             os.print("mov" + cond + "\t" + getDst().toString() + "," + getSrc().toString());
             os.println("," + shift.toString());
         }

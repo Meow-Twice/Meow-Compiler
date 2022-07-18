@@ -204,7 +204,7 @@ public class Machine {
         int stackSize = 0;
         int paramStack = 0;
         public mir.Function mFunc;
-        HashSet<Arm.Reg> usedCalleeSavedRegs = new HashSet<>();
+        HashSet<Arm.Regs> usedCalleeSavedRegs = new HashSet<>();
         boolean useLr = false;
 
         public McFunction(mir.Function function) {
@@ -230,7 +230,7 @@ public class Machine {
 
         public void output_reg_list(PrintStream os) {
             int i = 0;
-            for (Arm.Reg reg : usedCalleeSavedRegs) {
+            for (Arm.Regs reg : usedCalleeSavedRegs) {
                 if (i > 0) {
                     os.print(",");
                 }
@@ -277,18 +277,18 @@ public class Machine {
             this.vrList = new ArrayList<>();
         }
 
-        public HashSet<Arm.Reg> setUsedCalleeSavedRegs() {
+        public HashSet<Arm.Regs> setUsedCalleeSavedRegs() {
             usedCalleeSavedRegs = new HashSet<>();
             for (var mb : mbList) {
 
                 for (var mi : mb.miList) {
                     var defs = mi.defOpds;
                     for (Operand def : mi.defOpds) {
-                        usedCalleeSavedRegs.add((Arm.Reg) def);
+                        usedCalleeSavedRegs.add(def.reg);
                     }
                     for (Operand use : mi.useOpds) {
                         if (use.isImm()) continue;
-                        usedCalleeSavedRegs.add((Arm.Reg) use);
+                        usedCalleeSavedRegs.add(use.reg);
                     }
                 }
             }

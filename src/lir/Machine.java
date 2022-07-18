@@ -198,7 +198,7 @@ public class Machine {
         }
 
 
-        ArrayList<Operand> params = new ArrayList<>();
+        // ArrayList<Operand> params = new ArrayList<>();
         String func_name;
         // int vrSize = 0;
         int stackSize = 0;

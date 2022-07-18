@@ -2,9 +2,11 @@ package backend;
 
 import lir.*;
 import lir.Machine.Operand;
+import manage.Manager;
 import mir.type.DataType;
 import util.ILinkNode;
 
+import java.io.FileNotFoundException;
 import java.util.*;
 
 import static lir.Arm.Regs.GPRs;
@@ -19,8 +21,10 @@ public class TrivialRegAllocator {
 
     private final boolean DEBUG_STDIN_OUT = false;
 
-    private int rk = 10;
+    private int rk = 12;
     private int sk = 32;
+
+    private int MAGIC_LIVE_INTERVAL = rk * 2;
 
     private DataType dataType = I32;
 
@@ -57,6 +61,9 @@ public class TrivialRegAllocator {
             changed = false;
             for (ILinkNode mb = mcFunc.mbList.getEnd(); !mb.equals(mcFunc.mbList.head); mb = mb.getPrev()) {
                 final Machine.Block finalMb = (Machine.Block) mb;
+                // 1 a = , b =  ,c =  2, 3
+                // 2 g = a + d
+                // 3 return e + f
                 // 任意succ的liveInSet如果有更新, 则可能更新 (只可能增加, 增量为newLiveOut) 当前MB的liveIn,
                 // 且当前MB如果需要更新liveIn, 只可能新增且新增的Opd一定出自newLiveOut
                 /*ArrayList<Operand> newLiveOut = new ArrayList<>();
@@ -259,7 +266,7 @@ public class TrivialRegAllocator {
                 build();
                 logOut("RegAlloc Build end");
 
-                logOut(curMF.vrList.toString());
+                logOut("curMF.vrList:\t" + curMF.vrList.toString());
                 // makeWorkList
                 for (Operand vr : curMF.vrList) {
                     // initial
@@ -306,6 +313,7 @@ public class TrivialRegAllocator {
                         Operand x = freezeWorkSet.iterator().next();
                         freezeWorkSet.remove(x);
                         simplifyWorkSet.add(x);
+                        logOut(x + "\t" + "freezeWorkSet -> simplifyWorkSet");
                         freezeMoves(x);
                     }
                     if (spillWorkSet.size() > 0) {
@@ -346,6 +354,11 @@ public class TrivialRegAllocator {
                 logOut("needSpill");
                 spilledNodeSet.forEach(this::dealSpillNode);
                 logOut("endSpill");
+                try {
+                    Manager.MANAGER.outputMI();
+                } catch (FileNotFoundException e) {
+                    throw new RuntimeException(e);
+                }
             }
             curMF.setUsedCalleeSavedRegs();
             logOut(curMF.mFunc.getName() + "done");
@@ -358,7 +371,10 @@ public class TrivialRegAllocator {
     Operand offImm;
     boolean toStack = true;
 
+    int dealSpillTimes = 0;
+
     private void dealSpillNode(Operand x) {
+        dealSpillTimes++;
         for (Machine.Block mb : curMF.mbList) {
             offImm = new Operand(I32, curMF.getStackExceptParamSize());
             // generate a MILoad before first use, and a MIStore after last def
@@ -377,12 +393,14 @@ public class TrivialRegAllocator {
                     assert defs.size() == 1;
                     Operand def = defs.get(0);
                     if (def.equals(x)) {
-                        // Store
+                        // 如果一条指令def的是溢出结点
                         if (vrIdx == -1) {
+                            // 新建一个结点, vrIdx 即为当前新建立的结点
                             // TODO toStack
                             vrIdx = curMF.getVRSize();
                             srcMI.setDef(curMF.newVR());
                         } else {
+                            // 替换当前 def 为新建立的 def
                             srcMI.setDef(curMF.vrList.get(vrIdx));
                         }
                         lastDef = srcMI;
@@ -404,7 +422,7 @@ public class TrivialRegAllocator {
                         }
                     }
                 }
-                if (checkCount++ > 30) {
+                if (checkCount++ > MAGIC_LIVE_INTERVAL) {
                     checkpoint();
                 }
             }
@@ -421,10 +439,12 @@ public class TrivialRegAllocator {
                 Operand offset = offImm;
                 if (offImm.getImm() >= (1 << 12)) {
                     Operand dst = curMF.newVR();
-                    new MIMove(dst, offImm, firstUse);
+                    MIMove mi = new MIMove(dst, offImm, firstUse);
+                    logOut(String.format("+++++++%d Checkpoint insert {\t%s\t} before use:\t{\t%s\t}", dealSpillTimes, mi, firstUse));
                     offset = dst;
                 }
-                new MILoad(curMF.getVR(vrIdx), rSP, offset, firstUse);
+                MILoad mi = new MILoad(curMF.getVR(vrIdx), rSP, offset, firstUse);
+                logOut(String.format("+++++++%d Checkpoint insert {\t%s\t} before use:\t{\t%s\t}", dealSpillTimes, mi, firstUse));
                 firstUse = null;
             }
             if (lastDef != null) {
@@ -433,9 +453,11 @@ public class TrivialRegAllocator {
                 if (offImm.getImm() >= (1 << 12)) {
                     Operand dst = curMF.newVR();
                     insertAfter = new MIMove(lastDef, dst, offImm);
+                    logOut(String.format("+++++++%d Checkpoint insert {\t%s\t} after def:\t{\t%s\t}", dealSpillTimes, insertAfter, lastDef));
                     offset = dst;
                 }
-                new MIStore(insertAfter, curMF.getVR(vrIdx), rSP, offset);
+                MIStore st = new MIStore(insertAfter, curMF.getVR(vrIdx), rSP, offset);
+                logOut(String.format("+++++++%d Checkpoint insert {\t%s\t} after def:\t{\t%s\t}", dealSpillTimes, st, insertAfter));
                 lastDef = null;
             }
             vrIdx = -1;
@@ -515,9 +537,9 @@ public class TrivialRegAllocator {
 
                 if (defs.size() == 1) {
                     Operand def = defs.get(0);
-                    live.add(def);
                     // 构建冲突图
                     if (def.needColor()) {
+                        live.add(def);
                         // 该mi的def与当前所有活跃寄存器以及该指令的其他def均冲突
                         for (Operand l : live) {
                             addEdge(l, def);
@@ -803,9 +825,12 @@ public class TrivialRegAllocator {
             }
         }
     }
+
     boolean ok(Operand t, Operand r) {
         return t.degree < rk || t.isPreColored() || adjSet.contains(new AdjPair(t, r));
-    };
+    }
+
+    ;
 
     boolean adjOk(Operand v, Operand u) {
         for (var t : adjacent(v)) {
@@ -814,7 +839,9 @@ public class TrivialRegAllocator {
             }
         }
         return true;
-    };
+    }
+
+    ;
 
     private boolean conservative(HashSet<Operand> adjacent, HashSet<Operand> adjacent1) {
         HashSet<Operand> tmp = new HashSet<>(adjacent);
@@ -844,7 +871,7 @@ public class TrivialRegAllocator {
             // }
             if (activeMoveSet.contains(mv)) {
                 activeMoveSet.remove(mv);
-            }else{
+            } else {
                 workListMoveSet.remove(mv);
             }
             logOut(mv + "\t: activeMoveSet, workListMoveSet -> frozenMoveSet");
@@ -879,6 +906,7 @@ public class TrivialRegAllocator {
         HashMap<Operand, Operand> colorMap = new HashMap<>();
         while (selectStack.size() > 0) {
             Operand toBeColored = selectStack.pop();
+            logOut("when try assign:\t" + toBeColored);
             final TreeSet<Arm.Regs> okColorSet = new TreeSet<>(Arrays.asList(GPRs.values()).subList(0, rk));
             // logOut("--- rk = \t"+rk);
 
@@ -895,7 +923,7 @@ public class TrivialRegAllocator {
                     }
                 }
             });
-            // logOut(okColorSet.toString());
+            logOut(okColorSet.toString());
 
             if (okColorSet.isEmpty()) {
                 // 如果没有可分配的颜色则溢出
@@ -903,6 +931,8 @@ public class TrivialRegAllocator {
             } else {
                 // 如果有可分配的颜色则从可以分配的颜色中选取一个
                 Arm.Regs color = okColorSet.iterator().next();
+                // Arm.Regs color = okColorSet.pollLast();
+                logOut("Choose " + color);
                 colorMap.put(toBeColored, new Operand(color));
                 // if (color instanceof GPRs) {
                 //     colorMap.put(toBeColored, Arm.Reg.getR((GPRs) color));

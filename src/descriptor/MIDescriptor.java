@@ -184,10 +184,10 @@ public class MIDescriptor implements Descriptor {
         } else {
             System.err.println(s);
         }
-        if (err.length() > 1000000) {
-            FileDealer.outputToFile(err, "stderr" + outputTimes++ + ".txt");
-            err = new StringBuilder();
-        }
+        // if (err.length() > 1000000) {
+        //     FileDealer.outputToFile(err, "stderr" + outputTimes++ + ".txt");
+        //     err = new StringBuilder();
+        // }
     }
 
     public static void output(String str) {

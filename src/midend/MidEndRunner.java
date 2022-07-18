@@ -22,8 +22,8 @@ public class MidEndRunner {
         MakeDFG makeDFG = new MakeDFG(functions);
         makeDFG.Run();
 
-        // GlobalValueLocalize globalValueLocalize = new GlobalValueLocalize(functions, globalValues);
-        // globalValueLocalize.Run();
+        GlobalValueLocalize globalValueLocalize = new GlobalValueLocalize(functions, globalValues);
+        globalValueLocalize.Run();
 
         //TODO:funcInline
 
@@ -44,7 +44,7 @@ public class MidEndRunner {
        // RemovePhi removePhi = new RemovePhi(functions);
        // removePhi.Run();
 
-        // Pass();
+        Pass();
         //
         // loopOptimize();
 

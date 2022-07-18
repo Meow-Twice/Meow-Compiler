@@ -124,12 +124,16 @@ public class MIMove extends MachineInst {
         return useOpds.get(0);
     }
 
+    String oldToString = "";
     @Override
     public String toString() {
         if (getDst() == null) {
             assert false;
         }
-        return tag.toString() + cond.toString() + '\t' + getDst().toString() + ",\t" + getSrc().toString();
+        if(oldToString.equals("")){
+            oldToString = tag.toString() + cond.toString() + '\t' + getDst().toString() + ",\t" + getSrc().toString();
+        }
+        return tag.toString() + cond.toString() + '\t' + getDst().toString() + ",\t" + getSrc().toString()+"{\t--\t"+oldToString+"\t--\t}";
     }
 
     public void setSrc(Machine.Operand offset_opd) {

@@ -20,7 +20,7 @@ public class MICall extends MachineInst {
     public void genDefUse() {
         // TODO for xry: 到底是new还是get单例
         // 调用者保存
-        for (int i = r0.ordinal(); i < r0.ordinal() + Math.min(mcFunction.params.size(), 4); i++) {
+        for (int i = r0.ordinal(); i < r0.ordinal() + Math.min(mcFunction.mFunc.getParams().size(), 4); i++) {
             useOpds.add(Reg.getR(i));
         }
         // for (int i = 0; i < 4; i++) {

@@ -278,16 +278,17 @@ public class Machine {
         }
 
         public HashSet<Arm.Reg> setUsedCalleeSavedRegs() {
-            usedCalleeSavedRegs =  new HashSet<>();
+            usedCalleeSavedRegs = new HashSet<>();
             for (var mb : mbList) {
 
                 for (var mi : mb.miList) {
                     var defs = mi.defOpds;
-                    for(Operand def : mi.defOpds){
-                        usedCalleeSavedRegs.add((Arm.Reg)def);
+                    for (Operand def : mi.defOpds) {
+                        usedCalleeSavedRegs.add((Arm.Reg) def);
                     }
-                    for(Operand use : mi.useOpds){
-                        usedCalleeSavedRegs.add((Arm.Reg)use);
+                    for (Operand use : mi.useOpds) {
+                        if (use.isImm()) continue;
+                        usedCalleeSavedRegs.add((Arm.Reg) use);
                     }
                 }
             }

@@ -23,9 +23,9 @@ public class MICall extends MachineInst {
         for (int i = r0.ordinal(); i < r0.ordinal() + Math.min(mcFunction.params.size(), 4); i++) {
             useOpds.add(Reg.getR(i));
         }
-        for (int i = 0; i < 4; i++) {
-            defOpds.add(Reg.getR(i));
-        }
+        // for (int i = 0; i < 4; i++) {
+        //     defOpds.add(Reg.getR(i));
+        // }
         // defOpds.add(Reg.getR(lr));
         // defOpds.add(Reg.getR(r12));
         if(mcFunction.mFunc.hasRet()){

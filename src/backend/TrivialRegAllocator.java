@@ -20,7 +20,7 @@ public class TrivialRegAllocator {
 
     private final boolean DEBUG_STDIN_OUT = false;
 
-    private int rk = 12;
+    private int rk = 6;
     private int sk = 32;
 
     private DataType dataType = I32;
@@ -60,27 +60,54 @@ public class TrivialRegAllocator {
                 final Machine.Block finalMb = (Machine.Block) mb;
                 // 任意succ的liveInSet如果有更新, 则可能更新 (只可能增加, 增量为newLiveOut) 当前MB的liveIn,
                 // 且当前MB如果需要更新liveIn, 只可能新增且新增的Opd一定出自newLiveOut
-                ArrayList<Operand> newLiveOut = new ArrayList<>();
-                finalMb.succMB.forEach(succMB ->
-                        succMB.liveInSet.forEach(liveIn -> {
-                            if (finalMb.liveOutSet.add(liveIn)) {
-                                // logOut(liveIn.toString());
-                                newLiveOut.add(liveIn);
-                            }
-                        }));
+                /*ArrayList<Operand> newLiveOut = new ArrayList<>();
+                for (Machine.Block succMB : finalMb.succMB) {
+                    for (Operand liveIn : succMB.liveInSet) {
+                        if (finalMb.liveOutSet.add(liveIn)) {
+                            newLiveOut.add(liveIn);
+                        }
+                    }
+                }
+                // finalMb.succMB.forEach(succMB ->
+                //         succMB.liveInSet.forEach(liveIn -> {
+                //             if (finalMb.liveOutSet.add(liveIn)) {
+                //                 // logOut(liveIn.toString());
+                //                 newLiveOut.add(liveIn);
+                //             }
+                //         }));
                 changed = newLiveOut.size() > 0;
+
                 // newLiveOut.retainAll(mb.defSet);
                 // 从 newLiveOut 删除了不存在于 mb.defSet 的元素
 
-                newLiveOut.forEach(newOut -> {
+                for (Operand newOut : newLiveOut) {
                     if (!finalMb.defSet.contains(newOut)) {
                         finalMb.liveInSet.add(newOut);
                     }
-                });
+                }
+                // newLiveOut.forEach(newOut -> {
+                //     if (!finalMb.defSet.contains(newOut)) {
+                //         finalMb.liveInSet.add(newOut);
+                //     }
+                // });
+                */
+                HashSet<Operand> newLiveOut = new HashSet<>();
+                for(Machine.Block succ: finalMb.succMB){
+                    newLiveOut.addAll(succ.liveInSet);
+                }
+                if(!newLiveOut.equals(finalMb.liveOutSet)){
+                    changed = true;
+                    finalMb.liveOutSet = newLiveOut;
+                    finalMb.liveInSet = new HashSet<>(finalMb.liveUseSet);
+                    for(Operand o: finalMb.liveOutSet){
+                        if(!finalMb.defSet.contains(o)){
+                            finalMb.liveInSet.add(o);
+                        }
+                    }
+                }
                 logOut(((Machine.Block) mb).getDebugLabel() + " liveInSet:\t" + finalMb.liveInSet.toString());
                 logOut(((Machine.Block) mb).getDebugLabel() + " liveOutSet:\t" + finalMb.liveOutSet.toString());
             }
-            int i = 0;
         }
     }
 
@@ -194,7 +221,7 @@ public class TrivialRegAllocator {
 
         @Override
         public String toString() {
-            return "(" + u+" ,\t"+v+")";
+            return "(" + u + " ,\t" + v + ")";
         }
     }
 
@@ -245,9 +272,9 @@ public class TrivialRegAllocator {
                         simplifyWorkSet.add(vr);
                     }
                 }
-                logOut("spillWorkSet:\t"+spillWorkSet.toString());
-                logOut("freezeWorkSet:\t"+freezeWorkSet.toString());
-                logOut("simplifyWorkSet:\t"+simplifyWorkSet.toString());
+                logOut("spillWorkSet:\t" + spillWorkSet.toString());
+                logOut("freezeWorkSet:\t" + freezeWorkSet.toString());
+                logOut("simplifyWorkSet:\t" + simplifyWorkSet.toString());
 
                 while (simplifyWorkSet.size() + workListMoveSet.size() + freezeWorkSet.size() + spillWorkSet.size() > 0) {
                     if (simplifyWorkSet.size() > 0) {
@@ -258,11 +285,11 @@ public class TrivialRegAllocator {
                         Operand x = iter.next();
                         simplifyWorkSet.remove(x);
                         selectStack.push(x);
-                        logOut(String.format("selectStack.push(%s)",x));
+                        logOut(String.format("selectStack.push(%s)", x));
                         for (Operand adj : x.adjOpdSet) {
                             // 对于 x 的邻接冲突结点adj, 如果不是已经被删除的或者已合并的
                             if (!(selectStack.contains(adj) || coalescedNodeSet.contains(adj))) {
-                                logOut(String.format("decrementDegree(%s)",adj));
+                                logOut(String.format("decrementDegree(%s)", adj));
                                 decrementDegree(adj);
                             }
                         }
@@ -270,7 +297,7 @@ public class TrivialRegAllocator {
                     }
                     if (workListMoveSet.size() > 0) {
                         logOut("-- coalesce");
-                        logOut("workListMoveSet:\t"+workListMoveSet);
+                        logOut("workListMoveSet:\t" + workListMoveSet);
                         coalesce();
                     }
                     if (freezeWorkSet.size() > 0) {
@@ -301,7 +328,7 @@ public class TrivialRegAllocator {
                                 max = h;
                             }
                         }
-                        logOut("select: "+x+"\t"+"add to simplifyWorkSet");
+                        logOut("select: " + x + "\t" + "add to simplifyWorkSet");
                         // Operand x = spillWorkSet.stream().reduce((a, b) -> a.heuristicVal() < b.heuristicVal() ? a : b).orElseThrow();
                         // Operand x = spillWorkSet.stream().reduce(Operand::select).orElseThrow();
                         // TODO 为什么这里可以先挪到simplifyWorkSet里面啊
@@ -309,7 +336,7 @@ public class TrivialRegAllocator {
                         simplifyWorkSet.add(x);
                         freezeMoves(x);
                         spillWorkSet.remove(x);
-                        logOut("select: "+x+"\t"+"remove from spillWorkSet");
+                        logOut("select: " + x + "\t" + "remove from spillWorkSet");
                     }
                 }
                 // Manager.MANAGER.outputMI();
@@ -323,7 +350,7 @@ public class TrivialRegAllocator {
                 logOut("endSpill");
             }
             curMF.setUsedCalleeSavedRegs();
-            logOut(curMF.mFunc.getName()+"done");
+            logOut(curMF.mFunc.getName() + "done");
         }
     }
 
@@ -423,7 +450,7 @@ public class TrivialRegAllocator {
         if (!(adjSet.contains(adjPair) || u.equals(v))) {
             adjSet.add(adjPair);
             adjSet.add(new AdjPair(v, u));
-            logOut("\tAddEdge: "+u+"\t,\t"+v);
+            logOut("\tAddEdge: " + u + "\t,\t" + v);
             if (!u.isPreColored()) {
                 u.addAdj(v);
                 u.degree++;
@@ -464,11 +491,11 @@ public class TrivialRegAllocator {
             HashSet<Operand> live = new HashSet<>(mb.liveOutSet);
             for (ILinkNode iNode = mb.getEndMI(); !iNode.equals(mb.miList.head); iNode = iNode.getPrev()) {
                 MachineInst mi = (MachineInst) iNode;
-                if(mi.isComment())continue;
+                if (mi.isComment()) continue;
                 // TODO : 此时考虑了Call
                 ArrayList<Operand> defs = mi.defOpds;
                 ArrayList<Operand> uses = mi.useOpds;
-                logOut(mi+"\tlive begin:\t"+live);
+                logOut(mi + "\tlive begin:\t" + live);
                 if (mi.isMove()) {
                     MIMove mv = (MIMove) mi;
                     if (mv.directColor()) {
@@ -705,17 +732,17 @@ public class TrivialRegAllocator {
             u = v;
             v = tmp;
         }
-        logOut(String.format("workListMoveSet.remove(%s)",mv));
+        logOut(String.format("workListMoveSet.remove(%s)", mv));
         workListMoveSet.remove(mv);
         if (u.equals(v)) {
             coalescedMoveSet.add(mv);
-            logOut(String.format("coalescedMoveSet.add(%s)",mv));
+            logOut(String.format("coalescedMoveSet.add(%s)", mv));
             addWorkList(u);
         } else if (v.isPreColored() || adjSet.contains(new AdjPair(u, v))) {
             // 这里似乎必须用adjSet判断
             // 两边都是预着色则不可能合并, 因为上面已经在 move u, v 的情况下将 u, v 互换, 如果v仍然是预着色说明u, v均为预着色
             constrainedMoveSet.add(mv);
-            logOut(String.format("constrainedMoveSet.add(%s)",mv));
+            logOut(String.format("constrainedMoveSet.add(%s)", mv));
             addWorkList(u);
             addWorkList(v);
         } else {
@@ -787,7 +814,7 @@ public class TrivialRegAllocator {
             if (!activeMoveSet.remove(mv)) {
                 workListMoveSet.remove(mv);
             }
-            logOut(mv+"\t: activeMoveSet, workListMoveSet -> frozenMoveSet");
+            logOut(mv + "\t: activeMoveSet, workListMoveSet -> frozenMoveSet");
             frozenMoveSet.add(mv);
 
             // 这个很怪, 跟书上不一样
@@ -808,7 +835,7 @@ public class TrivialRegAllocator {
                 // nodeMoves(v) = v.moveSet ∩ (activeMoveSet ∪ workListMoveSet)
                 freezeWorkSet.remove(v);
                 simplifyWorkSet.add(v);
-                logOut(v+"\t freezeWorkSet-> simplifyWorkSet");
+                logOut(v + "\t freezeWorkSet-> simplifyWorkSet");
             }
         }
     }

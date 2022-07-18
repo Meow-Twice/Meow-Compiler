@@ -22,8 +22,8 @@ public class MidEndRunner {
         MakeDFG makeDFG = new MakeDFG(functions);
         makeDFG.Run();
 
-        GlobalValueLocalize globalValueLocalize = new GlobalValueLocalize(functions, globalValues);
-        globalValueLocalize.Run();
+        // GlobalValueLocalize globalValueLocalize = new GlobalValueLocalize(functions, globalValues);
+        // globalValueLocalize.Run();
 
         //TODO:funcInline
 

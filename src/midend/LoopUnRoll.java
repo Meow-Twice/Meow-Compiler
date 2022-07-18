@@ -313,26 +313,26 @@ public class LoopUnRoll {
         }
 
         //修正exit的LCSSA PHI
-//        for (Instr instr = exit.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
-//            if (!(instr instanceof Instr.Phi)) {
-//                break;
-//            }
-//            //fixme:测试
-//            // 当前采用的写法基于一些特性,如定义一定是PHI?,这些特性需要测试
-//            Value value = instr.getUseValueList().get(0);
-//            assert value instanceof Instr;
-//            if (((Instr) value).parentBB().equals(head)) {
-//                assert value instanceof Instr.Phi;
-//                //int index = head.getPrecBBs().indexOf(entering);
-//                //Value B = ((Instr.Phi) value).getUseValueList().get(index);
-//                instr.modifyUse(beginToEnd.get(value), 0);
-//            }
-//        }
+        for (Instr instr = exit.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+            if (!(instr instanceof Instr.Phi)) {
+                break;
+            }
+            //fixme:测试
+            // 当前采用的写法基于一些特性,如定义一定是PHI?,这些特性需要测试
+            Value value = instr.getUseValueList().get(0);
+            assert value instanceof Instr;
+            if (((Instr) value).parentBB().equals(head)) {
+                assert value instanceof Instr.Phi;
+                //int index = head.getPrecBBs().indexOf(entering);
+                //Value B = ((Instr.Phi) value).getUseValueList().get(index);
+                instr.modifyUse(beginToEnd.get(value), 0);
+            }
+        }
         //fixme:07-18-01:13
         //考虑一下函数内联pass的位置
-        for (Value value: beginToEnd.keySet()) {
-            value.modifyAllUseThisToUseA(beginToEnd.get(value));
-        }
+//        for (Value value: beginToEnd.keySet()) {
+//            value.modifyAllUseThisToUseA(beginToEnd.get(value));
+//        }
 
         //删除head
         for (Instr instr = head.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {

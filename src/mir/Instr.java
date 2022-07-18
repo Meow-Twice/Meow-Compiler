@@ -2,6 +2,7 @@ package mir;
 
 import frontend.Visitor;
 import midend.CloneInfoMap;
+import midend.LCSSA;
 import mir.type.Type;
 import mir.type.Type.*;
 
@@ -906,6 +907,7 @@ public class Instr extends Value {
 
         //TODO:assign to 刘传, xry已改
         //private final ArrayList<Value> optionalValues;
+        private boolean isLCSSA;
 
         public Phi(Type type, ArrayList<Value> optionalValues, BasicBlock parent) {
             // Phi一定插在基本块的开始, Alloc之前
@@ -921,7 +923,31 @@ public class Instr extends Value {
             }
         }
 
-//        @Override
+        //LCSSA_PHI
+        public Phi(Type type, ArrayList<Value> optionalValues, BasicBlock parent, boolean isLCSSA) {
+            super(type, parent, true);
+            tag = AmaTag.phi;
+//            for (Value instr : optionalValues) {
+//                assert type.equals(instr.type);
+//            }
+            //this.optionalValues = optionalValues;
+            int idx = 0;
+            for (Value inst : optionalValues) {
+                setUse(inst, idx++);
+            }
+//            Instr instr = parent.getBeginInstr();
+//            while (instr instanceof Phi) {
+//                instr = (Instr) instr.getNext();
+//            }
+//            instr.insertBefore(this);
+            this.isLCSSA = isLCSSA;
+        }
+
+        public boolean isLCSSA() {
+            return isLCSSA;
+        }
+
+        //        @Override
 //        public String toString() {
 //            String src = optionalValues.stream().map(entry -> "[ " + (entry.getName()) + ", " + entry.bb.getName() + " ]").reduce((s, s2) -> s + ", " + s2).orElse("");
 //            // TODO: 这里的type.toString不知道是不是能直接调用到BasicType的toString方法
@@ -937,7 +963,8 @@ public class Instr extends Value {
                 Value value = useValueList.get(i);
 //                if (value instanceof Constant) {
                 if (parentBB().getPrecBBs().size() <= i) {
-                    System.err.println("err");
+                    //System.err.println("err_966");
+                    return "err";
                 }
                 ret.append("[ ").append(value.getName()).append(", %").append(parentBB().getPrecBBs().get(i).getLabel()).append(" ]");
 //                } else if (value instanceof Instr) {
@@ -977,11 +1004,15 @@ public class Instr extends Value {
 
         public void simple(ArrayList<BasicBlock> oldPres, ArrayList<BasicBlock> newPres) {
             ArrayList<Value> values = new ArrayList<>();
-            for (int i = 0; i < oldPres.size(); i++) {
-                if (!newPres.contains(oldPres.get(i))) {
-                    continue;
-                }
-                values.add(useValueList.get(i));
+//            for (int i = 0; i < oldPres.size(); i++) {
+//                if (!newPres.contains(oldPres.get(i))) {
+//                    continue;
+//                }
+//                values.add(useValueList.get(i));
+//            }
+            for (int i = 0; i < newPres.size(); i++) {
+                int index = oldPres.indexOf(newPres.get(i));
+                values.add(useValueList.get(index));
             }
             for (Use use: useList) {
                 use.remove();

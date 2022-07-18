@@ -125,6 +125,9 @@ public class BasicBlock extends Value {
         init();
         this.loop = loop;
         this.label = "b" + (++bb_count);
+        if (bb_count == 260) {
+            System.err.println("err_260");
+        }
         this.function = function;
         begin.setNext(end);
         end.setPrev(begin);
@@ -270,7 +273,10 @@ public class BasicBlock extends Value {
             ArrayList<BasicBlock> oldPres = this.precBBs;
             ArrayList<BasicBlock> newPres = precBBs;
             if (oldPres.size() == newPres.size() && getBeginInstr() instanceof Instr.Phi) {
-                System.err.println("err");
+                assert false;
+            }
+            if (label.equals("b242")) {
+                System.err.println("b242_BB_279");
             }
             simplyPhi(oldPres, newPres);
             this.precBBs = precBBs;
@@ -339,6 +345,20 @@ public class BasicBlock extends Value {
 
     @Override
     public String toString() {
+        if (OutParam.ONLY_OUTPUT_PRE_SUC) {
+            String rett = this.getLabel() + "       ;";
+            rett += "pres: ";
+            for (BasicBlock bb : precBBs) {
+                rett += bb.getLabel() + " ";
+            }
+
+            rett += "; sucs: ";
+            for (BasicBlock bb : succBBs) {
+                rett += bb.getLabel() + " ";
+            }
+            return rett;
+        }
+
         if (!OutParam.BB_NEED_CFG_INFO) {
             if (OutParam.BB_NEED_LOOP_INFO) {
                 if (isLoopHeader) {
@@ -406,6 +426,9 @@ public class BasicBlock extends Value {
     public BasicBlock cloneToFunc(Function function) {
         // 是循环内的BB, 复制的时候,
         // 先创建新的循环, 然后把BB塞到新的loop里面
+        if (label.equals("b174")) {
+            System.err.println("ERR_174");
+        }
         Loop srcLoop = this.loop;
         Loop tagLoop = CloneInfoMap.loopMap.containsKey(srcLoop)?
                 CloneInfoMap.getReflectedLoop(srcLoop):

@@ -214,6 +214,10 @@ public class Loop {
     //修正当前BB对应BB的use-def,同时修正简单的数据流:前驱后继关系
     public void fix() {
         for (BasicBlock bb: nowLevelBB) {
+            if (bb.getLabel().equals("b174")) {
+                System.err.println("ERR_174");
+            }
+            assert CloneInfoMap.valueMap.containsKey(bb);
             BasicBlock needFixBB = (BasicBlock) CloneInfoMap.getReflectedValue(bb);
 
             ArrayList<BasicBlock> pres = new ArrayList<>();
@@ -231,6 +235,9 @@ public class Loop {
             needFixBB.modifySucs(succs);
 
             needFixBB.fix();
+        }
+        for (Loop next: childrenLoops) {
+            next.fix();
         }
     }
 

@@ -39,21 +39,23 @@ public class MidEndRunner {
 
         Pass();
 
+
+        //BrOptimize();
         loopOptimize();
 
 
         //TODO:删除冗余phi,分支优化(删除无用的br/jump等),等等
-        BranchOptimize branchOptimize = new BranchOptimize(functions);
-        branchOptimize.Run();
-
-        //前驱后继关系已经维护
-        //拆分MakeCFG
-        reMakeCFGAndLoopInfo();
-
-        Pass();
-
-        MathOptimize mathOptimize = new MathOptimize(functions);
-        mathOptimize.Run();
+//        BranchOptimize branchOptimize = new BranchOptimize(functions);
+//        branchOptimize.Run();
+//
+//        //前驱后继关系已经维护
+//        //拆分MakeCFG
+//        reMakeCFGAndLoopInfo();
+//
+//        Pass();
+//
+//        MathOptimize mathOptimize = new MathOptimize(functions);
+//        mathOptimize.Run();
 
 
 
@@ -86,7 +88,7 @@ public class MidEndRunner {
 
     //循环优化
     private void loopOptimize() {
-        outputLLVM();
+        //outputLLVM();
 
         LoopInfo loopInfo = new LoopInfo(functions);
         loopInfo.Run();
@@ -101,19 +103,19 @@ public class MidEndRunner {
 
         reMakeCFGAndLoopInfo();
 
-        Pass();
+        //Pass();
 
         // TODO:获取迭代变量idcVar的相关信息
-        LoopIdcVarInfo loopIdcVarInfo = new LoopIdcVarInfo(functions);
-        loopIdcVarInfo.Run();
-
-        // TODO:循环展开
-        LoopUnRoll loopUnRoll = new LoopUnRoll(functions);
-        loopUnRoll.Run();
-
-        reMakeCFGAndLoopInfo();
-
-        Pass();
+//        LoopIdcVarInfo loopIdcVarInfo = new LoopIdcVarInfo(functions);
+//        loopIdcVarInfo.Run();
+//
+//        // TODO:循环展开
+//        LoopUnRoll loopUnRoll = new LoopUnRoll(functions);
+//        loopUnRoll.Run();
+//
+//        reMakeCFGAndLoopInfo();
+//
+//        Pass();
 
         // TODO:循环融合
 
@@ -121,6 +123,17 @@ public class MidEndRunner {
         // a = b * i + c; i = i + d
         // a = b * init + c; a = a + bd; i = i + d
         //
+    }
+
+    private void BrOptimize() {
+        BranchOptimize branchOptimize = new BranchOptimize(functions);
+        branchOptimize.Run();
+
+        //前驱后继关系已经维护
+        //拆分MakeCFG
+        reMakeCFGAndLoopInfo();
+
+        Pass();
     }
 
     private void outputLLVM() {

@@ -188,6 +188,9 @@ public class MakeDFG {
         //回写基本块和函数
         pos = beginBB;
         while (!pos.equals(end)) {
+            if  (pos.getLabel().equals("b242")) {
+                System.err.println("err");
+            }
             pos.setPrecBBs(preMap.get(pos));
             pos.setSuccBBs(sucMap.get(pos));
             pos = (BasicBlock) pos.getNext();

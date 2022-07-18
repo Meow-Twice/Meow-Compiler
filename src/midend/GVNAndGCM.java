@@ -479,7 +479,7 @@ public class GVNAndGCM {
             } else if (op.equals(Instr.Alu.Op.REM)) {
                 value = new Constant.ConstantInt(ConstA % ConstB);
             } else {
-                System.err.println("err");
+                System.err.println("err_1");
             }
 
             return value;
@@ -500,7 +500,7 @@ public class GVNAndGCM {
             } else if (op.equals(Instr.Alu.Op.FREM)) {
                 value = new Constant.ConstantFloat(ConstA % ConstB);
             } else {
-                System.err.println("err");
+                System.err.println("err_2");
             }
 
             return value;

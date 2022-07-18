@@ -215,6 +215,10 @@ public class Instr extends Value {
         return this.hash;
     }
 
+    public ArrayList<Use> getUseList() {
+        return useList;
+    }
+
     public ArrayList<Value> getUseValueList() {
         return useValueList;
     }
@@ -1012,6 +1016,7 @@ public class Instr extends Value {
 //            }
             for (int i = 0; i < newPres.size(); i++) {
                 int index = oldPres.indexOf(newPres.get(i));
+                assert index != -1;
                 values.add(useValueList.get(index));
             }
             for (Use use: useList) {

@@ -129,6 +129,7 @@ public class MakeDFG {
 
 
         for (BasicBlock bb: needRemove) {
+            //System.err.println("remove:" + bb.getLabel());
             bb.remove();
             Instr instr = bb.getBeginInstr();
             while (instr.getNext() != null) {

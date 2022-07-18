@@ -127,13 +127,16 @@ public class LoopUnRoll {
     }
 
     private void DoLoopUnRoll(Loop loop) {
+//        if (loop.getHash() == 13) {
+//            return;
+//        }
         CloneInfoMap.clear();
         Function function = loop.getHeader().getFunction();
         int times = loop.getIdcTimes();
         int cnt = cntDFS(loop);
-        /*if (!loop.getChildrenLoops().isEmpty()) {
-            return;
-        }*/
+//        if (!loop.getChildrenLoops().isEmpty()) {
+//            return;
+//        }
         if (cnt * times > loop_unroll_up_lines) {
             return;
         }
@@ -156,7 +159,8 @@ public class LoopUnRoll {
             }
         }
 
-        entering.modifySucAToB(head, headNext);
+        //TODO:不要直接删head
+        //entering.modifySucAToB(head, headNext);
         latch.modifySucAToB(head, exit);
         //headNext 只有head一个前驱
         assert headNext.getPrecBBs().size() == 1;
@@ -181,49 +185,42 @@ public class LoopUnRoll {
         }
 
 
-        //修正exit的LCSSA PHI
-        //TODO:移动到复制所有BB time次之后
-//        assert exit.getPrecBBs().size() == 1;
-//        for (Instr instr = exit.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+        //修正对head中phi的使用 old_version to line222
+//        for (Instr instr = head.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
 //            if (!(instr instanceof Instr.Phi)) {
 //                break;
 //            }
-//            //fixme:测试
-//            // 当前采用的写法基于一些特性,如定义一定是PHI?,这些特性需要测试
-//            Value value = instr.getUseValueList().get(0);
-//            assert value instanceof Instr;
-//            if (((Instr) value).parentBB().equals(head)) {
-//                assert value instanceof Instr.Phi;
-//                int index = head.getPrecBBs().indexOf(latch);
-//                instr.modifyUse(((Instr.Phi) value).getUseValueList().get(index), 0);
+//            int index = head.getPrecBBs().indexOf(entering);
+//            //instr.modifyAllUseThisToUseA(instr.getUseValueList().get(index));
+//            Use use = (Use) instr.getBeginUse();
+//            while (use.getNext() != null) {
+//                Instr user = use.getUser();
+//                if (!user.parentBB().equals(exit)) {
+//                    user.modifyUse(instr.getUseValueList().get(index), use.getIdx());
+//                }
+//                use = (Use) use.getNext();
 //            }
 //        }
+//
+//        head.remove();
 
-        //修正对head中phi的使用
+        int latch_index = head.getPrecBBs().indexOf(latch);
         for (Instr instr = head.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
             if (!(instr instanceof Instr.Phi)) {
                 break;
             }
-            int index = head.getPrecBBs().indexOf(entering);
-            //instr.modifyAllUseThisToUseA(instr.getUseValueList().get(index));
-            Use use = (Use) instr.getBeginUse();
-            while (use.getNext() != null) {
-                Instr user = use.getUser();
-                if (!user.parentBB().equals(exit)) {
-                    user.modifyUse(instr.getUseValueList().get(index), use.getIdx());
-                }
-                use = (Use) use.getNext();
-            }
+            Use use = instr.getUseList().get(latch_index);
+            use.remove();
+            instr.getUseList().remove(latch_index);
+            instr.getUseValueList().remove(latch_index);
         }
-
-        head.remove();
 
         //维护bbInWhile这些块的Loop信息
         //维护块中指令的isInWhileCond信息
-        HashSet<BasicBlock> bbInWhile = loop.getNowLevelBB();
-        bbInWhile.remove(head);
+        HashSet<BasicBlock> bbInWhile = new HashSet<>();
+        getAllBBInLoop(loop, bbInWhile);
         if (loop.getLoopDepth() == 1) {
-            for (BasicBlock bb: bbInWhile) {
+            for (BasicBlock bb: loop.getNowLevelBB()) {
                 for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
                     if (instr.isInLoopCond()) {
                         instr.setNotInLoopCond();
@@ -233,9 +230,16 @@ public class LoopUnRoll {
         }
 
         Loop parentLoop = loop.getParentLoop();
-        for (BasicBlock bb: bbInWhile) {
+        for (BasicBlock bb: loop.getNowLevelBB()) {
             bb.modifyLoop(parentLoop);
         }
+
+        for (Loop child: loop.getChildrenLoops()) {
+            child.setParentLoop(parentLoop);
+        }
+
+        //bbInWhile.remove(head);
+        bbInWhile.add(head);
 
         //fixme:复制time / time - 1?份
         BasicBlock oldBegin = headNext;
@@ -328,15 +332,23 @@ public class LoopUnRoll {
                 instr.modifyUse(beginToEnd.get(value), 0);
             }
         }
-        //fixme:07-18-01:13
-        //考虑一下函数内联pass的位置
+        //fixme:07-18-01:13 是否需要这样修正exit的 LCSSA
 //        for (Value value: beginToEnd.keySet()) {
 //            value.modifyAllUseThisToUseA(beginToEnd.get(value));
 //        }
 
         //删除head
-        for (Instr instr = head.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
-            instr.remove();
+//        for (Instr instr = head.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+//            instr.remove();
+//        }
+    }
+
+    private void getAllBBInLoop(Loop loop, HashSet<BasicBlock> bbs) {
+        for (BasicBlock bb: loop.getNowLevelBB()) {
+            bbs.add(bb);
+        }
+        for (Loop next: loop.getChildrenLoops()) {
+            getAllBBInLoop(next, bbs);
         }
     }
 

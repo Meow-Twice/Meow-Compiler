@@ -56,7 +56,7 @@ public class Loop {
         this.hash = loop_num++;
         this.parentLoop = parentLoop;
         this.loopDepth = parentLoop.loopDepth + 1;
-        assert parentLoop.addChildLoop(this);
+        parentLoop.addChildLoop(this);
         name = parentLoop.name + "-" + (loopDepth == 0 ? 0 : parentLoop.getChildrenLoops().size());
     }
 
@@ -81,6 +81,7 @@ public class Loop {
     // 慎用，visitor用不到到这个
     public void setParentLoop(Loop parentLoop) {
         this.parentLoop = parentLoop;
+        this.parentLoop.addChildLoop(this);
     }
 
     public Loop getParentLoop() {
@@ -206,6 +207,7 @@ public class Loop {
         for (BasicBlock bb: nowLevelBB) {
             bb.cloneToFunc(function);
         }
+
         for (Loop next: childrenLoops) {
             next.cloneToFunc(function);
         }

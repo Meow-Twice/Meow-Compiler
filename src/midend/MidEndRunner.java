@@ -45,17 +45,17 @@ public class MidEndRunner {
 
 
         //TODO:删除冗余phi,分支优化(删除无用的br/jump等),等等
-//        BranchOptimize branchOptimize = new BranchOptimize(functions);
-//        branchOptimize.Run();
-//
-//        //前驱后继关系已经维护
-//        //拆分MakeCFG
-//        reMakeCFGAndLoopInfo();
-//
-//        Pass();
-//
-//        MathOptimize mathOptimize = new MathOptimize(functions);
-//        mathOptimize.Run();
+        BranchOptimize branchOptimize = new BranchOptimize(functions);
+        branchOptimize.Run();
+
+        //前驱后继关系已经维护
+        //拆分MakeCFG
+        reMakeCFGAndLoopInfo();
+
+        Pass();
+
+        MathOptimize mathOptimize = new MathOptimize(functions);
+        mathOptimize.Run();
 
 
 
@@ -100,10 +100,15 @@ public class MidEndRunner {
 
         BranchLift branchLift = new BranchLift(functions);
         branchLift.Run();
+//
+//        outputLLVM();
 
         reMakeCFGAndLoopInfo();
 
-        //Pass();
+        Pass();
+
+//        LoopInfo loopInfo1 = new LoopInfo(functions);
+//        loopInfo1.Run();
 
         // TODO:获取迭代变量idcVar的相关信息
 //        LoopIdcVarInfo loopIdcVarInfo = new LoopIdcVarInfo(functions);
@@ -112,7 +117,7 @@ public class MidEndRunner {
 //        // TODO:循环展开
 //        LoopUnRoll loopUnRoll = new LoopUnRoll(functions);
 //        loopUnRoll.Run();
-//
+
 //        reMakeCFGAndLoopInfo();
 //
 //        Pass();

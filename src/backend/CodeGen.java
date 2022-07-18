@@ -544,8 +544,13 @@ public class CodeGen {
 
         }
         // div+mode optimize
-        if (tag == MachineInst.Tag.Div && rhs.isConstantInt()) {
+        //这里需要确定一下lhs不是浮点类型
+        if (tag == MachineInst.Tag.Div && rhs.isConstantInt() ) {
             divOptimize(instr);
+            return;
+        }
+        if(tag == MachineInst.Tag.Mul && rhs.isConstantInt() && is2power(Math.abs(((Constant.ConstantInt) rhs).constIntVal))){
+            mulOptimize(instr);
             return;
         }
         Machine.Operand lVR = getVR_may_imm(lhs);
@@ -554,7 +559,26 @@ public class CodeGen {
         Machine.Operand dVR = getVR_no_imm(instr);
         new MIBinary(tag, dVR, lVR, rVR, curMB);
     }
+    public boolean is2power(int n){
+        if(!(n > 0 && (n & (n - 1)) == 0)){
+            return false;
+        }
+        return true;
+    }
 
+    public void mulOptimize(Instr.Alu instr){
+        Value lhs = instr.getRVal1();
+        Machine.Operand n = getVR_may_imm(lhs);
+        Value rhs = instr.getRVal2();
+        Machine.Operand q = getVR_no_imm(instr);
+        int d = ((Constant.ConstantInt) rhs).constIntVal;
+        int k = Integer.toBinaryString(Math.abs(d)).length()-1;
+        //q = n*d
+        //q = n<<k
+        Arm.Shift shift = new Arm.Shift(Arm.ShiftType.Lsl,k);
+        new MIMove(q,n,shift,curMB);
+
+    }
     public void divOptimize_mod(Value lValue, Value rValue, Machine.Operand q_op) {
         // q = n/d
         Value lhs = lValue;

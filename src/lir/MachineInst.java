@@ -131,7 +131,7 @@ public class MachineInst extends ILinkNode {
 
     Machine.Block mb;
     Tag tag;
-    boolean isFloat = false;
+    public boolean isFloat = false;
     public ArrayList<Machine.Operand> defOpds = new ArrayList<>();
     public ArrayList<Machine.Operand> useOpds = new ArrayList<>();
 

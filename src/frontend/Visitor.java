@@ -391,8 +391,8 @@ public class Visitor {
         }
     }
 
-    private void setLoopCond(){
-        if(inLoop){
+    private void setLoopCond() {
+        if (inLoop) {
             inLoopCond = true;
         }
     }
@@ -732,11 +732,43 @@ public class Visitor {
             // 分配的空间指向 pointer
             assert curBB != null;
             pointer = new Alloc(pointeeType, curBB);
-            if (pointeeType instanceof ArrayType) {
-                initZeroHelper(pointer);
-            }
-            if (init != null) {
-                initLocalVarHelper(pointer, init); // 生成初始化
+            Type baseType = ((PointerType) pointer.getType()).getInnerType();
+            if (!(init == null)) {
+                if (init instanceof Initial.ExpInit) {
+                    Value v = trimTo(((Initial.ExpInit) init).getResult(), (BasicType) baseType);
+                    new Store(v, pointer, curBB);
+                } else if (init instanceof Initial.ValueInit) {
+                    Value v = trimTo(((Initial.ValueInit) init).getValue(), (BasicType) baseType);
+                    new Store(v, pointer, curBB);
+                } else if (init instanceof Initial.ArrayInit) {
+                    ArrayList<Value> initValueList = init.getFlattenInit();
+                    ArrayList<Value> dimList = new ArrayList<>();
+                    for (int i = 0; i <= ((ArrayType) pointeeType).getDimSize(); i++) {
+                        dimList.add(CONST_0);
+                    }
+                    BasicType basicType = ((ArrayType) pointeeType).getBaseEleType();
+                    Value ptr = new GetElementPtr(basicType, pointer, dimList, curBB);
+                    HashSet<Value> checkSet = new HashSet<>(initValueList);
+                    assert checkSet.size() > 0;
+                    boolean allZero = false;
+                    if (checkSet.size() == 1) {
+                        if (checkSet.iterator().next().equals(CONST_0)) {
+                            initZeroHelper(ptr);
+                            allZero = true;
+                        }
+                    }
+                    if (!allZero) {
+                        dimList = new ArrayList<>();
+                        dimList.add(CONST_0);
+                        new Store(initValueList.get(0), ptr, curBB);
+                        for (int i = 1; i < initValueList.size(); i++) {
+                            dimList = new ArrayList<>();
+                            dimList.add(Constant.ConstantInt.getConstInt(i));
+                            Value p = new GetElementPtr(basicType, ptr, dimList, curBB);
+                            new Store(trimTo(initValueList.get(i), basicType), p, curBB);
+                        }
+                    }
+                }
             }
         } else {
             pointer = new GlobalVal.GlobalValue(pointeeType, def, init);

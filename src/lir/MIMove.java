@@ -118,7 +118,7 @@ public class MIMove extends MachineInst {
             }
             */
             os.print("mov" + cond + "\t" + getDst().toString() + "," + getSrc().toString());
-            if(shift!=null) {
+            if(shift!=Arm.Shift.NONE_SHIFT) {
                 os.println("," + shift.toString());
             }
         }

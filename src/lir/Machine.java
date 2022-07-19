@@ -88,9 +88,9 @@ public class Machine {
             os.println(".section .text");
             for (McFunction function : funcList) {
                 os.println();
-                os.println(".global" + function.func_name);
-                os.println("\t.type\t" + function.func_name + ",%function");
-                os.println(function.func_name + ":");
+                os.println(".global\t" + function.mFunc.getName());
+                os.println("\t.type\t" + function.mFunc.getName() + ",%function");
+                os.println(function.mFunc.getName() + ":");
 
                 if (function.useLr || !function.usedCalleeSavedRegs.isEmpty()) {
                     os.print("\tpush\t{");

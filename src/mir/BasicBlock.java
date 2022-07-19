@@ -421,6 +421,10 @@ public class BasicBlock extends Value {
         return loop;
     }
 
+    public void setLoop(Loop loop) {
+        this.loop = loop;
+    }
+
     //把当前BB复制到指定函数
     //br外提的时候使用
     public BasicBlock cloneToFunc(Function function) {
@@ -653,5 +657,12 @@ public class BasicBlock extends Value {
         } else {
             instr.modifyUse(B, 0);
         }
+    }
+
+    public void modifyBrToJump(BasicBlock next) {
+        Instr.Jump jump = new Instr.Jump(next, this);
+        Instr instr = getEndInstr();
+        instr.remove();
+        insertAtEnd(jump);
     }
 }

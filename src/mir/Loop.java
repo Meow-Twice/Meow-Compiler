@@ -111,6 +111,10 @@ public class Loop {
         return nowLevelBB.add(bb);
     }
 
+    public void removeBB(BasicBlock bb) {
+        nowLevelBB.remove(bb);
+    }
+
     public BasicBlock getHeader() {
         return header;
     }
@@ -237,9 +241,16 @@ public class Loop {
             needFixBB.modifySucs(succs);
 
             needFixBB.fix();
+            needFixBB.setLoop(CloneInfoMap.getReflectedLoop(bb.getLoop()));
+            CloneInfoMap.getReflectedLoop(bb.getLoop()).addBB(needFixBB);
+            if (bb.isLoopHeader) {
+                needFixBB.setLoopHeader();
+            }
         }
         for (Loop next: childrenLoops) {
             next.fix();
+            //TODO:check
+            CloneInfoMap.getReflectedLoop(this).addChildLoop(CloneInfoMap.getReflectedLoop(next));
         }
     }
 

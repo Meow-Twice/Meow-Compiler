@@ -111,16 +111,16 @@ public class MidEndRunner {
 //        loopInfo1.Run();
 
         // TODO:获取迭代变量idcVar的相关信息
-//        LoopIdcVarInfo loopIdcVarInfo = new LoopIdcVarInfo(functions);
-//        loopIdcVarInfo.Run();
+        LoopIdcVarInfo loopIdcVarInfo = new LoopIdcVarInfo(functions);
+        loopIdcVarInfo.Run();
 //
-//        // TODO:循环展开
-//        LoopUnRoll loopUnRoll = new LoopUnRoll(functions);
-//        loopUnRoll.Run();
+////        // TODO:循环展开
+        LoopUnRoll loopUnRoll = new LoopUnRoll(functions);
+        loopUnRoll.Run();
 
-//        reMakeCFGAndLoopInfo();
-//
-//        Pass();
+        reMakeCFGAndLoopInfo();
+
+        Pass();
 
         // TODO:循环融合
 

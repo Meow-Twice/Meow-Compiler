@@ -127,9 +127,6 @@ public class LoopUnRoll {
     }
 
     private void DoLoopUnRoll(Loop loop) {
-//        if (loop.getHash() == 13) {
-//            return;
-//        }
         CloneInfoMap.clear();
         Function function = loop.getHeader().getFunction();
         int times = loop.getIdcTimes();
@@ -161,7 +158,10 @@ public class LoopUnRoll {
 
         //TODO:不要直接删head
         //entering.modifySucAToB(head, headNext);
-        latch.modifySucAToB(head, exit);
+        //latch.modifySucAToB(head, exit);
+
+
+
         //headNext 只有head一个前驱
         assert headNext.getPrecBBs().size() == 1;
 
@@ -176,12 +176,13 @@ public class LoopUnRoll {
             }
             int index = head.getPrecBBs().indexOf(entering);
             reachDefBeforeHead.put(instr, instr.getUseValueList().get(index));
-            reachDefAfterLatch.put(instr.getUseValueList().get(index), instr.getUseValueList().get(1 - index));
+            //reachDefAfterLatch.put(instr.getUseValueList().get(index), instr.getUseValueList().get(1 - index));
 //            beginToEnd.put(instr.getUseValueList().get(index), instr.getUseValueList().get(1 - index));
 //            endToBegin.put(instr.getUseValueList().get(1 - index), instr.getUseValueList().get(index));
 
-            beginToEnd.put(instr, instr.getUseValueList().get(1 - index));
-            endToBegin.put(instr.getUseValueList().get(1 - index), instr);
+//            reachDefAfterLatch.put(instr, instr.getUseValueList().get(1 - index));
+//            beginToEnd.put(instr, instr.getUseValueList().get(1 - index));
+//            endToBegin.put(instr.getUseValueList().get(1 - index), instr);
         }
 
 
@@ -203,17 +204,53 @@ public class LoopUnRoll {
 //        }
 //
 //        head.remove();
-
+        BasicBlock latchNext = new BasicBlock(function, loop);
         int latch_index = head.getPrecBBs().indexOf(latch);
         for (Instr instr = head.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
             if (!(instr instanceof Instr.Phi)) {
                 break;
             }
             Use use = instr.getUseList().get(latch_index);
+            ArrayList<Value> values = new ArrayList<>();
+            values.add(instr.getUseValueList().get(latch_index));
+            Instr phiInLatchNext = new Instr.Phi(instr.getType(), values, latchNext);
             use.remove();
             instr.getUseList().remove(latch_index);
             instr.getUseValueList().remove(latch_index);
+
+            reachDefAfterLatch.put(instr, phiInLatchNext);
+            beginToEnd.put(instr, phiInLatchNext);
+            endToBegin.put(phiInLatchNext, instr);
         }
+        ArrayList<BasicBlock> headNewPres = new ArrayList<>();
+        headNewPres.add(entering);
+        head.modifyPres(headNewPres);
+        ArrayList<BasicBlock> headNewSucs = new ArrayList<>();
+        headNewSucs.add(headNext);
+        head.modifySucs(headNewSucs);
+        loop.removeBB(head);
+//        head.setLoop(loop.getParentLoop());
+//        head.isLoopHeader = false;
+        head.modifyLoop(loop.getParentLoop());
+        head.modifyBrToJump(headNext);
+        if (loop.getLoopDepth() == 1) {
+            for (Instr instr = head.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+                if (instr.isInLoopCond()) {
+                    instr.setNotInLoopCond();
+                }
+            }
+        }
+
+        Instr jumpInLatchNext = new Instr.Jump(exit, latchNext);
+        latch.modifySuc(head, latchNext);
+        latch.modifyBrAToB(head, latchNext);
+        latchNext.addPre(latch);
+        latchNext.addSuc(exit);
+
+        //fixme:只有一个Exit不代表exit只有一个入口 07-20-00:31
+        exit.modifyPre(head, latchNext);
+
+
 
         //维护bbInWhile这些块的Loop信息
         //维护块中指令的isInWhileCond信息
@@ -243,7 +280,7 @@ public class LoopUnRoll {
 
         //fixme:复制time / time - 1?份
         BasicBlock oldBegin = headNext;
-        BasicBlock oldLatch = latch;
+        BasicBlock oldLatchNext = latchNext;
         //times = 0;
         for (int i = 0; i < times - 1; i++) {
             CloneInfoMap.clear();
@@ -256,14 +293,27 @@ public class LoopUnRoll {
                 newBB.fix();
             }
             BasicBlock newBegin = (BasicBlock) CloneInfoMap.getReflectedValue(oldBegin);
-            BasicBlock newLatch = (BasicBlock) CloneInfoMap.getReflectedValue(oldLatch);
+            BasicBlock newLatchNext = (BasicBlock) CloneInfoMap.getReflectedValue(oldLatchNext);
 
-            oldLatch.modifySuc(exit, newBegin);
-            exit.modifyPre(oldLatch, newLatch);
+            oldLatchNext.modifySuc(exit, newBegin);
+            exit.modifyPre(oldLatchNext, newLatchNext);
             ArrayList<BasicBlock> pres = new ArrayList<>();
-            pres.add(oldLatch);
+            pres.add(oldLatchNext);
             newBegin.modifyPres(pres);
-            oldLatch.modifyBrAToB(entering, newBegin);
+            oldLatchNext.modifyBrAToB(exit, newBegin);
+
+
+            HashSet<Value> keys = new HashSet<>();
+            for (Value value: reachDefAfterLatch.keySet()) {
+                keys.add(value);
+            }
+
+            for (Value A: keys) {
+                reachDefAfterLatch.put(CloneInfoMap.getReflectedValue(A), reachDefAfterLatch.get(A));
+                if (CloneInfoMap.valueMap.containsKey(A)) {
+                    reachDefAfterLatch.remove(A);
+                }
+            }
 
             //修改引用,更新reach_def_after_latch
             //fixme:考虑const的情况
@@ -290,25 +340,47 @@ public class LoopUnRoll {
                 }
             }
 
-            HashSet<Value> values = new HashSet<>();
+//            HashSet<Value> values = new HashSet<>();
+//            for (Value value: reachDefAfterLatch.keySet()) {
+//                values.add(value);
+//            }
+
+//            for (Value B: values) {
+//                Value C = reachDefAfterLatch.get(B);
+//                Value D = CloneInfoMap.getReflectedValue(reachDefAfterLatch.get(B));
+//                reachDefAfterLatch.put(C, D);
+//                reachDefAfterLatch.remove(B);
+//                Value A = endToBegin.get(C);
+//                beginToEnd.put(A, D);
+//                endToBegin.put(D, A);
+//                endToBegin.remove(C);
+//            }
+
+            keys = new HashSet<>();
             for (Value value: reachDefAfterLatch.keySet()) {
-                values.add(value);
+                keys.add(value);
             }
 
-            for (Value B: values) {
-                Value C = reachDefAfterLatch.get(B);
-                Value D = CloneInfoMap.getReflectedValue(reachDefAfterLatch.get(B));
-                reachDefAfterLatch.put(C, D);
-                reachDefAfterLatch.remove(B);
-                Value A = endToBegin.get(C);
-                beginToEnd.put(A, D);
-                endToBegin.put(D, A);
-                endToBegin.remove(C);
+            for (Value AA: keys) {
+                Value D = reachDefAfterLatch.get(AA);
+                Value DD = CloneInfoMap.getReflectedValue(reachDefAfterLatch.get(AA));
+                reachDefAfterLatch.put(D, DD);
+                reachDefAfterLatch.remove(AA);
+            }
+
+            keys = new HashSet<>();
+            for (Value value: beginToEnd.keySet()) {
+                keys.add(value);
+            }
+
+            for (Value A: keys) {
+                Value DD = CloneInfoMap.getReflectedValue(beginToEnd.get(A));
+                beginToEnd.put(A, DD);
             }
 
 
             oldBegin = newBegin;
-            oldLatch = newLatch;
+            oldLatchNext = newLatchNext;
             HashSet<BasicBlock> newBBInWhile = new HashSet<>();
             for (BasicBlock bb: bbInWhile) {
                 newBBInWhile.add((BasicBlock) CloneInfoMap.getReflectedValue(bb));
@@ -323,16 +395,22 @@ public class LoopUnRoll {
             }
             //fixme:测试
             // 当前采用的写法基于一些特性,如定义一定是PHI?,这些特性需要测试
-            Value value = instr.getUseValueList().get(0);
-            assert value instanceof Instr;
-            if (((Instr) value).parentBB().equals(head)) {
-                assert value instanceof Instr.Phi;
-                //int index = head.getPrecBBs().indexOf(entering);
-                //Value B = ((Instr.Phi) value).getUseValueList().get(index);
-                instr.modifyUse(beginToEnd.get(value), 0);
+//            Value value = instr.getUseValueList().get(0);
+//            assert value instanceof Instr;
+//            if (((Instr) value).parentBB().equals(head)) {
+//                assert value instanceof Instr.Phi;
+//                //int index = head.getPrecBBs().indexOf(entering);
+//                //Value B = ((Instr.Phi) value).getUseValueList().get(index);
+//                instr.modifyUse(beginToEnd.get(value), 0);
+//            }
+            for (Value value: instr.getUseValueList()) {
+                assert value instanceof Instr;
+                if (((Instr) value).parentBB().equals(head)) {
+                    instr.modifyUse(beginToEnd.get(value), instr.getUseValueList().indexOf(value));
+                }
             }
         }
-        //fixme:07-18-01:13 是否需要这样修正exit的 LCSSA
+        //fixme:07-18-01:13 是否需要这样修正exit的 LCSSA 下叙方法有错,head中应该使用beginToEnd的key对应的value
 //        for (Value value: beginToEnd.keySet()) {
 //            value.modifyAllUseThisToUseA(beginToEnd.get(value));
 //        }

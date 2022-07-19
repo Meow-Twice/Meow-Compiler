@@ -15,11 +15,13 @@ import java.io.*;
 import java.util.*;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import static java.lang.Math.random;
 import static lir.Arm.Regs.FPRs.s0;
 import static lir.Arm.Regs.GPRs.*;
 import static manage.Manager.ExternFunction.*;
 
 public class MIDescriptor implements Descriptor {
+    private static final boolean RANDOM_MODE = true;
     private static final boolean OUT_TO_FILE = true;
 
     private InputStream input = System.in;
@@ -58,21 +60,30 @@ public class MIDescriptor implements Descriptor {
             if (off >= TOTAL_SIZE) {
                 throw new AssertionError(Integer.toHexString(off) + "\t > " + Integer.toHexString(TOTAL_SIZE));
             }
+            Object val = MEM[off];
             if (off >= SP_BOTTOM) {
-                Object val = MEM[off];
                 logOut("! GET\t" + val + "\tfrom\tSTACK+\t0x" + Integer.toHexString(off * 4));
                 if (val == null) {
-                    throw new AssertionError("");
+                    if (RANDOM_MODE) {
+                        val = random.nextInt();
+                    }else{
+                        val = 0;
+                    }
+                    // throw new AssertionError("");
                 }
             } else {
-                Object val = MEM[off];
                 logOut("! GET\t" + val + "\tfrom\tHEAP+\t0x" + Integer.toHexString(off * 4));
                 if (val == null) {
-                    throw new AssertionError("");
+                    if (RANDOM_MODE) {
+                        val = random.nextInt();
+                    }else{
+                        val = 0;
+                    }
+                    // throw new AssertionError("");
                 }
 
             }
-            return MEM[off];
+            return val;
             // Object val = HEAP[off];
             // if (val == null) {
             //     throw new AssertionError("");
@@ -88,17 +99,26 @@ public class MIDescriptor implements Descriptor {
             if (off >= TOTAL_SIZE) {
                 throw new AssertionError(Integer.toHexString(off) + "\t > " + Integer.toHexString(TOTAL_SIZE));
             }
+            boolean flag = false;
+            if (val == null) {
+                flag = true;
+                if (RANDOM_MODE) {
+                    val = random.nextInt();
+                }else{
+                    val = 0;
+                }
+            }
             MEM[off] = val;
             if (off >= SP_BOTTOM) {
                 logOut("! SET\t" + val + "\tto\t\tSTACK+\t0x" + Integer.toHexString(off * 4));
-                if (val == null) {
-                    throw new AssertionError("");
+                if (flag) {
+                    // throw new AssertionError("");
                 }
                 //     STACK[off] = val;
             } else {
                 logOut("! SET\t" + val + "\tto\t\tHEAP+\t0x" + Integer.toHexString(off * 4));
-                if (val == null) {
-                    throw new AssertionError("");
+                if (flag) {
+                    // throw new AssertionError("");
                 }
                 // HEAP[off] = val;
             }
@@ -235,10 +255,10 @@ public class MIDescriptor implements Descriptor {
         RegSimulator.GPRS = new ArrayList<>();
         RegSimulator.FPRS = new ArrayList<>();
         for (int i = 0; i < Arm.Regs.GPRs.values().length; i++) {
-            RegSimulator.GPRS.add(0);
+            RegSimulator.GPRS.add(RANDOM_MODE ? random.nextInt() : 0);
         }
         for (int i = 0; i < Arm.Regs.FPRs.values().length; i++) {
-            RegSimulator.FPRS.add((float) 0.0);
+            RegSimulator.FPRS.add(RANDOM_MODE ? random.nextFloat() : (float) 0.0);
         }
         globName2HeapOff = new HashMap<>();
     }
@@ -298,7 +318,7 @@ public class MIDescriptor implements Descriptor {
             // for (i = 0; i < cnt; i++) {
             //     pl.add(RegSimulator.GPRS.get(i));
             // }
-            int sp = RegSimulator.GPRS.get(13);
+            // int sp = RegSimulator.GPRS.get(13);
             Stack<ArrayList<Integer>> s1 = curMF2GPRs.get(curMF);
             s1.push(RegSimulator.GPRS);
             RegSimulator.GPRS = new ArrayList<>(RegSimulator.GPRS);
@@ -314,7 +334,7 @@ public class MIDescriptor implements Descriptor {
             //     RegSimulator.FPRS.add((float) 0.0);
             // }
         }
-        int spVal = (int) getFromReg(sp);
+        // int spVal = (int) getFromReg(sp);
         // setToReg(spVal - curMF.getStackSize(), sp);
         curVRList = new ArrayList<>(Collections.nCopies(curMF.vrList.size(), null));
         Machine.Block mb = curMF.getBeginMB();
@@ -737,6 +757,9 @@ public class MIDescriptor implements Descriptor {
     //     }
     // }
 
+    final static int seed = 2022;
+    static Random random = new Random(seed);
+
     // 设为Object是为了保证int和float的兼容性
     // 可能返回int或者float或者String(glob地址)
     private Object GET_VAL_FROM_OPD(Machine.Operand o) {
@@ -747,7 +770,12 @@ public class MIDescriptor implements Descriptor {
             case Immediate -> o.isGlobPtr() ? globName2HeapOff.get(o.getGlob()) : o.getImm();
         };
         if (val == null) {
-            throw new AssertionError("fuck");
+            if (RANDOM_MODE) {
+                val = random.nextInt();
+            }else{
+                val = 0;
+            }
+            // throw new AssertionError("fuck");
         }
         // String vStr = val instanceof Integer ? Integer.toHexString((int)val) : Float.toHexString((float)val);
         logOut("^ get\t" + val + "\tfrom\t" + o);
@@ -759,7 +787,12 @@ public class MIDescriptor implements Descriptor {
         if (isAfterRegAlloc() && o.isVirtual()) throw new AssertionError("Still has vr: " + o);
         logOut("^ set\t" + val + "\tto\t\t" + o);
         if (val == null) {
-            throw new AssertionError("fuck");
+            if (RANDOM_MODE) {
+                val = random.nextInt();
+            }else{
+                val = 0;
+            }
+            // throw new AssertionError("fuck");
         }
         switch (o.getType()) {
             case PreColored, Allocated -> setToReg(val, o.getReg());

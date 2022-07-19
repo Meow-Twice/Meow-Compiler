@@ -71,14 +71,17 @@ public class Compiler {
             // MIDescriptor.MI_DESCRIPTOR.setInput(arg.interpretInputStream);
             // MIDescriptor.MI_DESCRIPTOR.setOutput(arg.interpretOutputStream);
             // 用参数给定的输入输出流后，分配寄存器前和分配寄存器后只运行一遍解释器，否则后者的输出会覆盖前者
-            MIDescriptor.MI_DESCRIPTOR.run(); // 分配寄存器前
+            // MIDescriptor.MI_DESCRIPTOR.run(); // 分配寄存器前
             // Manager.MANAGER.outputMI();
+            // Manager.outputMI(true);
+            long start = System.currentTimeMillis();
             TrivialRegAllocator regAllocator = new TrivialRegAllocator();
             regAllocator.AllocateRegister(p);
-            Manager.MANAGER.outputMI();
+            System.err.println(System.currentTimeMillis()-start);
+            // Manager.outputMI(true);
             // System.err.println("BEGIN rerun");
-            // MIDescriptor.MI_DESCRIPTOR.setRegMode();
-            // MIDescriptor.MI_DESCRIPTOR.run(); // 分配寄存器后
+            MIDescriptor.MI_DESCRIPTOR.setRegMode();
+            MIDescriptor.MI_DESCRIPTOR.run(); // 分配寄存器后
             // if (arg.outputAsm()) {
             //     p.output(new PrintStream(arg.asmStream));
             // }

@@ -389,10 +389,14 @@ public class TrivialRegAllocator {
                 if (srcMI.isCall() || srcMI.isComment()) continue;
                 ArrayList<Operand> defs = srcMI.defOpds;
                 ArrayList<Operand> uses = srcMI.useOpds;
+                if(srcMI instanceof MILoad){
+                    logOut(x+"-------try to match--------"+srcMI.toString());
+                }
                 if (defs.size() > 0) {
                     assert defs.size() == 1;
                     Operand def = defs.get(0);
                     if (def.equals(x)) {
+                        logOut(x+"-------match def--------"+def);
                         // 如果一条指令def的是溢出结点
                         if (vrIdx == -1) {
                             // 新建一个结点, vrIdx 即为当前新建立的结点
@@ -906,6 +910,7 @@ public class TrivialRegAllocator {
         HashMap<Operand, Operand> colorMap = new HashMap<>();
         while (selectStack.size() > 0) {
             Operand toBeColored = selectStack.pop();
+            assert !toBeColored.isPreColored();
             logOut("when try assign:\t" + toBeColored);
             final TreeSet<Arm.Regs> okColorSet = new TreeSet<>(Arrays.asList(GPRs.values()).subList(0, rk));
             // logOut("--- rk = \t"+rk);

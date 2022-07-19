@@ -2,9 +2,7 @@ package manage;
 
 import frontend.semantic.Initial;
 import frontend.semantic.symbol.Symbol;
-import lir.MIComment;
-import lir.Machine;
-import lir.MachineInst;
+import lir.*;
 import mir.Function;
 import mir.GlobalVal;
 import mir.type.Type;
@@ -130,6 +128,28 @@ public class Manager {
 
     public void outputMI() throws FileNotFoundException {
         outputMI("lirOutput-" + outputMIcnt++);
+    }
+
+    public static void outputMI(boolean flag) {
+        Machine.Program p = Machine.Program.PROGRAM;
+        for (Machine.McFunction mcFunc : p.funcList) {
+            System.err.println("\n");
+            System.err.println(mcFunc.mFunc.getName());
+            for (Machine.Block mb : mcFunc.mbList) {
+                System.err.println("\n");
+                System.err.println(mb.getDebugLabel());
+                for (MachineInst mi : mb.miList) {
+                    // if(mi.isCall())continue;
+                    // if(mi.isBranch())continue;
+                    // if(mi instanceof MIBinary)continue;
+                    // if(mi instanceof MILoad)continue;
+                    // if(mi instanceof MIStore)continue;
+                    // if(mi.isMove())continue;
+                    String str = mi instanceof MIComment ? "" : "\t";
+                    System.err.println(str + mi);
+                }
+            }
+        }
     }
 
     public void outputMI(String miFilename) throws FileNotFoundException {

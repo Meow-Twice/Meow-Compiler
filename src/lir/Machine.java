@@ -225,7 +225,7 @@ public class Machine {
         }
 
         public int getStackExceptParamSize() {
-            return stackSize + paramStack;
+            return stackSize;
         }
 
         public void output_reg_list(PrintStream os) {

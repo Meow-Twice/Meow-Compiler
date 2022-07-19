@@ -31,7 +31,7 @@ public class MIBranch extends MachineInst {
     @Override
     public void output(PrintStream os, Machine.McFunction f) {
         transfer_output(os);
-        os.println("b\t" + cond + "\t" + trueTargetBlock.index);
+        os.println("b" + cond + "\t" + trueTargetBlock.toString());
     }
 
     @Override

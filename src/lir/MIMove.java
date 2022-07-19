@@ -121,6 +121,9 @@ public class MIMove extends MachineInst {
             if(shift!=Arm.Shift.NONE_SHIFT) {
                 os.println("," + shift.toString());
             }
+            else{
+                os.print("\n");
+            }
         }
     }
 

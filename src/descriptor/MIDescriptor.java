@@ -20,7 +20,7 @@ import static lir.Arm.Regs.GPRs.*;
 import static manage.Manager.ExternFunction.*;
 
 public class MIDescriptor implements Descriptor {
-    private static final boolean OUT_TO_FILE = false;
+    private static final boolean OUT_TO_FILE = true;
 
     private InputStream input = System.in;
     private OutputStream output = System.out;
@@ -316,7 +316,7 @@ public class MIDescriptor implements Descriptor {
         }
         int spVal = (int) getFromReg(sp);
         // setToReg(spVal - curMF.getStackSize(), sp);
-        curVRList = new ArrayList<>(Collections.nCopies(curMF.vrList.size(), 0));
+        curVRList = new ArrayList<>(Collections.nCopies(curMF.vrList.size(), null));
         Machine.Block mb = curMF.getBeginMB();
         // 不这么run会爆栈
         while (mb != null) {
@@ -746,6 +746,9 @@ public class MIDescriptor implements Descriptor {
             case Virtual -> curVRList.get(o.getValue());
             case Immediate -> o.isGlobPtr() ? globName2HeapOff.get(o.getGlob()) : o.getImm();
         };
+        if (val == null) {
+            throw new AssertionError("fuck");
+        }
         // String vStr = val instanceof Integer ? Integer.toHexString((int)val) : Float.toHexString((float)val);
         logOut("^ get\t" + val + "\tfrom\t" + o);
         return val;
@@ -755,6 +758,9 @@ public class MIDescriptor implements Descriptor {
     private void SET_VAL_FROM_OPD(Object val, Machine.Operand o) {
         if (isAfterRegAlloc() && o.isVirtual()) throw new AssertionError("Still has vr: " + o);
         logOut("^ set\t" + val + "\tto\t\t" + o);
+        if (val == null) {
+            throw new AssertionError("fuck");
+        }
         switch (o.getType()) {
             case PreColored, Allocated -> setToReg(val, o.getReg());
             case Virtual -> curVRList.set(o.getValue(), val);

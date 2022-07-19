@@ -22,9 +22,10 @@ public class TrivialRegAllocator {
     private final boolean DEBUG_STDIN_OUT = false;
 
     private int rk = 12;
+    // TODO 尝试将sp直接设为Allocated或者不考虑sp add或sub指令
     private int sk = 32;
 
-    private int MAGIC_LIVE_INTERVAL = rk * 2;
+    private int SPILL_MAX_LIVE_INTERVAL = rk * 2;
 
     private DataType dataType = I32;
 
@@ -61,6 +62,7 @@ public class TrivialRegAllocator {
             changed = false;
             for (ILinkNode mb = mcFunc.mbList.getEnd(); !mb.equals(mcFunc.mbList.head); mb = mb.getPrev()) {
                 final Machine.Block finalMb = (Machine.Block) mb;
+                // TODO 尝试重新验证写法
                 // 1 a = , b =  ,c =  2, 3
                 // 2 g = a + d
                 // 3 return e + f
@@ -283,6 +285,7 @@ public class TrivialRegAllocator {
                 logOut("simplifyWorkSet:\t" + simplifyWorkSet.toString());
 
                 while (simplifyWorkSet.size() + workListMoveSet.size() + freezeWorkSet.size() + spillWorkSet.size() > 0) {
+                    // TODO 尝试验证if - else if结构的可靠性和性能
                     if (simplifyWorkSet.size() > 0) {
                         logOut("-- simplify");
                         logOut(simplifyWorkSet.toString());
@@ -422,11 +425,12 @@ public class TrivialRegAllocator {
                             srcMI.setUse(idx, curMF.vrList.get(vrIdx));
                         }
                         if (firstUse == null && lastDef == null) {
+                            // 基本块内如果没有def过这个虚拟寄存器, 并且是第一次用的话就将firstUse设为这个
                             firstUse = srcMI;
                         }
                     }
                 }
-                if (checkCount++ > MAGIC_LIVE_INTERVAL) {
+                if (checkCount++ > SPILL_MAX_LIVE_INTERVAL) {
                     checkpoint();
                 }
             }
@@ -776,6 +780,7 @@ public class TrivialRegAllocator {
             addWorkList(u);
             addWorkList(v);
         } else {
+            // TODO 尝试重新验证写法
             // 此时 v 已经不是预着色了
             // if (u.isPreColored()) {
             //     /**
@@ -834,8 +839,6 @@ public class TrivialRegAllocator {
         return t.degree < rk || t.isPreColored() || adjSet.contains(new AdjPair(t, r));
     }
 
-    ;
-
     boolean adjOk(Operand v, Operand u) {
         for (var t : adjacent(v)) {
             if (!ok(t, u)) {
@@ -884,6 +887,7 @@ public class TrivialRegAllocator {
             // 这个很怪, 跟书上不一样
             // 选择 move 中非 x 方结点 v
             var v = mv.getDst().equals(u) ? mv.getSrc() : mv.getDst();
+            // TODO 尝试验证另一写法
             // Operand v = mv.getDst();
             // if (v.equals(u)) v = mv.getSrc();
             /*// 虎书:
@@ -912,6 +916,7 @@ public class TrivialRegAllocator {
             Operand toBeColored = selectStack.pop();
             assert !toBeColored.isPreColored();
             logOut("when try assign:\t" + toBeColored);
+            // TODO 注意剔除sp
             final TreeSet<Arm.Regs> okColorSet = new TreeSet<>(Arrays.asList(GPRs.values()).subList(0, rk));
             // logOut("--- rk = \t"+rk);
 
@@ -936,6 +941,7 @@ public class TrivialRegAllocator {
             } else {
                 // 如果有可分配的颜色则从可以分配的颜色中选取一个
                 Arm.Regs color = okColorSet.iterator().next();
+                // TODO 尝试重新验证写法
                 // Arm.Regs color = okColorSet.pollLast();
                 logOut("Choose " + color);
                 colorMap.put(toBeColored, new Operand(color));

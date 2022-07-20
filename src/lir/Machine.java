@@ -11,6 +11,7 @@ import util.Ilist;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 
 import static lir.Machine.Operand.Type.*;
 
@@ -20,7 +21,7 @@ public class Machine {
     public static class Program {
         public static final Program PROGRAM = new Program();
         public Ilist<McFunction> funcList = new Ilist<>();
-        public ArrayList<GlobalVal> globList = new ArrayList<>();
+        public List<GlobalVal.GlobalValue> globList = new ArrayList<>();
         public McFunction mainMcFunc;
         int pool_count = 0;
         int inst_count = 0;

@@ -82,11 +82,11 @@ public class Compiler {
             // Manager.outputMI(true);
             Manager.MANAGER.outputMI();
             // System.err.println("BEGIN rerun");
-            MIDescriptor.MI_DESCRIPTOR.setRegMode();
-            MIDescriptor.MI_DESCRIPTOR.run(); // 分配寄存器后
-            // File output_file = new File("output.S");
-            // PrintStream os = new PrintStream(output_file);
-            // p.output(os);
+           // MIDescriptor.MI_DESCRIPTOR.setRegMode();
+           // MIDescriptor.MI_DESCRIPTOR.run(); // 分配寄存器后
+             File output_file = new File("output.S");
+             PrintStream os = new PrintStream(output_file);
+             p.output(os);
 
             // if (arg.outputAsm()) {
             //     p.output(new PrintStream(arg.asmStream));

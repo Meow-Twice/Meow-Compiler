@@ -10,13 +10,16 @@ public class MIGlobal extends MachineInst{
 
     // GlobalVal.GlobalValue里有所需的一切信息
     GlobalVal.GlobalValue globalValue;
-    public MIGlobal(GlobalVal.GlobalValue globalValue, boolean isFloat){
+    public MIGlobal(Machine.Operand dOpd,GlobalVal.GlobalValue globalValue, boolean isFloat){
         super(Tag.Global,isFloat);
+        this.dOpd = dOpd;
         this.globalValue = globalValue;
     }
 
-    public MIGlobal(GlobalVal.GlobalValue globalValue,Machine.Block mb){
+
+    public MIGlobal(Machine.Operand dOpd,GlobalVal.GlobalValue globalValue,Machine.Block mb){
         super(Tag.Global);
+        this.dOpd = dOpd;
         this.globalValue = globalValue;
         mb.insertAtHead(this);
     }

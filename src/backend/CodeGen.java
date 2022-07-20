@@ -113,6 +113,7 @@ public class CodeGen {
             }
             curMachineFunc = func2mcFunc.get(func);
             Machine.Program.PROGRAM.funcList.insertAtEnd(curMachineFunc);
+            Machine.Program.PROGRAM.globList = globalMap.keySet().stream().toList();
             curFunc = func;
             boolean isMain = false;
             if (curFunc.getName().equals("main")) {
@@ -879,7 +880,8 @@ public class CodeGen {
         if (value instanceof GlobalVal.GlobalValue) {
             Machine.Operand addr = newVR();
             Arm.Glob glob = globptr2globOpd.get((GlobalVal.GlobalValue) value);
-            new MIMove(addr, glob, curMB);
+            //TODO:这块需要分配一个寄存器给addr
+            new MIGlobal(addr,(GlobalVal.GlobalValue)value, curMB);
             // 取出来的Operand 是立即数类型
             return addr;
         } else {

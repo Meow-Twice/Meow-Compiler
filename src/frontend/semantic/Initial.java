@@ -7,20 +7,23 @@ import mir.type.Type;
 import java.util.ArrayList;
 import java.util.Collections;
 
+import static mir.Constant.ConstantInt.CONST_0;
+
 /**
  * 储存变量初始化的初值
- *
+ * <p>
  * 人为约束: 初始化器的种类以及数组维度/长度，必须保证和类型中的数组信息一致
  */
 public abstract class Initial {
     private final Type type; // LLVM IR 的初始值是含有类型信息的
 
     public abstract ArrayList<Value> getFlattenInit();
+
     @Override
     public abstract String toString();
 
     public static class ArrayInit extends Initial {
-    
+
         public ArrayInit(Type type) {
             super(type);
         }
@@ -46,9 +49,9 @@ public abstract class Initial {
         }
 
         @Override
-        public ArrayList<Value> getFlattenInit(){
+        public ArrayList<Value> getFlattenInit() {
             ArrayList<Value> result = new ArrayList<>();
-            for(Initial init:inits){
+            for (Initial init : inits) {
                 ArrayList<Value> list1 = init.getFlattenInit();
                 result.addAll(list1);
             }
@@ -72,18 +75,19 @@ public abstract class Initial {
         public Value getValue() {
             return this.value;
         }
+
         @Override
-        public ArrayList<Value> getFlattenInit(){
+        public ArrayList<Value> getFlattenInit() {
             ArrayList<Value> result = new ArrayList<>();
             result.add(value);
             return result;
         }
-        
+
     }
 
     // 初值为0的初始化
     public static class ZeroInit extends Initial {
-    
+
         public ZeroInit(Type type) {
             super(type);
         }
@@ -94,15 +98,15 @@ public abstract class Initial {
         }
 
         @Override
-        public ArrayList<Value> getFlattenInit(){
+        public ArrayList<Value> getFlattenInit() {
             int size;
-            if(getType().isArrType()){
+            if (getType().isArrType()) {
                 size = ((Type.ArrayType) getType()).getFlattenSize();
-            }else{
+            } else {
                 assert getType().isBasicType();
                 size = 1;
             }
-            return new ArrayList<>(Collections.nCopies(size, new Constant.ConstantInt(0)));
+            return new ArrayList<>(Collections.nCopies(size, CONST_0));
             // ArrayList<Value> result = new ArrayList<>();
             // result.add(new Constant.ConstantInt(0));
             // return result;
@@ -128,20 +132,20 @@ public abstract class Initial {
         }
 
         @Override
-        public ArrayList<Value> getFlattenInit(){
+        public ArrayList<Value> getFlattenInit() {
             ArrayList<Value> result = new ArrayList<>();
             result.add(this.result);
             return result;
         }
-        
+
     }
 
     public Initial(final Type type) {
         this.type = type;
     }
-    
+
     public Type getType() {
         return this.type;
     }
-    
+
 }

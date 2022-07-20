@@ -12,7 +12,6 @@ import util.Ilist;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Iterator;
 import java.util.TreeSet;
 
@@ -26,9 +25,7 @@ public class Machine {
     public static class Program {
         public static final Program PROGRAM = new Program();
         public Ilist<McFunction> funcList = new Ilist<>();
-      //  public List<GlobalVal.GlobalValue> globList = new ArrayList<>();
         public ArrayList<Arm.Glob> globList = CodeGen.CODEGEN.globList;
-
         public McFunction mainMcFunc;
         public ArrayList<MachineInst> needFixList = new ArrayList<>();
         int pool_count = 0;
@@ -231,6 +228,10 @@ public class Machine {
         TreeSet<Arm.Regs.GPRs> usedCalleeSavedRegs = new TreeSet<>();
         boolean useLr = false;
 
+        public ArrayList<Arm.Regs.GPRs> getUsedRegList(){
+            return new ArrayList<>(usedCalleeSavedRegs);
+        }
+
         public McFunction(mir.Function function) {
             this.mFunc = function;
         }
@@ -299,7 +300,7 @@ public class Machine {
 
         public void addUsedRegs(Arm.Regs reg) {
             if (reg instanceof Arm.Regs.GPRs) {
-                if (reg == sp || ((Arm.Regs.GPRs) reg).ordinal() < Math.min(4, mFunc.getParams().size()) || this.mFunc.hasRet() && reg == r0) {
+                if (reg == sp || ((Arm.Regs.GPRs) reg).ordinal() < Math.min(4, mFunc.getParams().size()) || (this.mFunc.hasRet() && reg == r0)) {
                     return;
                 }
                 if (usedCalleeSavedRegs.add((Arm.Regs.GPRs) reg)) {
@@ -311,6 +312,10 @@ public class Machine {
         public void setUseLr() {
             useLr = true;
             addUsedRegs(lr);
+        }
+
+        public int getRegStack() {
+            return regStack;
         }
     }
 

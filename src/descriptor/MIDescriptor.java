@@ -15,6 +15,8 @@ import java.io.*;
 import java.util.*;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import static backend.CodeGen.STACK_FIX.ONLY_PARAM;
+import static backend.CodeGen.STACK_FIX.VAR_STACK;
 import static lir.Arm.Regs.FPRs.s0;
 import static lir.Arm.Regs.GPRs.*;
 import static manage.Manager.ExternFunction.*;
@@ -267,7 +269,7 @@ public class MIDescriptor implements Descriptor {
         clear();
         // MI_DESCRIPTOR.getStdin();
         Machine.Program p = Machine.Program.PROGRAM;
-        setToReg(MemSimulator.TOTAL_SIZE * 4, sp);
+        setToReg((MemSimulator.TOTAL_SIZE - 1) * 4, sp);
         int curOff = 0;
         for (Arm.Glob g : CodeGen.CODEGEN.globList) {
             GlobalVal.GlobalValue glob = g.getGlobalValue();
@@ -310,28 +312,7 @@ public class MIDescriptor implements Descriptor {
             return;
         }
         if (runningState == RunningState.AFTER_MODE) {
-            int i;
-            // int cnt = curMF.mFunc.getParams().size();
-            // cnt = Math.min(cnt, 4);
-            // ArrayList<Integer> pl = new ArrayList<>();
-            // for (i = 0; i < cnt; i++) {
-            //     pl.add(RegSimulator.GPRS.get(i));
-            // }
-            // int sp = RegSimulator.GPRS.get(13);
-            Stack<ArrayList<Integer>> s1 = curMF2GPRs.get(curMF);
-            s1.push(RegSimulator.GPRS);
-            RegSimulator.GPRS = new ArrayList<>(RegSimulator.GPRS);
-            Stack<ArrayList<Float>> s2 = curMF2FPRs.get(curMF);
-            s2.push(RegSimulator.FPRS);
-            RegSimulator.FPRS = new ArrayList<>(RegSimulator.FPRS);
-            // for (i = cnt; i < Arm.Regs.GPRs.values().length; i++) {
-            //     RegSimulator.GPRS.add(0);
-            // }
-            // RegSimulator.GPRS.set(13, sp);
-            assert Arm.Regs.GPRs.values().length == RegSimulator.GPRS.size();
-            // for (i = 0; i < Arm.Regs.FPRs.values().length; i++) {
-            //     RegSimulator.FPRS.add((float) 0.0);
-            // }
+            push();
         }
         // int spVal = (int) getFromReg(sp);
         // setToReg(spVal - curMF.getStackSize(), sp);
@@ -341,15 +322,37 @@ public class MIDescriptor implements Descriptor {
         while (mb != null) {
             mb = runMB(mb);
         }
-        int r0 = (int) getFromReg(GPRs.r0);
-        int sp = (int) getFromReg(GPRs.sp);
+    }
+
+    private void push() {
         if (runningState == RunningState.AFTER_MODE) {
-            Stack<ArrayList<Integer>> s1 = curMF2GPRs.get(curMF);
-            RegSimulator.GPRS = s1.pop();
-            RegSimulator.GPRS.set(0, r0);
-            RegSimulator.GPRS.set(13, sp);
-            Stack<ArrayList<Float>> s2 = curMF2FPRs.get(curMF);
-            RegSimulator.FPRS = s2.pop();
+            // push
+            List<Arm.Regs.GPRs> usedRegList = curMF.getUsedRegList();
+            Collections.reverse(usedRegList);
+            int firstSp = (int) getFromReg(GPRs.sp);
+            for (GPRs gpr : usedRegList) {
+                int sp = (int) getFromReg(GPRs.sp);
+                sp -= 4;
+                setToReg(sp, GPRs.sp);
+                setMemValWithOffSet(getFromReg(gpr), sp);
+            }
+            int pushSize = firstSp - (int) getFromReg(GPRs.sp);
+            // System.err.println(pushSize);
+        }
+    }
+
+    private void pop() {
+        if (runningState == RunningState.AFTER_MODE) {
+            // pop
+            int firstSp = (int) getFromReg(GPRs.sp);
+            for (GPRs gpr : curMF.getUsedRegList()) {
+                int sp = (int) getFromReg(GPRs.sp);
+                RegSimulator.GPRS.set(gpr.ordinal(), (int) getMemValWithOffset(sp));
+                sp += 4;
+                setToReg(sp, GPRs.sp);
+            }
+            int pushSize = firstSp - (int) getFromReg(GPRs.sp);
+            // System.err.println(pushSize);
         }
     }
 
@@ -488,7 +491,11 @@ public class MIDescriptor implements Descriptor {
                 case Add -> {
                     assert lVal instanceof Integer && rVal instanceof Integer;
                     if (miBinary.isNeedFix()) {
-                        rVal = (int) rVal + curMF.getTotalStackSize();
+                        rVal = (int) rVal + switch (miBinary.getFixType()) {
+                            case VAR_STACK -> curMF.getVarStack();
+                            case ONLY_PARAM -> miBinary.getCallee().getParamStack();
+                            default -> throw new AssertionError("");
+                        };
                     }
                     SET_VAL_FROM_OPD((int) lVal + (int) rVal, miBinary.getDst());
                 }
@@ -499,11 +506,11 @@ public class MIDescriptor implements Descriptor {
                 case Sub -> {
                     assert lVal instanceof Integer && rVal instanceof Integer;
                     if (miBinary.isNeedFix()) {
-                        if (miBinary.getCallee() != null) {
-                            rVal = (int) rVal + miBinary.getCallee().getTotalStackSize();
-                        } else {
-                            rVal = (int) rVal + curMF.getTotalStackSize();
-                        }
+                        rVal = (int) rVal + switch (miBinary.getFixType()) {
+                            case VAR_STACK -> curMF.getVarStack();
+                            case ONLY_PARAM -> miBinary.getCallee().getParamStack();
+                            default -> throw new AssertionError("");
+                        };
                     }
                     SET_VAL_FROM_OPD((int) lVal - (int) rVal, miBinary.getDst());
                 }
@@ -591,7 +598,7 @@ public class MIDescriptor implements Descriptor {
                     Object val = GET_VAL_FROM_OPD(mv.getSrc());
                     // 函数传参的时候, 修栈偏移
                     if (mv.isNeedFix()) {
-                        val = (int) val + curMF.getTotalStackSize();
+                        val = (int) val + curMF.getRegStack() + curMF.getVarStack();
                     }
                     SET_VAL_FROM_OPD(val, mv.getDst());
                 }
@@ -610,7 +617,12 @@ public class MIDescriptor implements Descriptor {
                     MIJump j = (MIJump) mi;
                     nextMB = j.getTarget();
                 }
-                case Return -> isRet = true;
+                case Return -> {
+                    if (runningState == RunningState.AFTER_MODE) {
+                        pop();
+                    }
+                    isRet = true;
+                }
                 case Load -> {
                     if (!(mi instanceof MILoad)) {
                         throw new AssertionError("Not MILoad: " + mi);

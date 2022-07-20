@@ -978,7 +978,11 @@ public class TrivialRegAllocator {
                     }
                 }
                 // TODO 这里不考虑Call
-                if (mi.isCall() || mi.isComment()) continue;
+                if (mi.isComment()) continue;
+                if (mi.isCall()) {
+                    curMF.setUseLr();
+                    continue;
+                }
                 // logOut("Consider " + mi);
                 ArrayList<Operand> defs = mi.defOpds;
                 ArrayList<Operand> uses = mi.useOpds;
@@ -1008,20 +1012,22 @@ public class TrivialRegAllocator {
         for (MIMove mv : paramAddrMvList) {
             Operand off = mv.getSrc();
             assert off.isImm();
-            off.setValue(off.getValue() + switch (mv.getFixType()) {
+            int newOff = off.getValue() + switch (mv.getFixType()) {
                 case TOTAL_STACK -> curMF.getTotalStackSize();
                 default -> throw new AssertionError("");
-            });
+            };
+            mv.setSrc(new Operand(I32, newOff));
             mv.clearNeedFix();
         }
         for (MIBinary bino : spAddOrSubList) {
             Operand off = bino.getROpd();
             assert off.isImm();
-            off.setValue(switch (bino.getFixType()) {
+            int newOff = switch (bino.getFixType()) {
                 case VAR_STACK -> curMF.getVarStack();
                 case ONLY_PARAM -> bino.getCallee().getParamStack();
                 default -> throw new AssertionError("");
-            });
+            };
+            bino.setROpd(new Operand(I32, newOff));
             bino.clearNeedFix();
         }
     }

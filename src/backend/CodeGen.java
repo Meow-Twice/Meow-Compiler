@@ -113,12 +113,7 @@ public class CodeGen {
                 continue;
             }
             curMachineFunc = func2mcFunc.get(func);
-            if(func.hasCall()){
-                curMachineFunc.setUseLr();
-                // curMachineFunc.addUsedRegs(lr);
-            }
             Machine.Program.PROGRAM.funcList.insertAtEnd(curMachineFunc);
-            //   Machine.Program.PROGRAM.globList = globalMap.keySet().stream().toList();
             curFunc = func;
             boolean isMain = false;
             if (curFunc.getName().equals("main")) {
@@ -169,11 +164,11 @@ public class CodeGen {
             } else {
                 // 这里因为无法确认栈的大小(参数栈空间, 所用寄存器push和pop的栈空间, 数组申请栈空间, 寄存器分配时溢出所需栈空间)是否超过了立即数编码, 因此一律用move指令处理
                 Machine.Operand offImm = new Machine.Operand(I32, 4 * (3 - idx));
-                Machine.Operand off = newVR();
-                MIMove mv = new MIMove(off, offImm, curMB);
+                Machine.Operand dst = newVR();
+                MIMove mv = new MIMove(dst, offImm, curMB);
                 mv.setNeedFix(STACK_FIX.TOTAL_STACK);
                 // 栈顶向下的偏移, 第四个参数 -4, 第五个参数 -8 ...修的时候只需要把这个立即数的值取出来加上getStackSize获取的栈大小即可
-                new MILoad(opd, Arm.Reg.getR(sp), off, curMB);
+                new MILoad(opd, Arm.Reg.getR(sp), dst, curMB);
                 curMachineFunc.addParamStack(4);
             }
             idx++;
@@ -389,6 +384,7 @@ public class CodeGen {
                     // TODO: ayame解决方案是在 callee 头 push 和 callee 尾部 pop 那些 callee 要用到的寄存器, 暂定此方案
                     ArrayList<Value> param_list = call_inst.getParamList();
                     ArrayList<Machine.Operand> paramVRList = new ArrayList<>();
+                    boolean r0SpecialProtected = call_inst.getFunc().hasRet();
                     if (param_list.size() > 0) {
                         // move r0 to VR0
                         Machine.Operand vr0 = newVR();
@@ -401,6 +397,12 @@ public class CodeGen {
                         Machine.Operand opd = getVR_may_imm(param_list.get(0));
                         assert opd != null;
                         new MIMove(r0, opd, curMB);
+                    } else if (r0SpecialProtected){
+                        // move r0 to VR0
+                        Machine.Operand vr0 = newVR();
+                        paramVRList.add(vr0);
+                        Machine.Operand r0 = Arm.Reg.getR(GPRs.r0);
+                        new MIMove(vr0, r0, curMB);
                     }
                     if (param_list.size() > 1) {
                         // move r1 to VR1
@@ -471,7 +473,8 @@ public class CodeGen {
                         miBinary.setNeedFix(callMcFunc, STACK_FIX.ONLY_PARAM);
                         // call
                         new MICall(callMcFunc, curMB);
-                        miBinary = new MIBinary(MachineInst.Tag.Sub, Arm.Reg.getR(sp), Arm.Reg.getR(sp), rOp, curMB);
+                        rOp = new Machine.Operand(I32, 0);
+                        miBinary = new MIBinary(MachineInst.Tag.Add, Arm.Reg.getR(sp), Arm.Reg.getR(sp), rOp, curMB);
                         miBinary.setNeedFix(callMcFunc, STACK_FIX.ONLY_PARAM);
 
                     }
@@ -893,8 +896,7 @@ public class CodeGen {
         if (value instanceof GlobalVal.GlobalValue) {
             Machine.Operand addr = newVR();
             Arm.Glob glob = globptr2globOpd.get((GlobalVal.GlobalValue) value);
-            //TODO:这块需要分配一个寄存器给addr
-            new MIGlobal(addr,(GlobalVal.GlobalValue)value, curMB);
+            new MIMove(addr, glob, curMB);
             // 取出来的Operand 是立即数类型
             return addr;
         } else {

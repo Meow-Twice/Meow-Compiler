@@ -31,7 +31,6 @@ public class MILoad extends MachineInst {
         useOpds.add(addr);
         useOpds.add(offset);
     }
-
     // public MILoad(Machine.Operand data, Machine.Operand addr, MachineInst inst) {
     //     super(Tag.Load, inst);
     //     // this.data = data;
@@ -53,49 +52,34 @@ public class MILoad extends MachineInst {
     @Override
     public void output(PrintStream os, Machine.McFunction f) {
         transfer_output(os);
-        if(!isFloat) {
-            //Integer
+        if (!isFloat) {
+            if (this.shift.shiftType == Arm.ShiftType.None) {
+                os.println("\tldr" + cond + "\t" + getData().toString() + ",[" + getAddr().toString() + "," + getOffset().toString() + "]");
+            } else {
+                os.println("\tldr" + cond + "\t" + getData().toString() + ",[" + getAddr().toString() + "," + getOffset().toString() + ",LSL #" + this.shift.shift + "]");
+            }
+        } else {
             if (getOffset().getType() == Machine.Operand.Type.Immediate) {
-                int shift = (this.shift == Arm.Shift.NONE_SHIFT) ? 0 : this.shift.shift;
+                int shift = (this.shift.shiftType == Arm.ShiftType.None) ? 0 : this.shift.shift;
                 int offset = this.getOffset().value << shift;
                 if (offset != 0) {
-                    os.println("ldr" + cond + "\t" + getData().toString() + ",[" + getAddr().toString() + ",#" + offset + "]");
+                    os.println("\tvldr" + cond + ".32" + "\t" + getData().toString() + ",[" + getAddr().toString() + ",#" + offset + "]");
                 } else {
-                    os.println("ldr" + cond + "\t" + getData().toString() + ",[" + getAddr().toString() + "]");
+                    os.println("\tvldr" + cond + ".32" + "\t" + getData().toString() + ",[" + getAddr().toString() + "]");
                 }
             } else {
                 if (this.shift.shiftType == Arm.ShiftType.None) {
-                    os.println("ldr" + cond + "\t" + getData().toString() + ",[" + getAddr().toString() + "," + getOffset().toString() + "]");
+                    os.println("\tvldr" + cond + ".32" + "\t" + getData().toString() + ",[" + getAddr().toString() + "," + getOffset().toString() + "]");
                 } else {
-                    os.println("ldr" + cond + "\t" + getData().toString() + ",[" + getAddr().toString() + "," + getOffset().toString() + ",LSL #" + this.shift.shift + "]");
+                    os.println("\tvldr" + cond + ".32" + "\t" + getData().toString() + ",[" + getAddr().toString() + "," + getOffset().toString() + ",LSL #" + this.shift.shift + "]");
                 }
             }
         }
-        else{
-            if (getOffset().getType() == Machine.Operand.Type.Immediate) {
-                int shift = (this.shift.shiftType == Arm.ShiftType.None) ? 0:this.shift.shift;
-                int offset = this.getOffset().value << shift;
-                if(offset != 0) {
-                    os.println("vldr" + cond +".32"+ "\t" + getData().toString() + ",[" + getAddr().toString() + ",#" + offset + "]");
-                }
-                else{
-                    os.println("vldr" + cond +".32"+ "\t" + getData().toString() + ",[" + getAddr().toString() + "]");
-                }
-            } else {
-                if(this.shift.shiftType == Arm.ShiftType.None){
-                    os.println("vldr" + cond +".32"+ "\t" + getData().toString() + ",[" + getAddr().toString() + "," + getOffset().toString()  + "]");
-                }
-                else {
-                    os.println("vldr" + cond +".32"+ "\t" + getData().toString() + ",[" + getAddr().toString() + "," + getOffset().toString() + ",LSL #" + this.shift.shift + "]");
-                }
-            }
-            }
-        }
-
+    }
 
     @Override
     public String toString() {
-        return tag.toString() + cond.toString() + '\t' + getData() + ",\t[" + getAddr() + ",\t" + (this.isNeedFix() ? getOffset().value + this.mb.mcFunc.getTotalStackSize() : getOffset()) +
+        return tag.toString() + cond.toString() + '\t' + getData() + ",\t[" + getAddr() + ",\t" + getOffset()/*(this.isNeedFix() ? getOffset().value + this.mb.mcFunc.getTotalStackSize() : getOffset())*/ +
                 (shift.shiftType == Arm.ShiftType.None ? "" : ("\t," + shift)) + "\t]";
     }
 }

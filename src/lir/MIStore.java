@@ -40,54 +40,41 @@ public class MIStore extends MachineInst {
         useOpds.add(offset);
     }
 
-    public Machine.Operand getData(){
+    public Machine.Operand getData() {
         return useOpds.get(0);
     }
 
-    public Machine.Operand getAddr(){
+    public Machine.Operand getAddr() {
         return useOpds.get(1);
     }
 
-    public Machine.Operand getOffset(){
+    public Machine.Operand getOffset() {
         return useOpds.get(2);
     }
+
     @Override
     public void output(PrintStream os, Machine.McFunction f) {
         transfer_output(os);
-        if(!isFloat) {
-            //Integer
+        if (!isFloat) {
+            if (this.shift.shiftType == Arm.ShiftType.None) {
+                os.println("\tstr" + cond + "\t" + getData().toString() + ",[" + getAddr().toString() + "," + getOffset().toString() + "]");
+            } else {
+                os.println("\tstr" + cond + "\t" + getData().toString() + ",[" + getAddr().toString() + "," + getOffset().toString() + ",LSL #" + this.shift.shift + "]");
+            }
+        } else {
             if (getOffset().getType() == Machine.Operand.Type.Immediate) {
-                int shift = (this.shift == Arm.Shift.NONE_SHIFT) ? 0 : this.shift.shift;
+                int shift = (this.shift.shiftType == Arm.ShiftType.None) ? 0 : this.shift.shift;
                 int offset = this.getOffset().value << shift;
                 if (offset != 0) {
-                    os.println("str" + cond + "\t" + getData().toString() + ",[" + getAddr().toString() + ",#" + offset + "]");
+                    os.println("\tvstr" + cond + ".32" + "\t" + getData().toString() + ",[" + getAddr().toString() + ",#" + offset + "]");
                 } else {
-                    os.println("str" + cond + "\t" + getData().toString() + ",[" + getAddr().toString() + "]");
+                    os.println("\tvstr" + cond + ".32" + "\t" + getData().toString() + ",[" + getAddr().toString() + "]");
                 }
             } else {
                 if (this.shift.shiftType == Arm.ShiftType.None) {
-                    os.println("str" + cond + "\t" + getData().toString() + ",[" + getAddr().toString() + "," + getOffset().toString() + "]");
+                    os.println("\tvstr" + cond + ".32" + "\t" + getData().toString() + ",[" + getAddr().toString() + "," + getOffset().toString() + "]");
                 } else {
-                    os.println("str" + cond + "\t" + getData().toString() + ",[" + getAddr().toString() + "," + getOffset().toString() + ",LSL #" + this.shift.shift + "]");
-                }
-            }
-        }
-        else{
-            if (getOffset().getType() == Machine.Operand.Type.Immediate) {
-                int shift = (this.shift.shiftType == Arm.ShiftType.None) ? 0:this.shift.shift;
-                int offset = this.getOffset().value << shift;
-                if(offset != 0) {
-                    os.println("vstr" + cond +".32"+ "\t" + getData().toString() + ",[" + getAddr().toString() + ",#" + offset + "]");
-                }
-                else{
-                    os.println("vstr" + cond +".32"+ "\t" + getData().toString() + ",[" + getAddr().toString() + "]");
-                }
-            } else {
-                if(this.shift.shiftType == Arm.ShiftType.None){
-                    os.println("vstr" + cond +".32"+ "\t" + getData().toString() + ",[" + getAddr().toString() + "," + getOffset().toString()  + "]");
-                }
-                else {
-                    os.println("vstr" + cond +".32"+ "\t" + getData().toString() + ",[" + getAddr().toString() + "," + getOffset().toString() + ",LSL #" + this.shift.shift + "]");
+                    os.println("\tvstr" + cond + ".32" + "\t" + getData().toString() + ",[" + getAddr().toString() + "," + getOffset().toString() + ",LSL #" + this.shift.shift + "]");
                 }
             }
         }

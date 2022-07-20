@@ -41,6 +41,10 @@ public class MIBinary extends MachineInst {
         return useOpds.get(1);
     }
 
+    public Machine.Operand setROpd(Machine.Operand o) {
+        return useOpds.set(1, o);
+    }
+
     @Override
     public void output(PrintStream os, Machine.McFunction f) {
         transfer_output(os);
@@ -70,7 +74,7 @@ public class MIBinary extends MachineInst {
 
     @Override
     public String toString() {
-        return tag.toString() + "\t" + getDst() + ",\t" + getLOpd() + ",\t" +
-                (isNeedFix() ? getROpd().value + (this.getCallee() == null ? this.mb.mcFunc.getTotalStackSize() : this.getCallee().getTotalStackSize()) : getROpd());
+        return tag.toString() + "\t" + getDst() + ",\t" + getLOpd() + ",\t" + getROpd().value;
+                // (isNeedFix() ? getROpd().value + (this.getCallee() == null ? this.mb.mcFunc.getTotalStackSize() : this.getCallee().getTotalStackSize()) : getROpd());
     }
 }

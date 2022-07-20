@@ -3,6 +3,8 @@ package lir;
 import javax.crypto.Mac;
 import java.io.PrintStream;
 
+import static lir.Machine.Program.pop_output;
+
 public class MIReturn extends MachineInst{
     public MIReturn(Machine.Block insertAtEnd){
         super(Tag.Return,insertAtEnd);
@@ -14,12 +16,8 @@ public class MIReturn extends MachineInst{
     // }
 
     @Override
-    public void output(PrintStream os, Machine.McFunction f){
-        os.print("pop\t{");
-        for (Arm.Regs reg : f.usedCalleeSavedRegs) {
-            os.print(reg + ",");
-        }
-        os.println("pc}");
+    public void output(PrintStream os, Machine.McFunction mf){
+        pop_output(os, mf);
     }
 
     @Override

@@ -15,8 +15,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.TreeSet;
 
-import static lir.Arm.Regs.GPRs.lr;
-import static lir.Arm.Regs.GPRs.pc;
+import static lir.Arm.Regs.GPRs.*;
 import static lir.Machine.Operand.Type.*;
 import static mir.type.DataType.I32;
 
@@ -116,24 +115,8 @@ public class Machine {
                     }
                 }
 
-                boolean retByBx = true;
-                if (function.usedCalleeSavedRegs.size() > 0) {
-                    os.print("\tpush\t{");
-                    Iterator<Arm.Regs.GPRs> gprIter = function.usedCalleeSavedRegs.iterator();
-                    os.print(gprIter.next());
-                    while (gprIter.hasNext()) {
-                        Arm.Regs.GPRs gpr = gprIter.next();
-                        if(gpr == lr){
-                            gpr = pc;
-                            retByBx = false;
-                        }
-                        os.print("," + gpr);
-                    }
-                    os.println("}");
-                }
-                if(retByBx){
-                   os.println("\tbx\tlr");
-                }
+                // 前端保证一定有return语句
+                // pop_output(os, function);
             }
             os.println();
             os.println();
@@ -175,6 +158,27 @@ public class Machine {
                 } else {
                     os.println("\t.word\t" + last);
                 }
+            }
+        }
+
+        public static void pop_output(PrintStream os, McFunction function) {
+            boolean retByBx = true;
+            if (function.usedCalleeSavedRegs.size() > 0) {
+                os.print("\tpop\t{");
+                Iterator<Arm.Regs.GPRs> gprIter = function.usedCalleeSavedRegs.iterator();
+                os.print(gprIter.next());
+                while (gprIter.hasNext()) {
+                    Arm.Regs.GPRs gpr = gprIter.next();
+                    if (gpr == lr) {
+                        gpr = pc;
+                        retByBx = false;
+                    }
+                    os.print("," + gpr);
+                }
+                os.println("}");
+            }
+            if (retByBx) {
+                os.println("\tbx\tlr");
             }
         }
 
@@ -292,7 +296,7 @@ public class Machine {
 
         public void addUsedRegs(Arm.Regs reg) {
             if (reg instanceof Arm.Regs.GPRs) {
-                if (reg == Arm.Regs.GPRs.sp || ((Arm.Regs.GPRs) reg).ordinal() < Math.min(4, mFunc.getParams().size())) {
+                if (reg == sp || ((Arm.Regs.GPRs) reg).ordinal() < Math.min(4, mFunc.getParams().size()) || this.mFunc.hasRet() && reg == r0) {
                     return;
                 }
                 if (usedCalleeSavedRegs.add((Arm.Regs.GPRs) reg)) {

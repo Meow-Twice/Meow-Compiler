@@ -18,15 +18,15 @@ public class MIFma extends MachineInst {
         return defOpds.get(0);
     }
 
-    public Machine.Operand getAcc() {
+    public Machine.Operand getlOpd() {
         return useOpds.get(0);
     }
 
-    public Machine.Operand getlOpd() {
+    public Machine.Operand getrOpd() {
         return useOpds.get(1);
     }
 
-    public Machine.Operand getrOpd() {
+    public Machine.Operand getAcc() {
         return useOpds.get(2);
     }
 
@@ -54,16 +54,16 @@ public class MIFma extends MachineInst {
 
 
     public MIFma(boolean add, boolean sign,
-                 Machine.Operand dst, Machine.Operand acc, Machine.Operand lOpd, Machine.Operand rOpd,
+                 Machine.Operand dst, Machine.Operand lOpd, Machine.Operand rOpd, Machine.Operand acc,
                  Machine.Block insertAtEnd) {
         //dst = acc +(-) lhs * rhs
         super(Tag.FMA, insertAtEnd);
         this.add = add;
         this.sign = sign;
         defOpds.add(dst);
-        useOpds.add(acc);
         useOpds.add(lOpd);
         useOpds.add(rOpd);
+        useOpds.add(acc);
     }
 
     @Override
@@ -78,7 +78,7 @@ public class MIFma extends MachineInst {
         } else {
             op = "mls";
         }
-        os.println(op + cond + "\t" + getDst().toString() + ",\t" + getAcc().toString() + ",\t" + getlOpd().toString() + ",\t" + getrOpd().toString());
+        os.println(op + cond + "\t" + getDst().toString() + ",\t" + getlOpd().toString() + ",\t" + getrOpd().toString() + ",\t" + getAcc().toString());
 
     }
 
@@ -103,7 +103,7 @@ public class MIFma extends MachineInst {
             } else {
                 op = "mls";
             }
-            res += op + cond + "\t" + getDst().toString() + ",\t" + getAcc().toString() + ",\t" + getlOpd().toString() + ",\t" + getrOpd().toString();
+            res += op + cond + "\t" + getDst().toString() + ",\t" + getlOpd().toString() + ",\t" + getrOpd().toString() + ",\t" + getAcc().toString();
             return res;
         } else {
             String res = "";
@@ -113,7 +113,7 @@ public class MIFma extends MachineInst {
             } else {
                 op = "vmls";
             }
-            res += op + cond +".f32"+ "\t" + getDst().toString() + ",\t" + getAcc().toString() + ",\t" + getlOpd().toString() + ",\t" + getrOpd().toString();
+            res += op + cond + ".f32" + "\t" + getDst().toString() + ",\t" + getlOpd().toString() + ",\t" + getrOpd().toString() + ",\t" + getAcc().toString();
             return res;
         }
     }

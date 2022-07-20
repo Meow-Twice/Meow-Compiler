@@ -355,7 +355,7 @@ public class CodeGen {
                             Machine.Operand curIdxVR = getVR_no_imm(curIdxValue);
                             Machine.Operand offUnitImmVR = getImmVR(offUnit);
                             /**
-                             * Fma
+                             * Fma Rd, Rm, Rs, Rn
                              * smmla:Rn + (Rm * Rs)[63:32] or smmls:Rd := Rn – (Rm * Rs)[63:32]
                              * mla:Rn + (Rm * Rs)[31:0] or mls:Rd := Rn – (Rm * Rs)[31:0]
                              * dst = acc +(-) lhs * rhs
@@ -368,9 +368,9 @@ public class CodeGen {
                                     Machine.Operand immVR = getImmVR(totalConstOff);
                                     new MIBinary(MachineInst.Tag.Add, curAddrVR, curAddrVR, immVR, curMB);
                                 }
-                                new MIFma(true, false, dstVR, curAddrVR, curIdxVR, offUnitImmVR, curMB);
+                                new MIFma(true, false, dstVR, curIdxVR, offUnitImmVR, curAddrVR, curMB);
                             } else {
-                                new MIFma(true, false, curAddrVR, curAddrVR, curIdxVR, offUnitImmVR, curMB);
+                                new MIFma(true, false, curAddrVR, curIdxVR, offUnitImmVR, curAddrVR, curMB);
                             }
                         }
                     }
@@ -397,7 +397,7 @@ public class CodeGen {
                         Machine.Operand opd = getVR_may_imm(param_list.get(0));
                         assert opd != null;
                         new MIMove(r0, opd, curMB);
-                    } else if (r0SpecialProtected){
+                    } else if (r0SpecialProtected) {
                         // move r0 to VR0
                         Machine.Operand vr0 = newVR();
                         paramVRList.add(vr0);

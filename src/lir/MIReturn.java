@@ -15,31 +15,11 @@ public class MIReturn extends MachineInst{
 
     @Override
     public void output(PrintStream os, Machine.McFunction f){
-        if(f.stackSize>0){
-            Machine.Program.stack_output(os,false,f.stackSize,"\t");
-            os.print("\t");
+        os.print("pop\t{");
+        for (Arm.Regs reg : f.usedCalleeSavedRegs) {
+            os.print(reg + ",");
         }
-        boolean bx = true;
-        if(!f.usedCalleeSavedRegs.isEmpty()||f.useLr){
-            os.print("pop\t{");
-            f.output_reg_list(os);
-            if(f.useLr){
-                if(!f.usedCalleeSavedRegs.isEmpty()){
-                    os.print(",");
-                }
-                os.print("pc");
-                bx = false;
-            }
-            os.println("}");
-            if(bx){
-                if(!f.usedCalleeSavedRegs.isEmpty()){
-                    os.print("\t");
-                }
-                os.println("bx\tlr");
-            }
-        }
-
-        return;
+        os.println("pc}");
     }
 
     @Override

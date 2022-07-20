@@ -31,11 +31,12 @@ public class MIBranch extends MachineInst {
     @Override
     public void output(PrintStream os, Machine.McFunction f) {
         transfer_output(os);
-        os.println("b" + cond + "\t" + trueTargetBlock.toString());
+        os.println("\tb" + cond + "\t" + trueTargetBlock.toString());
+        os.println("\tb" + "\t" + falseTargetBlock.toString());
     }
 
     @Override
     public String toString() {
-        return "b" + cond + "\t" + trueTargetBlock.getDebugLabel();
+        return "b" + cond + "\t" + trueTargetBlock.getDebugLabel() + "\tb" + "\t" + falseTargetBlock.toString();
     }
 }

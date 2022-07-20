@@ -65,6 +65,6 @@ public class MILongMul extends MachineInst {
     @Override
     public void output(PrintStream os, Machine.McFunction f) {
         transfer_output(os);
-        os.println("smmul\t" + getDst().toString() + ",\t" + getLOpd().toString() + ",\t" + getROpd().toString());
+        os.println("\tsmmul\t" + getDst().toString() + ",\t" + getLOpd().toString() + ",\t" + getROpd().toString());
     }
 }

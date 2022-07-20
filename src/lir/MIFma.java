@@ -70,7 +70,7 @@ public class MIFma extends MachineInst {
     public void output(PrintStream os, Machine.McFunction f) {
         transfer_output(os);
         if (sign) {
-            os.print("sm");
+            os.print("\tsm");
         }
         String op = "";
         if (add) {
@@ -78,7 +78,7 @@ public class MIFma extends MachineInst {
         } else {
             op = "mls";
         }
-        os.println(op + cond + "\t" + getDst().toString() + "," + getAcc().toString() + "," + getlOpd().toString() + "," + getrOpd().toString());
+        os.println(op + cond + "\t" + getDst().toString() + ",\t" + getAcc().toString() + ",\t" + getlOpd().toString() + ",\t" + getrOpd().toString());
 
     }
 

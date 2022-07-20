@@ -2,11 +2,9 @@ package backend;
 
 import lir.*;
 import lir.Machine.Operand;
-import manage.Manager;
 import mir.type.DataType;
 import util.ILinkNode;
 
-import java.io.FileNotFoundException;
 import java.util.*;
 
 import static lir.Arm.Regs.GPRs;
@@ -352,20 +350,24 @@ public class TrivialRegAllocator {
                 assignColors();
                 // Manager.MANAGER.outputMI();
                 if (spilledNodeSet.size() == 0) {
+                    fixStack();
                     break;
                 }
                 logOut("needSpill");
                 spilledNodeSet.forEach(this::dealSpillNode);
                 logOut("endSpill");
-                try {
-                    Manager.MANAGER.outputMI();
-                } catch (FileNotFoundException e) {
-                    throw new RuntimeException(e);
-                }
+                // try {
+                //     Manager.MANAGER.outputMI();
+                // } catch (FileNotFoundException e) {
+                //     throw new RuntimeException(e);
+                // }
             }
-            curMF.setUsedCalleeSavedRegs();
             logOut(curMF.mFunc.getName() + "done");
         }
+    }
+
+    private void fixStack() {
+
     }
 
     int vrIdx = -1;
@@ -379,7 +381,7 @@ public class TrivialRegAllocator {
     private void dealSpillNode(Operand x) {
         dealSpillTimes++;
         for (Machine.Block mb : curMF.mbList) {
-            offImm = new Operand(I32, curMF.getStackExceptParamSize());
+            offImm = new Operand(I32, curMF.getVarStack());
             // generate a MILoad before first use, and a MIStore after last def
             firstUse = null;
             lastDef = null;
@@ -392,14 +394,14 @@ public class TrivialRegAllocator {
                 if (srcMI.isCall() || srcMI.isComment()) continue;
                 ArrayList<Operand> defs = srcMI.defOpds;
                 ArrayList<Operand> uses = srcMI.useOpds;
-                if(srcMI instanceof MILoad){
-                    logOut(x+"-------try to match--------"+srcMI.toString());
+                if (srcMI instanceof MILoad) {
+                    logOut(x + "-------try to match--------" + srcMI.toString());
                 }
                 if (defs.size() > 0) {
                     assert defs.size() == 1;
                     Operand def = defs.get(0);
                     if (def.equals(x)) {
-                        logOut(x+"-------match def--------"+def);
+                        logOut(x + "-------match def--------" + def);
                         // 如果一条指令def的是溢出结点
                         if (vrIdx == -1) {
                             // 新建一个结点, vrIdx 即为当前新建立的结点
@@ -437,7 +439,7 @@ public class TrivialRegAllocator {
             checkpoint();
         }
         if (toStack) {
-            curMF.addStack(4);
+            curMF.addVarStack(4);
         }
     }
 
@@ -964,8 +966,17 @@ public class TrivialRegAllocator {
             colorMap.put(v, a.isPreColored() ? a : colorMap.get(a));
         }
 
+        ArrayList<MIMove> paramAddrMvList = new ArrayList<>();
+        ArrayList<MIBinary> spAddOrSubList = new ArrayList<>();
         for (Machine.Block mb : curMF.mbList) {
             for (MachineInst mi : mb.miList) {
+                if (mi.isNeedFix()) {
+                    if (mi.isMove()) {
+                        paramAddrMvList.add((MIMove) mi);
+                    } else if (mi.isIAddOrISub()) {
+                        spAddOrSubList.add((MIBinary) mi);
+                    }
+                }
                 // TODO 这里不考虑Call
                 if (mi.isCall() || mi.isComment()) continue;
                 // logOut("Consider " + mi);
@@ -973,10 +984,11 @@ public class TrivialRegAllocator {
                 ArrayList<Operand> uses = mi.useOpds;
                 if (defs.size() > 0) {
                     assert defs.size() == 1; // 只要有def, 除Call外均为1
-                    Operand o = colorMap.get(defs.get(0));
-                    if (o != null) {
-                        logOut("- Def\t" + defs.get(0) + "\tassign: " + o);
-                        defs.set(0, o);
+                    Operand set = colorMap.get(defs.get(0));
+                    if (set != null) {
+                        curMF.addUsedRegs(set.reg);
+                        logOut("- Def\t" + defs.get(0) + "\tassign: " + set);
+                        defs.set(0, set);
                     }
                 }
 
@@ -984,11 +996,33 @@ public class TrivialRegAllocator {
                     assert uses.get(i) != null;
                     Operand set = colorMap.get(uses.get(i));
                     if (set != null) {
+                        curMF.addUsedRegs(set.reg);
                         logOut("- Use\t" + uses.get(i) + "\tassign: " + set);
                         mi.setUse(i, set);
                     }
                 }
             }
+        }
+
+        // fixStack
+        for (MIMove mv : paramAddrMvList) {
+            Operand off = mv.getSrc();
+            assert off.isImm();
+            off.setValue(off.getValue() + switch (mv.getFixType()) {
+                case TOTAL_STACK -> curMF.getTotalStackSize();
+                default -> throw new AssertionError("");
+            });
+            mv.clearNeedFix();
+        }
+        for (MIBinary bino : spAddOrSubList) {
+            Operand off = bino.getROpd();
+            assert off.isImm();
+            off.setValue(switch (bino.getFixType()) {
+                case VAR_STACK -> curMF.getVarStack();
+                case ONLY_PARAM -> bino.getCallee().getParamStack();
+                default -> throw new AssertionError("");
+            });
+            bino.clearNeedFix();
         }
     }
 }

@@ -55,24 +55,24 @@ public class MILoad extends MachineInst {
         if(!isFloat) {
             if (getOffset().getType() == Machine.Operand.Type.Immediate) {
                 int offset = this.getOffset().value << this.shift.shift;
-                os.println("ldr" + cond + "\t" + getData().toString() + ",[" + getAddr().toString() + ",#" + offset + "]");
+                os.println("\tldr" + cond + "\t" + getData().toString() + ",[" + getAddr().toString() + ",#" + offset + "]");
             } else {
-                os.println("ldr" + cond + "\t" + getData().toString() + ",[" + getAddr().toString() + "," + getOffset().toString() + ",LSL #" + shift + "]");
+                os.println("\tldr" + cond + "\t" + getData().toString() + ",[" + getAddr().toString() + "," + getOffset().toString() + ",LSL #" + shift + "]");
             }
         }
         else{
             if (getOffset().getType() == Machine.Operand.Type.Immediate) {
                 int offset = this.getOffset().value << this.shift.shift;
-                os.println("vldr" + cond +".32"+ "\t" + getData().toString() + ",[" + getAddr().toString() + ",#" + offset + "]");
+                os.println("\tvldr" + cond +".32"+ "\t" + getData().toString() + ",[" + getAddr().toString() + ",#" + offset + "]");
             } else {
-                os.println("vldr" + cond +".32"+ "\t" + getData().toString() + ",[" + getAddr().toString() + "," + getOffset().toString() + ",LSL #" + shift + "]");
+                os.println("\tvldr" + cond +".32"+ "\t" + getData().toString() + ",[" + getAddr().toString() + "," + getOffset().toString() + ",LSL #" + shift + "]");
             }
         }
     }
 
     @Override
     public String toString() {
-        return tag.toString() + cond.toString() + '\t' + getData() + ",\t[" + getAddr() + ",\t" + (this.isNeedFix() ? getOffset().value + this.mb.mcFunc.getStackSize() : getOffset()) +
+        return tag.toString() + cond.toString() + '\t' + getData() + ",\t[" + getAddr() + ",\t" + (this.isNeedFix() ? getOffset().value + this.mb.mcFunc.getTotalStackSize() : getOffset()) +
                 (shift.shiftType == Arm.ShiftType.None ? "" : ("\t," + shift)) + "\t]";
     }
 }

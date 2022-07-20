@@ -1,5 +1,6 @@
 package lir;
 
+import backend.CodeGen;
 import mir.BasicBlock;
 import mir.Constant;
 import mir.GlobalVal;
@@ -11,8 +12,13 @@ import util.Ilist;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Iterator;
+import java.util.TreeSet;
 
+import static lir.Arm.Regs.GPRs.lr;
+import static lir.Arm.Regs.GPRs.pc;
 import static lir.Machine.Operand.Type.*;
+import static mir.type.DataType.I32;
 
 
 public class Machine {
@@ -20,8 +26,9 @@ public class Machine {
     public static class Program {
         public static final Program PROGRAM = new Program();
         public Ilist<McFunction> funcList = new Ilist<>();
-        public ArrayList<GlobalVal> globList = new ArrayList<>();
+        public ArrayList<Arm.Glob> globList = CodeGen.CODEGEN.globList;
         public McFunction mainMcFunc;
+        public ArrayList<MachineInst> needFixList = new ArrayList<>();
         int pool_count = 0;
         int inst_count = 0;
 
@@ -91,42 +98,52 @@ public class Machine {
                 os.println(".global\t" + function.mFunc.getName());
                 os.println("\t.type\t" + function.mFunc.getName() + ",%function");
                 os.println(function.mFunc.getName() + ":");
-
-                if (function.useLr || !function.usedCalleeSavedRegs.isEmpty()) {
+                if (function.usedCalleeSavedRegs.size() > 0) {
                     os.print("\tpush\t{");
-                    function.output_reg_list(os);
-                }
-
-                if (function.useLr) {
-                    if (!function.usedCalleeSavedRegs.isEmpty()) {
-                        os.print(",");
+                    Iterator<Arm.Regs.GPRs> gprIter = function.usedCalleeSavedRegs.iterator();
+                    os.print(gprIter.next());
+                    while (gprIter.hasNext()) {
+                        os.print("," + gprIter.next());
                     }
-                    os.print("lr");
-                }
-                os.println("}");
-                if (function.stackSize > 0) {
-                    stack_output(os, true, function.stackSize, "\t");
+                    os.println("}");
                 }
 
-                //asm for bb
-                // TODO 这里原来用法有问题，因为有空头部，所以headMB原来是空的, 现在用for循环就没问题了
-                for (Block bb : function.mbList) {
-                    os.println(bb.toString() + ":");
-                    for (MachineInst inst : bb.miList) {
+                //asm for mb
+                for (Block mb : function.mbList) {
+                    os.println(mb.toString() + ":");
+                    for (MachineInst inst : mb.miList) {
                         inst.output(os, function);
                     }
                 }
 
+                boolean retByBx = true;
+                if (function.usedCalleeSavedRegs.size() > 0) {
+                    os.print("\tpush\t{");
+                    Iterator<Arm.Regs.GPRs> gprIter = function.usedCalleeSavedRegs.iterator();
+                    os.print(gprIter.next());
+                    while (gprIter.hasNext()) {
+                        Arm.Regs.GPRs gpr = gprIter.next();
+                        if(gpr == lr){
+                            gpr = pc;
+                            retByBx = false;
+                        }
+                        os.print("," + gpr);
+                    }
+                    os.println("}");
+                }
+                if(retByBx){
+                   os.println("\tbx\tlr");
+                }
             }
-            os.println("\tblx getint");
             os.println();
             os.println();
             os.println(".section .data");
             os.println(".align 4");
-            for (GlobalVal val : globList) {
+            for (Arm.Glob glob : globList) {
+                GlobalVal.GlobalValue val = glob.getGlobalValue();
                 os.println();
-                os.println(".global" + val.name);
-                os.println("\t.type\t" + val.name + ",%object");
+                os.println(".global\t" + val.name);
+                // os.println("\t.type\t" + val.name + ",%object");
                 os.println(val.name + ":");
 
                 //TODO for yyf:array init
@@ -134,7 +151,7 @@ public class Machine {
                 boolean init = false;
                 int last = 0;
 
-                for (Value value : ((GlobalVal.GlobalValue) val).initial.getFlattenInit()) {
+                for (Value value : glob.getInit().getFlattenInit()) {
                     if (!init) {
                         init = true;
                         last = ((Constant.ConstantInt) value).constIntVal;
@@ -144,7 +161,7 @@ public class Machine {
                     } else {
                         if (count > 1) {
                             //.zero
-                            os.println("\t.fill\t" + count + ",4," + last);
+                            os.println("\t.fill\t" + count + ",\t4,\t" + last);
                         } else {
                             os.println("\t.word\t" + last);
                         }
@@ -154,7 +171,7 @@ public class Machine {
                 }
                 if (count > 1) {
                     //.zero
-                    os.println("\t.fill\t" + count + ",4," + last);
+                    os.println("\t.fill\t" + count + ",\t4,\t" + last);
                 } else {
                     os.println("\t.word\t" + last);
                 }
@@ -165,7 +182,6 @@ public class Machine {
 
     public static class McFunction extends ILinkNode {
         // ArrayList<MachineInst> instList;
-        // DoublelyLinkedList<Block> blockList;
         // Block tailBlock = new Block();
         // Block headBlock = new Block();
         public Ilist<Block> mbList = new Ilist<>();
@@ -201,18 +217,19 @@ public class Machine {
         // ArrayList<Operand> params = new ArrayList<>();
         String func_name;
         // int vrSize = 0;
-        int stackSize = 0;
+        int varStack = 0;
         int paramStack = 0;
+        int regStack = 0;
         public mir.Function mFunc;
-        HashSet<Arm.Regs> usedCalleeSavedRegs = new HashSet<>();
+        TreeSet<Arm.Regs.GPRs> usedCalleeSavedRegs = new TreeSet<>();
         boolean useLr = false;
 
         public McFunction(mir.Function function) {
             this.mFunc = function;
         }
 
-        public void addStack(int i) {
-            stackSize += i;
+        public void addVarStack(int i) {
+            varStack += i;
         }
 
         // 方便解释器和后端生成，因为采用把参数放到caller的sp的下面若干位置的方式
@@ -220,25 +237,21 @@ public class Machine {
             paramStack += i;
         }
 
-        public int getStackSize() {
-            return stackSize + paramStack;
+        public void addRegStack(int i) {
+            regStack += i;
         }
 
-        public int getStackExceptParamSize() {
-            return stackSize;
+        public int getTotalStackSize() {
+            return varStack + paramStack + regStack;
         }
 
-        public void output_reg_list(PrintStream os) {
-            int i = 0;
-            for (Arm.Regs reg : usedCalleeSavedRegs) {
-                if (i > 0) {
-                    os.print(",");
-                }
-                os.print(reg);
-                i++;
-            }
+        public int getParamStack() {
+            return paramStack;
         }
 
+        public int getVarStack() {
+            return varStack;
+        }
 
         public int getVRSize() {
             return vrCount;
@@ -277,22 +290,20 @@ public class Machine {
             this.vrList = new ArrayList<>();
         }
 
-        public HashSet<Arm.Regs> setUsedCalleeSavedRegs() {
-            usedCalleeSavedRegs = new HashSet<>();
-            for (var mb : mbList) {
-
-                for (var mi : mb.miList) {
-                    var defs = mi.defOpds;
-                    for (Operand def : mi.defOpds) {
-                        usedCalleeSavedRegs.add(def.reg);
-                    }
-                    for (Operand use : mi.useOpds) {
-                        if (use.isImm()) continue;
-                        usedCalleeSavedRegs.add(use.reg);
-                    }
+        public void addUsedRegs(Arm.Regs reg) {
+            if (reg instanceof Arm.Regs.GPRs) {
+                if (reg == Arm.Regs.GPRs.sp || ((Arm.Regs.GPRs) reg).ordinal() < Math.min(4, mFunc.getParams().size())) {
+                    return;
+                }
+                if (usedCalleeSavedRegs.add((Arm.Regs.GPRs) reg)) {
+                    addRegStack(4);
                 }
             }
-            return usedCalleeSavedRegs;
+        }
+
+        public void setUseLr() {
+            useLr = true;
+            addUsedRegs(lr);
         }
     }
 
@@ -374,8 +385,9 @@ public class Machine {
             mcFunc.insertAtEnd(this);
         }
 
+        @Override
         public String toString() {
-            return MB_Prefix + index + "_" + bb.getLabel();
+            return MB_Prefix + index + (bb == null ? "" : "_" + bb.getLabel());
         }
 
         public String getDebugLabel() {
@@ -501,7 +513,7 @@ public class Machine {
         }
 
         Type type;
-        DataType dataType = DataType.I32;
+        DataType dataType = I32;
 
         public Type getType() {
             return type;

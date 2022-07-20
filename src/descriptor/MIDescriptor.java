@@ -15,7 +15,6 @@ import java.io.*;
 import java.util.*;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import static java.lang.Math.random;
 import static lir.Arm.Regs.FPRs.s0;
 import static lir.Arm.Regs.GPRs.*;
 import static manage.Manager.ExternFunction.*;
@@ -66,7 +65,7 @@ public class MIDescriptor implements Descriptor {
                 if (val == null) {
                     if (RANDOM_MODE) {
                         val = random.nextInt();
-                    }else{
+                    } else {
                         val = 0;
                     }
                     // throw new AssertionError("");
@@ -76,7 +75,7 @@ public class MIDescriptor implements Descriptor {
                 if (val == null) {
                     if (RANDOM_MODE) {
                         val = random.nextInt();
-                    }else{
+                    } else {
                         val = 0;
                     }
                     // throw new AssertionError("");
@@ -104,7 +103,7 @@ public class MIDescriptor implements Descriptor {
                 flag = true;
                 if (RANDOM_MODE) {
                     val = random.nextInt();
-                }else{
+                } else {
                     val = 0;
                 }
             }
@@ -270,9 +269,9 @@ public class MIDescriptor implements Descriptor {
         Machine.Program p = Machine.Program.PROGRAM;
         setToReg(MemSimulator.TOTAL_SIZE * 4, sp);
         int curOff = 0;
-        for (Map.Entry<GlobalVal.GlobalValue, Arm.Glob> g : CodeGen.CODEGEN.globptr2globOpd.entrySet()) {
-            GlobalVal.GlobalValue glob = g.getKey();
-            Initial init = glob.initial;
+        for (Arm.Glob g : CodeGen.CODEGEN.globList) {
+            GlobalVal.GlobalValue glob = g.getGlobalValue();
+            Initial init = g.getInit();
             globName2HeapOff.put(glob.name, curOff);
             assert glob.getType().isPointerType();
             Type type = ((Type.PointerType) glob.getType()).getInnerType();
@@ -399,14 +398,6 @@ public class MIDescriptor implements Descriptor {
             if (c == -1) {
                 throw new AssertionError("Can't get input when getch\t" + curMF);
             }
-            // System.err.println(scanner.next());
-            // BufferedReader bufferedReader = new BufferedInputStream(scanner);
-            // System.err.println(scanner.next("[.]"));
-            // String s = scanner.next("[.]");
-            // System.err.println(s);
-            // assert s != null && s.length() == 1;
-            // logOut(s);
-            // int i = s.charAt(0);
             setToReg(c, r0);
         } else if (func.equals(GET_ARR)) {
             String s = genStr(func.getName());
@@ -497,7 +488,7 @@ public class MIDescriptor implements Descriptor {
                 case Add -> {
                     assert lVal instanceof Integer && rVal instanceof Integer;
                     if (miBinary.isNeedFix()) {
-                        rVal = (int) rVal + curMF.getStackSize();
+                        rVal = (int) rVal + curMF.getTotalStackSize();
                     }
                     SET_VAL_FROM_OPD((int) lVal + (int) rVal, miBinary.getDst());
                 }
@@ -508,10 +499,10 @@ public class MIDescriptor implements Descriptor {
                 case Sub -> {
                     assert lVal instanceof Integer && rVal instanceof Integer;
                     if (miBinary.isNeedFix()) {
-                        if (miBinary.callee != null) {
-                            rVal = (int) rVal + miBinary.callee.getStackSize();
+                        if (miBinary.getCallee() != null) {
+                            rVal = (int) rVal + miBinary.getCallee().getTotalStackSize();
                         } else {
-                            rVal = (int) rVal + curMF.getStackSize();
+                            rVal = (int) rVal + curMF.getTotalStackSize();
                         }
                     }
                     SET_VAL_FROM_OPD((int) lVal - (int) rVal, miBinary.getDst());
@@ -598,6 +589,10 @@ public class MIDescriptor implements Descriptor {
                     assert mi instanceof MIMove;
                     MIMove mv = (MIMove) mi;
                     Object val = GET_VAL_FROM_OPD(mv.getSrc());
+                    // 函数传参的时候, 修栈偏移
+                    if (mv.isNeedFix()) {
+                        val = (int) val + curMF.getTotalStackSize();
+                    }
                     SET_VAL_FROM_OPD(val, mv.getDst());
                 }
                 case Branch -> {
@@ -635,10 +630,6 @@ public class MIDescriptor implements Descriptor {
                     //     String globAddr = (String) tmp;
                     //     offset += globName2HeapOff.get(globAddr);
                     // }
-                    // 函数传参的时候, 修栈偏移
-                    if (load.isNeedFix()) {
-                        offset = offset + curMF.getStackSize();
-                    }
                     SET_VAL_FROM_OPD(getMemValWithOffset(offset), load.getData());
                 }
                 case Store -> {
@@ -772,7 +763,7 @@ public class MIDescriptor implements Descriptor {
         if (val == null) {
             if (RANDOM_MODE) {
                 val = random.nextInt();
-            }else{
+            } else {
                 val = 0;
             }
             // throw new AssertionError("fuck");
@@ -789,7 +780,7 @@ public class MIDescriptor implements Descriptor {
         if (val == null) {
             if (RANDOM_MODE) {
                 val = random.nextInt();
-            }else{
+            } else {
                 val = 0;
             }
             // throw new AssertionError("fuck");

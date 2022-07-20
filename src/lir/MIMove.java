@@ -32,8 +32,7 @@ public class MIMove extends MachineInst {
         // this.cond = Arm.Cond.Any;
     }
 
-
-    public MIMove(Machine.Operand dOpd, Machine.Operand sOpd, Arm.Shift shift,Machine.Block insertAtEnd) {
+    public MIMove(Machine.Operand dOpd, Machine.Operand sOpd, Arm.Shift shift, Machine.Block insertAtEnd) {
         super(Tag.Mv, insertAtEnd);
         defOpds.add(dOpd);
         useOpds.add(sOpd);
@@ -94,20 +93,28 @@ public class MIMove extends MachineInst {
     @Override
     public void output(PrintStream os, Machine.McFunction f) {
         transfer_output(os);
-        if (getSrc().type == Machine.Operand.Type.Immediate && encode_imm(getSrc().value)) {
-            int imm = getSrc().value;
+        Machine.Operand src = getSrc();
+        if (src.type == Machine.Operand.Type.Immediate) {
+            if (src.isGlobPtr()) {
+                os.println("\tldr" + cond + "\t" + getDst().toString() + ",=" + src.getGlob());
+            } else {
+                int imm = getSrc().value;
+                if (encode_imm(imm)) {
             /*
-            if(getDst().type == float){
+            if(src.type == float){
                 os.println("vldr" + cond +".32"+ "\t" + getDst().toString() + ",=" + imm);
             }
             */
-            //else{
-                if (imm >> 16 == 0) {
-                    os.println("movw" + cond + "\t" + getDst().toString() + ",#" + imm);
+                    os.println("\tmov" + cond + "\t" + getDst().toString() + ",\t#" + imm);
                 } else {
-                    os.println("ldr" + cond + "\t" + getDst().toString() + ",=" + imm);
+                    int highImm = imm >>> 16;
+                    if (highImm != 0) {
+                        os.println("\tmovt" + cond + "\t" + getDst().toString() + ",\t#" + highImm);
+                    }
+                    int lowImm = (imm << 16) >>> 16;
+                    os.println("\tmovw" + cond + "\t" + getDst().toString() + ",\t#" + lowImm);
                 }
-            //}
+            }
         } else {
             //TODO:这里需要考虑Dst为s寄存器
             /*
@@ -117,11 +124,10 @@ public class MIMove extends MachineInst {
 
             }
             */
-            os.print("mov" + cond + "\t" + getDst().toString() + "," + getSrc().toString());
-            if(shift!=Arm.Shift.NONE_SHIFT) {
-                os.println("," + shift.toString());
-            }
-            else{
+            os.print("\tmov" + cond + "\t" + getDst().toString() + ",\t" + getSrc().toString());
+            if (shift != Arm.Shift.NONE_SHIFT) {
+                os.println(",\t" + shift.toString());
+            } else {
                 os.print("\n");
             }
         }
@@ -145,15 +151,16 @@ public class MIMove extends MachineInst {
     }
 
     String oldToString = "";
+
     @Override
     public String toString() {
         if (getDst() == null) {
             assert false;
         }
-        if(oldToString.equals("")){
+        if (oldToString.equals("")) {
             oldToString = tag.toString() + cond.toString() + '\t' + getDst().toString() + ",\t" + getSrc().toString();
         }
-        return tag.toString() + cond.toString() + '\t' + getDst().toString() + ",\t" + getSrc().toString()+"{\t--\t"+oldToString+"\t--\t}";
+        return tag.toString() + cond.toString() + '\t' + getDst().toString() + ",\t" + getSrc().toString() + "{\t--\t" + oldToString + "\t--\t}";
     }
 
     public void setSrc(Machine.Operand offset_opd) {

@@ -68,11 +68,11 @@ public class Compiler {
             // Manager.MANAGER.outputMI();
             Machine.Program p = Machine.Program.PROGRAM;
             // 为 MI Descriptor 设置输入输出流
-            // MIDescriptor.MI_DESCRIPTOR.setInput(arg.interpretInputStream);
-            // MIDescriptor.MI_DESCRIPTOR.setOutput(arg.interpretOutputStream);
+            MIDescriptor.MI_DESCRIPTOR.setInput(arg.interpretInputStream);
+            MIDescriptor.MI_DESCRIPTOR.setOutput(arg.interpretOutputStream);
             // 用参数给定的输入输出流后，分配寄存器前和分配寄存器后只运行一遍解释器，否则后者的输出会覆盖前者
            // MIDescriptor.MI_DESCRIPTOR.run(); // 分配寄存器前
-            // MIDescriptor.MI_DESCRIPTOR.run(); // 分配寄存器前
+           //  MIDescriptor.MI_DESCRIPTOR.run(); // 分配寄存器前
             // Manager.MANAGER.outputMI();
             // Manager.outputMI(true);
             long start = System.currentTimeMillis();
@@ -87,10 +87,12 @@ public class Compiler {
              File output_file = new File("output.S");
              PrintStream os = new PrintStream(output_file);
              p.output(os);
+            // MIDescriptor.MI_DESCRIPTOR.setRegMode();
+         //   MIDescriptor.MI_DESCRIPTOR.run(); // 分配寄存器后
 
-            // if (arg.outputAsm()) {
-            //     p.output(new PrintStream(arg.asmStream));
-            // }
+            //if (arg.outputAsm()) {
+              //  p.output(new PrintStream(arg.asmStream));
+            //}
         } catch (Exception e) {
             e.printStackTrace();
             System.exit(1);

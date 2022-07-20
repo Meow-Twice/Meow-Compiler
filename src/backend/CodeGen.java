@@ -30,6 +30,7 @@ public class CodeGen {
     // Value到Operand的Map
     public HashMap<Value, Machine.Operand> value2opd;
     public HashMap<GlobalVal.GlobalValue, Arm.Glob> globptr2globOpd = new HashMap<>();
+    public final ArrayList<Arm.Glob> globList = new ArrayList<>();
 
     // Operand到Value的Map, 这个map不应该存在 , 消phi时产生的move可能造成一条Instr对应多个opd
     // public HashMap<Machine.Operand, Value> opd2value;
@@ -112,8 +113,12 @@ public class CodeGen {
                 continue;
             }
             curMachineFunc = func2mcFunc.get(func);
+            if(func.hasCall()){
+                curMachineFunc.setUseLr();
+                // curMachineFunc.addUsedRegs(lr);
+            }
             Machine.Program.PROGRAM.funcList.insertAtEnd(curMachineFunc);
-            Machine.Program.PROGRAM.globList = globalMap.keySet().stream().toList();
+            //   Machine.Program.PROGRAM.globList = globalMap.keySet().stream().toList();
             curFunc = func;
             boolean isMain = false;
             if (curFunc.getName().equals("main")) {
@@ -135,12 +140,11 @@ public class CodeGen {
             }
             bb = func.getBeginBB();
             curMB = bb.getMb();
-            if (isMain) {
-                Machine.Operand rOp = new Machine.Operand(I32, 0);
-                // Machine.Operand rOp = new Machine.Operand(I32, -curMachineFunc.getStackSize());
-                MIBinary miBinary = new MIBinary(MachineInst.Tag.Sub, Arm.Reg.getR(sp), Arm.Reg.getR(sp), rOp, curMB);
-                miBinary.setNeedFix();
-            } else {
+            // 这里不可使用单例
+            Machine.Operand rOp = new Machine.Operand(I32, 0);
+            MIBinary miBinary = new MIBinary(MachineInst.Tag.Sub, Arm.Reg.getR(sp), Arm.Reg.getR(sp), rOp, curMB);
+            miBinary.setNeedFix(STACK_FIX.VAR_STACK);
+            if (!isMain) {
                 dealParam();
             }
             // 改写为循环加运行速度
@@ -163,14 +167,24 @@ public class CodeGen {
             if (idx <= 3) {
                 new MIMove(opd, Arm.Reg.getR(idx), curMB);
             } else {
-                Machine.Operand offsetOpd = new Machine.Operand(I32, 4 * (3 - idx));
-                // 站定向下的偏移, 第四个参数 -4, 第五个参数 -8 ...修的时候只需要把这个立即数的值取出来加上getStackSize获取的栈大小即可
-                MILoad load = new MILoad(opd, Arm.Reg.getR(sp), offsetOpd, curMB);
+                // 这里因为无法确认栈的大小(参数栈空间, 所用寄存器push和pop的栈空间, 数组申请栈空间, 寄存器分配时溢出所需栈空间)是否超过了立即数编码, 因此一律用move指令处理
+                Machine.Operand offImm = new Machine.Operand(I32, 4 * (3 - idx));
+                Machine.Operand off = newVR();
+                MIMove mv = new MIMove(off, offImm, curMB);
+                mv.setNeedFix(STACK_FIX.TOTAL_STACK);
+                // 栈顶向下的偏移, 第四个参数 -4, 第五个参数 -8 ...修的时候只需要把这个立即数的值取出来加上getStackSize获取的栈大小即可
+                new MILoad(opd, Arm.Reg.getR(sp), off, curMB);
                 curMachineFunc.addParamStack(4);
-                load.setNeedFix();
             }
             idx++;
         }
+    }
+
+    public enum STACK_FIX {
+        NO_NEED, // 无需修栈
+        VAR_STACK, // 函数push语句后的第一条的sub sp, sp, varStack用, 函数pop语句前的最后一条add sp, sp, varStack用
+        ONLY_PARAM, // 函数调用前的sub sp, sp, paramStack用, 函数调用后的add sp, sp, paramStack用
+        TOTAL_STACK // 函数有超过四个的参数时ldr参数用(move vrx, #xxx那条)
     }
 
     HashSet<Machine.Block> dfsBBSet = new HashSet<>();
@@ -246,7 +260,7 @@ public class CodeGen {
                     }
                     Machine.Operand rOp = new Machine.Operand(I32, 0);
                     MIBinary miBinary = new MIBinary(MachineInst.Tag.Add, Arm.Reg.getR(sp), Arm.Reg.getR(sp), rOp, curMB);
-                    miBinary.setNeedFix();
+                    miBinary.setNeedFix(STACK_FIX.VAR_STACK);
                     new MIReturn(curMB);
                 }
                 case zext -> {
@@ -269,10 +283,10 @@ public class CodeGen {
                     assert contentType.isArrType();
                     Machine.Operand addr = getVR_no_imm(allocInst);
                     Machine.Operand spReg = Arm.Reg.getR(sp);
-                    Machine.Operand offset = new Machine.Operand(I32, curMachineFunc.getStackExceptParamSize());
+                    Machine.Operand offset = new Machine.Operand(I32, curMachineFunc.getVarStack());
                     new MIBinary(MachineInst.Tag.Add, addr, spReg, offset, curMB);
                     // 栈空间移位
-                    curMachineFunc.addStack(((Type.ArrayType) contentType).getFlattenSize() * 4);
+                    curMachineFunc.addVarStack(((Type.ArrayType) contentType).getFlattenSize() * 4);
                 }
                 case load -> {
                     Instr.Load loadInst = (Instr.Load) instr;
@@ -454,9 +468,11 @@ public class CodeGen {
                         Machine.Operand rOp = new Machine.Operand(I32, 0);
                         MIBinary miBinary = new MIBinary(MachineInst.Tag.Sub, Arm.Reg.getR(sp), Arm.Reg.getR(sp), rOp, curMB);
                         // 设置一个boolean表示需要修复方便output .S时及时修复
-                        miBinary.setNeedFix(callMcFunc);
+                        miBinary.setNeedFix(callMcFunc, STACK_FIX.ONLY_PARAM);
                         // call
                         new MICall(callMcFunc, curMB);
+                        miBinary = new MIBinary(MachineInst.Tag.Sub, Arm.Reg.getR(sp), Arm.Reg.getR(sp), rOp, curMB);
+                        miBinary.setNeedFix(callMcFunc, STACK_FIX.ONLY_PARAM);
 
                     }
                     // 这行是取返回值
@@ -501,14 +517,15 @@ public class CodeGen {
     public void genGlobal() {
         for (Map.Entry<GlobalVal.GlobalValue, Initial> entry : globalMap.entrySet()) {
             GlobalVal.GlobalValue globalValue = entry.getKey();
-            Initial init = entry.getValue();
             // TODO 目前采用了新的写法
             // load global addr at the head of the entry bb
             // MIGlobal new_inst = new MIGlobal(globalValue, curMachineFunc.getBeginMB());
             // allocate virtual reg
             // Machine.Operand vr = newVR();
             // new_inst.dOpd = vr;
-            globptr2globOpd.put(globalValue, new Arm.Glob(globalValue, init));
+            Arm.Glob glob = new Arm.Glob(globalValue);
+            globList.add(glob);
+            globptr2globOpd.put(globalValue, glob);
         }
     }
 
@@ -546,11 +563,11 @@ public class CodeGen {
         }
         // div+mode optimize
         //这里需要确定一下lhs不是浮点类型
-        if (tag == MachineInst.Tag.Div && rhs.isConstantInt() ) {
+        if (tag == MachineInst.Tag.Div && rhs.isConstantInt()) {
             divOptimize(instr);
             return;
         }
-        if(tag == MachineInst.Tag.Mul && rhs.isConstantInt() && is2power(Math.abs(((Constant.ConstantInt) rhs).constIntVal))){
+        if (tag == MachineInst.Tag.Mul && rhs.isConstantInt() && is2power(Math.abs(((Constant.ConstantInt) rhs).constIntVal))) {
             mulOptimize(instr);
             return;
         }
@@ -560,32 +577,28 @@ public class CodeGen {
         Machine.Operand dVR = getVR_no_imm(instr);
         new MIBinary(tag, dVR, lVR, rVR, curMB);
     }
-    public boolean is2power(int n){
-        if(!(n > 0 && (n & (n - 1)) == 0)){
-            return false;
-        }
-        return true;
+
+    public boolean is2power(int n) {
+        return n > 0 && (n & (n - 1)) == 0;
     }
 
-    public void mulOptimize(Instr.Alu instr){
+    public void mulOptimize(Instr.Alu instr) {
         Value lhs = instr.getRVal1();
         Machine.Operand n = getVR_may_imm(lhs);
         Value rhs = instr.getRVal2();
         Machine.Operand q = getVR_no_imm(instr);
         int d = ((Constant.ConstantInt) rhs).constIntVal;
-        int k = Integer.toBinaryString(Math.abs(d)).length()-1;
+        int k = Integer.toBinaryString(Math.abs(d)).length() - 1;
         //q = n*d
         //q = n<<k
-        Arm.Shift shift = new Arm.Shift(Arm.ShiftType.Lsl,k);
-        new MIMove(q,n,shift,curMB);
+        Arm.Shift shift = new Arm.Shift(Arm.ShiftType.Lsl, k);
+        new MIMove(q, n, shift, curMB);
 
     }
-    public void divOptimize_mod(Value lValue, Value rValue, Machine.Operand q_op) {
+
+    public void divOptimize_mod(Value lhs, Value rhs, Machine.Operand q) {
         // q = n/d
-        Value lhs = lValue;
         Machine.Operand n = getVR_may_imm(lhs);
-        Value rhs = rValue;
-        Machine.Operand q = q_op;
         int d = ((Constant.ConstantInt) rhs).constIntVal;
         int N = 32;
         Multiplier multiplier = chooseMultiplier(Math.abs(d), N - 1);

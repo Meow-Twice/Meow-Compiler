@@ -118,10 +118,10 @@ public class Arm {
         public GlobalVal.GlobalValue globalValue;
         public Initial init;
 
-        public Glob(GlobalVal.GlobalValue glob, Initial init) {
+        public Glob(GlobalVal.GlobalValue glob) {
             super(Immediate);
             name = glob.name;
-            this.init = init;
+            this.init = glob.initial;
             globalValue = glob;
         }
 
@@ -132,6 +132,14 @@ public class Arm {
         @Override
         public String toString() {
             return "#" + name;
+        }
+
+        public GlobalVal.GlobalValue getGlobalValue() {
+            return globalValue;
+        }
+
+        public Initial getInit(){
+            return init;
         }
     }
 

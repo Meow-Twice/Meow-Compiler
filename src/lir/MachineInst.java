@@ -1,5 +1,6 @@
 package lir;
 
+import backend.CodeGen;
 import mir.Instr;
 import util.ILinkNode;
 
@@ -12,29 +13,39 @@ import static mir.Instr.Alu.Op.*;
 public class MachineInst extends ILinkNode {
     protected Arm.Cond cond = Arm.Cond.Any;
     protected Arm.Shift shift = Arm.Shift.NONE_SHIFT;
-    private boolean needFix = false;
+    // private boolean needFix = false;
 
     public boolean isNeedFix() {
-        return needFix;
+        return fixType != CodeGen.STACK_FIX.NO_NEED;
     }
 
-    public Machine.McFunction callee;
+    public Machine.McFunction getCallee() {
+        return callee;
+    }
+
+    public void setCallee(Machine.McFunction callee) {
+        this.callee = callee;
+    }
+
+    private Machine.McFunction callee = null;
+    private CodeGen.STACK_FIX fixType = CodeGen.STACK_FIX.NO_NEED;
 
     /**
      * main函数刚进有一个sp自减, 不过这时候自减的偏移一定是0
      * dealParam时, 刚开始对一个函数进行CodeGen时进行超过四个之外的参数时的load
      * return之前要对sp进行加操作
      */
-    public void setNeedFix() {
-        needFix = true;
+    public void setNeedFix(CodeGen.STACK_FIX stack_fix) {
+        Machine.Program.PROGRAM.needFixList.add(this);
+        fixType = stack_fix;
     }
 
     /**
      * 调用一个非库的函数之前需要sp偏移
      */
-    public void setNeedFix(Machine.McFunction callee) {
-        this.callee = callee;
-        needFix = true;
+    public void setNeedFix(Machine.McFunction callee, CodeGen.STACK_FIX stack_fix) {
+        setCallee(callee);
+        setNeedFix(stack_fix);
     }
 
 
@@ -60,6 +71,18 @@ public class MachineInst extends ILinkNode {
 
     public void setDef(Machine.Operand operand) {
         defOpds.set(0, operand);
+    }
+
+    public boolean isIAddOrISub() {
+        return tag == Tag.Add || tag == Tag.Sub;
+    }
+
+    public CodeGen.STACK_FIX getFixType() {
+        return fixType;
+    }
+
+    public void clearNeedFix() {
+        fixType = CodeGen.STACK_FIX.NO_NEED;
     }
 
     public enum Tag {
@@ -139,6 +162,11 @@ public class MachineInst extends ILinkNode {
 
 
     Machine.Block mb;
+
+    public Machine.Block getMb() {
+        return mb;
+    }
+
     Tag tag;
     public boolean isFloat = false;
     public ArrayList<Machine.Operand> defOpds = new ArrayList<>();

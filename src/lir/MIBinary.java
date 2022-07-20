@@ -44,7 +44,7 @@ public class MIBinary extends MachineInst {
     @Override
     public void output(PrintStream os, Machine.McFunction f) {
         transfer_output(os);
-        String tag_str = switch (tag) {
+        String tag_str = "\t" + switch (tag) {
             case Mul -> "mul";
             case Add -> "add";
             case Sub -> "sub";
@@ -59,12 +59,11 @@ public class MIBinary extends MachineInst {
             default -> null;
         };
 
-            os.print(tag_str + "\t" + getDst().toString() + "," + getLOpd().toString() + "," + getROpd().toString());
-            if (shift.shiftType != Arm.ShiftType.None) {
-                os.print("," + shift);
-            }
-            os.print("\n");
-
+        os.print(tag_str + "\t" + getDst() + ",\t" + getLOpd() + ",\t" + getROpd());
+        if (shift.shiftType != Arm.ShiftType.None) {
+            os.print(",\t" + shift);
+        }
+        os.print("\n");
 
 
     }
@@ -72,6 +71,6 @@ public class MIBinary extends MachineInst {
     @Override
     public String toString() {
         return tag.toString() + "\t" + getDst() + ",\t" + getLOpd() + ",\t" +
-                (isNeedFix() ? getROpd().value + (this.callee == null ? this.mb.mcFunc.getStackSize() : this.callee.getStackSize()) : getROpd());
+                (isNeedFix() ? getROpd().value + (this.getCallee() == null ? this.mb.mcFunc.getTotalStackSize() : this.getCallee().getTotalStackSize()) : getROpd());
     }
 }

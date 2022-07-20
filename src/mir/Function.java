@@ -1,4 +1,5 @@
 package mir;
+
 import manage.Manager;
 import mir.type.Type;
 import util.ILinkNode;
@@ -11,6 +12,12 @@ import java.util.*;
  */
 public class Function extends Value {
     private final String name;
+
+    boolean isCaller = true;
+
+    public boolean hasCall() {
+        return isCaller;
+    }
 
 
     public static class Param extends Value {
@@ -44,7 +51,7 @@ public class Function extends Value {
         }
 
         @Override
-        public Type getType(){
+        public Type getType() {
             return type;
         }
 
@@ -225,7 +232,7 @@ public class Function extends Value {
         return "define dso_local " + getTypeStr() + " @" + name + "(" + paramList + ") {\n" + body + "}\n";
     }
 
-    public String output(){
+    public String output() {
 
         String paramList = params.stream().map(Value::toString).reduce((s, s2) -> s + ", " + s2).orElse("");
         StringBuilder str = new StringBuilder();
@@ -238,16 +245,16 @@ public class Function extends Value {
         //         str.append("\t").append(instNode).append("\n");
         //     }
         // }
-        for(BasicBlock bb: bbList){
+        for (BasicBlock bb : bbList) {
             str.append(bb).append(":\n");
             for (Instr inst : bb.instrList) {
                 // Instr inst = (Instr) instNode;
                 str.append("\t").append(inst).append("\n");
             }
         }
-        str.append( "}\n");
+        str.append("}\n");
 
-        return  str.toString();
+        return str.toString();
     }
 
     @Override

@@ -17,7 +17,7 @@ public class MIJump extends MachineInst {
     @Override
     public void output(PrintStream os, Machine.McFunction f) {
         transfer_output(os);
-        os.println("b\t" + mb.index);
+        os.println("\tb\t" + mb.index);
     }
 
     @Override

@@ -37,7 +37,7 @@ public class MICall extends MachineInst {
 
     @Override
     public void output(PrintStream os, Machine.McFunction f) {
-        os.println("blx\t" + mcFunction.mFunc.getName());
+        os.println("\tblx\t" + mcFunction.mFunc.getName());
     }
 
     @Override

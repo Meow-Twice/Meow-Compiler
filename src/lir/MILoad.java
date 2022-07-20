@@ -56,19 +56,17 @@ public class MILoad extends MachineInst {
         if(!isFloat) {
             //Integer
             if (getOffset().getType() == Machine.Operand.Type.Immediate) {
-                int shift = (this.shift== Arm.Shift.NONE_SHIFT) ? 0:this.shift.shift;
+                int shift = (this.shift == Arm.Shift.NONE_SHIFT) ? 0 : this.shift.shift;
                 int offset = this.getOffset().value << shift;
-                if(offset != 0) {
+                if (offset != 0) {
                     os.println("ldr" + cond + "\t" + getData().toString() + ",[" + getAddr().toString() + ",#" + offset + "]");
-                }
-                else{
+                } else {
                     os.println("ldr" + cond + "\t" + getData().toString() + ",[" + getAddr().toString() + "]");
                 }
             } else {
-                if(this.shift.shiftType == Arm.ShiftType.None){
-                    os.println("ldr" + cond + "\t" + getData().toString() + ",[" + getAddr().toString() + "," + getOffset().toString()  + "]");
-                }
-                else {
+                if (this.shift.shiftType == Arm.ShiftType.None) {
+                    os.println("ldr" + cond + "\t" + getData().toString() + ",[" + getAddr().toString() + "," + getOffset().toString() + "]");
+                } else {
                     os.println("ldr" + cond + "\t" + getData().toString() + ",[" + getAddr().toString() + "," + getOffset().toString() + ",LSL #" + this.shift.shift + "]");
                 }
             }
@@ -91,12 +89,13 @@ public class MILoad extends MachineInst {
                     os.println("vldr" + cond +".32"+ "\t" + getData().toString() + ",[" + getAddr().toString() + "," + getOffset().toString() + ",LSL #" + this.shift.shift + "]");
                 }
             }
+            }
         }
-    }
+
 
     @Override
     public String toString() {
-        return tag.toString() + cond.toString() + '\t' + getData() + ",\t[" + getAddr() + ",\t" + (this.isNeedFix() ? getOffset().value + this.mb.mcFunc.getStackSize() : getOffset()) +
+        return tag.toString() + cond.toString() + '\t' + getData() + ",\t[" + getAddr() + ",\t" + (this.isNeedFix() ? getOffset().value + this.mb.mcFunc.getTotalStackSize() : getOffset()) +
                 (shift.shiftType == Arm.ShiftType.None ? "" : ("\t," + shift)) + "\t]";
     }
 }

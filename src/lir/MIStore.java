@@ -57,17 +57,17 @@ public class MIStore extends MachineInst {
         if(!isFloat) {
             if (getOffset().getType() == Machine.Operand.Type.Immediate) {
                 int offset = this.getOffset().value << getShift().shift;
-                os.println("str" + cond + "\t" + getData().toString() + ",[" + getAddr().toString() + ",#" + offset + "]");
+                os.println("\tstr" + cond + "\t" + getData().toString() + ",[" + getAddr().toString() + ",#" + offset + "]");
             } else {
-                os.println("str" + cond + "\t" + getData().toString() + ",[" + getAddr().toString() + "," + getOffset().toString() + ",LSL #" + shift + "]");
+                os.println("\tstr" + cond + "\t" + getData().toString() + ",[" + getAddr().toString() + "," + getOffset().toString() + ",LSL #" + shift + "]");
             }
         }
         else{
             if (getOffset().getType() == Machine.Operand.Type.Immediate) {
                 int offset = this.getOffset().value << getShift().shift;
-                os.println("vstr" + cond +".32"+ "\t" + getData().toString() + ",[" + getAddr().toString() + ",#" + offset + "]");
+                os.println("\tvstr" + cond +".32"+ "\t" + getData().toString() + ",[" + getAddr().toString() + ",#" + offset + "]");
             } else {
-                os.println("vstr" + cond +".32"+ "\t" + getData().toString() + ",[" + getAddr().toString() + "," + getOffset().toString() + ",LSL #" + shift + "]");
+                os.println("\tvstr" + cond +".32"+ "\t" + getData().toString() + ",[" + getAddr().toString() + "," + getOffset().toString() + ",LSL #" + shift + "]");
             }
         }
     }

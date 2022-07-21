@@ -48,7 +48,7 @@ public class MIDescriptor implements Descriptor {
 
     private static class MemSimulator {
         // public static final MemSimulator MEM_SIMULATOR = new MemSimulator();
-        private static final int N = 2;
+        private static final int N = 4;
         public static final int SP_BOTTOM = 0x40000000 >> N;
         public static final int TOTAL_SIZE = 0x7FFFFFFF >> N;
         private static final Object[] MEM = new Object[TOTAL_SIZE];
@@ -205,10 +205,10 @@ public class MIDescriptor implements Descriptor {
         } else {
             System.err.println(s);
         }
-        // if (err.length() > 1000000) {
-        //     FileDealer.outputToFile(err, "stderr" + outputTimes++ + ".txt");
-        //     err = new StringBuilder();
-        // }
+//         if (err.length() > 100000) {
+//             FileDealer.outputToFile(err, "stderr" + outputTimes++ + ".txt");
+//             err = new StringBuilder();
+//         }
     }
 
     public static void output(String str) {
@@ -480,12 +480,18 @@ public class MIDescriptor implements Descriptor {
             }
             curMI = mi;
             MIBinary miBinary = null;
+            MILongMul miLongMul = null;
             Object lVal = null;
             Object rVal = null;
             if (curMI instanceof MIBinary) {
                 miBinary = (MIBinary) curMI;
                 lVal = GET_VAL_FROM_OPD(miBinary.getLOpd());
                 rVal = GET_VAL_FROM_OPD(miBinary.getROpd());
+            }
+            if(curMI instanceof MILongMul){
+                miLongMul = (MILongMul) curMI;
+                lVal = GET_VAL_FROM_OPD(miLongMul.getLOpd());
+                rVal = GET_VAL_FROM_OPD(miLongMul.getROpd());
             }
             switch (curMI.getType()) {
                 case Add -> {
@@ -570,7 +576,7 @@ public class MIDescriptor implements Descriptor {
                 }
                 case LongMul -> {
                     assert lVal instanceof Integer && rVal instanceof Integer;
-                    SET_VAL_FROM_OPD((int) (((long) lVal * (long) rVal) >>> 32), miBinary.getDst());
+                    SET_VAL_FROM_OPD((int) ((((Integer) lVal).longValue() *  ((Integer) rVal).longValue()) >>> 32), miLongMul.getDst());
                 }
                 case FMA -> {
                     assert mi instanceof MIFma;
@@ -600,7 +606,20 @@ public class MIDescriptor implements Descriptor {
                     if (mv.isNeedFix()) {
                         val = (int) val + curMF.getRegStack() + curMF.getVarStack();
                     }
-                    SET_VAL_FROM_OPD(val, mv.getDst());
+                    //这里好像没考虑shift
+                    if(mv.getShift()== Arm.Shift.NONE_SHIFT) {
+                        SET_VAL_FROM_OPD(val, mv.getDst());
+                    }
+                    else if(mv.getShift().shiftType == Arm.ShiftType.Lsl){
+                        int result = (int)val<<(mv.getShift().shift);
+                        SET_VAL_FROM_OPD(result,mv.getDst());
+                    }
+                    else if(mv.getShift().shiftType == Arm.ShiftType.Asr){
+                        SET_VAL_FROM_OPD((int)val>>(mv.getShift().shift),mv.getDst());
+                    }
+                    else{
+                        SET_VAL_FROM_OPD((int)val>>>(mv.getShift().shift),mv.getDst());
+                    }
                 }
                 case Branch -> {
                     isBJ = true;

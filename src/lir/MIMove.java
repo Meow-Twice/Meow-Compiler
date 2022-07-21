@@ -96,7 +96,9 @@ public class MIMove extends MachineInst {
         Machine.Operand src = getSrc();
         if (src.type == Machine.Operand.Type.Immediate) {
             if (src.isGlobPtr()) {
-                os.println("\tldr" + cond + "\t" + getDst().toString() + ",=" + src.getGlob());
+                //os.println("\tldr" + cond + "\t" + getDst().toString() + ",=" + src.getGlob());
+                os.println("movw\t"+getDst().toString() +", #:lower16:"+src.getGlob());
+                os.println("movt\t"+getDst().toString() +", #:upper16:"+src.getGlob());
             } else {
                 int imm = getSrc().value;
                 if (encode_imm(imm)) {

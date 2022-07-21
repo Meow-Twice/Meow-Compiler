@@ -199,8 +199,8 @@ public class Arm {
 
     public static class Shift {
         public static final Shift NONE_SHIFT = new Shift();
-        ShiftType shiftType;
-        int shift;
+        public ShiftType shiftType;
+        public int shift;
 
         Shift() {
             shift = 0;

@@ -65,6 +65,7 @@ public class CodeGen {
     }
 
     public Multiplier chooseMultiplier(int d, int prec) {
+      //  prec = 32;
         int N = 32;
         assert d != 0;
         assert prec >= 1 && prec <= N;
@@ -73,7 +74,7 @@ public class CodeGen {
         int sh_post = l;
         long m_low = ((long) 1 << (N + l)) / d;
         long m_high = (((long) 1 << (N + l)) + ((long) 1 << (N + l - prec))) / d;
-        while ((m_low >> 1) < (m_high >> 1) && sh_post > 0) {
+        while (((m_low >> 1) < (m_high >> 1)) && sh_post > 0) {
             m_low >>= 1;
             m_high >>= 1;
             sh_post -= 1;
@@ -536,14 +537,14 @@ public class CodeGen {
         MachineInst.Tag tag = MachineInst.Tag.map.get(instr.getOp());
         Value lhs = instr.getRVal1();
         Value rhs = instr.getRVal2();
-        if (true) {
-            Machine.Operand lVR = getVR_may_imm(lhs);
-            Machine.Operand rVR = getVR_may_imm(rhs);
-            // instr不可能是Constant
-            Machine.Operand dVR = getVR_no_imm(instr);
-            MIBinary m = new MIBinary(tag, dVR, lVR, rVR, curMB);
-            return;
-        }
+//        if (true) {
+//            Machine.Operand lVR = getVR_may_imm(lhs);
+//            Machine.Operand rVR = getVR_may_imm(rhs);
+//            // instr不可能是Constant
+//            Machine.Operand dVR = getVR_no_imm(instr);
+//            MIBinary m = new MIBinary(tag, dVR, lVR, rVR, curMB);
+//            return;
+//        }
         if (tag == MachineInst.Tag.Mod) {
             Machine.Operand q = getVR_no_imm(instr);
             // q = a%b = a-(a/b)*b
@@ -604,7 +605,7 @@ public class CodeGen {
         Machine.Operand n = getVR_may_imm(lhs);
         int d = ((Constant.ConstantInt) rhs).constIntVal;
         int N = 32;
-        Multiplier multiplier = chooseMultiplier(Math.abs(d), N - 1);
+        Multiplier multiplier = chooseMultiplier(Math.abs(d), N-1);
         int l = multiplier.l;
         int sh_post = multiplier.sh_post;
         long m = multiplier.m;
@@ -612,7 +613,7 @@ public class CodeGen {
             // q = n
             new MIMove(q, n, curMB);
 
-        } else if (Math.abs(d) == (2 << l)) {
+        } else if (Math.abs(d) == (1 << l)) {
             // q = SRA(n+SRL(SRA(n,l-1),N-l),l)
             // dst1 = SRA(n,l-1)
             Machine.Operand dst1 = newVR();
@@ -628,7 +629,7 @@ public class CodeGen {
             // q = SRA(dst3,l)
             Arm.Shift shift3 = new Arm.Shift(Arm.ShiftType.Asr, l);
             new MIMove(q, dst3, shift3, curMB);
-        } else if (m < (2 << (N - 1))) {
+        } else if (m < ((long)1 << (N - 1))) {
             // q = SRA(MULSH(m,n),sh_post)-XSIGN(n)
             // dst1 = MULSH(m,n)
             Machine.Operand m_op = new Machine.Operand(I32, (int) m);
@@ -642,13 +643,13 @@ public class CodeGen {
             Machine.Operand dst3 = newVR();
             new MICompare(n, new Machine.Operand(I32, 0), curMB);
             new MIMove(Lt, dst3, new Machine.Operand(I32, 1), curMB);
-            new MIMove(Lt, dst3, new Machine.Operand(I32, 0), curMB);
+            new MIMove(Ge, dst3, new Machine.Operand(I32, 0), curMB);
             // q = dst2+dst3
             new MIBinary(MachineInst.Tag.Add, q, dst2, dst3, curMB);
         } else {
             // q = SRA(n+MULSH(m-2^N,n),sh_post)-XSIGN(n)
             // dst1 = MULSH(m-2^N,n)
-            Machine.Operand m_op = new Machine.Operand(I32, (int) (m - (2 << N)));
+            Machine.Operand m_op = new Machine.Operand(I32, (int) (m - ((long)(1 << N))));
             Machine.Operand dst1 = newVR();
             new MILongMul(dst1, n, m_op, curMB);
             // dst2 = n+dst1
@@ -662,7 +663,7 @@ public class CodeGen {
             Machine.Operand dst4 = newVR();
             new MICompare(n, new Machine.Operand(I32, 0), curMB);
             new MIMove(Lt, dst4, new Machine.Operand(I32, 1), curMB);
-            new MIMove(Lt, dst4, new Machine.Operand(I32, 0), curMB);
+            new MIMove(Ge, dst4, new Machine.Operand(I32, 0), curMB);
             // q = dst3+dst4
             new MIBinary(MachineInst.Tag.Add, q, dst3, dst4, curMB);
         }
@@ -680,7 +681,7 @@ public class CodeGen {
         Machine.Operand q = getVR_no_imm(instr);
         int d = ((Constant.ConstantInt) rhs).constIntVal;
         int N = 32;
-        Multiplier multiplier = chooseMultiplier(Math.abs(d), N - 1);
+        Multiplier multiplier = chooseMultiplier(Math.abs(d), N-1);
         int l = multiplier.l;
         int sh_post = multiplier.sh_post;
         long m = multiplier.m;
@@ -688,7 +689,7 @@ public class CodeGen {
             // q = n
             new MIMove(q, n, curMB);
 
-        } else if (Math.abs(d) == (2 << l)) {
+        } else if (Math.abs(d) == (1 << l)) {
             // q = SRA(n+SRL(SRA(n,l-1),N-l),l)
             // dst1 = SRA(n,l-1)
             Machine.Operand dst1 = newVR();
@@ -704,7 +705,7 @@ public class CodeGen {
             // q = SRA(dst3,l)
             Arm.Shift shift3 = new Arm.Shift(Arm.ShiftType.Asr, l);
             new MIMove(q, dst3, shift3, curMB);
-        } else if (m < (2 << (N - 1))) {
+        } else if (m < ((long)1 << (N - 1))) {
             // q = SRA(MULSH(m,n),sh_post)-XSIGN(n)
             // dst1 = MULSH(m,n)
             Machine.Operand m_op = new Machine.Operand(I32, (int) m);
@@ -718,13 +719,13 @@ public class CodeGen {
             Machine.Operand dst3 = newVR();
             new MICompare(n, new Machine.Operand(I32, 0), curMB);
             new MIMove(Lt, dst3, new Machine.Operand(I32, 1), curMB);
-            new MIMove(Lt, dst3, new Machine.Operand(I32, 0), curMB);
+            new MIMove(Ge, dst3, new Machine.Operand(I32, 0), curMB);
             // q = dst2+dst3
             new MIBinary(MachineInst.Tag.Add, q, dst2, dst3, curMB);
         } else {
             // q = SRA(n+MULSH(m-2^N,n),sh_post)-XSIGN(n)
             // dst1 = MULSH(m-2^N,n)
-            Machine.Operand m_op = new Machine.Operand(I32, (int) (m - (2 << N)));
+            Machine.Operand m_op = new Machine.Operand(I32, (int) (m - ((long)(1 << N))));
             Machine.Operand dst1 = newVR();
             new MILongMul(dst1, n, m_op, curMB);
             // dst2 = n+dst1
@@ -738,7 +739,7 @@ public class CodeGen {
             Machine.Operand dst4 = newVR();
             new MICompare(n, new Machine.Operand(I32, 0), curMB);
             new MIMove(Lt, dst4, new Machine.Operand(I32, 1), curMB);
-            new MIMove(Lt, dst4, new Machine.Operand(I32, 0), curMB);
+            new MIMove(Ge, dst4, new Machine.Operand(I32, 0), curMB);
             // q = dst3+dst4
             new MIBinary(MachineInst.Tag.Add, q, dst3, dst4, curMB);
         }

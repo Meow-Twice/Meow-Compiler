@@ -37,7 +37,13 @@ public class MICall extends MachineInst {
 
     @Override
     public void output(PrintStream os, Machine.McFunction f) {
+        if(mcFunction.mFunc.isExternal){
+            os.println("\tpush {r1,r2,r3}\t");
+        }
         os.println("\tblx\t" + mcFunction.mFunc.getName());
+        if(mcFunction.mFunc.isExternal){
+            os.println("\tpop {r1,r2,r3}\t");
+        }
     }
 
     @Override

@@ -137,8 +137,10 @@ public class CodeGen {
             curMB = bb.getMb();
             // 这里不可使用单例
             Machine.Operand rOp = new Machine.Operand(I32, 0);
-            MIBinary miBinary = new MIBinary(MachineInst.Tag.Sub, Arm.Reg.getR(sp), Arm.Reg.getR(sp), rOp, curMB);
-            miBinary.setNeedFix(STACK_FIX.VAR_STACK);
+            Machine.Operand mvDst = newVR();
+            MIMove mv = new MIMove(mvDst, rOp, curMB);
+            mv.setNeedFix(STACK_FIX.VAR_STACK);
+            new MIBinary(MachineInst.Tag.Sub, Arm.Reg.getR(sp), Arm.Reg.getR(sp), mvDst, curMB);
             if (!isMain) {
                 dealParam();
             }
@@ -254,8 +256,11 @@ public class CodeGen {
                         curMB.firstMIForBJ = new MIMove(Arm.Reg.getR(r0), retOpd, curMB);
                     }
                     Machine.Operand rOp = new Machine.Operand(I32, 0);
-                    MIBinary miBinary = new MIBinary(MachineInst.Tag.Add, Arm.Reg.getR(sp), Arm.Reg.getR(sp), rOp, curMB);
-                    miBinary.setNeedFix(STACK_FIX.VAR_STACK);
+                    Machine.Operand mvDst = newVR();
+                    MIMove mv = new MIMove(mvDst, rOp, curMB);
+                    mv.setNeedFix(STACK_FIX.VAR_STACK);
+                    new MIBinary(MachineInst.Tag.Add, Arm.Reg.getR(sp), Arm.Reg.getR(sp), mvDst, curMB);
+                    // miBinary.setNeedFix(STACK_FIX.VAR_STACK);
                     new MIReturn(curMB);
                 }
                 case zext -> {
@@ -279,7 +284,9 @@ public class CodeGen {
                     Machine.Operand addr = getVR_no_imm(allocInst);
                     Machine.Operand spReg = Arm.Reg.getR(sp);
                     Machine.Operand offset = new Machine.Operand(I32, curMachineFunc.getVarStack());
-                    new MIBinary(MachineInst.Tag.Add, addr, spReg, offset, curMB);
+                    Machine.Operand mvDst = newVR();
+                    new MIMove(mvDst, offset, curMB);
+                    new MIBinary(MachineInst.Tag.Add, addr, spReg, mvDst, curMB);
                     // 栈空间移位
                     curMachineFunc.addVarStack(((Type.ArrayType) contentType).getFlattenSize() * 4);
                 }
@@ -467,15 +474,21 @@ public class CodeGen {
                             throw new AssertionError("Callee is null");
                         }
                         // assert callMcFunc != null;
-                        Machine.Operand rOp = new Machine.Operand(I32, 0);
-                        MIBinary miBinary = new MIBinary(MachineInst.Tag.Sub, Arm.Reg.getR(sp), Arm.Reg.getR(sp), rOp, curMB);
+                        Machine.Operand rOp1 = new Machine.Operand(I32, 0);
+                        Machine.Operand mvDst1 = newVR();
+                        MIMove mv1 = new MIMove(mvDst1, rOp1, curMB);
+                        mv1.setNeedFix(callMcFunc, STACK_FIX.ONLY_PARAM);
+                        new MIBinary(MachineInst.Tag.Sub, Arm.Reg.getR(sp), Arm.Reg.getR(sp), mvDst1, curMB);
                         // 设置一个boolean表示需要修复方便output .S时及时修复
-                        miBinary.setNeedFix(callMcFunc, STACK_FIX.ONLY_PARAM);
+                        // miBinary.setNeedFix(callMcFunc, STACK_FIX.ONLY_PARAM);
                         // call
                         new MICall(callMcFunc, curMB);
-                        rOp = new Machine.Operand(I32, 0);
-                        miBinary = new MIBinary(MachineInst.Tag.Add, Arm.Reg.getR(sp), Arm.Reg.getR(sp), rOp, curMB);
-                        miBinary.setNeedFix(callMcFunc, STACK_FIX.ONLY_PARAM);
+                        Machine.Operand rOp2 = new Machine.Operand(I32, 0);
+                        Machine.Operand mvDst2 = newVR();
+                        MIMove mv2 = new MIMove(mvDst2, rOp2, curMB);
+                        mv2.setNeedFix(callMcFunc, STACK_FIX.ONLY_PARAM);
+                        new MIBinary(MachineInst.Tag.Add, Arm.Reg.getR(sp), Arm.Reg.getR(sp), mvDst2, curMB);
+                        // miBinary.setNeedFix(callMcFunc, STACK_FIX.ONLY_PARAM);
 
                     }
                     // 这行是取返回值
@@ -536,14 +549,6 @@ public class CodeGen {
         MachineInst.Tag tag = MachineInst.Tag.map.get(instr.getOp());
         Value lhs = instr.getRVal1();
         Value rhs = instr.getRVal2();
-        if (true) {
-            Machine.Operand lVR = getVR_may_imm(lhs);
-            Machine.Operand rVR = getVR_may_imm(rhs);
-            // instr不可能是Constant
-            Machine.Operand dVR = getVR_no_imm(instr);
-            MIBinary m = new MIBinary(tag, dVR, lVR, rVR, curMB);
-            return;
-        }
         if (tag == MachineInst.Tag.Mod) {
             Machine.Operand q = getVR_no_imm(instr);
             // q = a%b = a-(a/b)*b
@@ -551,11 +556,11 @@ public class CodeGen {
             Machine.Operand a = getVR_may_imm(lhs);
             Machine.Operand b = getVR_may_imm(rhs);
             Machine.Operand dst1 = newVR();
-            if (rhs.isConstantInt()) {
-                divOptimize_mod(lhs, rhs, dst1);
-            } else {
-                new MIBinary(MachineInst.Tag.Div, dst1, a, b, curMB);
-            }
+            // if (rhs.isConstantInt()) {
+            //     divOptimize_mod(lhs, rhs, dst1);
+            // } else {
+            new MIBinary(MachineInst.Tag.Div, dst1, a, b, curMB);
+            // }
             // dst2 = dst1*b
             Machine.Operand dst2 = newVR();
             new MIBinary(MachineInst.Tag.Mul, dst2, dst1, b, curMB);
@@ -563,6 +568,14 @@ public class CodeGen {
             new MIBinary(MachineInst.Tag.Sub, q, a, dst2, curMB);
             return;
 
+        }
+        if (true) {
+            Machine.Operand lVR = getVR_may_imm(lhs);
+            Machine.Operand rVR = getVR_may_imm(rhs);
+            // instr不可能是Constant
+            Machine.Operand dVR = getVR_no_imm(instr);
+            MIBinary m = new MIBinary(tag, dVR, lVR, rVR, curMB);
+            return;
         }
         // div+mode optimize
         //这里需要确定一下lhs不是浮点类型

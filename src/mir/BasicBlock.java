@@ -3,6 +3,7 @@ package mir;
 import frontend.Visitor;
 import lir.Machine;
 import midend.CloneInfoMap;
+import midend.OutParam;
 import mir.type.Type;
 
 import java.util.ArrayList;
@@ -13,6 +14,7 @@ import java.util.Objects;
  * 基本块, 具有标签名属性, 内部的代码以链表形式组织
  */
 public class BasicBlock extends Value {
+
     private static final boolean ENABLE_DEBUG = true;
     private Function function;
 //    private ILinkNode head = new EmptyNode();
@@ -56,6 +58,10 @@ public class BasicBlock extends Value {
     public void setLoopStart() {
         isLoopHeader = true;
         loop.setHeader(this);
+    }
+
+    public void setLoopHeader() {
+        isLoopHeader = true;
     }
 
     public void setLoopEntering() {
@@ -119,6 +125,9 @@ public class BasicBlock extends Value {
         init();
         this.loop = loop;
         this.label = "b" + (++bb_count);
+        if (bb_count == 275) {
+            System.err.println("err_275");
+        }
         this.function = function;
         begin.setNext(end);
         end.setPrev(begin);
@@ -136,6 +145,19 @@ public class BasicBlock extends Value {
         this.function = function;
         function.insertAtBegin(this);
         loop.addBB(this);
+    }
+
+    //在循环展开的时候,维护BB的循环信息
+    public void modifyLoop(Loop loop) {
+        this.loop = loop;
+        loop.addBB(this);
+        //展开后的部分,在原来的父循环中,只是基本的循环内部块
+        //
+        isLoopHeader = false;
+        isLoopEntering = false;
+        isLoopExiting = false;
+        isLoopLatch = false;
+        isExit = false;
     }
 
 
@@ -251,7 +273,10 @@ public class BasicBlock extends Value {
             ArrayList<BasicBlock> oldPres = this.precBBs;
             ArrayList<BasicBlock> newPres = precBBs;
             if (oldPres.size() == newPres.size() && getBeginInstr() instanceof Instr.Phi) {
-                System.err.println("err");
+                assert false;
+            }
+            if (label.equals("b242")) {
+                System.err.println("b242_BB_279");
             }
             simplyPhi(oldPres, newPres);
             this.precBBs = precBBs;
@@ -320,8 +345,67 @@ public class BasicBlock extends Value {
 
     @Override
     public String toString() {
-        return this.label + ":\t\t\t\t\t; loopDepth: " + loop.loopDepth + ";\t" + loop;
+        if (OutParam.ONLY_OUTPUT_PRE_SUC) {
+            String rett = this.getLabel() + "       ;";
+            rett += "pres: ";
+            for (BasicBlock bb : precBBs) {
+                rett += bb.getLabel() + " ";
+            }
+
+            rett += "; sucs: ";
+            for (BasicBlock bb : succBBs) {
+                rett += bb.getLabel() + " ";
+            }
+            return rett;
+        }
+
+        if (!OutParam.BB_NEED_CFG_INFO) {
+            if (OutParam.BB_NEED_LOOP_INFO) {
+                if (isLoopHeader) {
+                    return this.label + loop.infoString();
+                }
+                return this.label;
+            }
+            return this.label;
+        }
+        //return this.label + ":\t\t\t\t\t; loopDepth: " + loop.loopDepth + ";\t" + loop;
+        String ret = this.getLabel() + "\n";
+        ret += "pres: ";
+        for (BasicBlock bb: precBBs) {
+            ret += bb.getLabel() + " ";
+        }
+        ret += "\n";
+
+        ret += "sucs: ";
+        for (BasicBlock bb: succBBs) {
+            ret += bb.getLabel() + " ";
+        }
+        ret += "\n";
+
+        ret += "doms: ";
+        for (BasicBlock bb: doms) {
+            ret += bb.getLabel() + " ";
+        }
+        ret += "\n";
+
+        ret += "idoms: ";
+        for (BasicBlock bb: idoms) {
+            ret += bb.getLabel() + " ";
+        }
+        ret += "\n";
+
+        ret += "DF: ";
+        for (BasicBlock bb: DF) {
+            ret += bb.getLabel() + " ";
+        }
+        ret += "\n";
+
+        if (isLoopHeader) {
+            //return this.label + loop.infoString();
+            return ret + loop.infoString();
+        }
         //return this.label;
+        return ret;
     }
 
     private Machine.Block mb = null;
@@ -337,10 +421,18 @@ public class BasicBlock extends Value {
         return loop;
     }
 
+    public void setLoop(Loop loop) {
+        this.loop = loop;
+    }
+
     //把当前BB复制到指定函数
+    //br外提的时候使用
     public BasicBlock cloneToFunc(Function function) {
         // 是循环内的BB, 复制的时候,
         // 先创建新的循环, 然后把BB塞到新的loop里面
+        if (label.equals("b174")) {
+            System.err.println("ERR_174");
+        }
         Loop srcLoop = this.loop;
         Loop tagLoop = CloneInfoMap.loopMap.containsKey(srcLoop)?
                 CloneInfoMap.getReflectedLoop(srcLoop):
@@ -357,9 +449,18 @@ public class BasicBlock extends Value {
         Instr instr = this.getBeginInstr();
         while (instr.getNext() != null) {
             Instr tmp = instr.cloneToBB(ret);
-            if (instr.isInWhileCond()) {
-                tmp.setLoopCondCount(++Visitor.VISITOR.curLoopCondCount);
+            if (instr.isInLoopCond()) {
+                tmp.setInLoopCond();
             }
+            if (instr.isCond()) {
+                int srcCnt = instr.getCondCount();
+                int tagCnt = CloneInfoMap.loopCondCntMap.containsKey(srcCnt) ?
+                        CloneInfoMap.getLoopCondCntReflect(srcCnt) :
+                        ++Visitor.VISITOR.curLoopCondCount;
+                CloneInfoMap.addLoopCondCntReflect(srcCnt, tagCnt);
+                tmp.setCondCount(tagCnt);
+            }
+
             instr = (Instr) instr.getNext();
         }
 //        Instr retInstr = ret.getBeginInstr();
@@ -403,13 +504,28 @@ public class BasicBlock extends Value {
         tagLoop.addBB(ret);
         if (this.isLoopHeader) {
             tagLoop.setHeader(ret);
+            ret.setLoopHeader();
         }
         Instr instr = this.getBeginInstr();
         while (instr.getNext() != null) {
             Instr tmp = instr.cloneToBB(ret);
-            if (instr.isInWhileCond()) {
-                tmp.setLoopCondCount(++Visitor.VISITOR.curLoopCondCount);
+//            if (instr.isInWhileCond()) {
+//                tmp.setLoopCondCount(++Visitor.VISITOR.curLoopCondCount);
+//            }
+            //loopCondCount的映射,记录在CloneInfoMap中
+            if (ret.getLoopDep() > 0) {
+                //tmp.setLoopCondCount(++Visitor.VISITOR.curLoopCondCount);
+                tmp.setInLoopCond();
             }
+            if (instr.isCond()) {
+                int srcCnt = instr.getCondCount();
+                int tagCnt = CloneInfoMap.loopCondCntMap.containsKey(srcCnt) ?
+                        CloneInfoMap.getLoopCondCntReflect(srcCnt) :
+                        ++Visitor.VISITOR.curLoopCondCount;
+                CloneInfoMap.addLoopCondCntReflect(srcCnt, tagCnt);
+                tmp.setCondCount(tagCnt);
+            }
+
             instr = (Instr) instr.getNext();
         }
 //        Instr retInstr = ret.getBeginInstr();
@@ -420,6 +536,44 @@ public class BasicBlock extends Value {
         return ret;
     }
 
+    //循环展开的时候,复制bb
+    public BasicBlock cloneToFunc_LUR(Function function) {
+        Loop tagLoop = getLoop();
+        BasicBlock ret = new BasicBlock(function, tagLoop);
+        CloneInfoMap.addValueReflect(this, ret);
+        Instr instr = this.getBeginInstr();
+        while (instr.getNext() != null) {
+            Instr tmp = instr.cloneToBB(ret);
+            if (instr.isInLoopCond()) {
+                tmp.setInLoopCond();
+            }
+            if (instr.isCond()) {
+                int srcCnt = instr.getCondCount();
+                int tagCnt = CloneInfoMap.loopCondCntMap.containsKey(srcCnt) ?
+                        CloneInfoMap.getLoopCondCntReflect(srcCnt) :
+                        ++Visitor.VISITOR.curLoopCondCount;
+                CloneInfoMap.addLoopCondCntReflect(srcCnt, tagCnt);
+                tmp.setCondCount(tagCnt);
+            }
+
+            instr = (Instr) instr.getNext();
+        }
+        return ret;
+    }
+
+    public void fixPreSuc(BasicBlock oldBB) {
+        ArrayList<BasicBlock> pres = new ArrayList<>();
+        for (BasicBlock pre: oldBB.getPrecBBs()) {
+            pres.add((BasicBlock) CloneInfoMap.getReflectedValue(pre));
+        }
+        modifyPres(pres);
+
+        ArrayList<BasicBlock> succs = new ArrayList<>();
+        for (BasicBlock succ: oldBB.getSuccBBs()) {
+            succs.add((BasicBlock) CloneInfoMap.getReflectedValue(succ));
+        }
+        modifySucs(succs);
+    }
 
 
     public void fix() {
@@ -436,6 +590,14 @@ public class BasicBlock extends Value {
 
     public void modifySuc(BasicBlock old, BasicBlock now) {
         succBBs.set(succBBs.indexOf(old), now);
+    }
+
+    public void modifyPres(ArrayList<BasicBlock> precBBs) {
+        this.precBBs = precBBs;
+    }
+
+    public void modifySucs(ArrayList<BasicBlock> succBBs) {
+        this.succBBs = succBBs;
     }
 
     public void addPre(BasicBlock add) {
@@ -468,5 +630,39 @@ public class BasicBlock extends Value {
             }
         }
         return true;
+    }
+
+    //修改转跳和前驱后继关系
+    //仅在LoopUnRoll中使用
+    //this(entering) -> A(Head) -> B
+
+    //同时维护了B的前驱
+    public void modifySucAToB(BasicBlock A, BasicBlock B) {
+        Instr instr = getEndInstr();
+        if (instr instanceof Instr.Branch) {
+            int index = instr.getUseValueList().indexOf(A);
+            instr.modifyUse(B, index);
+        } else {
+            instr.modifyUse(B, 0);
+        }
+        this.modifySuc(A, B);
+        B.modifyPre(A, this);
+    }
+
+    public void modifyBrAToB(BasicBlock A, BasicBlock B) {
+        Instr instr = getEndInstr();
+        if (instr instanceof Instr.Branch) {
+            int index = instr.getUseValueList().indexOf(A);
+            instr.modifyUse(B, index);
+        } else {
+            instr.modifyUse(B, 0);
+        }
+    }
+
+    public void modifyBrToJump(BasicBlock next) {
+        Instr.Jump jump = new Instr.Jump(next, this);
+        Instr instr = getEndInstr();
+        instr.remove();
+        insertAtEnd(jump);
     }
 }

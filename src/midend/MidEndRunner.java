@@ -39,6 +39,8 @@ public class MidEndRunner {
 
         Pass();
 
+
+        //BrOptimize();
         loopOptimize();
 
 
@@ -46,12 +48,15 @@ public class MidEndRunner {
         BranchOptimize branchOptimize = new BranchOptimize(functions);
         branchOptimize.Run();
 
+        //前驱后继关系已经维护
+        //拆分MakeCFG
         reMakeCFGAndLoopInfo();
 
         Pass();
 
         MathOptimize mathOptimize = new MathOptimize(functions);
         mathOptimize.Run();
+
 
 
 
@@ -83,17 +88,56 @@ public class MidEndRunner {
 
     //循环优化
     private void loopOptimize() {
+        //outputLLVM();
+
         LoopInfo loopInfo = new LoopInfo(functions);
         loopInfo.Run();
 
         LCSSA lcssa = new LCSSA(functions);
         lcssa.Run();
 
+        //outputLLVM();
+
         BranchLift branchLift = new BranchLift(functions);
         branchLift.Run();
+//
+//        outputLLVM();
 
         reMakeCFGAndLoopInfo();
+
+        Pass();
+
+//        LoopInfo loopInfo1 = new LoopInfo(functions);
+//        loopInfo1.Run();
+
+        // TODO:获取迭代变量idcVar的相关信息
+        LoopIdcVarInfo loopIdcVarInfo = new LoopIdcVarInfo(functions);
+        loopIdcVarInfo.Run();
 //
+////        // TODO:循环展开
+        LoopUnRoll loopUnRoll = new LoopUnRoll(functions);
+        loopUnRoll.Run();
+
+        reMakeCFGAndLoopInfo();
+
+        Pass();
+
+        // TODO:循环融合
+
+        // TODO:强度削弱
+        // a = b * i + c; i = i + d
+        // a = b * init + c; a = a + bd; i = i + d
+        //
+    }
+
+    private void BrOptimize() {
+        BranchOptimize branchOptimize = new BranchOptimize(functions);
+        branchOptimize.Run();
+
+        //前驱后继关系已经维护
+        //拆分MakeCFG
+        reMakeCFGAndLoopInfo();
+
         Pass();
     }
 
@@ -101,7 +145,6 @@ public class MidEndRunner {
         try {
             Manager.MANAGER.outputLLVM();
         } catch (Exception e) {
-
 
         }
     }

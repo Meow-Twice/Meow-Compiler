@@ -46,12 +46,27 @@ public class LCSSA {
         }
     }
 
+    private void addDef(HashSet<Instr> defs, Instr instr) {
+        if (defs.contains(instr)) {
+            return;
+        }
+        defs.add(instr);
+        if (instr instanceof Instr.Phi) {
+            for (Value value: instr.getUseValueList()) {
+                if (value instanceof Instr) {
+                    defs.add((Instr) value);
+                }
+            }
+        }
+    }
+
     private void addPhiAtExitBB(Value value, BasicBlock bb, Loop loop) {
         ArrayList<Value> optionalValues = new ArrayList<>();
         for (int i = 0; i < bb.getPrecBBs().size(); i++) {
             optionalValues.add(value);
         }
         Instr.Phi phi = new Instr.Phi(value.getType(), optionalValues, bb);
+        //Instr.Phi phi = new Instr.Phi(value.getType(), optionalValues, bb, true);
         //TODO:ReName
 //        HashSet<BasicBlock> domBB = getDomBB(bb);
 //        Use use = value.getBeginUse();
@@ -65,27 +80,52 @@ public class LCSSA {
         HashMap<Instr, Integer> useInstrMap = new HashMap<>();
         HashSet<Instr> defInstrs = new HashSet<>();
         Stack<Value> S = new Stack<>();
-        defInstrs.add(phi);
-        defInstrs.add((Instr) value);
+        //defInstrs.add(phi);
+        //defInstrs.add((Instr) value);
+        addDef(defInstrs, phi);
+        addDef(defInstrs, (Instr) value);
         Use use = value.getBeginUse();
         while (use.getNext() != null) {
             Instr user = use.getUser();
             BasicBlock userBB = user.parentBB();
+            //fixme:time 07-18-00:15 考虑正确性
             //PHI对其的使用其实是在PHI的前驱对它的使用
             //与GCM的scheduleLate采用同一思想
+            //对于正常的PHI不能重新计算到达定义,因为有些定义已经没有了
+            //初始化S?
+//            if (user instanceof Instr.Phi) {
+//                if (!user.equals(phi)) {
+//                    use = (Use) use.getNext();
+//                    continue;
+//                }
+//            }
+//
+//            useInstrMap.put(use.getUser(), use.getIdx());
+
             if (user instanceof Instr.Phi) {
-                if (!user.equals(phi)) {
+                if (userBB.getLoop().equals(loop)) {
                     use = (Use) use.getNext();
                     continue;
                 }
             }
-//            if (!userBB.getLoop().equals(loop)) {
-//                useInstrMap.put(use.getUser(), use.getIdx());
-//            }
-            useInstrMap.put(use.getUser(), use.getIdx());
+
+            if (user instanceof Instr.Phi) {
+                int index = use.getIdx();
+                userBB = userBB.getPrecBBs().get(index);
+            }
+            if (!userBB.getLoop().equals(loop)) {
+                useInstrMap.put(use.getUser(), use.getIdx());
+            }
+
+            //useInstrMap.put(use.getUser(), use.getIdx());
             use = (Use) use.getNext();
         }
+//        for (int i = 0; i < bb.getPrecBBs().size(); i++) {
+//            useInstrMap.put(phi, i);
+//        }
+        useInstrMap.put(phi, -1);
         RenameDFS(S, bb.getFunction().getBeginBB(), useInstrMap, defInstrs);
+        //RenameDFS(S, bb.getLoop().getHeader(), useInstrMap, defInstrs);
     }
 
     public void RenameDFS(Stack<Value> S, BasicBlock X, HashMap<Instr, Integer> useInstrMap, HashSet<Instr> defInstrs) {
@@ -111,7 +151,12 @@ public class LCSSA {
                     break;
                 }
                 if (useInstrMap.containsKey(instr)) {
-                    instr.modifyUse(getStackTopValue(S), bb.getPrecBBs().indexOf(X));
+                    if (useInstrMap.get(instr) == -1) {
+                        instr.modifyUse(getStackTopValue(S), bb.getPrecBBs().indexOf(X));
+                    } else if (bb.getPrecBBs().indexOf(X) == useInstrMap.get(instr)) {
+                        instr.modifyUse(getStackTopValue(S), useInstrMap.get(instr));
+                    }
+                    //instr.modifyUse(getStackTopValue(S), bb.getPrecBBs().indexOf(X));
                 }
                 instr = (Instr) instr.getNext();
             }

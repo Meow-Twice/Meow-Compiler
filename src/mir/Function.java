@@ -1,6 +1,7 @@
 package mir;
 import manage.Manager;
 import midend.CloneInfoMap;
+import midend.OutParam;
 import mir.type.Type;
 import util.ILinkNode;
 
@@ -188,7 +189,11 @@ public class Function extends Value {
             ILinkNode node = block.getEntry();
             body.append(block).append(":\n");
             while (node.hasNext()) {
-                body.append("  ").append(node).append("\n");
+                if (OutParam.COND_CNT_DEBUG_FOR_LC) {
+                    body.append("  ").append(node).append("     ").append(((Instr) node).getCondCount()).append(" ").append(((Instr) node).isInLoopCond()).append("\n");
+                } else {
+                    body.append("  ").append(node).append("\n");
+                }
                 if (node instanceof Instr.Branch) {
                     BasicBlock thenBlock = ((Instr.Branch) node).getThenTarget();
                     BasicBlock elseBlock = ((Instr.Branch) node).getElseTarget();

@@ -117,6 +117,7 @@ public class FuncInline {
     }
 
     private void transCallToFunc(Function function, Instr.Call call) {
+        CloneInfoMap.clear();
         Function inFunction = call.parentBB().getFunction();
         BasicBlock beforeCallBB = call.parentBB();
         Instr instr = beforeCallBB.getBeginInstr();
@@ -131,7 +132,8 @@ public class FuncInline {
 
         BasicBlock retBB = new BasicBlock(inFunction, beforeCallBB.getLoop());
         if (!function.getRetType().isVoidType()) {
-            Instr retPhi = new Instr.Phi(call.getType(), new ArrayList<>(), retBB);
+            //Instr retPhi = new Instr.Phi(call.getType(), new ArrayList<>(), retBB);
+            Instr retPhi = new Instr.Phi(function.getRetType(), new ArrayList<>(), retBB);
             instr.modifyAllUseThisToUseA(retPhi);
         }
 

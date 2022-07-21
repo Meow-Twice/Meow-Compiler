@@ -10,6 +10,7 @@ import java.util.HashSet;
 public class CloneInfoMap {
 
     public static HashMap<Loop, Loop> loopMap = new HashMap<>();
+    public static HashMap<Integer, Integer> loopCondCntMap = new HashMap<>();
     public static HashMap<Value, Value> valueMap = new HashMap<>();
     //public static HashSet<BasicBlock> bbNeedFix = new HashSet<>();
 
@@ -27,6 +28,18 @@ public class CloneInfoMap {
             return loopMap.get(loop);
         } else {
             return loop;
+        }
+    }
+
+    public static void addLoopCondCntReflect(Integer src, Integer tag) {
+        loopCondCntMap.put(src, tag);
+    }
+
+    public static Integer getLoopCondCntReflect(Integer cnt) {
+        if (loopCondCntMap.containsKey(cnt)) {
+            return loopCondCntMap.get(cnt);
+        } else {
+            return cnt;
         }
     }
 
@@ -48,5 +61,11 @@ public class CloneInfoMap {
 //    public static void rmBBNeedFix(BasicBlock bb) {
 //        bbNeedFix.remove(bb);
 //    }
+
+    public static void clear() {
+        loopMap.clear();
+        loopCondCntMap.clear();
+        valueMap.clear();
+    }
 
 }

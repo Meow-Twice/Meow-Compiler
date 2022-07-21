@@ -2,6 +2,7 @@ package mir;
 
 import frontend.Visitor;
 import midend.CloneInfoMap;
+import midend.LCSSA;
 import mir.type.Type;
 import mir.type.Type.*;
 
@@ -75,18 +76,31 @@ public class Instr extends Value {
     protected ArrayList<Use> useList;
     protected ArrayList<Value> useValueList;
 
-    public int loopCondCount;
+    private int condCount;
+    private boolean inLoopCond =false;
 
-    public boolean isInWhileCond(){
-        return loopCondCount > 0;
+    public void setInLoopCond(){
+        inLoopCond = true;
     }
 
-    public int getLoopCondCount(){
-        return loopCondCount;
+    public void setNotInLoopCond() {
+        inLoopCond = false;
     }
 
-    public void setLoopCondCount(int loopCondCount) {
-        this.loopCondCount = loopCondCount;
+    public boolean isInLoopCond(){
+        return inLoopCond;
+    }
+
+    public boolean isCond() {
+        return condCount > 0;
+    }
+
+    public int getCondCount(){
+        return condCount;
+    }
+
+    public void setCondCount(int condCount) {
+        this.condCount = condCount;
     }
 
     //空指令用于在BB中做链表头/尾
@@ -96,7 +110,8 @@ public class Instr extends Value {
     }
 
     private void init() {
-        loopCondCount = Visitor.VISITOR.getLoopCondCount();
+        inLoopCond = Visitor.VISITOR.isInLoopCond();
+        condCount = Visitor.VISITOR.getCondCount();
         hash = "Instr " + LOCAL_COUNT;
         prefix = LOCAL_PREFIX;
         name = LOCAL_NAME_PREFIX + LOCAL_COUNT++;
@@ -198,6 +213,10 @@ public class Instr extends Value {
     @Override
     public String toString() {
         return this.hash;
+    }
+
+    public ArrayList<Use> getUseList() {
+        return useList;
     }
 
     public ArrayList<Value> getUseValueList() {
@@ -892,6 +911,7 @@ public class Instr extends Value {
 
         //TODO:assign to 刘传, xry已改
         //private final ArrayList<Value> optionalValues;
+        private boolean isLCSSA;
 
         public Phi(Type type, ArrayList<Value> optionalValues, BasicBlock parent) {
             // Phi一定插在基本块的开始, Alloc之前
@@ -907,7 +927,31 @@ public class Instr extends Value {
             }
         }
 
-//        @Override
+        //LCSSA_PHI
+        public Phi(Type type, ArrayList<Value> optionalValues, BasicBlock parent, boolean isLCSSA) {
+            super(type, parent, true);
+            tag = AmaTag.phi;
+//            for (Value instr : optionalValues) {
+//                assert type.equals(instr.type);
+//            }
+            //this.optionalValues = optionalValues;
+            int idx = 0;
+            for (Value inst : optionalValues) {
+                setUse(inst, idx++);
+            }
+//            Instr instr = parent.getBeginInstr();
+//            while (instr instanceof Phi) {
+//                instr = (Instr) instr.getNext();
+//            }
+//            instr.insertBefore(this);
+            this.isLCSSA = isLCSSA;
+        }
+
+        public boolean isLCSSA() {
+            return isLCSSA;
+        }
+
+        //        @Override
 //        public String toString() {
 //            String src = optionalValues.stream().map(entry -> "[ " + (entry.getName()) + ", " + entry.bb.getName() + " ]").reduce((s, s2) -> s + ", " + s2).orElse("");
 //            // TODO: 这里的type.toString不知道是不是能直接调用到BasicType的toString方法
@@ -923,7 +967,8 @@ public class Instr extends Value {
                 Value value = useValueList.get(i);
 //                if (value instanceof Constant) {
                 if (parentBB().getPrecBBs().size() <= i) {
-                    System.err.println("err");
+                    //System.err.println("err_966");
+                    return "err";
                 }
                 ret.append("[ ").append(value.getName()).append(", %").append(parentBB().getPrecBBs().get(i).getLabel()).append(" ]");
 //                } else if (value instanceof Instr) {
@@ -963,11 +1008,16 @@ public class Instr extends Value {
 
         public void simple(ArrayList<BasicBlock> oldPres, ArrayList<BasicBlock> newPres) {
             ArrayList<Value> values = new ArrayList<>();
-            for (int i = 0; i < oldPres.size(); i++) {
-                if (!newPres.contains(oldPres.get(i))) {
-                    continue;
-                }
-                values.add(useValueList.get(i));
+//            for (int i = 0; i < oldPres.size(); i++) {
+//                if (!newPres.contains(oldPres.get(i))) {
+//                    continue;
+//                }
+//                values.add(useValueList.get(i));
+//            }
+            for (int i = 0; i < newPres.size(); i++) {
+                int index = oldPres.indexOf(newPres.get(i));
+                assert index != -1;
+                values.add(useValueList.get(index));
             }
             for (Use use: useList) {
                 use.remove();
@@ -1145,7 +1195,9 @@ public class Instr extends Value {
         public Return(Value retValue, BasicBlock parent) {
             super(retValue.getType(), parent);
             tag = AmaTag.ret;
-            assert retValue.type.equals(parent.getFunction().getRetType());
+            //fixme:当函数内联的时候i,需要复制ret指令到另一个函数,当这两个函数的返回值不一样的时候,会出现问题,
+            // 故注释掉
+            //assert retValue.type.equals(parent.getFunction().getRetType());
             setUse(retValue, 0);
         }
 

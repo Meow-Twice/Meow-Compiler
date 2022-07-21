@@ -259,7 +259,7 @@ public class Function extends Value {
 
     @Override
     public String getName() {
-        return this.name;
+        return (isTimeFunc ? "_sysy_" : "") + name;
     }
 
     public ArrayList<Param> getParams() {

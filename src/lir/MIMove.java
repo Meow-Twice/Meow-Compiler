@@ -98,10 +98,7 @@ public class MIMove extends MachineInst {
             if (src.isGlobPtr()) {
                 os.println("\tmovw" + cond + "\t" + getDst() + ",\t:lower16:" + src.getGlob());
                 os.println("\tmovt" + cond + "\t" + getDst() + ",\t:upper16:" + src.getGlob());
-                // os.println("\tldr" + cond + "\t" + getDst() + ",\t[" +  getDst() + ",\t#0]");
                 //os.println("\tldr" + cond + "\t" + getDst().toString() + ",=" + src.getGlob());
-                os.println("movw\t"+getDst().toString() +", #:lower16:"+src.getGlob());
-                os.println("movt\t"+getDst().toString() +", #:upper16:"+src.getGlob());
             } else {
                 int imm = getSrc().value;
                 if (encode_imm(imm)) {

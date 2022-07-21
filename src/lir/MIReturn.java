@@ -8,6 +8,7 @@ import static lir.Machine.Program.pop_output;
 public class MIReturn extends MachineInst{
     public MIReturn(Machine.Block insertAtEnd){
         super(Tag.Return,insertAtEnd);
+        useOpds.add(Arm.Reg.getR(Arm.Regs.GPRs.r0));
         // genDefUse();
     }
     // @Override

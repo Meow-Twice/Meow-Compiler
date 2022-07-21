@@ -966,13 +966,13 @@ public class TrivialRegAllocator {
             colorMap.put(v, a.isPreColored() ? a : colorMap.get(a));
         }
 
-        ArrayList<MIMove> paramAddrMvList = new ArrayList<>();
+        ArrayList<MIMove> needFixList = new ArrayList<>();
         ArrayList<MIBinary> spAddOrSubList = new ArrayList<>();
         for (Machine.Block mb : curMF.mbList) {
             for (MachineInst mi : mb.miList) {
                 if (mi.isNeedFix()) {
                     if (mi.isMove()) {
-                        paramAddrMvList.add((MIMove) mi);
+                        needFixList.add((MIMove) mi);
                     } else if (mi.isIAddOrISub()) {
                         spAddOrSubList.add((MIBinary) mi);
                     }
@@ -1009,26 +1009,26 @@ public class TrivialRegAllocator {
         }
 
         // fixStack
-        for (MIMove mv : paramAddrMvList) {
+        for (MIMove mv : needFixList) {
             Operand off = mv.getSrc();
             assert off.isImm();
-            int newOff = off.getValue() + switch (mv.getFixType()) {
-                case TOTAL_STACK -> curMF.getTotalStackSize();
+            int newOff = switch (mv.getFixType()) {
+                case TOTAL_STACK -> off.getValue() + curMF.getTotalStackSize();
+                case VAR_STACK -> curMF.getVarStack();
+                case ONLY_PARAM -> mv.getCallee().getParamStack();
                 default -> throw new AssertionError("");
             };
             mv.setSrc(new Operand(I32, newOff));
             mv.clearNeedFix();
         }
-        for (MIBinary bino : spAddOrSubList) {
-            Operand off = bino.getROpd();
-            assert off.isImm();
-            int newOff = switch (bino.getFixType()) {
-                case VAR_STACK -> curMF.getVarStack();
-                case ONLY_PARAM -> bino.getCallee().getParamStack();
-                default -> throw new AssertionError("");
-            };
-            bino.setROpd(new Operand(I32, newOff));
-            bino.clearNeedFix();
-        }
+        // for (MIBinary bino : spAddOrSubList) {
+        //     Operand off = bino.getROpd();
+        //     assert off.isImm();
+        //     int newOff = switch (bino.getFixType()) {
+        //         default -> throw new AssertionError("");
+        //     };
+        //     bino.setROpd(new Operand(I32, newOff));
+        //     bino.clearNeedFix();
+        // }
     }
 }

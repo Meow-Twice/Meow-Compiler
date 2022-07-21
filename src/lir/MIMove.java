@@ -96,6 +96,9 @@ public class MIMove extends MachineInst {
         Machine.Operand src = getSrc();
         if (src.type == Machine.Operand.Type.Immediate) {
             if (src.isGlobPtr()) {
+                os.println("\tmovw" + cond + "\t" + getDst() + ",\t:lower16:" + src.getGlob());
+                os.println("\tmovt" + cond + "\t" + getDst() + ",\t:upper16:" + src.getGlob());
+                // os.println("\tldr" + cond + "\t" + getDst() + ",\t[" +  getDst() + ",\t#0]");
                 //os.println("\tldr" + cond + "\t" + getDst().toString() + ",=" + src.getGlob());
                 os.println("movw\t"+getDst().toString() +", #:lower16:"+src.getGlob());
                 os.println("movt\t"+getDst().toString() +", #:upper16:"+src.getGlob());
@@ -109,12 +112,12 @@ public class MIMove extends MachineInst {
             */
                     os.println("\tmov" + cond + "\t" + getDst().toString() + ",\t#" + imm);
                 } else {
+                    int lowImm = (imm << 16) >>> 16;
+                    os.println("\tmovw" + cond + "\t" + getDst().toString() + ",\t#" + lowImm);
                     int highImm = imm >>> 16;
                     if (highImm != 0) {
                         os.println("\tmovt" + cond + "\t" + getDst().toString() + ",\t#" + highImm);
                     }
-                    int lowImm = (imm << 16) >>> 16;
-                    os.println("\tmovw" + cond + "\t" + getDst().toString() + ",\t#" + lowImm);
                 }
             }
         } else {

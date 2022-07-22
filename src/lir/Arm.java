@@ -1,11 +1,13 @@
 package lir;
 
-import lir.Machine;
-import lir.MachineInst;
+import frontend.semantic.Initial;
+import mir.GlobalVal;
 import mir.type.DataType;
 
-import javax.xml.crypto.Data;
-import java.util.ArrayList;
+import static lir.Machine.Operand.Type.Immediate;
+import static lir.Machine.Operand.Type.PreColored;
+import static mir.type.DataType.F32;
+import static mir.type.DataType.I32;
 
 
 public class Arm {
@@ -44,58 +46,122 @@ public class Arm {
         }
     }
 
-    public static class Reg {
+    /**
+     * 只供预着色使用
+     */
+    public static class Reg extends Machine.Operand {
         DataType dataType;
         Regs.FPRs fpr;
         Regs.GPRs gpr;
 
 
         public Reg(DataType dataType, Regs.FPRs fpr) {
+            super(PreColored, dataType);
             this.dataType = dataType;
             this.fpr = fpr;
+            this.value = fpr.ordinal();
+            reg = fpr;
         }
 
         public Reg(DataType dataType, Regs.GPRs gpr) {
+            super(PreColored, dataType);
             this.dataType = dataType;
             this.gpr = gpr;
+            this.value = gpr.ordinal();
+            reg = gpr;
         }
 
-        private static final ArrayList<Reg> gprPool = new ArrayList<>();
-        private static final ArrayList<Reg> fprPool = new ArrayList<>();
+        private static final Reg[] gprPool = new Reg[Regs.GPRs.values().length];
+        private static final Reg[] fprPool = new Reg[Regs.FPRs.values().length];
 
         static {
-            for (int i = 0; i <= 12; i++) {
-                gprPool.add(new Reg(DataType.I32, Regs.GPRs.valueOf("r" + i)));
-                fprPool.add(new Reg(DataType.F32, Regs.FPRs.valueOf("s" + i)));
+            for (Regs.GPRs gpr : Regs.GPRs.values()) {
+                gprPool[gpr.ordinal()] = new Reg(I32, gpr);
+            }
+            for (Regs.FPRs fpr : Regs.FPRs.values()) {
+                fprPool[fpr.ordinal()] = new Reg(F32, fpr);
             }
         }
 
         public static Reg getR(int i) {
-            return gprPool.get(i);
+            return gprPool[i];
         }
 
         public static Reg getR(Regs.GPRs r) {
-            return gprPool.get(r.ordinal());
+            return gprPool[r.ordinal()];
         }
 
         public static Reg getS(int i) {
-            return fprPool.get(i);
+            return fprPool[i];
         }
 
+        public static Reg getS(Regs.FPRs s) {
+            return fprPool[s.ordinal()];
+        }
 
+        public static Reg[] getGPRPool() {
+            return gprPool;
+        }
+
+        public static Reg[] getFPRPool() {
+            return fprPool;
+        }
+
+        @Override
+        public Regs getReg() {
+            return reg;
+        }
+    }
+
+    public static class Glob extends Machine.Operand {
+        public String name;
+        public GlobalVal.GlobalValue globalValue;
+        public Initial init;
+
+        public Glob(GlobalVal.GlobalValue glob) {
+            super(Immediate);
+            name = glob.name;
+            this.init = glob.initial;
+            globalValue = glob;
+        }
+
+        public String getGlob() {
+            return name;
+        }
+
+        @Override
+        public String toString() {
+            return "#" + name;
+        }
+
+        public GlobalVal.GlobalValue getGlobalValue() {
+            return globalValue;
+        }
+
+        public Initial getInit(){
+            return init;
+        }
     }
 
     public enum Cond {
         // TODO: 保证Arm.Cond与Icmp.Op, Fcmp.Op的顺序相同!!!!!!!!
         Eq("eq"),
         Ne("ne"),
-        Ge("ge"),
         Gt("gt"),
-        Le("le"),
+        Ge("ge"),
         Lt("lt"),
-        Any("!Any");
+        Le("le"),
+        Any("");
 
         Cond(String cond) {
+            name = cond;
+        }
+
+        String name;
+
+        @Override
+        public String toString() {
+            return name;
         }
     }
 
@@ -115,7 +181,7 @@ public class Arm {
 
     public enum ShiftType {
         // no shifting
-        None("!None"),
+        None(""),
         // arithmetic right
         Asr("asr"),
         // logic left
@@ -132,8 +198,9 @@ public class Arm {
     }
 
     public static class Shift {
-        ShiftType shiftType;
-        int shift;
+        public static final Shift NONE_SHIFT = new Shift();
+        public ShiftType shiftType;
+        public int shift;
 
         Shift() {
             shift = 0;
@@ -145,16 +212,19 @@ public class Arm {
             this.shift = shift;
         }
 
+        public int getShift() {
+            return shift;
+        }
+
         public String toString() {
-            String op = switch (shiftType) {
-                case Asr -> "asr";
-                case Lsl -> "lsl";
-                case Lsr -> "lsr";
-                case Ror -> "ror";
-                case Rrx -> "rrx";
-                default -> null;
+            return switch (shiftType) {
+                case Asr -> "asr #" + this.shift;
+                case Lsl -> "lsl #" + this.shift;
+                case Lsr -> "lsr #" + this.shift;
+                case Ror -> "ror #" + this.shift;
+                case Rrx -> "rrx #" + this.shift;
+                default -> "";
             };
-            return op + " #" + this.shift;
         }
     }
 }

@@ -37,8 +37,9 @@ public class FileDealer {
     //     return inputFile;
     // }
 
-    public static InputStream getInputStream(){
-        return inputStream;
+    public static BufferedInputStream getNewBufferedInputStream(InputStream in){
+        bufferedInputStream = new BufferedInputStream(in);
+        return bufferedInputStream;
     }
 
     public static void tryClearOutputString(String s){
@@ -49,8 +50,15 @@ public class FileDealer {
         tryOutputStringList.add(s);
     }
 
-    public static void outputToFile(StringBuilder strBD, String s) {
+    public static void outputToStream(StringBuilder strBD, OutputStream s) {
+        try {
+            s.write(strBD.toString().getBytes(StandardCharsets.UTF_8));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
+    public static void outputToFile(StringBuilder strBD, String s) {
         File f = new File(s);
         FileOutputStream fop = null;
         try {
@@ -78,9 +86,13 @@ public class FileDealer {
         }
     }
 
-    public BufferedInputStream getBufferedInputStream(){
-        return bufferedInputStream;
+    public static void outputClear() {
+        outputStringList.clear();
     }
+
+    // public BufferedInputStream getBufferedInputStream(){
+    //     return bufferedInputStream;
+    // }
 
     public static void addOutputString(String s){
         outputStringList.add(s);

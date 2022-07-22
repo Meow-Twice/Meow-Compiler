@@ -4,8 +4,12 @@ out
 *.MF
 *.sy
 *.ll
+*.txt
 *.s
 *.S
 *.elf
+*.in
+*.out
+*.err
 /src/test
 /src/timeTest

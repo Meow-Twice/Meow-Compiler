@@ -2,9 +2,9 @@ package manage;
 
 import frontend.semantic.Initial;
 import frontend.semantic.symbol.Symbol;
+import lir.*;
 import mir.Function;
 import mir.GlobalVal;
-import mir.Value;
 import mir.type.Type;
 import util.FileDealer;
 
@@ -27,6 +27,9 @@ public class Manager {
     public final HashMap<GlobalVal.GlobalValue, Initial> globals = new HashMap<>();
     private final HashMap<String, Function> functions = new HashMap<>(); // 函数定义
 
+    public int RK = 12;
+    public int SK = 5;
+
     public ArrayList<Function> getFunctionList() {
         ArrayList<Function> list = new ArrayList<>();
         for (Function function : functions.values()) {
@@ -38,20 +41,22 @@ public class Manager {
     }
 
     public static class ExternFunction {
-        public static final Function GET_INT = new Function("getint", new ArrayList<>(), I32_TYPE);
-        public static final Function GET_CH = new Function("getch", new ArrayList<>(), I32_TYPE);
-        public static final Function GET_FLOAT = new Function("getfloat", new ArrayList<>(), F32_TYPE);
-        public static final Function GET_ARR = new Function("getarray", wrapParam(new Type.PointerType(I32_TYPE)), I32_TYPE);
-        public static final Function GET_FARR = new Function("getfarray", wrapParam(new Type.PointerType(F32_TYPE)), I32_TYPE);
-        public static final Function PUT_INT = new Function("putint", wrapParam(I32_TYPE), Type.VoidType.getVoidType());
-        public static final Function PUT_CH = new Function("putch", wrapParam(I32_TYPE), Type.VoidType.getVoidType());
-        public static final Function PUT_FLOAT = new Function("putfloat", wrapParam(F32_TYPE), Type.VoidType.getVoidType());
-        public static final Function PUT_ARR = new Function("putarray", wrapParam(I32_TYPE, new Type.PointerType(I32_TYPE)), Type.VoidType.getVoidType());
-        public static final Function PUT_FARR = new Function("putfarray", wrapParam(I32_TYPE, new Type.PointerType(F32_TYPE)), Type.VoidType.getVoidType());
-        public static final Function MEM_SET = new Function("memset", wrapParam(new Type.PointerType(I32_TYPE), I32_TYPE, I32_TYPE), Type.VoidType.getVoidType());
-        public static final Function START_TIME = new Function("starttime", wrapParam(I32_TYPE), Type.VoidType.getVoidType());
-        public static final Function STOP_TIME = new Function("stoptime", wrapParam(I32_TYPE), Type.VoidType.getVoidType());
+        public static final Function GET_INT = new Function(true, "getint", new ArrayList<>(), I32_TYPE);
+        public static final Function GET_CH = new Function(true, "getch", new ArrayList<>(), I32_TYPE);
+        public static final Function GET_FLOAT = new Function(true, "getfloat", new ArrayList<>(), F32_TYPE);
+        public static final Function GET_ARR = new Function(true, "getarray", wrapParam(new Type.PointerType(I32_TYPE)), I32_TYPE);
+        public static final Function GET_FARR = new Function(true, "getfarray", wrapParam(new Type.PointerType(F32_TYPE)), I32_TYPE);
+        public static final Function PUT_INT = new Function(true, "putint", wrapParam(I32_TYPE), Type.VoidType.getVoidType());
+        public static final Function PUT_CH = new Function(true, "putch", wrapParam(I32_TYPE), Type.VoidType.getVoidType());
+        public static final Function PUT_FLOAT = new Function(true, "putfloat", wrapParam(F32_TYPE), Type.VoidType.getVoidType());
+        public static final Function PUT_ARR = new Function(true, "putarray", wrapParam(I32_TYPE, new Type.PointerType(I32_TYPE)), Type.VoidType.getVoidType());
+        public static final Function PUT_FARR = new Function(true, "putfarray", wrapParam(I32_TYPE, new Type.PointerType(F32_TYPE)), Type.VoidType.getVoidType());
+        public static final Function MEM_SET = new Function(true, "memset", wrapParam(new Type.PointerType(I32_TYPE), I32_TYPE, I32_TYPE), Type.VoidType.getVoidType());
+        public static final Function START_TIME = new Function(true, "starttime", wrapParam(I32_TYPE), Type.VoidType.getVoidType());
+        public static final Function STOP_TIME = new Function(true, "stoptime", wrapParam(I32_TYPE), Type.VoidType.getVoidType());
     }
+
+    public final ArrayList<Function> externalFuncList = new ArrayList<>();
 
     private Manager() {
         external = true;
@@ -81,6 +86,7 @@ public class Manager {
 
     public void addFunction(Function function) {
         functions.putIfAbsent(function.getName(), function);
+        externalFuncList.add(function);
     }
 
     public boolean hasMainFunction() {
@@ -94,10 +100,11 @@ public class Manager {
     }
 
     public void outputLLVM(String llvmFilename) throws FileNotFoundException {
-        output(new FileOutputStream(llvmFilename + ".ll"));
+        outputLLVM(new FileOutputStream(llvmFilename + ".ll"));
     }
 
-    public void output(OutputStream out) {
+    public void outputLLVM(OutputStream out) {
+        FileDealer.outputClear();
         // 全局变量
         for (HashMap.Entry<GlobalVal.GlobalValue, Initial> entry : globals.entrySet()) {
             FileDealer.addOutputString(entry.getKey().getName() + " = dso_local global " + entry.getValue());
@@ -114,9 +121,60 @@ public class Manager {
                 continue;
             }
             if (function.hasBody()) {
-                FileDealer.addOutputString(function.getDefinition());
+                FileDealer.addOutputString(function.output());
             }
         }
+        FileDealer.outputStringList(out);
+    }
+
+    static int outputMIcnt = 0;
+
+    public void outputMI() throws FileNotFoundException {
+        outputMI("lirOutput-" + outputMIcnt++);
+    }
+
+    public static void outputMI(boolean flag) {
+        Machine.Program p = Machine.Program.PROGRAM;
+        for (Machine.McFunction mcFunc : p.funcList) {
+            System.err.println("\n");
+            System.err.println(mcFunc.mFunc.getName());
+            for (Machine.Block mb : mcFunc.mbList) {
+                System.err.println("\n");
+                System.err.println(mb.getDebugLabel());
+                for (MachineInst mi : mb.miList) {
+                    // if(mi.isCall())continue;
+                    // if(mi.isBranch())continue;
+                    // if(mi instanceof MIBinary)continue;
+                    // if(mi instanceof MILoad)continue;
+                    // if(mi instanceof MIStore)continue;
+                    // if(mi.isMove())continue;
+                    String str = mi instanceof MIComment ? "" : "\t";
+                    System.err.println(str + mi);
+                }
+            }
+        }
+    }
+
+    public void outputMI(String miFilename) throws FileNotFoundException {
+        outputMI(new FileOutputStream(miFilename + ".txt"));
+    }
+
+    public void outputMI(OutputStream out) {
+        FileDealer.outputClear();
+        Machine.Program p = Machine.Program.PROGRAM;
+        for (Machine.McFunction mcFunc : p.funcList) {
+            FileDealer.addOutputString("\n");
+            FileDealer.addOutputString(mcFunc.mFunc.getName());
+            for (Machine.Block mb : mcFunc.mbList) {
+                FileDealer.addOutputString("\n");
+                FileDealer.addOutputString(mb.getDebugLabel());
+                for (MachineInst mi : mb.miList) {
+                    String str = mi instanceof MIComment ? "" : "\t";
+                    FileDealer.addOutputString(str + mi);
+                }
+            }
+        }
+
         FileDealer.outputStringList(out);
     }
 

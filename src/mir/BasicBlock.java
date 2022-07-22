@@ -5,6 +5,7 @@ import lir.Machine;
 import midend.CloneInfoMap;
 import midend.OutParam;
 import mir.type.Type;
+import util.Ilist;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -25,6 +26,8 @@ public class BasicBlock extends Value {
 
     private Instr begin;
     private Instr end;
+
+    public Ilist<Instr> instrList = new Ilist<>();
 
     //TODO: 前驱和后继相关方法
     private ArrayList<BasicBlock> precBBs;//前驱
@@ -117,6 +120,8 @@ public class BasicBlock extends Value {
         this.label = "EMPTY_BB" + (empty_bb_cnt++);
         begin.setNext(end);
         end.setPrev(begin);
+        instrList.tail = end;
+        instrList.head = begin;
     }
 
     // 自动命名基本块, 从 "b1" 开始
@@ -131,6 +136,8 @@ public class BasicBlock extends Value {
         this.function = function;
         begin.setNext(end);
         end.setPrev(begin);
+        instrList.tail = end;
+        instrList.head = begin;
         if (ENABLE_DEBUG) {
             System.err.println("new Basic block (" + label + ")");
         }
@@ -409,11 +416,12 @@ public class BasicBlock extends Value {
     }
 
     private Machine.Block mb = null;
+
     public void setMB(Machine.Block mb) {
         this.mb = mb;
     }
 
-    public Machine.Block getMb(){
+    public Machine.Block getMb() {
         return mb;
     }
 
@@ -434,8 +442,8 @@ public class BasicBlock extends Value {
             System.err.println("ERR_174");
         }
         Loop srcLoop = this.loop;
-        Loop tagLoop = CloneInfoMap.loopMap.containsKey(srcLoop)?
-                CloneInfoMap.getReflectedLoop(srcLoop):
+        Loop tagLoop = CloneInfoMap.loopMap.containsKey(srcLoop) ?
+                CloneInfoMap.getReflectedLoop(srcLoop) :
                 new Loop(CloneInfoMap.getReflectedLoop(loop.getParentLoop()));
         tagLoop.setFunc(function);
         CloneInfoMap.addLoopReflect(srcLoop, tagLoop);
@@ -619,12 +627,12 @@ public class BasicBlock extends Value {
     }
 
     private boolean arrayEq(ArrayList<BasicBlock> src, ArrayList<BasicBlock> tag) {
-        for (BasicBlock bb: src) {
+        for (BasicBlock bb : src) {
             if (!tag.contains(bb)) {
                 return false;
             }
         }
-        for (BasicBlock bb: tag) {
+        for (BasicBlock bb : tag) {
             if (!src.contains(bb)) {
                 return false;
             }

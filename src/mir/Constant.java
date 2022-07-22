@@ -34,7 +34,7 @@ public class Constant extends Value {
     }
 
     public static class ConstantInt extends Constant {
-        int constIntVal;
+        public  int constIntVal;
 
         private static final HashMap<Integer, ConstantInt> constIntMap = new HashMap<>();
         public static final ConstantInt CONST_0/* = new ConstantInt(0)*/;

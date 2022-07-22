@@ -4,6 +4,7 @@ import midend.CloneInfoMap;
 import midend.OutParam;
 import mir.type.Type;
 import util.ILinkNode;
+import util.Ilist;
 
 import java.util.*;
 
@@ -12,6 +13,12 @@ import java.util.*;
  */
 public class Function extends Value {
     private final String name;
+
+    boolean isCaller = true;
+
+    public boolean hasCall() {
+        return isCaller;
+    }
 
     private boolean isDeleted = false;
 
@@ -56,7 +63,7 @@ public class Function extends Value {
         }
 
         @Override
-        public Type getType(){
+        public Type getType() {
             return type;
         }
 
@@ -66,7 +73,7 @@ public class Function extends Value {
 //    private final Type retType; // 返回值类型, 如果为 null 则表示 param
 
 
-    private Type retType;
+    private Type retType = null;
     private ArrayList<Param> params;
 
     //TODO: entry是否需要保留
@@ -75,10 +82,29 @@ public class Function extends Value {
     private BasicBlock begin;
     private BasicBlock end;
 
+    public Ilist<BasicBlock> bbList = new Ilist<>();
+
     //TODO: assign to 刘传
     private HashMap<BasicBlock, ArrayList<BasicBlock>> preMap;
     private HashMap<BasicBlock, ArrayList<BasicBlock>> sucMap;
     private HashSet<BasicBlock> BBs;
+    public boolean isExternal = false;
+
+    public Function(boolean flag, String name, ArrayList<Param> params, Type retType) {
+        this.begin = new BasicBlock();
+        this.end = new BasicBlock();
+        begin.setNext(end);
+        end.setPrev(begin);
+        this.name = name;
+        this.params = params;
+        for (Param param : params) {
+            param.parentFunc = this;
+        }
+        this.retType = retType;
+        isExternal = flag;
+        bbList.head = begin;
+        bbList.tail = end;
+    }
 
     //loop 相关信息
     private HashSet<BasicBlock> loopHeads = new HashSet<>();
@@ -95,7 +121,8 @@ public class Function extends Value {
             param.parentFunc = this;
         }
         this.retType = retType;
-
+        bbList.head = begin;
+        bbList.tail = end;
 
     }
 
@@ -104,7 +131,7 @@ public class Function extends Value {
     }
 
     public boolean hasRet() {
-        return retType != null;
+        return !retType.isVoidType();
     }
 
     //优化所需方法
@@ -221,9 +248,34 @@ public class Function extends Value {
         return "define dso_local " + getTypeStr() + " @" + name + "(" + paramList + ") {\n" + body + "}\n";
     }
 
+    public String output() {
+
+        String paramList = params.stream().map(Value::toString).reduce((s, s2) -> s + ", " + s2).orElse("");
+        StringBuilder str = new StringBuilder();
+        str.append("define dso_local ").append(getTypeStr()).append(" @").append(name).append("(").append(paramList).append(") {\n");
+        // for(ILinkNode node = getBeginBB(); !node.equals(end);node = node.getNext()){
+        //     BasicBlock bb = (BasicBlock) node;
+        //     str.append(bb).append(":\n");
+        //     for (ILinkNode instNode = bb.getBeginInstr(); !instNode.equals(bb.getEnd()); instNode = instNode.getNext()) {
+        //         // Instr inst = (Instr) instNode;
+        //         str.append("\t").append(instNode).append("\n");
+        //     }
+        // }
+        for (BasicBlock bb : bbList) {
+            str.append(bb).append(":\n");
+            for (Instr inst : bb.instrList) {
+                // Instr inst = (Instr) instNode;
+                str.append("\t").append(inst).append("\n");
+            }
+        }
+        str.append("}\n");
+
+        return str.toString();
+    }
+
     @Override
     public String getName() {
-        return this.name;
+        return (isTimeFunc ? "_sysy_" : "") + name;
     }
 
     public ArrayList<Param> getParams() {

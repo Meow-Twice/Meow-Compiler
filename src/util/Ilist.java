@@ -6,18 +6,34 @@ import java.util.Objects;
 import java.util.function.Consumer;
 
 public class Ilist<E extends ILinkNode> implements Iterable<E> {
-    public E head;
-    public E tail;
+    // 此种写法head和tail仍然是ILinkNode类
+    // public E head;
+    // public E tail;
+    // public int size = 0;
+    //
+    // public Ilist() {
+    //     head = (E) new ILinkNode();
+    //     tail = (E) new ILinkNode();
+    //     head.setNext(tail);
+    //     tail.setPrev(head);
+    //     size = 0;
+    // }
+    public ILinkNode head;
+    public ILinkNode tail;
     public int size = 0;
 
     public Ilist() {
-        head = (E) new ILinkNode();
-        tail = (E) new ILinkNode();
+        head = new ILinkNode();
+        tail = new ILinkNode();
+        head.setNext(tail);
+        tail.setPrev(head);
         size = 0;
     }
 
     public void clear() {
         size = 0;
+        head.setNext(tail);
+        tail.setPrev(head);
     }
 
     public E getBegin() {
@@ -25,12 +41,13 @@ public class Ilist<E extends ILinkNode> implements Iterable<E> {
     }
 
     public E getEnd() {
-        return (E) head.getNext();
+        return (E) tail.getPrev();
     }
 
     public void insertBefore(E node, E insertBefore) {
         node.setPrev(insertBefore.getPrev());
         node.setNext(insertBefore);
+        insertBefore.getPrev().setNext(node);
         insertBefore.setPrev(node);
         size++;
     }
@@ -38,6 +55,7 @@ public class Ilist<E extends ILinkNode> implements Iterable<E> {
     public void insertAfter(E node, E insertAfter) {
         node.setNext(insertAfter.getNext());
         node.setPrev(insertAfter);
+        insertAfter.getNext().setPrev(node);
         insertAfter.setNext(node);
         size++;
     }
@@ -45,13 +63,15 @@ public class Ilist<E extends ILinkNode> implements Iterable<E> {
     public void insertAtEnd(E node) {
         node.setPrev(tail.getPrev());
         node.setNext(tail);
+        tail.getPrev().setNext(node);
         tail.setPrev(node);
         size++;
     }
 
     public void insertAtBegin(E node) {
-        node.setNext(head.getPrev());
+        node.setNext(head.getNext());
         node.setPrev(head);
+        head.getNext().setPrev(node);
         head.setNext(node);
         size++;
     }
@@ -69,7 +89,7 @@ public class Ilist<E extends ILinkNode> implements Iterable<E> {
 
     class IIterator implements Iterator<E> {
 
-        E cur = head;
+        ILinkNode cur = head;
 
         IIterator() {
         }
@@ -81,8 +101,8 @@ public class Ilist<E extends ILinkNode> implements Iterable<E> {
 
         @Override
         public E next() {
-            cur = (E) cur.getNext();
-            return cur;
+            cur = cur.getNext();
+            return (E) cur;
         }
 
         @Override

@@ -1,8 +1,21 @@
 package lir;
 
 import java.io.PrintStream;
+import java.util.stream.Stream;
 
 public class MIBranch extends MachineInst {
+    public Arm.Cond getCond() {
+        return cond;
+    }
+
+    public Machine.Block getTrueTargetBlock() {
+        return trueTargetBlock;
+    }
+
+    public Machine.Block getFalseTargetBlock() {
+        return falseTargetBlock;
+    }
+
     Arm.Cond cond;
     Machine.Block trueTargetBlock;
     // 条件不满足则跳这个块
@@ -16,8 +29,14 @@ public class MIBranch extends MachineInst {
     }
 
     @Override
-    public void output(PrintStream os, Machine.McFunction f){
+    public void output(PrintStream os, Machine.McFunction f) {
         transfer_output(os);
-        os.println("b\t" + cond + "\t" + trueTargetBlock.index);
+        os.println("\tb" + cond + "\t" + trueTargetBlock.toString());
+        os.println("\tb" + "\t" + falseTargetBlock.toString());
+    }
+
+    @Override
+    public String toString() {
+        return "b" + cond + "\t" + trueTargetBlock.getDebugLabel() + "\tb" + "\t" + falseTargetBlock.toString();
     }
 }

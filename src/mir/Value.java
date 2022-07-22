@@ -157,6 +157,10 @@ public class Value extends ILinkNode {
         return tag == AmaTag.branch;
     }
 
+    public boolean isBJ(){
+        return tag == AmaTag.branch || tag == AmaTag.jump;
+    }
+
     public boolean isConstant() {
         return this instanceof Constant;
     }

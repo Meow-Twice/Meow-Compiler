@@ -647,7 +647,9 @@ public class CodeGen {
             // dst1 = MULSH(m,n)
             Machine.Operand m_op = new Machine.Operand(I32, (int) m);
             Machine.Operand dst1 = newVR();
-            new MILongMul(dst1, n, m_op, curMB);
+            Machine.Operand move_dst = newVR();
+            new MIMove(move_dst,m_op,curMB);
+            new MILongMul(dst1, n,move_dst, curMB);
             // dst2 = SRA(dst1,sh_post)
             Machine.Operand dst2 = newVR();
             Arm.Shift shift2 = new Arm.Shift(Arm.ShiftType.Asr, sh_post);
@@ -664,7 +666,9 @@ public class CodeGen {
             // dst1 = MULSH(m-2^N,n)
             Machine.Operand m_op = new Machine.Operand(I32, (int) (m - (((long) 1 << N))));
             Machine.Operand dst1 = newVR();
-            new MILongMul(dst1, n, m_op, curMB);
+            Machine.Operand move_dst = newVR();
+            new MIMove(move_dst,m_op,curMB);
+            new MILongMul(dst1, n,move_dst, curMB);
             // dst2 = n+dst1
             Machine.Operand dst2 = newVR();
             new MIBinary(MachineInst.Tag.Add, dst2, n, dst1, curMB);
@@ -723,7 +727,9 @@ public class CodeGen {
             // dst1 = MULSH(m,n)
             Machine.Operand m_op = new Machine.Operand(I32, (int) m);
             Machine.Operand dst1 = newVR();
-            new MILongMul(dst1, n, m_op, curMB);
+            Machine.Operand move_dst = newVR();
+            new MIMove(move_dst,m_op,curMB);
+            new MILongMul(dst1, n,move_dst, curMB);
             // dst2 = SRA(dst1,sh_post)
             Machine.Operand dst2 = newVR();
             Arm.Shift shift2 = new Arm.Shift(Arm.ShiftType.Asr, sh_post);
@@ -740,7 +746,9 @@ public class CodeGen {
             // dst1 = MULSH(m-2^N,n)
             Machine.Operand m_op = new Machine.Operand(I32, (int) (m - (((long) 1 << N))));
             Machine.Operand dst1 = newVR();
-            new MILongMul(dst1, n, m_op, curMB);
+            Machine.Operand move_dst = newVR();
+            new MIMove(move_dst,m_op,curMB);
+            new MILongMul(dst1, n,move_dst, curMB);
             // dst2 = n+dst1
             Machine.Operand dst2 = newVR();
             new MIBinary(MachineInst.Tag.Add, dst2, n, dst1, curMB);

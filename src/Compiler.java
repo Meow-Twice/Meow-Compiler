@@ -18,6 +18,7 @@ import java.io.*;
 public class Compiler {
 
     public static boolean OUTPUT_LEX = false;
+    public static boolean ONLY_FRONTEND = false;
 
     private static String input(InputStream in) throws IOException {
         BufferedReader reader = new BufferedReader(new InputStreamReader(in));
@@ -59,11 +60,12 @@ public class Compiler {
                 Manager.MANAGER.outputLLVM(arg.llvmStream);
             }
 
-            RemovePhi removePhi = new RemovePhi(midEndRunner.functions);
-            removePhi.Run();
             // Manager.MANAGER.outputLLVM();
             // DeadCodeDelete deadCodeDelete = new DeadCodeDelete(Manager.MANAGER.getFunctionList());
             // deadCodeDelete.Run();
+            if(ONLY_FRONTEND){
+                return;
+            }
             CodeGen.CODEGEN.gen();
             Manager.MANAGER.outputMI();
             Machine.Program p = Machine.Program.PROGRAM;

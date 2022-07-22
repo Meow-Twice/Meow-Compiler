@@ -197,7 +197,7 @@ public class Function extends Value {
     // 输出函数声明
     public String getDeclare() {
         String paramList = params.stream().map(var -> var.getType().toString()).reduce((s, s2) -> s + ", " + s2).orElse("");
-        return "declare " + getTypeStr() + " @" + (isTimeFunc ? "_sysy_" : "") + name + "(" + paramList + ")";
+        return "declare " + getTypeStr() + " @" + getName() + "(" + paramList + ")";
     }
 
     // 输出函数定义
@@ -245,14 +245,14 @@ public class Function extends Value {
             body.append("\n");
         }
 
-        return "define dso_local " + getTypeStr() + " @" + name + "(" + paramList + ") {\n" + body + "}\n";
+        return "define dso_local " + getTypeStr() + " @" + getName() + "(" + paramList + ") {\n" + body + "}\n";
     }
 
     public String output() {
 
         String paramList = params.stream().map(Value::toString).reduce((s, s2) -> s + ", " + s2).orElse("");
         StringBuilder str = new StringBuilder();
-        str.append("define dso_local ").append(getTypeStr()).append(" @").append(name).append("(").append(paramList).append(") {\n");
+        str.append("define dso_local ").append(getTypeStr()).append(" @").append(getName()).append("(").append(paramList).append(") {\n");
         // for(ILinkNode node = getBeginBB(); !node.equals(end);node = node.getNext()){
         //     BasicBlock bb = (BasicBlock) node;
         //     str.append(bb).append(":\n");

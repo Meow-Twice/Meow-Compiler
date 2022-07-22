@@ -888,7 +888,7 @@ public class Instr extends Value {
                 retType = type.toString();
             }
             String paramList = getParamList().stream().map(Value::getDescriptor).reduce((s, s2) -> s + ", " + s2).orElse("");
-            return prefix + "call " + retType + " @" + (getFunc().isTimeFunc ? "_sysy_" : "") + getFunc().getName() + "(" + paramList + ")";
+            return prefix + "call " + retType + " @" + getFunc().getName() + "(" + paramList + ")";
         }
 
         public Function getFunc() {

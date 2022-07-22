@@ -3,9 +3,12 @@ package lir;
 import javax.crypto.Mac;
 import java.io.PrintStream;
 
+import static lir.Machine.Program.pop_output;
+
 public class MIReturn extends MachineInst{
     public MIReturn(Machine.Block insertAtEnd){
         super(Tag.Return,insertAtEnd);
+        useOpds.add(Arm.Reg.getR(Arm.Regs.GPRs.r0));
         // genDefUse();
     }
     // @Override
@@ -14,31 +17,12 @@ public class MIReturn extends MachineInst{
     // }
 
     @Override
-    public void output(PrintStream os, Machine.McFunction f){
-        if(f.stackSize>0){
-            Machine.Program.stack_output(os,false,f.stackSize,"\t");
-            os.print("\t");
-        }
-        boolean bx = true;
-        if(!f.usedCalleeSavedRegs.isEmpty()||f.useLr){
-            os.print("pop\t{");
-            f.output_reg_list(os);
-            if(f.useLr){
-                if(!f.usedCalleeSavedRegs.isEmpty()){
-                    os.print(",");
-                }
-                os.print("pc");
-                bx = false;
-            }
-            os.println("}");
-            if(bx){
-                if(!f.usedCalleeSavedRegs.isEmpty()){
-                    os.print("\t");
-                }
-                os.println("bx\tlr");
-            }
-        }
+    public void output(PrintStream os, Machine.McFunction mf){
+        pop_output(os, mf);
+    }
 
-        return;
+    @Override
+    public String toString() {
+        return tag.toString();
     }
 }

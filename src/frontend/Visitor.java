@@ -71,10 +71,10 @@ public class Visitor {
             throw new AssertionError("Wrong trimTo " + targetType);
         }
         // Value res = value;
-        if (value.getType().equals(targetType)) {
-            System.err.printf("Try to trim %s to %s\n", value, targetType);
-            // return value;
-        }
+        // if (value.getType().equals(targetType)) {
+        //     System.err.printf("Try to trim %s to %s\n", value, targetType);
+        //     // return value;
+        // }
         return switch (((BasicType) value.getType()).dataType) {
             case I1 -> switch (targetType.dataType) {
                 case I32 -> new Zext(value, curBB);
@@ -610,9 +610,7 @@ public class Visitor {
 
     // private static final ArrayList<Value> const0Pair = new ArrayList<>(Collections.nCopies(2, CONST_0));
 
-    private void initZeroHelper(Value pointer) {
-        assert pointer.getType() instanceof PointerType;
-        Type pointeeType = ((PointerType) pointer.getType()).getInnerType();
+    private void initZeroHelper(Value pointer, Type pointeeType) {
         Value ptr = pointer;
         int size = 4;
         ArrayList<Value> idxList = new ArrayList<>();
@@ -660,7 +658,7 @@ public class Visitor {
                 initLocalVarHelper(ptr, arrayInit.get(i));
             }
         } else if (init instanceof Initial.ZeroInit) {
-            initZeroHelper(pointer);
+            initZeroHelper(pointer, baseType);
         } else {
             Value v;
             if (init instanceof Initial.ExpInit) {
@@ -730,11 +728,52 @@ public class Visitor {
             // 分配的空间指向 pointer
             assert curBB != null;
             pointer = new Alloc(pointeeType, curBB);
-            if (pointeeType instanceof ArrayType) {
-                initZeroHelper(pointer);
-            }
-            if (init != null) {
-                initLocalVarHelper(pointer, init); // 生成初始化
+            if (VISITOR.__ONLY_PARSE_OUTSIDE_DIM) {
+                if (pointeeType instanceof ArrayType) {
+                    initZeroHelper(pointer, pointeeType);
+                }
+                if (init != null) {
+                    initLocalVarHelper(pointer, init); // 生成初始化
+                }
+            } else {
+                // Type pointeeType = ((PointerType) pointer.getType()).getInnerType();
+                if (!(init == null)) {
+                    if (init instanceof Initial.ExpInit) {
+                        Value v = trimTo(((Initial.ExpInit) init).getResult(), (BasicType) pointeeType);
+                        new Store(v, pointer, curBB);
+                    } else if (init instanceof Initial.ValueInit) {
+                        Value v = trimTo(((Initial.ValueInit) init).getValue(), (BasicType) pointeeType);
+                        new Store(v, pointer, curBB);
+                    } else if (init instanceof Initial.ArrayInit) {
+                        ArrayList<Value> initValueList = init.getFlattenInit();
+                        HashSet<Value> checkSet = new HashSet<>(initValueList);
+                        assert checkSet.size() > 0;
+                        boolean allZero = false;
+                        if (checkSet.size() == 1) {
+                            if (checkSet.iterator().next().equals(CONST_0)) {
+                                initZeroHelper(pointer, pointeeType);
+                                allZero = true;
+                            }
+                        }
+                        if (!allZero) {
+                            ArrayList<Value> dimList = new ArrayList<>();
+                            for (int i = 0; i <= ((ArrayType) pointeeType).getDimSize(); i++) {
+                                dimList.add(CONST_0);
+                            }
+                            BasicType basicType = ((ArrayType) pointeeType).getBaseEleType();
+                            Value ptr = new GetElementPtr(basicType, pointer, dimList, curBB);
+                            dimList = new ArrayList<>();
+                            dimList.add(CONST_0);
+                            new Store(initValueList.get(0), ptr, curBB);
+                            for (int i = 1; i < initValueList.size(); i++) {
+                                dimList = new ArrayList<>();
+                                dimList.add(Constant.ConstantInt.getConstInt(i));
+                                Value p = new GetElementPtr(basicType, ptr, dimList, curBB);
+                                new Store(trimTo(initValueList.get(i), basicType), p, curBB);
+                            }
+                        }
+                    }
+                }
             }
         } else {
             pointer = new GlobalVal.GlobalValue(pointeeType, def, init);

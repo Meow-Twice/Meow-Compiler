@@ -802,6 +802,9 @@ public class Instr extends Value {
         }
 
         public Value getIdxValueOf(int i) {
+            if (i + 1 >= useValueList.size()) {
+                throw new AssertionError("Out of gep idx : " + i + 1 + "\t" + this);
+            }
             return useValueList.get(i + 1);
         }
 
@@ -885,7 +888,7 @@ public class Instr extends Value {
                 retType = type.toString();
             }
             String paramList = getParamList().stream().map(Value::getDescriptor).reduce((s, s2) -> s + ", " + s2).orElse("");
-            return prefix + "call " + retType + " @" + (getFunc().isTimeFunc ? "_sysy_" : "") + getFunc().getName() + "(" + paramList + ")";
+            return prefix + "call " + retType + " @" + getFunc().getName() + "(" + paramList + ")";
         }
 
         public Function getFunc() {
@@ -1019,13 +1022,13 @@ public class Instr extends Value {
                 assert index != -1;
                 values.add(useValueList.get(index));
             }
-            for (Use use: useList) {
+            for (Use use : useList) {
                 use.remove();
             }
             useList.clear();
             useValueList.clear();
             int index = 0;
-            for (Value value: values) {
+            for (Value value : values) {
                 setUse(value, index++);
             }
         }

@@ -1,5 +1,6 @@
 package lir;
 
+import backend.CodeGen;
 import mir.Instr;
 import util.ILinkNode;
 
@@ -8,9 +9,81 @@ import java.util.ArrayList;
 import java.util.EnumMap;
 
 import static mir.Instr.Alu.Op.*;
-import static mir.Instr.Alu.Op.OR;
 
-public class MachineInst extends ILinkNode{
+public class MachineInst extends ILinkNode {
+    protected Arm.Cond cond = Arm.Cond.Any;
+    protected Arm.Shift shift = Arm.Shift.NONE_SHIFT;
+    // private boolean needFix = false;
+
+    public boolean isNeedFix() {
+        return fixType != CodeGen.STACK_FIX.NO_NEED;
+    }
+
+    public Machine.McFunction getCallee() {
+        return callee;
+    }
+
+    public void setCallee(Machine.McFunction callee) {
+        this.callee = callee;
+    }
+
+    private Machine.McFunction callee = null;
+    private CodeGen.STACK_FIX fixType = CodeGen.STACK_FIX.NO_NEED;
+
+    /**
+     * main函数刚进有一个sp自减, 不过这时候自减的偏移一定是0
+     * dealParam时, 刚开始对一个函数进行CodeGen时进行超过四个之外的参数时的load
+     * return之前要对sp进行加操作
+     */
+    public void setNeedFix(CodeGen.STACK_FIX stack_fix) {
+        Machine.Program.PROGRAM.needFixList.add(this);
+        fixType = stack_fix;
+    }
+
+    /**
+     * 调用一个非库的函数之前需要sp偏移
+     */
+    public void setNeedFix(Machine.McFunction callee, CodeGen.STACK_FIX stack_fix) {
+        setCallee(callee);
+        setNeedFix(stack_fix);
+    }
+
+
+    public void setUse(int i, Machine.Operand set) {
+        useOpds.set(i, set);
+    }
+
+    public Tag getType() {
+        return tag;
+    }
+
+    public Arm.Cond getCond() {
+        return cond;
+    }
+
+    public Arm.Shift getShift() {
+        return shift;
+    }
+
+    public boolean isComment() {
+        return tag == Tag.Comment;
+    }
+
+    public void setDef(Machine.Operand operand) {
+        defOpds.set(0, operand);
+    }
+
+    public boolean isIAddOrISub() {
+        return tag == Tag.Add || tag == Tag.Sub;
+    }
+
+    public CodeGen.STACK_FIX getFixType() {
+        return fixType;
+    }
+
+    public void clearNeedFix() {
+        fixType = CodeGen.STACK_FIX.NO_NEED;
+    }
 
     public enum Tag {
         // Binary
@@ -67,12 +140,35 @@ public class MachineInst extends ILinkNode{
         }
     }
 
-    ;
+    public boolean isMove() {
+        return tag == Tag.Mv;
+    }
+
+    public boolean isCall() {
+        return tag == Tag.Call;
+    }
+
+    public boolean isReturn() {
+        return tag == Tag.Return;
+    }
+
+    public boolean isActuallyBino() {
+        return tag.ordinal() < Tag.FMA.ordinal();
+    }
+
+    public boolean isBranch() {
+        return tag == Tag.Branch;
+    }
 
 
     Machine.Block mb;
+
+    public Machine.Block getMb() {
+        return mb;
+    }
+
     Tag tag;
-    boolean isFloat = false;
+    public boolean isFloat = false;
     public ArrayList<Machine.Operand> defOpds = new ArrayList<>();
     public ArrayList<Machine.Operand> useOpds = new ArrayList<>();
 
@@ -84,6 +180,7 @@ public class MachineInst extends ILinkNode{
         this.tag = tag;
         mb.insertAtEnd(this);
     }
+
 
     /*
     init and insert at end of the bb
@@ -104,6 +201,16 @@ public class MachineInst extends ILinkNode{
         inst.insertBefore(this);
     }
 
+    /**
+     * 目前给MIStore插入一个指令后面时专用
+     *
+     * @param tag
+     */
+    public MachineInst(MachineInst insertAfter, Tag tag) {
+        this.mb = insertAfter.mb;
+        this.tag = tag;
+        insertAfter.insertAfter(this);
+    }
 
     /*
     init and inset before inst
@@ -139,7 +246,7 @@ public class MachineInst extends ILinkNode{
         }
     }
 
-    public void output(PrintStream os, Machine.McFunction f){
+    public void output(PrintStream os, Machine.McFunction f) {
         return;
     }
 }

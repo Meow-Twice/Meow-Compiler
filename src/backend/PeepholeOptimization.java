@@ -92,8 +92,13 @@ public class PeepholeOptimization {
                     }
                     else if(inst instanceof MIMove){
                         MIMove miMove = (MIMove) inst;
-                        if(miMove.getDst().toString().equals(miMove.getSrc().toString())){
-                            if(miMove.getShift()== Arm.Shift.NONE_SHIFT || miMove.getShift().shift == 0){
+                        if(miMove.getDst().toString().equals(miMove.getSrc().toString()) && (miMove.getShift()== Arm.Shift.NONE_SHIFT || miMove.getShift().shift == 0)){
+                                miMove.remove();
+                        }
+                        else if(miMove.getNext() instanceof MIMove){
+                            //remove useless move
+                            MIMove next = (MIMove) miMove.getNext();
+                            if(next.getDst().toString().equals(miMove.getDst().toString()) && !next.getSrc().toString().equals(miMove.getDst().toString()) && (next.getShift()== Arm.Shift.NONE_SHIFT || next.getShift().shift == 0)){
                                 miMove.remove();
                             }
                         }
@@ -103,10 +108,38 @@ public class PeepholeOptimization {
                             inst.remove();
                         }
                     }
+                    else if(inst instanceof  MILoad){
+                        if(inst.getPrev() instanceof MIStore){
+                            MILoad load = (MILoad) inst;
+                            MIStore store = (MIStore) inst.getPrev();
+                            if(isSameAddress(load,store)){
+                                new MIMove(inst,load.getData(),store.getData());
+                            }
+                            inst.remove();
+                        }
+                    }
+                    else if(inst instanceof  MICompare){
+                        if(inst.getNext() instanceof MIMove && inst.getNext().getNext() instanceof MIMove){
+                            MICompare inst1 = (MICompare) inst;
+                            MIMove inst2 = (MIMove) inst.getNext();
+                            MIMove inst3 = (MIMove) inst.getNext().getNext();
+                            if(inst1.getROpd().isImm() && inst1.getROpd().getImm() == 0 && inst2.getSrc().isImm() && inst2.getSrc().getImm() == 1 && inst3.getSrc().isImm() && inst3.getSrc().getImm() == 0 && inst1.getLOpd().toString().equals(inst2.getDst().toString())
+                            && inst1.getLOpd().toString().equals(inst3.getDst().toString()) && inst2.getCond() == Arm.Cond.Ne && inst3.getCond() == Arm.Cond.Eq && inst2.getShift().isNone() && inst3.getShift().isNone()){
+                                inst3.remove();
+                            }
+                        }
+                    }
                 }
             }
         }
     }
+    public boolean isSameAddress(MILoad load,MIStore store){
+        if(load.getAddr().toString().equals(store.getAddr().toString()) && load.getOffset().toString().equals(store.getOffset().toString()) && load.getShift().toString().equals(store.getShift().toString())){
+            return true;
+        }
+        return false;
+    }
+
     public boolean noExtraInst(Machine.Block mb,Machine.Block target){
         ILinkNode i =  mb.getNext();
         int size = 0;

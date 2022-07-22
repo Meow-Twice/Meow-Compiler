@@ -226,5 +226,9 @@ public class Arm {
                 default -> "";
             };
         }
+
+        public boolean isNone(){
+            return this.toString().equals("");
+        }
     }
 }

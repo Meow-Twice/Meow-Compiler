@@ -374,11 +374,15 @@ public class CodeGen {
                             if (i == offsetCount - 1) {
                                 if (totalConstOff != 0) {
                                     Machine.Operand immVR = getImmVR(totalConstOff);
-                                    new MIBinary(MachineInst.Tag.Add, curAddrVR, curAddrVR, immVR, curMB);
+                                    Machine.Operand dst = newVR();
+                                    new MIBinary(MachineInst.Tag.Add, dst, curAddrVR, immVR, curMB);
+                                    curAddrVR = dst;
                                 }
                                 new MIFma(true, false, dstVR, curIdxVR, offUnitImmVR, curAddrVR, curMB);
                             } else {
-                                new MIFma(true, false, curAddrVR, curIdxVR, offUnitImmVR, curAddrVR, curMB);
+                                Machine.Operand dst = newVR();
+                                new MIFma(true, false, dst, curIdxVR, offUnitImmVR, curAddrVR, curMB);
+                                curAddrVR = dst;
                             }
                         }
                     }

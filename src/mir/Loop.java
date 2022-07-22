@@ -37,6 +37,21 @@ public class Loop {
 
     private HashMap<Integer, HashSet<Instr>> conds = new HashMap<>();
 
+    //归纳变量相关信息:
+    private Value idcAlu;
+    private Value idcPHI;
+    private Value idcCmp;
+    private Value idcInit;
+    private Value idcEnd;
+    private Value idcStep;
+
+    private boolean idcSet = false;
+
+    private int idcTimes;
+
+    private boolean idcTimeSet = false;
+
+
     public Loop(Loop parentLoop) {
         this.hash = loop_num++;
         this.parentLoop = parentLoop;
@@ -46,12 +61,27 @@ public class Loop {
     }
 
     public int getLoopDepth(){
-        return loopDepth;
+//        return loopDepth;
+        int ret = 0;
+        Loop loop = this;
+        while (loop.getParentLoop() != emptyLoop) {
+            loop = loop.getParentLoop();
+            ret++;
+        }
+        return ret;
+//        int res = 0;
+//        Loop loop = this.getParentLoop();
+//        while (!emptyLoop.equals(loop)) {
+//            loop = loop.getParentLoop();
+//            res++;
+//        }
+//        return res;
     }
 
     // 慎用，visitor用不到到这个
     public void setParentLoop(Loop parentLoop) {
         this.parentLoop = parentLoop;
+        this.parentLoop.addChildLoop(this);
     }
 
     public Loop getParentLoop() {
@@ -79,6 +109,10 @@ public class Loop {
      */
     public boolean addBB(BasicBlock bb) {
         return nowLevelBB.add(bb);
+    }
+
+    public void removeBB(BasicBlock bb) {
+        nowLevelBB.remove(bb);
     }
 
     public BasicBlock getHeader() {
@@ -136,11 +170,15 @@ public class Loop {
     }
 
     public void addCond(Instr instr) {
-        int condNum = instr.getLoopCondCount();
+        int condNum = instr.getCondCount();
         if (!conds.containsKey(condNum)) {
             conds.put(condNum, new HashSet<>());
         }
         conds.get(condNum).add(instr);
+    }
+
+    public void clearCond() {
+        conds.clear();
     }
 
     public HashSet<BasicBlock> getNowLevelBB() {
@@ -160,12 +198,20 @@ public class Loop {
         return enterings;
     }
 
+    public HashSet<BasicBlock> getLatchs() {
+        return latchs;
+    }
+
+    public HashSet<BasicBlock> getExitings() {
+        return exitings;
+    }
 
     //把一个循环复制到指定函数
     public void cloneToFunc(Function function) {
         for (BasicBlock bb: nowLevelBB) {
             bb.cloneToFunc(function);
         }
+
         for (Loop next: childrenLoops) {
             next.cloneToFunc(function);
         }
@@ -174,21 +220,138 @@ public class Loop {
     //修正当前BB对应BB的use-def,同时修正简单的数据流:前驱后继关系
     public void fix() {
         for (BasicBlock bb: nowLevelBB) {
+            if (bb.getLabel().equals("b174")) {
+                System.err.println("ERR_174");
+            }
+            assert CloneInfoMap.valueMap.containsKey(bb);
             BasicBlock needFixBB = (BasicBlock) CloneInfoMap.getReflectedValue(bb);
 
             ArrayList<BasicBlock> pres = new ArrayList<>();
             for (BasicBlock pre: bb.getPrecBBs()) {
                 pres.add((BasicBlock) CloneInfoMap.getReflectedValue(pre));
             }
-            needFixBB.setPrecBBs(pres);
+            //needFixBB.setPrecBBs(pres);
+            needFixBB.modifyPres(pres);
 
             ArrayList<BasicBlock> succs = new ArrayList<>();
             for (BasicBlock succ: bb.getSuccBBs()) {
                 succs.add((BasicBlock) CloneInfoMap.getReflectedValue(succ));
             }
-            needFixBB.setSuccBBs(succs);
+            //needFixBB.setSuccBBs(succs);
+            needFixBB.modifySucs(succs);
 
             needFixBB.fix();
+            needFixBB.setLoop(CloneInfoMap.getReflectedLoop(bb.getLoop()));
+            CloneInfoMap.getReflectedLoop(bb.getLoop()).addBB(needFixBB);
+            if (bb.isLoopHeader) {
+                needFixBB.setLoopHeader();
+            }
         }
+        for (Loop next: childrenLoops) {
+            next.fix();
+            //TODO:check
+            CloneInfoMap.getReflectedLoop(this).addChildLoop(CloneInfoMap.getReflectedLoop(next));
+        }
+    }
+
+    //简单循环符合下述形式:
+    //for(int i = X; i < Y; i = i + Z) {
+    //  xxx
+    //  i不能被更改,没有break,continue
+    //}
+    // head = exiting need?
+    public boolean isSimpleLoop() {
+        return header.getPrecBBs().size() == 2 && latchs.size() == 1 && exitings.size() == 1 && exits.size() == 1;
+    }
+
+    public String infoString() {
+        String ret = "\n";
+        ret += "Hash: ";
+        ret += String.valueOf(hash);
+        ret += "\n";
+
+
+        ret += "Header: ";
+        ret += header.getLabel() + " pre_num: " + String.valueOf(header.getPrecBBs().size());
+        ret += "\n";
+
+        ret += "latch: ";
+        for (BasicBlock bb: latchs) {
+            ret += " " + bb.getLabel();
+        }
+        ret += "\n";
+
+        ret += "exiting: ";
+        for (BasicBlock bb: exitings) {
+            ret += " " + bb.getLabel();
+        }ret += "\n";
+
+        ret += "exit: ";
+        for (BasicBlock bb: exits) {
+            ret += " " + bb.getLabel();
+        }
+        ret += "\n";
+
+        if (isSimpleLoop() && isIdcSet()) {
+            ret += "idcAlu: " + idcAlu.toString() + "\n";
+            ret += "idcPHI: " + idcPHI.toString() + "\n";
+            ret += "idcCmp: " + idcCmp.toString() + "\n";
+            ret += "idcInit: " + idcInit.toString() + "\n";
+            ret += "idcEnd: " + idcEnd.toString() + "\n";
+            ret += "idcStep: " + idcStep.toString() + "\n";
+        }
+
+        return ret;
+    }
+
+    public void setIdc(Value idcAlu, Value idcPHI, Value idcCmp, Value idcInit, Value idcEnd, Value idcStep) {
+        this.idcAlu = idcAlu;
+        this.idcPHI = idcPHI;
+        this.idcCmp = idcCmp;
+        this.idcInit = idcInit;
+        this.idcEnd = idcEnd;
+        this.idcStep = idcStep;
+        this.idcSet = true;
+    }
+
+    public Value getIdcAlu() {
+        return idcAlu;
+    }
+
+    public Value getIdcPHI() {
+        return idcPHI;
+    }
+
+    public Value getIdcCmp() {
+        return idcCmp;
+    }
+
+    public Value getIdcInit() {
+        return idcInit;
+    }
+
+    public Value getIdcEnd() {
+        return idcEnd;
+    }
+
+    public Value getIdcStep() {
+        return idcStep;
+    }
+
+    public boolean isIdcSet() {
+        return idcSet;
+    }
+
+    public void setIdcTimes(int idcTimes) {
+        this.idcTimes = idcTimes;
+        this.idcTimeSet = true;
+    }
+
+    public int getIdcTimes() {
+        return idcTimes;
+    }
+
+    public boolean isIdcTimeSet() {
+        return idcTimeSet;
     }
 }

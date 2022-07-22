@@ -47,11 +47,12 @@ public class BranchLift {
     }
 
     private void liftBrOutLoop(Instr.Branch thenBr, Loop thenLoop) {
+        CloneInfoMap.clear();
         Function function = thenLoop.getHeader().getFunction();
         BasicBlock thenHead = thenLoop.getHeader();
         thenLoop.cloneToFunc(function);
         for (BasicBlock bb: thenLoop.getNowLevelBB()) {
-            System.out.println(bb.getLabel() + " to " + ((BasicBlock) CloneInfoMap.getReflectedValue(bb)).getLabel());
+            System.err.println(bb.getLabel() + " to " + ((BasicBlock) CloneInfoMap.getReflectedValue(bb)).getLabel());
         }
 
         thenLoop.fix();
@@ -94,6 +95,11 @@ public class BranchLift {
 
         Instr.Branch elseBr = (Instr.Branch) CloneInfoMap.getReflectedValue(thenBr);
         Instr brInTransBB = thenBr.cloneToBB(transBB);
+        if (transBB.getLoopDep() > 0) {
+            brInTransBB.setInLoopCond();
+            brInTransBB.setCondCount(thenBr.getCondCount());
+        }
+
         brInTransBB.modifyUse(thenHead, 1);
         brInTransBB.modifyUse(elseHead, 2);
 
@@ -131,13 +137,20 @@ public class BranchLift {
                 if (instr instanceof Instr.Phi) {
                     ArrayList<Value> adds = new ArrayList<>();
                     for (Value used: instr.getUseValueList()) {
-                        if (CloneInfoMap.valueMap.containsKey(used)) {
+                        int index = instr.getUseValueList().indexOf(used);
+                        if (CloneInfoMap.valueMap.containsKey(bb.getPrecBBs().get(index))) {
                             adds.add(CloneInfoMap.getReflectedValue(used));
                         }
+//                        if (CloneInfoMap.valueMap.containsKey(used)) {
+//                            adds.add(CloneInfoMap.getReflectedValue(used));
+//                        }
+
+                        //adds.add(CloneInfoMap.getReflectedValue(used));
                     }
                     for (Value add: adds) {
                         ((Instr.Phi) instr).addOptionalValue(add);
                     }
+                    assert instr.parentBB().getPrecBBs().size() == instr.getUseValueList().size();
                 }
                 instr = (Instr) instr.getNext();
             }

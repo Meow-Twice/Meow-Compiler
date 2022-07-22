@@ -48,7 +48,11 @@ public class MidEndRunner {
         Mem2Reg mem2Reg = new Mem2Reg(functions);
         mem2Reg.Run();
 
+        //outputLLVM();
+
         Pass();
+
+        //outputLLVM();
 
 
         //BrOptimize();
@@ -74,7 +78,7 @@ public class MidEndRunner {
 
     //死代码删除 指令融合 GVN/GCM
     private void Pass() {
-        DeadCodeDelete deadCodeDelete = new DeadCodeDelete(functions);
+        DeadCodeDelete deadCodeDelete = new DeadCodeDelete(functions, globalValues);
         deadCodeDelete.Run();
 
         InstrComb instrComb = new InstrComb(functions);
@@ -109,7 +113,7 @@ public class MidEndRunner {
         BranchLift branchLift = new BranchLift(functions);
         branchLift.Run();
 //
-//        outputLLVM();
+        //outputLLVM();
 
         reMakeCFGAndLoopInfo();
 

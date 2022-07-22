@@ -1,24 +1,31 @@
 package midend;
 
+import frontend.semantic.Initial;
 import mir.*;
+import mir.type.Type;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 
 public class DeadCodeDelete {
+    //TODO:naive:只被store,但是没有被load的数组/全局变量可以删除
     private ArrayList<Function> functions;
+    private HashMap<GlobalVal.GlobalValue, Initial> globalValues;
 
     private HashMap<Instr, Instr> root;
     private HashMap<Instr, Integer> deep;
 
-    public DeadCodeDelete(ArrayList<Function> functions) {
+    public DeadCodeDelete(ArrayList<Function> functions, HashMap<GlobalVal.GlobalValue, Initial> globalValues) {
         this.functions = functions;
+        this.globalValues = globalValues;
     }
 
     public void Run(){
         noUserCodeDelete();
         deadCodeElimination();
+        removeUselessGlobalVal();
+        removeUselessLocalArray();
     }
 
     //TODO:对于指令闭包
@@ -59,6 +66,7 @@ public class DeadCodeDelete {
         }
     }
 
+    //fixme:对于SSA格式,这个算法貌似是多余的?
     private void deadCodeElimination() {
         for (Function function: functions) {
             deadCodeEliminationForFunc(function);
@@ -120,7 +128,7 @@ public class DeadCodeDelete {
     }
 
     private Instr find(Instr x) {
-        if (deep.get(x) < 0) {
+        if (root.get(x).equals(x)) {
             return x;
         } else {
             root.put(x, find(root.get(x)));
@@ -145,6 +153,119 @@ public class DeadCodeDelete {
                 || instr instanceof Instr.Return || instr instanceof Instr.Call
                 || instr instanceof Instr.Store || instr instanceof Instr.Load;
     }
+
+    //for i=1:n
+    //  a[i] = getint()
+    //return 0
+
+    private void removeUselessGlobalVal() {
+        HashSet<GlobalVal> remove = new HashSet<>();
+        for (GlobalVal val: globalValues.keySet()) {
+            if (((Type.PointerType) val.getType()).getInnerType().isArrType()) {
+                boolean ret = tryRemoveUselessArray(val);
+                if (ret) {
+                    remove.add(val);
+                }
+                continue;
+            }
+            boolean canRemove = true;
+            Use use = val.getBeginUse();
+            while (use.getNext() != null) {
+                if (!(use.getUser() instanceof Instr.Store)) {
+                    canRemove = false;
+                }
+                use = (Use) use.getNext();
+            }
+
+            if (canRemove) {
+                use = val.getBeginUse();
+                while (use.getNext() != null) {
+                    Instr user = use.getUser();
+                    assert user instanceof Instr.Store;
+                    deleteInstr(user, false);
+                    use = (Use) use.getNext();
+                }
+                remove.add(val);
+            }
+        }
+        for (Value value: remove) {
+            globalValues.remove(value);
+        }
+    }
+
+    private void deleteInstr(Instr instr, boolean tag) {
+        if (tag && hasEffect(instr)) {
+            return;
+        }
+        for (Value value: instr.getUseValueList()) {
+            if (value instanceof Instr) {
+                deleteInstr((Instr) value, true);
+            }
+        }
+        instr.remove();
+    }
+
+    private void removeUselessLocalArray() {
+        for (Function function: functions) {
+            for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
+                for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+                    if (instr instanceof Instr.Alloc) {
+                        tryRemoveUselessArray(instr);
+                    }
+                }
+            }
+        }
+    }
+
+
+    //删除无用的全局/局部数组 global-init local-alloc
+    private boolean tryRemoveUselessArray(Value value) {
+        HashSet<Instr> instrs = new HashSet<>();
+        boolean ret = check(value, instrs);
+        if (ret) {
+            for (Instr instr: instrs) {
+                instr.remove();
+            }
+        }
+        return ret;
+    }
+
+    private boolean check(Value value, HashSet<Instr> know) {
+        if (value instanceof Instr) {
+            know.add((Instr) value);
+        }
+        for (Use use = value.getBeginUse(); use.getNext() != null; use = (Use) use.getNext()) {
+            Instr user = use.getUser();
+            if (user instanceof Instr.GetElementPtr) {
+                boolean ret = check(user, know);
+                if (!ret) {
+                    return false;
+                }
+            } else {
+                //只被store 而且store所用的值没有effect
+                if (user instanceof Instr.Store) {
+                    Value storeValue = user.getUseValueList().get(0);
+//                    if (storeValue instanceof Instr && hasEffect((Instr) storeValue)) {
+//                        return false;
+//                    }
+                    know.add(user);
+                } else if (user instanceof Instr.Call) {
+                    know.add(user);
+                    Value val = user.getUseValueList().get(0);
+                    if (val instanceof Function) {
+                        if (!val.getName().equals("memset")) {
+                            return false;
+                        }
+                    }
+                } else {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+
 
 
 }

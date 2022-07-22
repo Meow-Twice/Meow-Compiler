@@ -14,7 +14,7 @@ public class MidEndRunner {
     //TODO:另一种实现方法 functions定为static 提供init方法
     public ArrayList<Function> functions;
     private HashMap<GlobalVal.GlobalValue, Initial> globalValues = Manager.MANAGER.getGlobals();
-    private static boolean O2 = false;
+    private static boolean O2 = true;
 
     public MidEndRunner(ArrayList<Function> functions) {
         this.functions = functions;
@@ -28,8 +28,6 @@ public class MidEndRunner {
             Mem2Reg mem2Reg = new Mem2Reg(functions);
             mem2Reg.Run();
 
-            RemovePhi removePhi = new RemovePhi(functions);
-            removePhi.Run();
 
             return;
         }
@@ -71,9 +69,9 @@ public class MidEndRunner {
 
         MathOptimize mathOptimize = new MathOptimize(functions);
         mathOptimize.Run();
-
-        RemovePhi removePhi = new RemovePhi(functions);
-        removePhi.Run();
+        //
+        // RemovePhi removePhi = new RemovePhi(functions);
+        // removePhi.Run();
     }
 
     //死代码删除 指令融合 GVN/GCM

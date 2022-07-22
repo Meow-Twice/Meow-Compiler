@@ -63,6 +63,14 @@ public class MidEndRunner {
         //拆分MakeCFG
         reMakeCFGAndLoopInfo();
 
+        BranchOptimize branchOptimize1 = new BranchOptimize(functions);
+        branchOptimize1.Run();
+
+        //前驱后继关系已经维护
+        //拆分MakeCFG
+        reMakeCFGAndLoopInfo();
+
+
         Pass();
 
         MathOptimize mathOptimize = new MathOptimize(functions);

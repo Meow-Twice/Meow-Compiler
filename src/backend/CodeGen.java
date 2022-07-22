@@ -129,9 +129,9 @@ public class CodeGen {
             BasicBlock endBB = func.getEnd();
             // 先造出来防止br找不到目标
             while (!bb.equals(endBB)) {
-                if (bb.isNoUse()) {
-                    System.err.println("err_code_gen");
-                }
+//                if (bb.isNoUse()) {
+//                    System.err.println("err_code_gen");
+//                }
                 Machine.Block mb = new Machine.Block(bb);
                 bb.setMB(mb);
                 bb2mb.put(bb, mb);

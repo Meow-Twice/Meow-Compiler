@@ -71,7 +71,8 @@ public class RemovePhi {
             while (instr instanceof Instr.Phi) {
                 Instr temp = instr;
                 instr = (Instr) instr.getNext();
-                temp.remove();
+                //temp.remove();
+                temp.delFromNowBB();
             }
 
             bb = (BasicBlock) bb.getNext();

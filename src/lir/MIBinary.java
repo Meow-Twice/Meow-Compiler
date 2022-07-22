@@ -1,5 +1,6 @@
 package lir;
 
+import javax.crypto.Mac;
 import java.io.PrintStream;
 
 public class MIBinary extends MachineInst {
@@ -45,6 +46,9 @@ public class MIBinary extends MachineInst {
         return useOpds.set(1, o);
     }
 
+    public Machine.Operand setLOpd(Machine.Operand o){
+        return useOpds.set(0,o);
+    }
     @Override
     public void output(PrintStream os, Machine.McFunction f) {
         transfer_output(os);

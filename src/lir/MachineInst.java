@@ -249,6 +249,10 @@ public class MachineInst extends ILinkNode {
     public void output(PrintStream os, Machine.McFunction f) {
         return;
     }
+
+    public void setTag(Tag tag) {
+        this.tag = tag;
+    }
 }
 
 

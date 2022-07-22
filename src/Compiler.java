@@ -69,6 +69,9 @@ public class Compiler {
 
             RemovePhi removePhi = new RemovePhi(midEndRunner.functions);
             removePhi.Run();
+            Manager.MANAGER.outputLLVM();
+
+
             CodeGen.CODEGEN.gen();
             Manager.MANAGER.outputMI();
             Machine.Program p = Machine.Program.PROGRAM;

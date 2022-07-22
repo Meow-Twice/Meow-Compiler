@@ -267,6 +267,7 @@ public class LoopUnRoll {
         }
 
         Loop parentLoop = loop.getParentLoop();
+        parentLoop.getChildrenLoops().remove(loop);
         for (BasicBlock bb: loop.getNowLevelBB()) {
             bb.modifyLoop(parentLoop);
         }
@@ -275,8 +276,10 @@ public class LoopUnRoll {
             child.setParentLoop(parentLoop);
         }
 
-        //bbInWhile.remove(head);
-        bbInWhile.add(head);
+        //loop.getNowLevelBB().clear();
+
+        bbInWhile.remove(head);
+        //bbInWhile.add(head);
 
         //fixme:复制time / time - 1?份
         BasicBlock oldBegin = headNext;

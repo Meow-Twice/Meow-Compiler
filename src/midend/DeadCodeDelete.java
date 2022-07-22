@@ -26,6 +26,7 @@ public class DeadCodeDelete {
         deadCodeElimination();
         removeUselessGlobalVal();
         removeUselessLocalArray();
+        noUserCodeDelete();
     }
 
     //TODO:对于指令闭包

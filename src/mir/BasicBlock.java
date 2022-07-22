@@ -352,6 +352,13 @@ public class BasicBlock extends Value {
 
     @Override
     public String toString() {
+        if (OutParam.NEED_BB_USE_IN_BR_INFO) {
+            String str = getLabel();
+            for (Use use = getBeginUse(); use.getNext() != null; use = (Use) use.getNext()) {
+                str = str + "\n" + use.getUser().parentBB().getLabel() + "      " + use.getUser().toString();
+            }
+            return str;
+        }
         if (OutParam.ONLY_OUTPUT_PRE_SUC) {
             String rett = this.getLabel() + "       ;";
             rett += "pres: ";

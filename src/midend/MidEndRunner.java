@@ -2,9 +2,7 @@ package midend;
 
 import frontend.semantic.Initial;
 import manage.Manager;
-import mir.Function;
-import mir.GlobalVal;
-import mir.Value;
+import mir.*;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -69,6 +67,8 @@ public class MidEndRunner {
 
         MathOptimize mathOptimize = new MathOptimize(functions);
         mathOptimize.Run();
+
+        check();
         //
         // RemovePhi removePhi = new RemovePhi(functions);
         // removePhi.Run();
@@ -130,6 +130,8 @@ public class MidEndRunner {
 
         reMakeCFGAndLoopInfo();
 
+        check();
+
         Pass();
 
         // TODO:循环融合
@@ -156,6 +158,29 @@ public class MidEndRunner {
             Manager.MANAGER.outputLLVM();
         } catch (Exception e) {
 
+        }
+    }
+
+    private void check() {
+        for (Function function: functions) {
+            for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
+                for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+                    for (Use use = instr.getBeginUse(); use.getNext() != null; use = (Use) use.getNext()) {
+                        Instr user = use.getUser();
+                        assert user.getUseValueList().contains(instr);
+                    }
+
+                    for (Value value: instr.getUseValueList()) {
+                        boolean tag = false;
+                        for (Use use1 = value.getBeginUse(); use1.getNext() != null; use1 = (Use) use1.getNext()) {
+                            if (use1.getUser().equals(instr)) {
+                                tag = true;
+                            }
+                        }
+                        assert tag;
+                    }
+                }
+            }
         }
     }
 

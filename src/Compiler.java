@@ -90,7 +90,7 @@ public class Compiler {
              System.err.println("BEGIN rerun");
              MIDescriptor.MI_DESCRIPTOR.setRegMode();
             PeepholeOptimization peepholeOptimization = new PeepholeOptimization();
-            peepholeOptimization.run();
+           // peepholeOptimization.run();
              MIDescriptor.MI_DESCRIPTOR.run(); // 分配寄存器后
             // File output_file = new File("output.S");
             // PrintStream os = new PrintStream(output_file);

@@ -148,7 +148,7 @@ public class PeepholeOptimization {
                 return true;
             }
             size+=((Machine.Block)i).miList.size;
-            i = (Machine.Block) i.getNext();
+            i =  i.getNext();
         }
         return false;
     }

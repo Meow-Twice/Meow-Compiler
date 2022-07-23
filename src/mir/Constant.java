@@ -76,6 +76,15 @@ public class Constant extends Value {
             constFloatVal = val;
         }
 
+        String asmName = null;
+        static int floatConstCnt = 1;
+        public String getAsmName(){
+            if(asmName == null){
+                asmName = "_F_CONST_" + floatConstCnt++;
+            }
+            return asmName;
+        }
+
         @Override
         public Object getConstVal() {
             return constFloatVal;
@@ -89,6 +98,10 @@ public class Constant extends Value {
         @Override
         public String toString() {
             return String.format("0x%x",Double.doubleToRawLongBits((constFloatVal)));
+        }
+
+        public int getIntBits() {
+            return Float.floatToIntBits(constFloatVal);
         }
     }
 

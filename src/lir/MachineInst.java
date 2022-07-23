@@ -111,12 +111,18 @@ public class MachineInst extends ILinkNode {
         LongMul,
         FMA,
         Mv,
+        VMov,
+        VCvt,
+        VNeg,
         Branch,
         Jump,
         Return,  // Control flow
         Load,
+        VLdr,
         Store,  // Memory
-        Compare,
+        VStr,
+        ICmp,
+        VCmp,
         Call,
         Global,
         Comment,   // for printing comments
@@ -144,6 +150,10 @@ public class MachineInst extends ILinkNode {
         return tag == Tag.Mv;
     }
 
+    public boolean isVMov() {
+        return tag == Tag.VMov;
+    }
+
     public boolean isCall() {
         return tag == Tag.Call;
     }
@@ -152,9 +162,9 @@ public class MachineInst extends ILinkNode {
         return tag == Tag.Return;
     }
 
-    public boolean isActuallyBino() {
-        return tag.ordinal() < Tag.FMA.ordinal();
-    }
+    // public boolean isActuallyBino() {
+    //     return tag.ordinal() < Tag.FMA.ordinal();
+    // }
 
     public boolean isBranch() {
         return tag == Tag.Branch;
@@ -248,6 +258,9 @@ public class MachineInst extends ILinkNode {
 
     public void output(PrintStream os, Machine.McFunction f) {
         return;
+    }
+
+    public interface Compare {
     }
 }
 

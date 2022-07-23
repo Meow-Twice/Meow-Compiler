@@ -1,7 +1,8 @@
 import arg.Arg;
 import backend.CodeGen;
+import backend.FPRegAllocator;
 import backend.TrivialRegAllocator;
-import descriptor.MIDescriptor;
+// import descriptor.MIDescriptor;
 import frontend.Visitor;
 import frontend.lexer.Lexer;
 import frontend.lexer.Token;
@@ -75,6 +76,8 @@ public class Compiler {
             Manager.MANAGER.outputMI();
             // Manager.outputMI(true);
             long start = System.currentTimeMillis();
+            FPRegAllocator fpRegAllocator = new FPRegAllocator();
+            fpRegAllocator.AllocateRegister(p);
             TrivialRegAllocator regAllocator = new TrivialRegAllocator();
             regAllocator.AllocateRegister(p);
             System.err.println(System.currentTimeMillis() - start);

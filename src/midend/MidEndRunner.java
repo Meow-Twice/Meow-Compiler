@@ -44,34 +44,17 @@ public class MidEndRunner {
         Mem2Reg mem2Reg = new Mem2Reg(functions);
         mem2Reg.Run();
 
-        //outputLLVM();
 
         Pass();
 
-        //outputLLVM();
-
-
-        //BrOptimize();
         loopOptimize();
 
 
         //TODO:删除冗余phi,分支优化(删除无用的br/jump等),等等
-        BranchOptimize branchOptimize = new BranchOptimize(functions);
-        branchOptimize.Run();
+        BrOptimize();
+        BrOptimize();
+        BrOptimize();
 
-        //前驱后继关系已经维护
-        //拆分MakeCFG
-        reMakeCFGAndLoopInfo();
-
-        BranchOptimize branchOptimize1 = new BranchOptimize(functions);
-        branchOptimize1.Run();
-
-        //前驱后继关系已经维护
-        //拆分MakeCFG
-        reMakeCFGAndLoopInfo();
-
-
-        Pass();
 
         MathOptimize mathOptimize = new MathOptimize(functions);
         mathOptimize.Run();
@@ -156,12 +139,13 @@ public class MidEndRunner {
 
         //前驱后继关系已经维护
         //拆分MakeCFG
-        reMakeCFGAndLoopInfo();
+        MakeDFG makeDFG = new MakeDFG(functions);
+        makeDFG.Run();
 
         Pass();
     }
 
-    private void outputLLVM() {
+    public static void outputLLVM() {
         try {
             Manager.MANAGER.outputLLVM();
         } catch (Exception e) {

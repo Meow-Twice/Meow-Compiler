@@ -1,5 +1,6 @@
 package midend;
 
+import manage.Manager;
 import mir.*;
 
 import java.util.ArrayList;
@@ -17,7 +18,16 @@ public class BranchOptimize {
     public void Run() {
         RemoveUselessPHI();
         RemoveUselessJump();
+        remakeCFG();
         ModifyConstBranch();
+        remakeCFG();
+        //fixme:check貌似是错的
+        //RemoveBBOnlyJump();
+    }
+
+    private void remakeCFG() {
+        MakeDFG makeDFG = new MakeDFG(functions);
+        makeDFG.Run();
     }
 
     //删除只有一个use的PHI(冗余PHI)
@@ -37,6 +47,12 @@ public class BranchOptimize {
     private void ModifyConstBranch() {
         for (Function function: functions) {
             modifyConstBranchForFunc(function);
+        }
+    }
+
+    private void RemoveBBOnlyJump() {
+        for (Function function: functions) {
+            removeBBOnlyJumpForFunc(function);
         }
     }
 
@@ -151,7 +167,38 @@ public class BranchOptimize {
             //br.remove();
             Instr.Jump jump = new Instr.Jump(tagBB, parentBB);
             br.insertBefore(jump);
+            br.getCond().remove();
             br.remove();
+
+        }
+    }
+
+    private void removeBBOnlyJumpForFunc(Function function) {
+        HashSet<BasicBlock> removes = new HashSet<>();
+        for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
+            if (function.entry.equals(bb)) {
+                continue;
+            }
+            if (bb.getBeginInstr().equals(bb.getEndInstr())) {
+                Instr instr = bb.getBeginInstr();
+                if (instr instanceof Instr.Jump) {
+                    //TODO:
+                    Value next = ((Instr.Jump) instr).getTarget();
+                    BasicBlock target = ((Instr.Jump) instr).getTarget();
+                    bb.modifyAllUseThisToUseA(next);
+                    for (BasicBlock pre: bb.getPrecBBs()) {
+                        pre.modifySuc(bb, target);
+                        target.modifyPre(bb, pre);
+                    }
+                    removes.add(bb);
+                }
+            }
+        }
+        for (BasicBlock bb: removes) {
+            bb.remove();
+            for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+                instr.remove();
+            }
         }
     }
 }

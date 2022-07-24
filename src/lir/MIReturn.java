@@ -1,6 +1,5 @@
 package lir;
 
-import javax.crypto.Mac;
 import java.io.PrintStream;
 
 import static lir.Machine.Program.pop_output;

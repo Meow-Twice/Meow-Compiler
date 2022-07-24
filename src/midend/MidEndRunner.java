@@ -4,7 +4,6 @@ import frontend.semantic.Initial;
 import manage.Manager;
 import mir.Function;
 import mir.GlobalVal;
-import mir.Value;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -14,7 +13,7 @@ public class MidEndRunner {
     //TODO:另一种实现方法 functions定为static 提供init方法
     public ArrayList<Function> functions;
     private HashMap<GlobalVal.GlobalValue, Initial> globalValues = Manager.MANAGER.getGlobals();
-    private static boolean O2 = true;
+    public static boolean O2 = false;
 
     public MidEndRunner(ArrayList<Function> functions) {
         this.functions = functions;

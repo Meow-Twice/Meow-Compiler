@@ -1,11 +1,9 @@
 package midend;
 
-import mir.BasicBlock;
 import mir.Loop;
 import mir.Value;
 
 import java.util.HashMap;
-import java.util.HashSet;
 
 public class CloneInfoMap {
 

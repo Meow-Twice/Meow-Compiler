@@ -1,6 +1,5 @@
 package frontend.semantic;
 
-import mir.Constant;
 import mir.Value;
 import mir.type.Type;
 

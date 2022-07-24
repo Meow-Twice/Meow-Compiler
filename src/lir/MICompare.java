@@ -1,6 +1,5 @@
 package lir;
 
-import javax.crypto.Mac;
 import java.io.PrintStream;
 
 public class MICompare extends MachineInst{

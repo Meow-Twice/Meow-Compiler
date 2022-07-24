@@ -98,9 +98,9 @@ public class V extends MachineInst {
         public void output(PrintStream os, Machine.McFunction f) {
             transfer_output(os);
             Operand off = getOffset();
-            if(off == null){
+            if (off == null) {
                 os.println("\tvldr" + cond + ".32\t" + getData() + ",\t" + getAddr());
-            }else            if (this.shift.shiftType == Arm.ShiftType.None) {
+            } else if (this.shift.shiftType == Arm.ShiftType.None) {
                 os.println("\tvldr" + cond + ".32\t" + getData() + ",\t[" + getAddr() + ",\t" + off + "]");
             } else {
                 os.println("\tvldr" + cond + ".32\t" + getData() + ",\t[" + getAddr() + ",\t" + off + ",\tLSL #" + this.shift.shift + "]");
@@ -219,6 +219,11 @@ public class V extends MachineInst {
             }
         }
 
+        @Override
+        public String toString() {
+            return "vmov" + cond + getMvSuffixTypeSimply(getDst()) + "\t" + getDst() + ",\t" + getSrc();
+        }
+
         public boolean directColor() {
 
             return getDst().need_F_Color() && getSrc().need_F_Color() && cond == Arm.Cond.Any && shift.shiftType == Arm.ShiftType.None;
@@ -310,6 +315,24 @@ public class V extends MachineInst {
             super(Tag.VNeg, insertAtEnd);
             defOpds.add(dst);
             useOpds.add(src);
+        }
+
+        public Machine.Operand getDst() {
+            return defOpds.get(0);
+        }
+
+        public Machine.Operand getSrc() {
+            return useOpds.get(0);
+        }
+
+        @Override
+        public void output(PrintStream os, Machine.McFunction f) {
+            os.println("\tvneg.f32" + getDst() + ",\t" + getSrc());
+        }
+
+        @Override
+        public String toString() {
+            return "vneg.f32" + getDst() + ",\t" + getSrc();
         }
     }
 

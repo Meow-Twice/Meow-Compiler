@@ -191,7 +191,7 @@ public class CodeGen {
                 Operand opd = curMachineFunc.newSVR();
                 value2opd.put(param, opd);
                 if (sIdx <= 3) {
-                    new MIMove(opd, Arm.Reg.getS(sIdx), curMB);
+                    new V.Mov(opd, Arm.Reg.getS(sIdx), curMB);
                 } else {
                     // 这里因为无法确认栈的大小(参数栈空间, 所用寄存器push和pop的栈空间, 数组申请栈空间, 寄存器分配时溢出所需栈空间)是否超过了立即数编码, 因此一律用move指令处理
                     Operand offImm = new Operand(I32, 4 * (3 - (rIdx + sIdx)));

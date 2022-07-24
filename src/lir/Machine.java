@@ -606,6 +606,7 @@ public class Machine {
 
         // 新建虚拟寄存器
         public Operand(int virtualRegCnt, DataType dataType) {
+            this.dataType = dataType;
             if (dataType == I32) {
                 this.type = Virtual;
                 value = virtualRegCnt;
@@ -655,6 +656,7 @@ public class Machine {
          */
         public Operand(Type type, DataType dataType) {
             this.type = type;
+            this.dataType = dataType;
             prefix = switch (type) {
                 case Virtual -> "v";
                 case Allocated, PreColored -> switch (dataType) {

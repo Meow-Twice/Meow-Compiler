@@ -8,20 +8,13 @@ import util.ILinkNode;
 import java.util.*;
 
 import static lir.Arm.Regs.GPRs;
-import static lir.Arm.Regs.GPRs.sp;
 import static mir.type.DataType.I32;
 
-public class TrivialRegAllocator extends RegAllocator{
-
-    private final boolean DEBUG_STDIN_OUT = true;
-
-    private int rk = 12;
-    // TODO 尝试将sp直接设为Allocated或者不考虑sp add或sub指令
-    private int sk = 32;
-
-    private int SPILL_MAX_LIVE_INTERVAL = rk * 2;
-
-    private DataType dataType = I32;
+public class TrivialRegAllocator extends RegAllocator {
+    public TrivialRegAllocator() {
+        dataType = I32;
+        SPILL_MAX_LIVE_INTERVAL = RK * 2;
+    }
 
     void livenessAnalysis(Machine.McFunction mcFunc) {
         for (Machine.Block mb : mcFunc.mbList) {
@@ -33,13 +26,13 @@ public class TrivialRegAllocator extends RegAllocator{
                 ArrayList<Operand> uses = mi.useOpds;
                 // liveuse 计算
                 uses.forEach(use -> {
-                    if (!use.is_I_Imm() && !mb.defSet.contains(use)) {
+                    if (use.needGPR() && !mb.defSet.contains(use)) {
                         mb.liveUseSet.add(use);
                     }
                 });
                 // def 计算
                 defs.forEach(def -> {
-                    if (!def.is_I_Imm() && !mb.liveUseSet.contains(def)) {
+                    if (def.needGPR() && !mb.liveUseSet.contains(def)) {
                         mb.defSet.add(def);
                     }
                 });
@@ -112,12 +105,6 @@ public class TrivialRegAllocator extends RegAllocator{
             }
         }
     }
-
-    /**
-     * 图中冲突边 (u, v) 的集合, 如果(u, v) in adjSet, 则(v, u) in adjSet
-     * 用于判断两个Operand是否相邻
-     */
-    HashSet<AdjPair> adjSet = new HashSet<>();
 
     /***
      * 结点, 工作表, 集合和栈的数据结构.
@@ -200,7 +187,6 @@ public class TrivialRegAllocator extends RegAllocator{
     HashSet<MIMove> activeMoveSet = new HashSet<>();
 
     public Machine.McFunction curMF;
-    public int MAX_DEGREE = Integer.MAX_VALUE >> 2;
 
     public void AllocateRegister(Machine.Program program) {
         for (Machine.McFunction mcFunc : program.funcList) {
@@ -224,7 +210,7 @@ public class TrivialRegAllocator extends RegAllocator{
 
                 // rk = Manager.MANAGER.RK;
                 // sk = Manager.MANAGER.SK;
-                for (int i = 0; i < rk; i++) {
+                for (int i = 0; i < RK; i++) {
                     Arm.Reg.getR(i).degree = MAX_DEGREE;
                 }
                 // for (int i = 0; i < sk; i++) {
@@ -238,8 +224,9 @@ public class TrivialRegAllocator extends RegAllocator{
                 logOut("curMF.vrList:\t" + curMF.vrList.toString());
                 // makeWorkList
                 for (Operand vr : curMF.vrList) {
+                    assert vr.isI32();
                     // initial
-                    if (vr.degree >= rk) {
+                    if (vr.degree >= RK) {
                         spillWorkSet.add(vr);
                     } else if (nodeMoves(vr).size() > 0) {
                         freezeWorkSet.add(vr);
@@ -253,11 +240,14 @@ public class TrivialRegAllocator extends RegAllocator{
 
                 while (simplifyWorkSet.size() + workListMoveSet.size() + freezeWorkSet.size() + spillWorkSet.size() > 0) {
                     // TODO 尝试验证if - else if结构的可靠性和性能
+                    BreakPoint();
                     if (simplifyWorkSet.size() > 0) {
                         logOut("-- simplify");
                         logOut(simplifyWorkSet.toString());
                         // 从度数低的结点集中随机选择一个从图中删除放到 selectStack 里
                         Operand x = simplifyWorkSet.iterator().next();
+                        if (!x.isI32())
+                            assert !x.isI32();
                         simplifyWorkSet.remove(x);
                         selectStack.push(x);
                         logOut(String.format("selectStack.push(%s)", x));
@@ -270,11 +260,13 @@ public class TrivialRegAllocator extends RegAllocator{
                         }
                         // adjacent(x).forEach(this::decrementDegree);
                     }
+                    BreakPoint();
                     if (workListMoveSet.size() > 0) {
                         logOut("-- coalesce");
                         logOut("workListMoveSet:\t" + workListMoveSet);
                         coalesce();
                     }
+                    BreakPoint();
                     if (freezeWorkSet.size() > 0) {
                         logOut("freeze");
                         /**
@@ -286,6 +278,7 @@ public class TrivialRegAllocator extends RegAllocator{
                         logOut(x + "\t" + "freezeWorkSet -> simplifyWorkSet");
                         freezeMoves(x);
                     }
+                    BreakPoint();
                     if (spillWorkSet.size() > 0) {
                         logOut("selectSpill");
                         /**
@@ -295,6 +288,7 @@ public class TrivialRegAllocator extends RegAllocator{
                         Iterator<Operand> it = spillWorkSet.iterator();
                         Operand x = it.next();
                         assert x != null;
+                        assertDataType(x);
                         double max = x.heuristicVal();
                         while (it.hasNext()) {
                             Operand o = it.next();
@@ -314,6 +308,7 @@ public class TrivialRegAllocator extends RegAllocator{
                         spillWorkSet.remove(x);
                         logOut("select: " + x + "\t" + "remove from spillWorkSet");
                     }
+                    BreakPoint();
                 }
                 // Manager.MANAGER.outputMI();
                 assignColors();
@@ -335,6 +330,11 @@ public class TrivialRegAllocator extends RegAllocator{
         }
     }
 
+    private void BreakPoint() {
+        if (simplifyWorkSet.contains(Arm.Reg.getS(11)))
+            assert true;
+    }
+
     private void fixStack() {
 
     }
@@ -348,6 +348,7 @@ public class TrivialRegAllocator extends RegAllocator{
     int dealSpillTimes = 0;
 
     private void dealSpillNode(Operand x) {
+        assertDataType(x);
         dealSpillTimes++;
         for (Machine.Block mb : curMF.mbList) {
             offImm = new Operand(I32, curMF.getVarStack());
@@ -363,9 +364,6 @@ public class TrivialRegAllocator extends RegAllocator{
                 if (srcMI.isCall() || srcMI.isComment()) continue;
                 ArrayList<Operand> defs = srcMI.defOpds;
                 ArrayList<Operand> uses = srcMI.useOpds;
-                if (srcMI instanceof MILoad) {
-                    logOut(x + "-------try to match--------" + srcMI.toString());
-                }
                 if (defs.size() > 0) {
                     assert defs.size() == 1;
                     Operand def = defs.get(0);
@@ -444,31 +442,6 @@ public class TrivialRegAllocator extends RegAllocator{
         // TODO 计算生命周期长度
     }
 
-    public void addEdge(Operand u, Operand v) {
-        AdjPair adjPair = new AdjPair(u, v);
-        if (!(adjSet.contains(adjPair) || u.equals(v))) {
-            adjSet.add(adjPair);
-            adjSet.add(new AdjPair(v, u));
-            logOut("\tAddEdge: " + u + "\t,\t" + v);
-            // if(u.is_I_Virtual() && u.getValue() == 2){
-            //     System.err.println(u);
-            // }
-            if (!u.is_I_PreColored()) {
-                u.addAdj(v);
-                u.degree++;
-            }
-            if (!v.is_I_PreColored()) {
-                v.addAdj(u);
-                v.degree++;
-            }
-        }
-    }
-
-    public void logOut(String s) {
-        if (DEBUG_STDIN_OUT)
-            System.err.println(s);
-    }
-
     public void build() {
         for (Arm.Reg reg : Arm.Reg.getGPRPool()) {
             reg.loopCounter = 0;
@@ -477,13 +450,6 @@ public class TrivialRegAllocator extends RegAllocator{
             reg.moveSet = new HashSet<>();
             reg.setAlias(null);
         }
-        // for (Arm.Reg reg : Arm.Reg.getFPRPool()) {
-        //     reg.loopCounter = 0;
-        //     reg.degree = MAX_DEGREE;
-        //     reg.adjOpdSet = new HashSet<>();
-        //     reg.moveSet = new HashSet<>();
-        //     reg.setAlias(null);
-        // }
         for (Operand o : curMF.vrList) {
             o.loopCounter = 0;
             o.degree = 0;
@@ -577,6 +543,7 @@ public class TrivialRegAllocator extends RegAllocator{
      * @return x.adjOpdSet \ (selectStack u coalescedNodeSet)
      */
     private HashSet<Operand> adjacent(Operand x) {
+        assertDataType(x);
         HashSet<Operand> validConflictOpdSet = new HashSet<>(x.adjOpdSet);
         validConflictOpdSet.removeIf(r -> selectStack.contains(r) || coalescedNodeSet.contains(r));
         return validConflictOpdSet;
@@ -592,6 +559,7 @@ public class TrivialRegAllocator extends RegAllocator{
      * @return x.moveSet ∩ (activeMoveSet ∪ workListMoveSet)
      */
     private HashSet<MIMove> nodeMoves(Operand x) {
+        assertDataType(x);
         HashSet<MIMove> canCoalesceSet = new HashSet<>(x.moveSet);
         canCoalesceSet.removeIf(r -> !(activeMoveSet.contains(r) || workListMoveSet.contains(r)));
         return canCoalesceSet;
@@ -635,8 +603,9 @@ public class TrivialRegAllocator extends RegAllocator{
      * @param x
      */
     private void decrementDegree(Operand x) {
+        assertDataType(x);
         x.degree--;
-        if (x.degree == rk - 1) {
+        if (x.degree == RK - 1) {
             for (MIMove mv : nodeMoves(x)) {
                 // 考虑 x 关联的可能合并的 move
                 if (activeMoveSet.contains(mv)) {
@@ -672,6 +641,7 @@ public class TrivialRegAllocator extends RegAllocator{
      * 当 move y, x 已被合并, x.alias = y, x 被放入 coalescedNodeSet 中
      */
     private Operand getAlias(Operand x) {
+        assertDataType(x);
         while (coalescedNodeSet.contains(x)) {
             x = x.getAlias();
         }
@@ -685,7 +655,8 @@ public class TrivialRegAllocator extends RegAllocator{
      * @param x
      */
     public void addWorkList(Operand x) {
-        if (!x.is_I_PreColored() && (nodeMoves(x).size() == 0) && x.degree < rk) {
+        assertDataType(x);
+        if (!x.is_I_PreColored() && (nodeMoves(x).size() == 0) && x.degree < RK) {
             freezeWorkSet.remove(x);
             simplifyWorkSet.add(x);
             logOut(String.format("%s\t from freezeWorkSet to simplifyWorkSet", x));
@@ -699,6 +670,8 @@ public class TrivialRegAllocator extends RegAllocator{
      */
 
     public void combine(Operand u, Operand v) {
+        assertDataType(u);
+        assertDataType(v);
         if (freezeWorkSet.contains(v)) {
             freezeWorkSet.remove(v);
         } else {
@@ -721,7 +694,7 @@ public class TrivialRegAllocator extends RegAllocator{
         //     decrementDegree(adj);
         // });
         // 当 u 从(合并前的)低度数结点成为(合并后的)高度数结点, 则将其从freezeWorkSet转移到 spillWorkSet
-        if (u.degree >= rk && freezeWorkSet.contains(u)) {
+        if (u.degree >= RK && freezeWorkSet.contains(u)) {
             freezeWorkSet.remove(u);
             spillWorkSet.add(u);
         }
@@ -734,6 +707,8 @@ public class TrivialRegAllocator extends RegAllocator{
         // u <- v
         Operand u = getAlias(mv.getDst());
         Operand v = getAlias(mv.getSrc());
+        assertDataType(u);
+        assertDataType(v);
         if (v.is_I_PreColored()) {
             // 冲突图是无向图, 这里避免把mv归到受限一类而尽可能让v不是预着色的
             Operand tmp = u;
@@ -810,7 +785,7 @@ public class TrivialRegAllocator extends RegAllocator{
     }
 
     boolean ok(Operand t, Operand r) {
-        return t.degree < rk || t.is_I_PreColored() || adjSet.contains(new AdjPair(t, r));
+        return t.degree < RK || t.is_I_PreColored() || adjSet.contains(new AdjPair(t, r));
     }
 
     boolean adjOk(Operand v, Operand u) {
@@ -822,18 +797,16 @@ public class TrivialRegAllocator extends RegAllocator{
         return true;
     }
 
-    ;
-
     private boolean conservative(HashSet<Operand> adjacent, HashSet<Operand> adjacent1) {
         HashSet<Operand> tmp = new HashSet<>(adjacent);
         tmp.addAll(adjacent1);
         int cnt = 0;
         for (Operand x : tmp) {
-            if (x.degree >= rk) {
+            if (x.degree >= RK) {
                 cnt++;
             }
         }
-        return cnt < rk;
+        return cnt < RK;
     }
 
     /**
@@ -874,7 +847,7 @@ public class TrivialRegAllocator extends RegAllocator{
             */
 
             // 如果 v 不是传送相关的低度数结点, 则将 v 从低度数传送有关结点集 freezeWorkSet 挪到低度数传送无关结点集 simplifyWorkSet
-            if (nodeMoves(v).size() == 0 && v.degree < rk) {
+            if (nodeMoves(v).size() == 0 && v.degree < RK) {
                 // nodeMoves(v) = v.moveSet ∩ (activeMoveSet ∪ workListMoveSet)
                 freezeWorkSet.remove(v);
                 simplifyWorkSet.add(v);
@@ -888,10 +861,14 @@ public class TrivialRegAllocator extends RegAllocator{
         HashMap<Operand, Operand> colorMap = new HashMap<>();
         while (selectStack.size() > 0) {
             Operand toBeColored = selectStack.pop();
+            assertDataType(toBeColored);
+            if (toBeColored.is_I_PreColored() || toBeColored.isAllocated()) {
+                logOut(toBeColored.toString());
+            }
             assert !toBeColored.is_I_PreColored() && !toBeColored.isAllocated();
             logOut("when try assign:\t" + toBeColored);
             // TODO 注意剔除sp
-            final TreeSet<Arm.Regs> okColorSet = new TreeSet<>(Arrays.asList(GPRs.values()).subList(0, rk));
+            final TreeSet<Arm.Regs> okColorSet = new TreeSet<>(Arrays.asList(GPRs.values()).subList(0, RK));
             // logOut("--- rk = \t"+rk);
 
             // 把待分配颜色的结点的邻接结点的颜色去除

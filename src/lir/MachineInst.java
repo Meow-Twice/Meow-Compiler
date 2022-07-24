@@ -117,6 +117,7 @@ public class MachineInst extends ILinkNode {
         Branch,
         Jump,
         Return,  // Control flow
+        VRet,
         Load,
         VLdr,
         Store,  // Memory

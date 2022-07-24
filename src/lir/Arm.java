@@ -129,6 +129,13 @@ public class Arm {
             globalValue = glob;
         }
 
+        public Glob(String name) {
+            super(Immediate);
+            this.name = name;
+            // this.init = glob.initial;
+            // globalValue = glob;
+        }
+
         // /**
         //  * 浮点的全局变量
         //  * @param glob

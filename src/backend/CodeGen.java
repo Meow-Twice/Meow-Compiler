@@ -5,6 +5,7 @@ import lir.*;
 import lir.Machine.Operand;
 import manage.Manager;
 import mir.*;
+import mir.type.DataType;
 import mir.type.Type;
 
 import java.util.*;
@@ -277,13 +278,16 @@ public class CodeGen {
                 }
                 case ret -> {
                     Instr.Return returnInst = (Instr.Return) instr;
+                    DataType retDataType = null;
                     if (returnInst.hasValue()) {
                         if (returnInst.getRetValue().getType().isInt32Type()) {
+                            retDataType = I32;
                             Operand retOpd = getVR_may_imm(returnInst.getRetValue());
                             curMB.firstMIForBJ = new MIMove(Arm.Reg.getR(r0), retOpd, curMB);
                         } else if (returnInst.getRetValue().getType().isFloatType()) {
+                            retDataType = F32;
                             Operand retOpd = getVR_may_imm(returnInst.getRetValue());
-                            curMB.firstMIForBJ = new MIMove(Arm.Reg.getS(s0), retOpd, curMB);
+                            curMB.firstMIForBJ = new V.Mov(Arm.Reg.getS(s0), retOpd, curMB);
                         }
                     }
                     Operand rOp = new Operand(I32, 0);
@@ -292,7 +296,13 @@ public class CodeGen {
                     mv.setNeedFix(STACK_FIX.VAR_STACK);
                     new MIBinary(MachineInst.Tag.Add, Arm.Reg.getR(sp), Arm.Reg.getR(sp), mvDst, curMB);
                     // miBinary.setNeedFix(STACK_FIX.VAR_STACK);
-                    new MIReturn(curMB);
+                    if (retDataType == I32) {
+                        new MIReturn(Arm.Reg.getR(r0), curMB);
+                    } else if (retDataType == F32) {
+                        new V.Ret(Arm.Reg.getS(s0), curMB);
+                    } else {
+                        new MIReturn(curMB);
+                    }
                 }
                 case zext -> {
                     Operand dst = getVR_no_imm(instr);
@@ -344,7 +354,7 @@ public class CodeGen {
                     Operand data = getVR_may_imm(storeInst.getValue());
                     Operand addr = getVR_from_ptr(storeInst.getPointer());
                     Operand offset = new Operand(I32, 0);
-                    if (storeInst.getType().isFloatType()) {
+                    if (storeInst.getValue().getType().isFloatType()) {
                         new V.Str(data, addr, offset, curMB);
                     } else {
                         new MIStore(data, addr, offset, curMB);
@@ -563,7 +573,7 @@ public class CodeGen {
                 case move -> {
                     Operand source = getVR_may_imm(((Instr.Move) instr).getSrc());
                     Operand target = getVR_no_imm(((Instr.Move) instr).getDst());
-                    if (source.isFloat() || target.isFloat()) {
+                    if (source.isF32() || target.isF32()) {
                         new V.Mov(target, source, curMB);
                     } else {
                         new MIMove(target, source, curMB);
@@ -1024,7 +1034,11 @@ public class CodeGen {
             addr = new Operand(F32, constF);
             name2constFOpd.put(name, addr);
         }
-        new V.Ldr(dst, addr, curMB);
+        Arm.Glob glob = new Arm.Glob(name);
+        // globList.add(glob);
+        Operand labelAddr = newVR();
+        new MIMove(labelAddr, glob, curMB);
+        new V.Ldr(dst, labelAddr, curMB);
         return dst;
     }
 

@@ -63,6 +63,7 @@ public class Machine {
         public void output(PrintStream os) {
             os.println(".arch armv7ve");
             os.println(".arm");
+            os.println(".fpu vfpv3-d16");
             os.println(".section .text");
             for (McFunction function : funcList) {
                 os.println();
@@ -79,13 +80,28 @@ public class Machine {
                     os.println("}");
                 }
                 if (function.usedCalleeSavedFPRs.size() > 0) {
-                    os.print("\tvpush\t{");
-                    Iterator<Arm.Regs.FPRs> fprIter = function.usedCalleeSavedFPRs.iterator();
-                    os.print(fprIter.next());
-                    while (fprIter.hasNext()) {
-                        os.print("," + fprIter.next());
+                    int fprNum = FPRs.values().length;
+                    boolean[] fprBit = new boolean[fprNum];
+                    for (FPRs fpr : function.usedCalleeSavedFPRs) {
+                        fprBit[fpr.ordinal()] = true;
                     }
-                    os.println("}");
+                    int start = 0;
+                    while (start < fprNum) {
+                        while (start < fprNum && !fprBit[start])
+                            start++;
+                        if (start == fprNum)
+                            break;
+                        int end = start;
+                        while (end < fprNum && fprBit[end])
+                            end++;
+                        end--;
+                        if (end == start) {
+                            os.printf("\tvpush\t{s%d}%n", start);
+                        } else if (end > start) {
+                            os.printf("\tvpush\t{s%d-s%d}%n", start, end);
+                        }
+                        start = end + 1;
+                    }
                 }
 
                 //asm for mb
@@ -107,7 +123,7 @@ public class Machine {
                 String name = entry.getKey();
                 Constant.ConstantFloat constF = entry.getValue().constF;
                 int i = constF.getIntBits();
-                os.println(name+":");
+                os.println(name + ":");
                 os.println("\t.word\t" + i);
             }
             os.println(".section .data");
@@ -159,14 +175,29 @@ public class Machine {
         public static void pop_output(PrintStream os, McFunction function) {
             boolean retByBx = true;
             if (function.usedCalleeSavedFPRs.size() > 0) {
-                os.print("\tvpop\t{");
-                Iterator<Arm.Regs.FPRs> fprIter = function.usedCalleeSavedFPRs.iterator();
-                os.print(fprIter.next());
-                while (fprIter.hasNext()) {
-                    Arm.Regs.FPRs fpr = fprIter.next();
-                    os.print("," + fpr);
+
+                int fprNum = FPRs.values().length;
+                boolean[] fprBit = new boolean[fprNum];
+                for (FPRs fpr : function.usedCalleeSavedFPRs) {
+                    fprBit[fpr.ordinal()] = true;
                 }
-                os.println("}");
+                int end = fprNum - 1;
+                while (end > -1) {
+                    while (end > -1 && !fprBit[end])
+                        end--;
+                    if (end == -1)
+                        break;
+                    int start = end;
+                    while (start > -1 && fprBit[start])
+                        start--;
+                    start++;
+                    if (start == end) {
+                        os.printf("\tvpop\t{s%d}%n", end);
+                    } else if (start < end) {
+                        os.printf("\tvpop\t{s%d-s%d}%n", start, end);
+                    }
+                    end = start - 1;
+                }
             }
             if (function.usedCalleeSavedGPRs.size() > 0) {
                 os.print("\tpop\t{");
@@ -562,6 +593,10 @@ public class Machine {
             return dataType == I32;
         }
 
+        public boolean isDataType(DataType dataType) {
+            return this.dataType == dataType;
+        }
+
         // static {
         //     // 调用了子类, 所以不行
         //     int i;
@@ -578,11 +613,15 @@ public class Machine {
 
         public enum Type {
             PreColored,
-            Allocated,
             Virtual,
+            Allocated,
             Immediate,
             FVirtual,
             FConst,
+        }
+
+        public boolean needGPR() {
+            return (type == PreColored || type == Virtual) && dataType == I32;
         }
 
         Type type;
@@ -748,7 +787,7 @@ public class Machine {
             return (double) degree / (2 << loopCounter);
         }
 
-        public boolean isFloat() {
+        public boolean isF32() {
             // return type == FVirtual || type == FConst ||
             //         ((type == PreColored || type == Allocated) && (dataType == F32));
             return dataType == F32;

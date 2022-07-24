@@ -12,16 +12,11 @@ import static mir.type.DataType.F32;
 import static mir.type.DataType.I32;
 
 public class FPRegAllocator extends RegAllocator{
-    private final Arm.Reg rSP = Arm.Reg.getR(sp);
 
-    private final boolean DEBUG_STDIN_OUT = false;
-
-    // TODO 尝试将sp直接设为Allocated或者不考虑sp add或sub指令
-    public static int SK = 16;
-
-    private int SPILL_MAX_LIVE_INTERVAL = SK;
-
-    private DataType dataType = F32;
+    public FPRegAllocator(){
+        dataType = F32;
+        SPILL_MAX_LIVE_INTERVAL = SK;
+    }
 
     void livenessAnalysis(Machine.McFunction mcFunc) {
         for (Machine.Block mb : mcFunc.mbList) {
@@ -114,12 +109,6 @@ public class FPRegAllocator extends RegAllocator{
         }
     }
 
-    /**
-     * 图中冲突边 (u, v) 的集合, 如果(u, v) in adjSet, 则(v, u) in adjSet
-     * 用于判断两个Operand是否相邻
-     */
-    HashSet<AdjPair> adjSet = new HashSet<>();
-
     /***
      * 结点, 工作表, 集合和栈的数据结构.
      * 下面的表和集合总是互不相交的, 并且每个结点斗数与一个且只属于一个集合或表
@@ -201,7 +190,6 @@ public class FPRegAllocator extends RegAllocator{
     HashSet<V.Mov> activeVMovSet = new HashSet<>();
 
     public Machine.McFunction curMF;
-    public int MAX_DEGREE = Integer.MAX_VALUE >> 2;
 
     public void AllocateRegister(Machine.Program program) {
         for (Machine.McFunction mcFunc : program.funcList) {
@@ -440,28 +428,6 @@ public class FPRegAllocator extends RegAllocator{
             vrIdx = -1;
         }
         // TODO 计算生命周期长度
-    }
-
-    public void addEdge(Operand u, Operand v) {
-        AdjPair adjPair = new AdjPair(u, v);
-        if (!(adjSet.contains(adjPair) || u.equals(v))) {
-            adjSet.add(adjPair);
-            adjSet.add(new AdjPair(v, u));
-            logOut("\tAddEdge: " + u + "\t,\t" + v);
-            if (!u.is_F_PreColored()) {
-                u.addAdj(v);
-                u.degree++;
-            }
-            if (!v.is_F_PreColored()) {
-                v.addAdj(u);
-                v.degree++;
-            }
-        }
-    }
-
-    public void logOut(String s) {
-        if (DEBUG_STDIN_OUT)
-            System.err.println(s);
     }
 
     public void build() {
@@ -882,7 +848,7 @@ public class FPRegAllocator extends RegAllocator{
             // 把待分配颜色的结点的邻接结点的颜色去除
             toBeColored.adjOpdSet.forEach(adj -> {
                 Operand a = getAlias(adj);
-                if (a.hasReg()) {
+                if (a.hasReg() && a.isF32()) {
                     // 已着色或者预分配
                     okColorSet.remove(a.getReg());
                 } else if (a.is_F_Virtual()) {
@@ -933,7 +899,7 @@ public class FPRegAllocator extends RegAllocator{
                 if (!(mi instanceof V)) {
                     continue;
                 }
-                // logOut("Consider " + mi);
+                logOut("Consider " + mi);
                 ArrayList<Operand> defs = mi.defOpds;
                 ArrayList<Operand> uses = mi.useOpds;
                 if (defs.size() > 0) {

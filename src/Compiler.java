@@ -61,7 +61,6 @@ public class Compiler {
                 Manager.MANAGER.outputLLVM(arg.llvmStream);
             }
 
-            // Manager.MANAGER.outputLLVM();
             // DeadCodeDelete deadCodeDelete = new DeadCodeDelete(Manager.MANAGER.getFunctionList());
             // deadCodeDelete.Run();
             if(ONLY_FRONTEND){
@@ -71,8 +70,8 @@ public class Compiler {
             RemovePhi removePhi = new RemovePhi(midEndRunner.functions);
             removePhi.Run();
 
+            Manager.MANAGER.outputLLVM();
             CodeGen.CODEGEN.gen();
-            Manager.MANAGER.outputMI();
             Machine.Program p = Machine.Program.PROGRAM;
             // 为 MI Descriptor 设置输入输出流
             // MIDescriptor.MI_DESCRIPTOR.setInput(arg.interpretInputStream);
@@ -82,8 +81,9 @@ public class Compiler {
             Manager.MANAGER.outputMI();
             // Manager.outputMI(true);
             long start = System.currentTimeMillis();
-            // FPRegAllocator fpRegAllocator = new FPRegAllocator();
-            // fpRegAllocator.AllocateRegister(p);
+            FPRegAllocator fpRegAllocator = new FPRegAllocator();
+            fpRegAllocator.AllocateRegister(p);
+            Manager.MANAGER.outputMI();
             TrivialRegAllocator regAllocator = new TrivialRegAllocator();
             regAllocator.AllocateRegister(p);
             System.err.println(System.currentTimeMillis() - start);

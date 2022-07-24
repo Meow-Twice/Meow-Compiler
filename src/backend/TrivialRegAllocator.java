@@ -11,10 +11,7 @@ import static lir.Arm.Regs.GPRs;
 import static lir.Arm.Regs.GPRs.sp;
 import static mir.type.DataType.I32;
 
-public class TrivialRegAllocator {
-
-    private final CodeGen CODEGEN = CodeGen.CODEGEN;
-    private final Arm.Reg rSP = Arm.Reg.getR(sp);
+public class TrivialRegAllocator extends RegAllocator{
 
     private final boolean DEBUG_STDIN_OUT = true;
 
@@ -201,37 +198,6 @@ public class TrivialRegAllocator {
      * 还未做好合并准备的传送指令的集合
      */
     HashSet<MIMove> activeMoveSet = new HashSet<>();
-
-    public static class AdjPair {
-        static int cnt = 0;
-        public Operand u;
-        public Operand v;
-        int hash;
-
-        public AdjPair(Operand u, Operand v) {
-            this.u = u;
-            this.v = v;
-            hash = cnt++;
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(hash);
-        }
-
-        @Override
-        public boolean equals(Object obj) {
-            if (obj == this) return true;
-            if (!(obj instanceof AdjPair)) return false;
-            return (u.equals(((AdjPair) obj).u) && v.equals(((AdjPair) obj).v))
-                    /*|| (u.equals(((AdjPair) obj).v) && v.equals(((AdjPair) obj).u))*/;
-        }
-
-        @Override
-        public String toString() {
-            return "(" + u + " ,\t" + v + ")";
-        }
-    }
 
     public Machine.McFunction curMF;
     public int MAX_DEGREE = Integer.MAX_VALUE >> 2;
@@ -966,7 +932,8 @@ public class TrivialRegAllocator {
 
         for (Operand v : coalescedNodeSet) {
             Operand a = getAlias(v);
-            colorMap.put(v, a.is_I_PreColored() || a.isAllocated() ? a : colorMap.get(a));
+            assert !a.isAllocated();
+            colorMap.put(v, a.is_I_PreColored() ? a : colorMap.get(a));
         }
 
         ArrayList<MIMove> needFixList = new ArrayList<>();

@@ -11,7 +11,7 @@ import static lir.Arm.Regs.GPRs.sp;
 import static mir.type.DataType.F32;
 import static mir.type.DataType.I32;
 
-public class FPRegAllocator {
+public class FPRegAllocator extends RegAllocator{
     private final Arm.Reg rSP = Arm.Reg.getR(sp);
 
     private final boolean DEBUG_STDIN_OUT = false;
@@ -199,37 +199,6 @@ public class FPRegAllocator {
      * 还未做好合并准备的传送指令的集合
      */
     HashSet<V.Mov> activeVMovSet = new HashSet<>();
-
-    public static class AdjPair {
-        static int cnt = 0;
-        public Operand u;
-        public Operand v;
-        public int hash;
-
-        public AdjPair(Operand u, Operand v) {
-            this.u = u;
-            this.v = v;
-            hash = cnt++;
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(hash);
-        }
-
-        @Override
-        public boolean equals(Object obj) {
-            if (obj == this) return true;
-            if (!(obj instanceof AdjPair)) return false;
-            return (u.equals(((AdjPair) obj).u) && v.equals(((AdjPair) obj).v))
-                    /*|| (u.equals(((AdjPair) obj).v) && v.equals(((AdjPair) obj).u))*/;
-        }
-
-        @Override
-        public String toString() {
-            return "(" + u + " ,\t" + v + ")";
-        }
-    }
 
     public Machine.McFunction curMF;
     public int MAX_DEGREE = Integer.MAX_VALUE >> 2;

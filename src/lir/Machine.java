@@ -689,6 +689,7 @@ public class Machine {
             this.type = Allocated;
             if (reg instanceof Arm.Regs.GPRs) {
                 prefix = "r";
+                // dataType = I32;
             } else if (reg instanceof Arm.Regs.FPRs) {
                 prefix = "s";
                 dataType = F32;

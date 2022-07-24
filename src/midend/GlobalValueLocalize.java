@@ -66,6 +66,38 @@ public class GlobalValueLocalize {
             return;
         }
 
+        //只在main中调用的
+        if (useFunctions.size() == 1) {
+            Function function = null;
+            for (Function tmp: useFunctions) {
+                function = tmp;
+            }
+            if (!function.getName().equals("main")) {
+                return;
+            }
+            BasicBlock entry = function.getBeginBB();
+
+            Initial.ValueInit initValue = (Initial.ValueInit) globalValues.get(value);
+            assert initValue.getValue() instanceof Constant;
+
+            if (initValue.getType().isFloatType()) {
+                Instr.Alloc alloc = new Instr.Alloc(Type.BasicType.getF32Type(), entry, true);
+                Instr.Store store = new Instr.Store(initValue.getValue(), alloc, entry);
+                value.modifyAllUseThisToUseA(alloc);
+                entry.insertAtHead(store);
+                entry.insertAtHead(alloc);
+            } else if (globalValues.get(value).getType().isInt32Type()) {
+                Instr.Alloc alloc = new Instr.Alloc(Type.BasicType.getI32Type(), entry, true);
+                Instr.Store store = new Instr.Store(initValue.getValue(), alloc, entry);
+                value.modifyAllUseThisToUseA(alloc);
+                entry.insertAtHead(store);
+                entry.insertAtHead(alloc);
+            } else {
+                System.err.println("error");
+            }
+            removedGlobal.add(value);
+        }
+
         // 只在一个函数中被load,store
         // 只要有store,就不能直接替换为初始值,
         // 即使一个函数内没有store,但是因为另外的函数存在store,不明函数的调用逻辑,仍不能在没有store 的函数内替换为初始值

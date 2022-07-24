@@ -409,12 +409,16 @@ public class CodeGen {
                             // curAddrVR = tmpDst;
                             if (i == offsetCount - 1) {
                                 if (totalConstOff != 0) {
-                                    Operand immVR = getImmVR(totalConstOff);
-                                    new MIBinary(MachineInst.Tag.Add, curAddrVR, curAddrVR, immVR, curMB);
+                                    Machine.Operand immVR = getImmVR(totalConstOff);
+                                    Machine.Operand dst = newVR();
+                                    new MIBinary(MachineInst.Tag.Add, dst, curAddrVR, immVR, curMB);
+                                    curAddrVR = dst;
                                 }
                                 new MIFma(true, false, dstVR, curIdxVR, offUnitImmVR, curAddrVR, curMB);
                             } else {
-                                new MIFma(true, false, curAddrVR, curIdxVR, offUnitImmVR, curAddrVR, curMB);
+                                Machine.Operand dst = newVR();
+                                new MIFma(true, false, dst, curIdxVR, offUnitImmVR, curAddrVR, curMB);
+                                curAddrVR = dst;
                             }
                         }
                     }
@@ -663,9 +667,9 @@ public class CodeGen {
 
     public void mulOptimize(Instr.Alu instr) {
         Value lhs = instr.getRVal1();
-        Operand n = getVR_may_imm(lhs);
+        Machine.Operand n = getVR_may_imm(lhs);
         Value rhs = instr.getRVal2();
-        Operand q = getVR_no_imm(instr);
+        Machine.Operand q = getVR_no_imm(instr);
         int d = ((Constant.ConstantInt) rhs).constIntVal;
         int k = Integer.toBinaryString(Math.abs(d)).length() - 1;
         //q = n*d
@@ -675,9 +679,9 @@ public class CodeGen {
 
     }
 
-    public void divOptimize_mod(Value lhs, Value rhs, Operand q) {
+    public void divOptimize_mod(Value lhs, Value rhs, Machine.Operand q) {
         // q = n/d
-        Operand n = getVR_may_imm(lhs);
+        Machine.Operand n = getVR_may_imm(lhs);
         int d = ((Constant.ConstantInt) rhs).constIntVal;
         int N = 32;
         Multiplier multiplier = chooseMultiplier(Math.abs(d), N - 1);
@@ -691,15 +695,15 @@ public class CodeGen {
         } else if (Math.abs(d) == (1 << l)) {
             // q = SRA(n+SRL(SRA(n,l-1),N-l),l)
             // dst1 = SRA(n,l-1)
-            Operand dst1 = newVR();
+            Machine.Operand dst1 = newVR();
             Arm.Shift shift1 = new Arm.Shift(Arm.ShiftType.Asr, l - 1);
             new MIMove(dst1, n, shift1, curMB);
             // dst2 = SRL(dst1,N-l)
-            Operand dst2 = newVR();
+            Machine.Operand dst2 = newVR();
             Arm.Shift shift2 = new Arm.Shift(Arm.ShiftType.Lsr, N - l);
             new MIMove(dst2, dst1, shift2, curMB);
             // dst3 = n+dst2
-            Operand dst3 = newVR();
+            Machine.Operand dst3 = newVR();
             new MIBinary(MachineInst.Tag.Add, dst3, n, dst2, curMB);
             // q = SRA(dst3,l)
             Arm.Shift shift3 = new Arm.Shift(Arm.ShiftType.Asr, l);
@@ -707,53 +711,53 @@ public class CodeGen {
         } else if (m < ((long) 1 << (N - 1))) {
             // q = SRA(MULSH(m,n),sh_post)-XSIGN(n)
             // dst1 = MULSH(m,n)
-            Operand m_op = new Operand(I32, (int) m);
-            Operand dst1 = newVR();
+            Machine.Operand m_op = new Machine.Operand(I32, (int) m);
+            Machine.Operand dst1 = newVR();
             new MILongMul(dst1, n, m_op, curMB);
             // dst2 = SRA(dst1,sh_post)
-            Operand dst2 = newVR();
+            Machine.Operand dst2 = newVR();
             Arm.Shift shift2 = new Arm.Shift(Arm.ShiftType.Asr, sh_post);
             new MIMove(dst2, dst1, shift2, curMB);
             // dst3 = -XSIGN(n)
-            Operand dst3 = newVR();
-            new MICompare(n, new Operand(I32, 0), curMB);
-            new MIMove(Lt, dst3, new Operand(I32, 1), curMB);
-            new MIMove(Ge, dst3, new Operand(I32, 0), curMB);
+            Machine.Operand dst3 = newVR();
+            new MICompare(n, new Machine.Operand(I32, 0), curMB);
+            new MIMove(Lt, dst3, new Machine.Operand(I32, 1), curMB);
+            new MIMove(Ge, dst3, new Machine.Operand(I32, 0), curMB);
             // q = dst2+dst3
             new MIBinary(MachineInst.Tag.Add, q, dst2, dst3, curMB);
         } else {
             // q = SRA(n+MULSH(m-2^N,n),sh_post)-XSIGN(n)
             // dst1 = MULSH(m-2^N,n)
-            Operand m_op = new Operand(I32, (int) (m - (((long) 1 << N))));
-            Operand dst1 = newVR();
+            Machine.Operand m_op = new Machine.Operand(I32, (int) (m - (((long) 1 << N))));
+            Machine.Operand dst1 = newVR();
             new MILongMul(dst1, n, m_op, curMB);
             // dst2 = n+dst1
-            Operand dst2 = newVR();
+            Machine.Operand dst2 = newVR();
             new MIBinary(MachineInst.Tag.Add, dst2, n, dst1, curMB);
             // dst3 = SRA(dst2,sh_post)
-            Operand dst3 = newVR();
+            Machine.Operand dst3 = newVR();
             Arm.Shift shift = new Arm.Shift(Arm.ShiftType.Asr, sh_post);
             new MIMove(dst3, dst2, shift, curMB);
             // dst4 = -XSIGN(n)
-            Operand dst4 = newVR();
-            new MICompare(n, new Operand(I32, 0), curMB);
-            new MIMove(Lt, dst4, new Operand(I32, 1), curMB);
-            new MIMove(Ge, dst4, new Operand(I32, 0), curMB);
+            Machine.Operand dst4 = newVR();
+            new MICompare(n, new Machine.Operand(I32, 0), curMB);
+            new MIMove(Lt, dst4, new Machine.Operand(I32, 1), curMB);
+            new MIMove(Ge, dst4, new Machine.Operand(I32, 0), curMB);
             // q = dst3+dst4
             new MIBinary(MachineInst.Tag.Add, q, dst3, dst4, curMB);
         }
         if (d < 0) {
             // q=-q
-            new MIBinary(MachineInst.Tag.Rsb, q, q, new Operand(I32, 0), curMB);
+            new MIBinary(MachineInst.Tag.Rsb, q, q, new Machine.Operand(I32, 0), curMB);
         }
     }
 
     public void divOptimize(Instr.Alu instr) {
         // q = n/d
         Value lhs = instr.getRVal1();
-        Operand n = getVR_may_imm(lhs);
+        Machine.Operand n = getVR_may_imm(lhs);
         Value rhs = instr.getRVal2();
-        Operand q = getVR_no_imm(instr);
+        Machine.Operand q = getVR_no_imm(instr);
         int d = ((Constant.ConstantInt) rhs).constIntVal;
         int N = 32;
         Multiplier multiplier = chooseMultiplier(Math.abs(d), N - 1);
@@ -767,15 +771,15 @@ public class CodeGen {
         } else if (Math.abs(d) == (1 << l)) {
             // q = SRA(n+SRL(SRA(n,l-1),N-l),l)
             // dst1 = SRA(n,l-1)
-            Operand dst1 = newVR();
+            Machine.Operand dst1 = newVR();
             Arm.Shift shift1 = new Arm.Shift(Arm.ShiftType.Asr, l - 1);
             new MIMove(dst1, n, shift1, curMB);
             // dst2 = SRL(dst1,N-l)
-            Operand dst2 = newVR();
+            Machine.Operand dst2 = newVR();
             Arm.Shift shift2 = new Arm.Shift(Arm.ShiftType.Lsr, N - l);
             new MIMove(dst2, dst1, shift2, curMB);
             // dst3 = n+dst2
-            Operand dst3 = newVR();
+            Machine.Operand dst3 = newVR();
             new MIBinary(MachineInst.Tag.Add, dst3, n, dst2, curMB);
             // q = SRA(dst3,l)
             Arm.Shift shift3 = new Arm.Shift(Arm.ShiftType.Asr, l);
@@ -783,44 +787,44 @@ public class CodeGen {
         } else if (m < ((long) 1 << (N - 1))) {
             // q = SRA(MULSH(m,n),sh_post)-XSIGN(n)
             // dst1 = MULSH(m,n)
-            Operand m_op = new Operand(I32, (int) m);
-            Operand dst1 = newVR();
+            Machine.Operand m_op = new Machine.Operand(I32, (int) m);
+            Machine.Operand dst1 = newVR();
             new MILongMul(dst1, n, m_op, curMB);
             // dst2 = SRA(dst1,sh_post)
-            Operand dst2 = newVR();
+            Machine.Operand dst2 = newVR();
             Arm.Shift shift2 = new Arm.Shift(Arm.ShiftType.Asr, sh_post);
             new MIMove(dst2, dst1, shift2, curMB);
             // dst3 = -XSIGN(n)
-            Operand dst3 = newVR();
-            new MICompare(n, new Operand(I32, 0), curMB);
-            new MIMove(Lt, dst3, new Operand(I32, 1), curMB);
-            new MIMove(Ge, dst3, new Operand(I32, 0), curMB);
+            Machine.Operand dst3 = newVR();
+            new MICompare(n, new Machine.Operand(I32, 0), curMB);
+            new MIMove(Lt, dst3, new Machine.Operand(I32, 1), curMB);
+            new MIMove(Ge, dst3, new Machine.Operand(I32, 0), curMB);
             // q = dst2+dst3
             new MIBinary(MachineInst.Tag.Add, q, dst2, dst3, curMB);
         } else {
             // q = SRA(n+MULSH(m-2^N,n),sh_post)-XSIGN(n)
             // dst1 = MULSH(m-2^N,n)
-            Operand m_op = new Operand(I32, (int) (m - (((long) 1 << N))));
-            Operand dst1 = newVR();
+            Machine.Operand m_op = new Machine.Operand(I32, (int) (m - (((long) 1 << N))));
+            Machine.Operand dst1 = newVR();
             new MILongMul(dst1, n, m_op, curMB);
             // dst2 = n+dst1
-            Operand dst2 = newVR();
+            Machine.Operand dst2 = newVR();
             new MIBinary(MachineInst.Tag.Add, dst2, n, dst1, curMB);
             // dst3 = SRA(dst2,sh_post)
-            Operand dst3 = newVR();
+            Machine.Operand dst3 = newVR();
             Arm.Shift shift = new Arm.Shift(Arm.ShiftType.Asr, sh_post);
             new MIMove(dst3, dst2, shift, curMB);
             // dst4 = -XSIGN(n)
-            Operand dst4 = newVR();
-            new MICompare(n, new Operand(I32, 0), curMB);
-            new MIMove(Lt, dst4, new Operand(I32, 1), curMB);
-            new MIMove(Ge, dst4, new Operand(I32, 0), curMB);
+            Machine.Operand dst4 = newVR();
+            new MICompare(n, new Machine.Operand(I32, 0), curMB);
+            new MIMove(Lt, dst4, new Machine.Operand(I32, 1), curMB);
+            new MIMove(Ge, dst4, new Machine.Operand(I32, 0), curMB);
             // q = dst3+dst4
             new MIBinary(MachineInst.Tag.Add, q, dst3, dst4, curMB);
         }
         if (d < 0) {
             // q=-q
-            new MIBinary(MachineInst.Tag.Rsb, q, q, new Operand(I32, 0), curMB);
+            new MIBinary(MachineInst.Tag.Rsb, q, q, new Machine.Operand(I32, 0), curMB);
         }
     }
 

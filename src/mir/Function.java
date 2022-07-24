@@ -1,6 +1,7 @@
 package mir;
-
 import manage.Manager;
+import midend.CloneInfoMap;
+import midend.OutParam;
 import mir.type.Type;
 import util.ILinkNode;
 import util.Ilist;
@@ -18,6 +19,17 @@ public class Function extends Value {
     public boolean hasCall() {
         return isCaller;
     }
+
+    private boolean isDeleted = false;
+
+    public void setDeleted() {
+        isDeleted = true;
+    }
+
+    public boolean getDeleted() {
+        return isDeleted;
+    }
+
 
 
     public static class Param extends Value {
@@ -185,7 +197,7 @@ public class Function extends Value {
     // 输出函数声明
     public String getDeclare() {
         String paramList = params.stream().map(var -> var.getType().toString()).reduce((s, s2) -> s + ", " + s2).orElse("");
-        return "declare " + getTypeStr() + " @" + (isTimeFunc ? "_sysy_" : "") + name + "(" + paramList + ")";
+        return "declare " + getTypeStr() + " @" + getName() + "(" + paramList + ")";
     }
 
     // 输出函数定义
@@ -204,7 +216,11 @@ public class Function extends Value {
             ILinkNode node = block.getEntry();
             body.append(block).append(":\n");
             while (node.hasNext()) {
-                body.append("  ").append(node).append("\n");
+                if (OutParam.COND_CNT_DEBUG_FOR_LC) {
+                    body.append("  ").append(node).append("     ").append(((Instr) node).getCondCount()).append(" ").append(((Instr) node).isInLoopCond()).append("\n");
+                } else {
+                    body.append("  ").append(node).append("\n");
+                }
                 if (node instanceof Instr.Branch) {
                     BasicBlock thenBlock = ((Instr.Branch) node).getThenTarget();
                     BasicBlock elseBlock = ((Instr.Branch) node).getElseTarget();
@@ -229,14 +245,14 @@ public class Function extends Value {
             body.append("\n");
         }
 
-        return "define dso_local " + getTypeStr() + " @" + name + "(" + paramList + ") {\n" + body + "}\n";
+        return "define dso_local " + getTypeStr() + " @" + getName() + "(" + paramList + ") {\n" + body + "}\n";
     }
 
     public String output() {
 
         String paramList = params.stream().map(Value::toString).reduce((s, s2) -> s + ", " + s2).orElse("");
         StringBuilder str = new StringBuilder();
-        str.append("define dso_local ").append(getTypeStr()).append(" @").append(name).append("(").append(paramList).append(") {\n");
+        str.append("define dso_local ").append(getTypeStr()).append(" @").append(getName()).append("(").append(paramList).append(") {\n");
         // for(ILinkNode node = getBeginBB(); !node.equals(end);node = node.getNext()){
         //     BasicBlock bb = (BasicBlock) node;
         //     str.append(bb).append(":\n");
@@ -327,5 +343,73 @@ public class Function extends Value {
 
     public void addLoopHead(BasicBlock bb) {
         loopHeads.add(bb);
+    }
+
+    public void inlineToFunc(Function tagFunc, BasicBlock retBB, Instr.Call call, Loop loop) {
+        Instr.Phi retPhi = null;
+        if (retBB.getEndInstr() instanceof Instr.Phi) {
+            retPhi = (Instr.Phi) retBB.getBeginInstr();
+        }
+        BasicBlock bb = getBeginBB();
+        while (bb.getNext() != null) {
+            bb.cloneToFunc(tagFunc, loop);
+            //bb.cloneToFunc(tagFunc);
+            bb = (BasicBlock) bb.getNext();
+        }
+
+        ArrayList<Value> callParams = call.getParamList();
+        ArrayList<Param> funcParams = this.getParams();
+        for (int i = 0; i < callParams.size(); i++) {
+            CloneInfoMap.addValueReflect(funcParams.get(i), callParams.get(i));
+        }
+
+        bb = getBeginBB();
+        while (bb.getNext() != null) {
+            //((BasicBlock) CloneInfoMap.getReflectedValue(bb)).fix();
+            BasicBlock needFixBB = (BasicBlock) CloneInfoMap.getReflectedValue(bb);
+
+            //修正数据流
+//            if (!bb.equals(getBeginBB())) {
+//                ArrayList<BasicBlock> pres = new ArrayList<>();
+//                for (BasicBlock pre : bb.getPrecBBs()) {
+//                    pres.add((BasicBlock) CloneInfoMap.getReflectedValue(pre));
+//                }
+//                needFixBB.setPrecBBs(pres);
+//            }
+//
+//            if (!(bb.getEndInstr() instanceof Instr.Return)) {
+//                ArrayList<BasicBlock> succs = new ArrayList<>();
+//                for (BasicBlock succ : bb.getSuccBBs()) {
+//                    succs.add((BasicBlock) CloneInfoMap.getReflectedValue(succ));
+//                }
+//                needFixBB.setSuccBBs(succs);
+//            }
+
+
+
+
+            Instr instr = needFixBB.getBeginInstr();
+            while (instr.getNext() != null) {
+                instr.fix();
+                if (instr instanceof Instr.Return && ((Instr.Return) instr).hasValue()) {
+                    Instr jumpToRetBB = new Instr.Jump(retBB, needFixBB);
+                    instr.insertBefore(jumpToRetBB);
+                    retBB.addPre(needFixBB);
+                    assert retPhi != null;
+                    retPhi.addOptionalValue(((Instr.Return) instr).getRetValue());
+                    instr.remove();
+                } else if (instr instanceof Instr.Return) {
+                    Instr jumpToRetBB = new Instr.Jump(retBB, needFixBB);
+                    instr.insertBefore(jumpToRetBB);
+                    retBB.addPre(needFixBB);
+                    instr.remove();
+                }
+                instr = (Instr) instr.getNext();
+            }
+            bb = (BasicBlock) bb.getNext();
+        }
+
+
+
     }
 }

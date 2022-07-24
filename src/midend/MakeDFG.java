@@ -129,6 +129,7 @@ public class MakeDFG {
 
 
         for (BasicBlock bb: needRemove) {
+            //System.err.println("remove:" + bb.getLabel());
             bb.remove();
             Instr instr = bb.getBeginInstr();
             while (instr.getNext() != null) {
@@ -188,6 +189,9 @@ public class MakeDFG {
         //回写基本块和函数
         pos = beginBB;
         while (!pos.equals(end)) {
+            if  (pos.getLabel().equals("b242")) {
+                System.err.println("err");
+            }
             pos.setPrecBBs(preMap.get(pos));
             pos.setSuccBBs(sucMap.get(pos));
             pos = (BasicBlock) pos.getNext();

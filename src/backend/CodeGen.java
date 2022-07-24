@@ -447,6 +447,7 @@ public class CodeGen {
                                 paramSVRList.add(tmpDst);
                                 Operand fpr = Arm.Reg.getS(sIdx);
                                 new V.Mov(tmpDst, fpr, curMB);
+                                new V.Mov(fpr, getVR_may_imm(p), curMB);
                             } else {
                                 int offset_imm = (3 - (rIdx + sIdx)) * 4;
                                 Operand data = getVR_may_imm(p);
@@ -467,6 +468,7 @@ public class CodeGen {
                                 paramVRList.add(tmpDst);
                                 Operand gpr = Arm.Reg.getR(rIdx);
                                 new MIMove(tmpDst, gpr, curMB);
+                                new MIMove(gpr, getVR_may_imm(p), curMB);
                             } else {
                                 int offset_imm = (3 - (rIdx + sIdx)) * 4;
                                 Operand data = getVR_may_imm(p);
@@ -519,7 +521,6 @@ public class CodeGen {
                         mv2.setNeedFix(callMcFunc, STACK_FIX.ONLY_PARAM);
                         new MIBinary(MachineInst.Tag.Add, Arm.Reg.getR(sp), Arm.Reg.getR(sp), mvDst2, curMB);
                         // miBinary.setNeedFix(callMcFunc, STACK_FIX.ONLY_PARAM);
-
                     }
                     // 这行是取返回值
                     if (call_inst.getType().isInt32Type()) {

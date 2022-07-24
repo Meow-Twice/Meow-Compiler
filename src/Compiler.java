@@ -82,8 +82,8 @@ public class Compiler {
             Manager.MANAGER.outputMI();
             // Manager.outputMI(true);
             long start = System.currentTimeMillis();
-            FPRegAllocator fpRegAllocator = new FPRegAllocator();
-            fpRegAllocator.AllocateRegister(p);
+            // FPRegAllocator fpRegAllocator = new FPRegAllocator();
+            // fpRegAllocator.AllocateRegister(p);
             TrivialRegAllocator regAllocator = new TrivialRegAllocator();
             regAllocator.AllocateRegister(p);
             System.err.println(System.currentTimeMillis() - start);

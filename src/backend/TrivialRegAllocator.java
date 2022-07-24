@@ -16,7 +16,7 @@ public class TrivialRegAllocator {
     private final CodeGen CODEGEN = CodeGen.CODEGEN;
     private final Arm.Reg rSP = Arm.Reg.getR(sp);
 
-    private final boolean DEBUG_STDIN_OUT = false;
+    private final boolean DEBUG_STDIN_OUT = true;
 
     private int rk = 12;
     // TODO 尝试将sp直接设为Allocated或者不考虑sp add或sub指令

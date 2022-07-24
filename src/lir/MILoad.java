@@ -53,7 +53,7 @@ public class MILoad extends MachineInst {
     public void output(PrintStream os, Machine.McFunction f) {
         transfer_output(os);
         if (this.shift.shiftType == Arm.ShiftType.None) {
-            os.println("\tldr" + cond + "\t" + getData() + ",\t" + getAddr() + ",\t" + getOffset() + "]");
+            os.println("\tldr" + cond + "\t" + getData() + ",\t[" + getAddr() + ",\t" + getOffset() + "]");
         } else {
             os.println("\tldr" + cond + "\t" + getData() + ",\t[" + getAddr() + ",\t" + getOffset() + ",\tLSL #" + this.shift.shift + "]");
         }

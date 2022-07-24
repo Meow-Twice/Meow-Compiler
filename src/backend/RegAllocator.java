@@ -12,20 +12,17 @@ public class RegAllocator {
     protected final Arm.Reg rSP = Arm.Reg.getR(sp);
 
     public static class AdjPair {
-        static int cnt = 0;
         public Operand u;
         public Operand v;
-        public int hash;
 
         public AdjPair(Operand u, Operand v) {
             this.u = u;
             this.v = v;
-            hash = cnt++;
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(hash);
+            return Objects.hash(u, v);
         }
 
         @Override

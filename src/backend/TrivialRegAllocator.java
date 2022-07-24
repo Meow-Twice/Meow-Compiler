@@ -208,7 +208,7 @@ public class TrivialRegAllocator extends RegAllocator{
             while (true) {
                 livenessAnalysis(mcFunc);
                 adjSet = new HashSet<>();
-                AdjPair.cnt = 0;
+                // AdjPair.cnt = 0;
                 simplifyWorkSet = new HashSet<>();
                 freezeWorkSet = new HashSet<>();
                 spillWorkSet = new HashSet<>();
@@ -450,6 +450,9 @@ public class TrivialRegAllocator extends RegAllocator{
             adjSet.add(adjPair);
             adjSet.add(new AdjPair(v, u));
             logOut("\tAddEdge: " + u + "\t,\t" + v);
+            // if(u.is_I_Virtual() && u.getValue() == 2){
+            //     System.err.println(u);
+            // }
             if (!u.is_I_PreColored()) {
                 u.addAdj(v);
                 u.degree++;

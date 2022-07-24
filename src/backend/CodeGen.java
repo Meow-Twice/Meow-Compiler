@@ -171,23 +171,7 @@ public class CodeGen {
         int rIdx = 0;
         int sIdx = 0;
         for (Function.Param param : curFunc.getParams()) {
-            if (param.getType().isInt32Type()) {
-                Operand opd = curMachineFunc.newVR();
-                value2opd.put(param, opd);
-                if (rIdx <= 3) {
-                    new MIMove(opd, Arm.Reg.getR(rIdx), curMB);
-                } else {
-                    // 这里因为无法确认栈的大小(参数栈空间, 所用寄存器push和pop的栈空间, 数组申请栈空间, 寄存器分配时溢出所需栈空间)是否超过了立即数编码, 因此一律用move指令处理
-                    Operand offImm = new Operand(I32, 4 * (3 - (rIdx + sIdx)));
-                    Operand dst = newVR();
-                    MIMove mv = new MIMove(dst, offImm, curMB);
-                    mv.setNeedFix(STACK_FIX.TOTAL_STACK);
-                    // 栈顶向下的偏移, 第四个参数 -4, 第五个参数 -8 ...修的时候只需要把这个立即数的值取出来加上getStackSize获取的栈大小即可
-                    new MILoad(opd, Arm.Reg.getR(sp), dst, curMB);
-                    curMachineFunc.addParamStack(4);
-                }
-                rIdx++;
-            } else if (param.getType().isFloatType()) {
+            if (param.getType().isFloatType()) {
                 Operand opd = curMachineFunc.newSVR();
                 value2opd.put(param, opd);
                 if (sIdx <= 3) {
@@ -203,6 +187,22 @@ public class CodeGen {
                     curMachineFunc.addParamStack(4);
                 }
                 sIdx++;
+            } else {
+                Operand opd = curMachineFunc.newVR();
+                value2opd.put(param, opd);
+                if (rIdx <= 3) {
+                    new MIMove(opd, Arm.Reg.getR(rIdx), curMB);
+                } else {
+                    // 这里因为无法确认栈的大小(参数栈空间, 所用寄存器push和pop的栈空间, 数组申请栈空间, 寄存器分配时溢出所需栈空间)是否超过了立即数编码, 因此一律用move指令处理
+                    Operand offImm = new Operand(I32, 4 * (3 - (rIdx + sIdx)));
+                    Operand dst = newVR();
+                    MIMove mv = new MIMove(dst, offImm, curMB);
+                    mv.setNeedFix(STACK_FIX.TOTAL_STACK);
+                    // 栈顶向下的偏移, 第四个参数 -4, 第五个参数 -8 ...修的时候只需要把这个立即数的值取出来加上getStackSize获取的栈大小即可
+                    new MILoad(opd, Arm.Reg.getR(sp), dst, curMB);
+                    curMachineFunc.addParamStack(4);
+                }
+                rIdx++;
             }
         }
     }
@@ -277,12 +277,14 @@ public class CodeGen {
                 }
                 case ret -> {
                     Instr.Return returnInst = (Instr.Return) instr;
-                    if (returnInst.getType().isInt32Type()) {
-                        Operand retOpd = getVR_may_imm(returnInst.getRetValue());
-                        curMB.firstMIForBJ = new MIMove(Arm.Reg.getR(r0), retOpd, curMB);
-                    } else if (returnInst.getType().isFloatType()) {
-                        Operand retOpd = getVR_may_imm(returnInst.getRetValue());
-                        curMB.firstMIForBJ = new MIMove(Arm.Reg.getS(s0), retOpd, curMB);
+                    if (returnInst.hasValue()) {
+                        if (returnInst.getRetValue().getType().isInt32Type()) {
+                            Operand retOpd = getVR_may_imm(returnInst.getRetValue());
+                            curMB.firstMIForBJ = new MIMove(Arm.Reg.getR(r0), retOpd, curMB);
+                        } else if (returnInst.getRetValue().getType().isFloatType()) {
+                            Operand retOpd = getVR_may_imm(returnInst.getRetValue());
+                            curMB.firstMIForBJ = new MIMove(Arm.Reg.getS(s0), retOpd, curMB);
+                        }
                     }
                     Operand rOp = new Operand(I32, 0);
                     Operand mvDst = newVR();
@@ -493,6 +495,9 @@ public class CodeGen {
                         Operand tmpDst = newSVR();
                         paramSVRList.add(tmpDst);
                         new V.Mov(tmpDst, Arm.Reg.getS(s0), curMB);
+                        // } else {
+                        //     if (!call_inst.getType().isInt32Type() && !call_inst.getType().isFloatType() && !call_inst.getType().isVoidType())
+                        //         throw new AssertionError("Wrong ret type");
                     }
                     // 栈空间移位
                     Function callFunc = call_inst.getFunc();
@@ -527,6 +532,8 @@ public class CodeGen {
                         new MIMove(getVR_no_imm(call_inst), Arm.Reg.getR(r0), curMB);
                     } else if (call_inst.getType().isFloatType()) {
                         new V.Mov(getVR_no_imm(call_inst), Arm.Reg.getS(s0), curMB);
+                    } else if (!call_inst.getType().isVoidType()) {
+                        throw new AssertionError("Wrong ret type");
                     }
                     // 需要把挪走的r0-rx再挪回来
                     for (int i = 0; i < paramVRList.size(); i++) {

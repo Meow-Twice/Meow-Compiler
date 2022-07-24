@@ -209,7 +209,7 @@ public class FPRegAllocator extends RegAllocator{
             while (true) {
                 livenessAnalysis(mcFunc);
                 adjSet = new HashSet<>();
-                AdjPair.cnt = 0;
+                // AdjPair.cnt = 0;
                 simplifyWorkSet = new HashSet<>();
                 freezeWorkSet = new HashSet<>();
                 spillWorkSet = new HashSet<>();

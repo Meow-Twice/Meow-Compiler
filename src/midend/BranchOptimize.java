@@ -117,41 +117,11 @@ public class BranchOptimize {
             for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
                 if (instr instanceof Instr.Branch) {
                     Value cond = ((Instr.Branch) instr).getCond();
-                    if (!(cond instanceof Instr)) {
-                        continue;
-                    }
-                    Value lValue = ((Instr) cond).getUseValueList().get(0);
-                    Value rValue = ((Instr) cond).getUseValueList().get(1);
-                    if (lValue instanceof Constant && rValue instanceof Constant) {
-                        boolean tag = true;
-                        if (cond instanceof Instr.Icmp) {
-                            int lInt = (int) ((Constant) lValue).getConstVal();
-                            int rInt = (int) ((Constant) rValue).getConstVal();
-                            switch (((Instr.Icmp) cond).getOp()) {
-                                case SLT -> tag = lInt < rInt;
-                                case SLE -> tag = lInt <= rInt;
-                                case SGT -> tag = lInt > rInt;
-                                case SGE -> tag = lInt >= rInt;
-                                case NE -> tag = lInt != rInt;
-                                case EQ -> tag = lInt == rInt;
-                            }
-                        } else if (cond instanceof Instr.Fcmp) {
-                            float lFloat = (float) ((Constant) lValue).getConstVal();
-                            float rFloat = (float) ((Constant) rValue).getConstVal();
-                            switch (((Instr.Fcmp) cond).getOp()) {
-                                case OLT -> tag = lFloat < rFloat;
-                                case OLE -> tag = lFloat <= rFloat;
-                                case OGT -> tag = lFloat > rFloat;
-                                case OGE -> tag = lFloat >= rFloat;
-                                case ONE -> tag = lFloat != rFloat;
-                                case OEQ -> tag = lFloat == rFloat;
-                            }
-                        } else {
-                            assert false;
-                        }
+                    if (cond instanceof Constant) {
+                        int val = (int) ((Constant) cond).getConstVal();
+                        boolean tag = val == 1;
                         modifyBrMap.put((Instr.Branch) instr, tag);
                     }
-
                 }
             }
         }
@@ -167,7 +137,7 @@ public class BranchOptimize {
             //br.remove();
             Instr.Jump jump = new Instr.Jump(tagBB, parentBB);
             br.insertBefore(jump);
-            br.getCond().remove();
+            //br.getCond().remove();
             br.remove();
 
         }

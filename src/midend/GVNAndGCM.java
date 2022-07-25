@@ -258,6 +258,10 @@ public class GVNAndGCM {
 //            return;
 //        }
         BasicBlock best = lca;
+        if (lca == null) {
+            System.err.println("err_GCM");
+            assert true;
+        }
         while (!lca.equals(instr.getEarliestBB())) {
             if (lca.getLoopDep() < best.getLoopDep()) {
                 best = lca;
@@ -386,7 +390,8 @@ public class GVNAndGCM {
         return instr instanceof Instr.Jump || instr instanceof Instr.Branch ||
                 instr instanceof Instr.Phi || instr instanceof Instr.Return ||
                 instr instanceof Instr.Store || instr instanceof Instr.Load ||
-                instr instanceof Instr.GetElementPtr || instr instanceof Instr.Call;
+                //instr instanceof Instr.GetElementPtr ||
+                instr instanceof Instr.Call;
     }
 
     private void printBeforeMove() {

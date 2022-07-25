@@ -136,4 +136,31 @@ public class Constant extends Value {
             return constArray.get(idx);
         }
     }
+
+    public static class ConstantBool extends Constant {
+
+        private int constBoolVal;
+
+        public ConstantBool(int val) {
+            super(Type.BasicType.getI1Type());
+            assert val == 0 || val == 1;
+            constBoolVal = val;
+        }
+
+
+        @Override
+        public Object getConstVal() {
+            return constBoolVal;
+        }
+
+        @Override
+        public String getName() {
+            return String.valueOf(constBoolVal);
+        }
+
+        @Override
+        public String toString() {
+            return String.valueOf(constBoolVal);
+        }
+    }
 }

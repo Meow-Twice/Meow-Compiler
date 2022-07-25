@@ -85,7 +85,7 @@ public class Machine {
                     for (FPRs fpr : function.usedCalleeSavedFPRs) {
                         fprBit[fpr.ordinal()] = true;
                     }
-                    int start = 0;
+                    int start = 1;
                     while (start < fprNum) {
                         while (start < fprNum && !fprBit[start])
                             start++;
@@ -182,13 +182,13 @@ public class Machine {
                     fprBit[fpr.ordinal()] = true;
                 }
                 int end = fprNum - 1;
-                while (end > -1) {
-                    while (end > -1 && !fprBit[end])
+                while (end > 0) {
+                    while (end > 0 && !fprBit[end])
                         end--;
-                    if (end == -1)
+                    if (end == 0)
                         break;
                     int start = end;
-                    while (start > -1 && fprBit[start])
+                    while (start > 0 && fprBit[start])
                         start--;
                     start++;
                     if (start == end) {

@@ -14,31 +14,31 @@ import static mir.type.DataType.I32;
 
 public class V extends MachineInst {
 
-    protected String getCvtSuffixType(Operand dst, Operand src) {
-        DataType lDataType = dst.dataType;
-        DataType rDataType = src.dataType;
-        SuffixType cvtSuffixType = switch (lDataType) {
-            case I32 -> switch (rDataType) {
-                case I32 -> throw new AssertionError("LIRI\t" + dst + "\t" + src);
-                case F32 -> SuffixType.LIRF;
-                case I1 -> throw new AssertionError("LIRB\t" + dst + "\t" + src);
-            };
-            case F32 -> switch (rDataType) {
-                case I32 -> SuffixType.LFRI;
-                case F32 -> SuffixType.LFRF;
-                case I1 -> throw new AssertionError("LIRB\t" + dst + "\t" + src);
-            };
-            case I1 -> throw new AssertionError("LB\t" + dst + "\t" + src);
-        };
-
-        return switch (cvtSuffixType) {
-            case LFRI -> ".f32.s32";
-            case LIRF -> ".s32.f32";
-            case LFRF -> throw new AssertionError("WRONG LFRF in vmov of LFRF");
-            case LIRI -> throw new AssertionError("WRONG LIRI in vmov of LIRI");
-            case None -> throw new AssertionError("WRONG None in vmov");
-        };
-    }
+    // protected String getCvtSuffixType(Operand dst, Operand src) {
+    //     DataType lDataType = dst.dataType;
+    //     DataType rDataType = src.dataType;
+    //     CvtType cvtCvtType = switch (lDataType) {
+    //         case I32 -> switch (rDataType) {
+    //             case I32 -> throw new AssertionError("LIRI\t" + dst + "\t" + src);
+    //             case F32 -> CvtType.LIRF;
+    //             case I1 -> throw new AssertionError("LIRB\t" + dst + "\t" + src);
+    //         };
+    //         case F32 -> switch (rDataType) {
+    //             case I32 -> CvtType.LFRI;
+    //             case F32 -> CvtType.LFRF;
+    //             case I1 -> throw new AssertionError("LIRB\t" + dst + "\t" + src);
+    //         };
+    //         case I1 -> throw new AssertionError("LB\t" + dst + "\t" + src);
+    //     };
+    //
+    //     return switch (cvtCvtType) {
+    //         case LFRI -> ".f32.s32";
+    //         case LIRF -> ".s32.f32";
+    //         case LFRF -> throw new AssertionError("WRONG LFRF in vmov of LFRF");
+    //         case LIRI -> throw new AssertionError("WRONG LIRI in vmov of LIRI");
+    //         case None -> throw new AssertionError("WRONG None in vmov");
+    //     };
+    // }
 
     protected String getMvSuffixTypeSimply(Operand dst) {
         return switch (dst.dataType) {
@@ -243,11 +243,11 @@ public class V extends MachineInst {
         }
     }
 
-    enum SuffixType {
-        LIRI,
-        LFRI,
-        LIRF,
-        LFRF,
+    public enum CvtType {
+        // LIRI,
+        f2i,
+        i2f,
+        // LFRF,
         None
     }
 
@@ -255,9 +255,11 @@ public class V extends MachineInst {
      * 里面天然是两条指令vcvt, vmov
      */
     public static class Cvt extends V {
+        CvtType cvtType = CvtType.None;
 
-        public Cvt(Operand dst, Operand src, Machine.Block insertAtEnd) {
+        public Cvt(CvtType cvtType, Operand dst, Operand src, Machine.Block insertAtEnd) {
             super(Tag.VCvt, insertAtEnd);
+            this.cvtType = cvtType;
             defOpds.add(dst);
             useOpds.add(src);
         }
@@ -275,24 +277,23 @@ public class V extends MachineInst {
         @Override
         public String toString() {
             StringBuilder stb = new StringBuilder();
-            stb.append("vcvt").append(getCvtSuffixType(getDst(), getSrc())).append("\t").append(getDst()).append(",\t").append(getSrc());
-            if (old == null) old = stb.toString();
-            else return stb + "\t(" + old + ")\n";
+            switch (cvtType){
+                case f2i -> stb.append("\tvcvt.s32.f32\t" + getDst() + ",\t" + getSrc());
+                case i2f -> stb.append("\tvcvt.f32.s32\t" + getDst() + ",\t" + getSrc());
+                // TODO: for debug
+                default -> {throw new AssertionError("Wrong cvtType");}
+            }
             return stb + "\n";
         }
 
         @Override
         public void output(PrintStream os, Machine.McFunction f) {
             transfer_output(os);
-
-            DataType lDataType = getDst().dataType;
-            DataType rDataType = getSrc().dataType;
-            if (lDataType == I32 && rDataType == F32) {
-                os.println("\tvcvt.s32.f32\t" + getSrc() + ",\t" + getSrc());
-                os.println("\tvmov\t" + getDst() + ",\t" + getSrc());
-            } else if (lDataType == F32 && rDataType == I32) {
-                os.println("\tvmov.f32\t" + getDst() + ",\t" + getSrc());
-                os.println("\tvcvt.f32.s32\t" + getDst() + ",\t" + getDst());
+            switch (cvtType){
+                case f2i -> os.println("\tvcvt.s32.f32\t" + getDst() + ",\t" + getSrc());
+                case i2f -> os.println("\tvcvt.f32.s32\t" + getDst() + ",\t" + getSrc());
+                // TODO: for debug
+                default -> {throw new AssertionError("Wrong cvtType");}
             }
         }
     }

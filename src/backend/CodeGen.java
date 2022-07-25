@@ -171,15 +171,18 @@ public class CodeGen {
     private void dealParam() {
         int rIdx = 0;
         int sIdx = 0;
+        int rTop = rIdx;
+        int sTop = sIdx;
         for (Function.Param param : curFunc.getParams()) {
             if (param.getType().isFloatType()) {
                 Operand opd = curMachineFunc.newSVR();
                 value2opd.put(param, opd);
-                if (sIdx <= 3) {
+                if (sIdx < sParamCnt) {
                     new V.Mov(opd, Arm.Reg.getS(sIdx), curMB);
+                    sTop = sIdx;
                 } else {
                     // 这里因为无法确认栈的大小(参数栈空间, 所用寄存器push和pop的栈空间, 数组申请栈空间, 寄存器分配时溢出所需栈空间)是否超过了立即数编码, 因此一律用move指令处理
-                    Operand offImm = new Operand(I32, 4 * (3 - (rIdx + sIdx)));
+                    Operand offImm = new Operand(I32, 4 * (rTop + sTop - (rIdx + sIdx)));
                     Operand dst = newVR();
                     MIMove mv = new MIMove(dst, offImm, curMB);
                     mv.setNeedFix(STACK_FIX.TOTAL_STACK);
@@ -191,11 +194,12 @@ public class CodeGen {
             } else {
                 Operand opd = curMachineFunc.newVR();
                 value2opd.put(param, opd);
-                if (rIdx <= 3) {
+                if (rIdx < rParamCnt) {
                     new MIMove(opd, Arm.Reg.getR(rIdx), curMB);
+                    rTop = rIdx;
                 } else {
                     // 这里因为无法确认栈的大小(参数栈空间, 所用寄存器push和pop的栈空间, 数组申请栈空间, 寄存器分配时溢出所需栈空间)是否超过了立即数编码, 因此一律用move指令处理
-                    Operand offImm = new Operand(I32, 4 * (3 - (rIdx + sIdx)));
+                    Operand offImm = new Operand(I32, 4 * (rTop + sTop - (rIdx + sIdx)));
                     Operand dst = newVR();
                     MIMove mv = new MIMove(dst, offImm, curMB);
                     mv.setNeedFix(STACK_FIX.TOTAL_STACK);
@@ -312,13 +316,17 @@ public class CodeGen {
                 }
                 case fptosi -> {
                     Operand src = getVR_may_imm(((Instr.FPtosi) instr).getRVal1());
+                    Operand tmp = newSVR();
+                    new V.Cvt(V.CvtType.f2i, tmp, src, curMB);
                     Operand dst = getVR_no_imm(instr);
-                    new V.Cvt(dst, src, curMB);
+                    new V.Mov(dst, tmp, curMB);
                 }
                 case sitofp -> {
                     Operand src = getVR_may_imm(((Instr.SItofp) instr).getRVal1());
+                    Operand tmp = newSVR();
+                    new V.Mov(tmp, src, curMB);
                     Operand dst = getVR_no_imm(instr);
-                    new V.Cvt(dst, src, curMB);
+                    new V.Cvt(V.CvtType.i2f, dst, tmp, curMB);
                 }
                 case alloc -> {
                     Instr.Alloc allocInst = (Instr.Alloc) instr;
@@ -452,6 +460,8 @@ public class CodeGen {
                     ArrayList<Operand> paramSVRList = new ArrayList<>();
                     int rIdx = 0;
                     int sIdx = 0;
+                    int rParamTop = rIdx;
+                    int sParamTop = sIdx;
                     for (Value p : param_list) {
                         if (p.getType().isFloatType()) {
                             if (sIdx < sParamCnt) {
@@ -460,8 +470,9 @@ public class CodeGen {
                                 Operand fpr = Arm.Reg.getS(sIdx);
                                 new V.Mov(tmpDst, fpr, curMB);
                                 new V.Mov(fpr, getVR_may_imm(p), curMB);
+                                sParamTop = sIdx;
                             } else {
-                                int offset_imm = (3 - (rIdx + sIdx)) * 4;
+                                int offset_imm = (sParamTop + rParamTop - (rIdx + sIdx)) * 4;
                                 Operand data = getVR_may_imm(p);
                                 Operand addr = Arm.Reg.getR(sp);
                                 Operand off = new Operand(I32, offset_imm);
@@ -481,8 +492,9 @@ public class CodeGen {
                                 Operand gpr = Arm.Reg.getR(rIdx);
                                 new MIMove(tmpDst, gpr, curMB);
                                 new MIMove(gpr, getVR_may_imm(p), curMB);
+                                rParamTop = rIdx;
                             } else {
-                                int offset_imm = (3 - (rIdx + sIdx)) * 4;
+                                int offset_imm = (sParamTop + rParamTop - (rIdx + sIdx)) * 4;
                                 Operand data = getVR_may_imm(p);
                                 Operand addr = Arm.Reg.getR(sp);
                                 // TODO 小心函数参数个数超级多, 超过立即数可以表示的大小导致的错误
@@ -497,17 +509,15 @@ public class CodeGen {
                             rIdx++;
                         }
                     }
-                    if (rIdx == 0 && call_inst.getType().isInt32Type()) {
+                    if (rIdx == 0/* && call_inst.getType().isInt32Type()*/) {
                         Operand tmpDst = newVR();
                         paramVRList.add(tmpDst);
                         new MIMove(tmpDst, Arm.Reg.getR(r0), curMB);
-                    } else if (sIdx == 0 && call_inst.getType().isFloatType()) {
+                    }
+                    if (sIdx == 0 && call_inst.getType().isFloatType()) {
                         Operand tmpDst = newSVR();
                         paramSVRList.add(tmpDst);
                         new V.Mov(tmpDst, Arm.Reg.getS(s0), curMB);
-                        // } else {
-                        //     if (!call_inst.getType().isInt32Type() && !call_inst.getType().isFloatType() && !call_inst.getType().isVoidType())
-                        //         throw new AssertionError("Wrong ret type");
                     }
                     // 栈空间移位
                     Function callFunc = call_inst.getFunc();

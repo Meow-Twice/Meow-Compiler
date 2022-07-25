@@ -44,6 +44,7 @@ public class MidEndRunner {
         Mem2Reg mem2Reg = new Mem2Reg(functions);
         mem2Reg.Run();
 
+        GepFuse();
 
         Pass();
 
@@ -63,6 +64,14 @@ public class MidEndRunner {
         //
         // RemovePhi removePhi = new RemovePhi(functions);
         // removePhi.Run();
+    }
+
+    private void GepFuse() {
+        GepFuse gepFuse = new GepFuse(functions);
+        gepFuse.Run();
+
+        DeadCodeDelete deadCodeDelete = new DeadCodeDelete(functions, globalValues);
+        deadCodeDelete.Run();
     }
 
     //死代码删除 指令融合 GVN/GCM

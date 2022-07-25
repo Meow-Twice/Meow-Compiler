@@ -2,6 +2,7 @@ package midend;
 
 import frontend.semantic.Initial;
 import mir.*;
+import mir.type.Type;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -153,23 +154,53 @@ public class ConstFold {
                     Value ptr = ((Instr.GetElementPtr) instr).getPtr();
                     if (constGlobalPtrs.contains(ptr)) {
                         ArrayList<Value> indexs = ((Instr.GetElementPtr) instr).getIdxList();
+                        Boolean indexAllConstTag = true;
                         for (Value value: indexs) {
                             if (!(value instanceof Constant)) {
-                                continue;
+                                indexAllConstTag = false;
                             }
                         }
+                        if (!indexAllConstTag) {
+                            continue;
+                        }
                         //gep指令的数组没有被store过,且下标为常数
-                        Value arrayElementVal = getConstArrayValue(ptr, (ArrayList<Value>) indexs.subList(1, indexs.size()));
+                        ArrayList<Value> ret = new ArrayList<>();
+                        for (int i = 1; i < indexs.size(); i++) {
+                            ret.add(indexs.get(i));
+                        }
+                        Value arrayElementVal = getGlobalConstArrayValue(ptr, ret);
+                        for (Use use = instr.getBeginUse(); use.getNext() != null; use = (Use) use.getNext()) {
+                            Instr user = use.getUser();
+                            if (!(user instanceof Instr.Load)) {
+                                continue;
+                            }
+                            user.modifyAllUseThisToUseA(arrayElementVal);
+                        }
                     }
                 }
             }
         }
     }
 
-    private Value getConstArrayValue(Value ptr, ArrayList<Value> indexs) {
+    private Value getGlobalConstArrayValue(Value ptr, ArrayList<Value> indexs) {
+        ArrayList<Integer> lens = new ArrayList<>();
+        getArraySize(((Type.PointerType) ptr.getType()).getInnerType(), lens);
+        Type type = ((Type.ArrayType) ((Type.PointerType) ptr.getType()).getInnerType()).getBaseEleType();
+        ArrayList<Integer> offsetArray = new ArrayList<>();
+        offsetArray.addAll(lens);
+        for (int i = offsetArray.size() - 2; i >= 0; i--) {
+            offsetArray.set(i, offsetArray.get(i + 1) * offsetArray.get(i));
+        }
+
         Initial init = globalValues.get(ptr);
+        ArrayList<Value> initArray = init.getFlattenInit();
+        assert indexs.size() == offsetArray.size();
+        //TODO:修改取init值的方式
+        //      适配a[2][3] --> load a[0][5]
+
+
         if (init instanceof Initial.ZeroInit) {
-            if (ptr.getType().isInt32Type()) {
+            if (type.isInt32Type()) {
                 return new Constant.ConstantInt(0);
             } else {
                 return new Constant.ConstantFloat(0);
@@ -177,10 +208,26 @@ public class ConstFold {
         }
         for (Value tmp: indexs) {
             assert tmp instanceof Constant.ConstantInt;
+            assert init instanceof Initial.ArrayInit;
             int index = (int) ((Constant) tmp).getConstVal();
-
+            init = ((Initial.ArrayInit) init).get(index);
+            if (init instanceof Initial.ZeroInit) {
+                if (type.isInt32Type()) {
+                    return new Constant.ConstantInt(0);
+                } else {
+                    return new Constant.ConstantFloat(0);
+                }
+            }
         }
+        assert init instanceof Initial.ValueInit;
 
-        return null;
+        return ((Initial.ValueInit) init).getValue();
+    }
+
+    private void getArraySize(Type type, ArrayList<Integer> ret) {
+        if (type instanceof Type.ArrayType) {
+            ret.add(((Type.ArrayType) type).getSize());
+            getArraySize(((Type.ArrayType) type).getBaseType(), ret);
+        }
     }
 }

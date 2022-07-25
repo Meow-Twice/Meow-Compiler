@@ -56,9 +56,9 @@ public class CodeGen {
 
     private HashMap<Instr.Load, Instr.Alloc> load2alloc = new HashMap<>();
     // 整数数传参可使用最大个数
-    private int rParamCnt = 4;
+    public static final int rParamCnt = 4;
     // 浮点数传参可使用最大个数
-    private int sParamCnt = 8;
+    public static final int sParamCnt = 8;
 
     // div+mod optimize
     public static class Multiplier {
@@ -210,6 +210,8 @@ public class CodeGen {
                 rIdx++;
             }
         }
+        curMachineFunc.floatParamCount = sIdx - 1;
+        curMachineFunc.intParamCount = rIdx - 1;
     }
 
     public enum STACK_FIX {
@@ -451,10 +453,10 @@ public class CodeGen {
                     new MIMove(dst, src, curMB);
                 }
                 case call -> {
-                    // move caller's r0-r3  to VR
                     Instr.Call call_inst = (Instr.Call) instr;
                     // TODO : 函数内部可能调用其他函数, 但是在函数内部已经没有了Caller使用哪些寄存器的信息, 目前影响未知, 可能有bug
                     // TODO: ayame解决方案是在 callee 头 push 和 callee 尾部 pop 那些 callee 要用到的寄存器, 暂定此方案
+                    // TODO: 如果有返回值, 则由caller保护r0或s0, 如果没有返回值则有callee保护
                     ArrayList<Value> param_list = call_inst.getParamList();
                     ArrayList<Operand> paramVRList = new ArrayList<>();
                     ArrayList<Operand> paramSVRList = new ArrayList<>();
@@ -509,12 +511,16 @@ public class CodeGen {
                             rIdx++;
                         }
                     }
+                    /**
+                     * r0实际上依据设计不一定需要保护, 因为一定是最后ret语句才会有r0的赋值
+                     */
+                    // TODO: return getint();
                     if (rIdx == 0/* && call_inst.getType().isInt32Type()*/) {
                         Operand tmpDst = newVR();
                         paramVRList.add(tmpDst);
                         new MIMove(tmpDst, Arm.Reg.getR(r0), curMB);
                     }
-                    if (sIdx == 0 && call_inst.getType().isFloatType()) {
+                    if (sIdx == 0/* && call_inst.getType().isFloatType()*/) {
                         Operand tmpDst = newSVR();
                         paramSVRList.add(tmpDst);
                         new V.Mov(tmpDst, Arm.Reg.getS(s0), curMB);
@@ -522,8 +528,8 @@ public class CodeGen {
                     // 栈空间移位
                     Function callFunc = call_inst.getFunc();
                     Machine.McFunction callMcFunc = func2mcFunc.get(callFunc);
-                    if (call_inst.getFunc().isExternal) {
-                        Machine.McFunction mf = func2mcFunc.get(call_inst.getFunc());
+                    if (callFunc.isExternal) {
+                        Machine.McFunction mf = func2mcFunc.get(callFunc);
                         assert mf != null;
                         new MICall(mf, curMB);
                     } else {
@@ -546,8 +552,8 @@ public class CodeGen {
                         mv2.setNeedFix(callMcFunc, STACK_FIX.ONLY_PARAM);
                         new MIBinary(MachineInst.Tag.Add, Arm.Reg.getR(sp), Arm.Reg.getR(sp), mvDst2, curMB);
                         // miBinary.setNeedFix(callMcFunc, STACK_FIX.ONLY_PARAM);
+                        // 这是取返回值
                     }
-                    // 这行是取返回值
                     if (call_inst.getType().isInt32Type()) {
                         new MIMove(getVR_no_imm(call_inst), Arm.Reg.getR(r0), curMB);
                     } else if (call_inst.getType().isFloatType()) {

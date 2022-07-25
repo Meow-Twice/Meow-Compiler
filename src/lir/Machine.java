@@ -12,6 +12,9 @@ import util.Ilist;
 import java.io.PrintStream;
 import java.util.*;
 
+import static backend.CodeGen.rParamCnt;
+import static backend.CodeGen.sParamCnt;
+import static lir.Arm.Regs.FPRs.s0;
 import static lir.Arm.Regs.GPRs.*;
 import static lir.Machine.Operand.Type.*;
 import static mir.type.DataType.F32;
@@ -69,6 +72,10 @@ public class Machine {
                 os.println();
                 os.println(".global\t" + function.mFunc.getName());
                 os.println("\t.type\t" + function.mFunc.getName() + ",%function");
+                os.println("@ regStackSize =\t" + function.regStack + " ;\n@ varStackSize =\t" + function.varStack + " ;\n@ paramStackSize =\t" + function.paramStack + " ;");
+
+                os.println("@ usedCalleeSavedGPRs =\t" + function.usedCalleeSavedGPRs + " ;\n@ usedCalleeSavedFPRs =\t" + function.usedCalleeSavedFPRs + " ;\n");
+
                 os.println(function.mFunc.getName() + ":");
                 if (function.usedCalleeSavedGPRs.size() > 0) {
                     os.print("\tpush\t{");
@@ -85,7 +92,7 @@ public class Machine {
                     for (FPRs fpr : function.usedCalleeSavedFPRs) {
                         fprBit[fpr.ordinal()] = true;
                     }
-                    int start = 1;
+                    int start = 0;
                     while (start < fprNum) {
                         while (start < fprNum && !fprBit[start])
                             start++;
@@ -182,13 +189,13 @@ public class Machine {
                     fprBit[fpr.ordinal()] = true;
                 }
                 int end = fprNum - 1;
-                while (end > 0) {
-                    while (end > 0 && !fprBit[end])
+                while (end > -1) {
+                    while (end > -1 && !fprBit[end])
                         end--;
-                    if (end == 0)
+                    if (end == -1)
                         break;
                     int start = end;
-                    while (start > 0 && fprBit[start])
+                    while (start > -1 && fprBit[start])
                         start--;
                     start++;
                     if (start == end) {
@@ -225,6 +232,8 @@ public class Machine {
         // Block tailBlock = new Block();
         // Block headBlock = new Block();
         public Ilist<Block> mbList = new Ilist<>();
+        public int floatParamCount = 0;
+        public int intParamCount = 0;
         private int vrCount = 0;
 
         private int sVrCount = 0;
@@ -362,7 +371,7 @@ public class Machine {
 
         public void addUsedGPRs(Arm.Regs reg) {
             if (reg instanceof Arm.Regs.GPRs) {
-                if (reg == sp || ((Arm.Regs.GPRs) reg).ordinal() < Math.min(4, mFunc.getParams().size()) || (this.mFunc.hasRet() && reg == r0)) {
+                if (reg == sp || ((Arm.Regs.GPRs) reg).ordinal() < Math.min(intParamCount, rParamCnt) || (this.mFunc.getRetType().isInt32Type() && reg == r0)) {
                     return;
                 }
                 if (usedCalleeSavedGPRs.add((Arm.Regs.GPRs) reg)) {
@@ -373,6 +382,9 @@ public class Machine {
 
         public void addUsedFRPs(Arm.Regs reg) {
             if (reg instanceof Arm.Regs.FPRs) {
+                if (((Arm.Regs.FPRs) reg).ordinal() < Math.min(floatParamCount, sParamCnt) || (this.mFunc.getRetType().isFloatType() && reg == s0)) {
+                    return;
+                }
                 if (usedCalleeSavedFPRs.add((Arm.Regs.FPRs) reg)) {
                     addRegStack(4);
                 }

@@ -47,7 +47,7 @@ public class MICall extends MachineInst {
             //     }
             // }
         }
-    // TODO for bug test!!!
+        // TODO for bug test!!!
         if (mf.mFunc.hasRet()) {
             if (mf.mFunc.getRetType().isInt32Type()) {
                 defOpds.add(Reg.getR(r0));
@@ -61,15 +61,7 @@ public class MICall extends MachineInst {
 
     @Override
     public void output(PrintStream os, Machine.McFunction f) {
-        if (mf.mFunc.isExternal) {
-            os.println("\tpush\t{r1,r2,r3}\t");
-            os.println("\tvpush\t{s2-s15}\t");
-        }
         os.println("\tblx\t" + mf.mFunc.getName());
-        if (mf.mFunc.isExternal) {
-            os.println("\tvpop\t{s2-s15}\t");
-            os.println("\tpop\t{r1,r2,r3}\t");
-        }
     }
 
     @Override

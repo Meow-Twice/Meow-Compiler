@@ -7,6 +7,7 @@ import manage.Manager;
 import mir.*;
 import mir.type.DataType;
 import mir.type.Type;
+import util.FileDealer;
 
 import java.util.*;
 
@@ -23,7 +24,7 @@ public class CodeGen {
     boolean _DEBUG_MUL_DIV = false;
 
     // 当前的Machine.McFunction
-    private static Machine.McFunction curMachineFunc;
+    private static Machine.McFunction curMF;
 
     // 当前的mir.Function
     private static mir.Function curFunc;
@@ -95,7 +96,7 @@ public class CodeGen {
 
     private CodeGen() {
         curFunc = null;
-        curMachineFunc = null;
+        curMF = null;
         midFuncMap = Manager.MANAGER.getFunctions();
         globalMap = Manager.MANAGER.globals;
         value2opd = new HashMap<>();
@@ -122,17 +123,17 @@ public class CodeGen {
             if (func.isExternal) {
                 continue;
             }
-            curMachineFunc = func2mcFunc.get(func);
-            Machine.Program.PROGRAM.funcList.insertAtEnd(curMachineFunc);
+            curMF = func2mcFunc.get(func);
+            Machine.Program.PROGRAM.funcList.insertAtEnd(curMF);
             curFunc = func;
             boolean isMain = false;
             if (curFunc.getName().equals("main")) {
                 isMain = true;
-                Machine.Program.PROGRAM.mainMcFunc = curMachineFunc;
+                Machine.Program.PROGRAM.mainMcFunc = curMF;
             }
             // curMachineFunc = mcFunc;
-            curMachineFunc.clearVRCount();
-            curMachineFunc.clearSVRCount();
+            curMF.clearVRCount();
+            curMF.clearSVRCount();
             value2opd = new HashMap<>();
 
             BasicBlock bb = func.getBeginBB();
@@ -147,6 +148,7 @@ public class CodeGen {
             bb = func.getBeginBB();
             curMB = bb.getMb();
             // 这里不可使用单例
+            Push(curMF);
             Operand rOp = new Operand(I32, 0);
             Operand mvDst = newVR();
             MIMove mv = new MIMove(mvDst, rOp, curMB);
@@ -166,6 +168,16 @@ public class CodeGen {
         }
     }
 
+    private void Push(Machine.McFunction mf) {
+        new StackCtl.VPush(mf, curMB);
+        new StackCtl.MIPush(mf, curMB);
+    }
+
+    private void Pop(Machine.McFunction curMachineFunc) {
+        new StackCtl.MIPop(curMachineFunc, curMB);
+        new StackCtl.VPop(curMachineFunc, curMB);
+    }
+
     LinkedList<BasicBlock> nextBBList;
 
     private void dealParam() {
@@ -175,7 +187,7 @@ public class CodeGen {
         int sTop = sIdx;
         for (Function.Param param : curFunc.getParams()) {
             if (param.getType().isFloatType()) {
-                Operand opd = curMachineFunc.newSVR();
+                Operand opd = curMF.newSVR();
                 value2opd.put(param, opd);
                 if (sIdx < sParamCnt) {
                     new V.Mov(opd, Arm.Reg.getS(sIdx), curMB);
@@ -188,11 +200,11 @@ public class CodeGen {
                     mv.setNeedFix(STACK_FIX.TOTAL_STACK);
                     // 栈顶向下的偏移, 第四个参数 -4, 第五个参数 -8 ...修的时候只需要把这个立即数的值取出来加上getStackSize获取的栈大小即可
                     new V.Ldr(opd, Arm.Reg.getR(sp), dst, curMB);
-                    curMachineFunc.addParamStack(4);
+                    curMF.addParamStack(4);
                 }
                 sIdx++;
             } else {
-                Operand opd = curMachineFunc.newVR();
+                Operand opd = curMF.newVR();
                 value2opd.put(param, opd);
                 if (rIdx < rParamCnt) {
                     new MIMove(opd, Arm.Reg.getR(rIdx), curMB);
@@ -205,13 +217,14 @@ public class CodeGen {
                     mv.setNeedFix(STACK_FIX.TOTAL_STACK);
                     // 栈顶向下的偏移, 第四个参数 -4, 第五个参数 -8 ...修的时候只需要把这个立即数的值取出来加上getStackSize获取的栈大小即可
                     new MILoad(opd, Arm.Reg.getR(sp), dst, curMB);
-                    curMachineFunc.addParamStack(4);
+                    curMF.addParamStack(4);
                 }
                 rIdx++;
             }
         }
-        curMachineFunc.floatParamCount = sIdx - 1;
-        curMachineFunc.intParamCount = rIdx - 1;
+        curMF.alignParamStack();
+        curMF.floatParamCount = sIdx - 1;
+        curMF.intParamCount = rIdx - 1;
     }
 
     public enum STACK_FIX {
@@ -226,7 +239,7 @@ public class CodeGen {
     public void genBB(BasicBlock bb) {
         curMB = bb.getMb();
         dfsBBSet.add(curMB);
-        curMB.setMcFunc(curMachineFunc);
+        curMB.setMcFunc(curMF);
         // ArrayList<BasicBlock> nextBlockList = new ArrayList<>();
         Instr instr = bb.getBeginInstr();
         while (!instr.equals(bb.getEnd())) {
@@ -302,6 +315,7 @@ public class CodeGen {
                     mv.setNeedFix(STACK_FIX.VAR_STACK);
                     new MIBinary(MachineInst.Tag.Add, Arm.Reg.getR(sp), Arm.Reg.getR(sp), mvDst, curMB);
                     // miBinary.setNeedFix(STACK_FIX.VAR_STACK);
+                    Pop(curMF);
                     if (retDataType == I32) {
                         new MIReturn(Arm.Reg.getR(r0), curMB);
                     } else if (retDataType == F32) {
@@ -340,12 +354,12 @@ public class CodeGen {
                     assert contentType.isArrType();
                     Operand addr = getVR_no_imm(allocInst);
                     Operand spReg = Arm.Reg.getR(sp);
-                    Operand offset = new Operand(I32, curMachineFunc.getVarStack());
+                    Operand offset = new Operand(I32, curMF.getVarStack());
                     Operand mvDst = newVR();
                     new MIMove(mvDst, offset, curMB);
                     new MIBinary(MachineInst.Tag.Add, addr, spReg, mvDst, curMB);
                     // 栈空间移位
-                    curMachineFunc.addVarStack(((Type.ArrayType) contentType).getFlattenSize() * 4);
+                    curMF.addVarStack(((Type.ArrayType) contentType).getFlattenSize() * 4);
                 }
                 case load -> {
                     Instr.Load loadInst = (Instr.Load) instr;
@@ -525,7 +539,7 @@ public class CodeGen {
                     //     paramSVRList.add(tmpDst);
                     //     new V.Mov(tmpDst, Arm.Reg.getS(s0), curMB);
                     // }
-                    while(sIdx < 2){
+                    while (sIdx < 2) {
                         Operand tmpDst = newSVR();
                         paramSVRList.add(tmpDst);
                         Operand fpr = Arm.Reg.getS(sIdx);
@@ -538,7 +552,16 @@ public class CodeGen {
                     if (callFunc.isExternal) {
                         Machine.McFunction mf = func2mcFunc.get(callFunc);
                         assert mf != null;
+                        Push(mf);
                         new MICall(mf, curMB);
+                        if (call_inst.getType().isInt32Type()) {
+                            new MIMove(getVR_no_imm(call_inst), Arm.Reg.getR(r0), curMB);
+                        } else if (call_inst.getType().isFloatType()) {
+                            new V.Mov(getVR_no_imm(call_inst), Arm.Reg.getS(s0), curMB);
+                        } else if (!call_inst.getType().isVoidType()) {
+                            throw new AssertionError("Wrong ret type");
+                        }
+                        Pop(mf);
                     } else {
                         if (callMcFunc == null) {
                             throw new AssertionError("Callee is null");
@@ -560,13 +583,13 @@ public class CodeGen {
                         new MIBinary(MachineInst.Tag.Add, Arm.Reg.getR(sp), Arm.Reg.getR(sp), mvDst2, curMB);
                         // miBinary.setNeedFix(callMcFunc, STACK_FIX.ONLY_PARAM);
                         // 这是取返回值
-                    }
-                    if (call_inst.getType().isInt32Type()) {
-                        new MIMove(getVR_no_imm(call_inst), Arm.Reg.getR(r0), curMB);
-                    } else if (call_inst.getType().isFloatType()) {
-                        new V.Mov(getVR_no_imm(call_inst), Arm.Reg.getS(s0), curMB);
-                    } else if (!call_inst.getType().isVoidType()) {
-                        throw new AssertionError("Wrong ret type");
+                        if (call_inst.getType().isInt32Type()) {
+                            new MIMove(getVR_no_imm(call_inst), Arm.Reg.getR(r0), curMB);
+                        } else if (call_inst.getType().isFloatType()) {
+                            new V.Mov(getVR_no_imm(call_inst), Arm.Reg.getS(s0), curMB);
+                        } else if (!call_inst.getType().isVoidType()) {
+                            throw new AssertionError("Wrong ret type");
+                        }
                     }
                     // 需要把挪走的r0-rx再挪回来
                     for (int i = 0; i < paramVRList.size(); i++) {
@@ -994,7 +1017,7 @@ public class CodeGen {
     // }
 
     public Operand newSVR() {
-        return curMachineFunc.newSVR();
+        return curMF.newSVR();
     }
 
     /**
@@ -1004,11 +1027,11 @@ public class CodeGen {
      * @return 新生成的 virtual reg
      */
     public Operand newVR() {
-        return curMachineFunc.newVR();
+        return curMF.newVR();
     }
 
     public Operand newSVR(Value value) {
-        Operand opd = curMachineFunc.newSVR();
+        Operand opd = curMF.newSVR();
         value2opd.put(value, opd);
         return opd;
     }
@@ -1019,7 +1042,7 @@ public class CodeGen {
      * @return 如果value没有生成过vr, 则生成并放到map里并返回, 如果生成过直接返回
      */
     public Operand newVR(Value value) {
-        Operand opd = curMachineFunc.newVR();
+        Operand opd = curMF.newVR();
         // opd2value.put(opd, value);
         value2opd.put(value, opd);
         return opd;

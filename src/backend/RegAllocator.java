@@ -11,6 +11,7 @@ import java.util.Objects;
 import static lir.Arm.Regs.GPRs.sp;
 
 public class RegAllocator {
+    public static final int SP_ALIGN = 2 * 4;
 
     protected final boolean DEBUG_STDIN_OUT = false;
 

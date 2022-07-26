@@ -126,6 +126,10 @@ public class MachineInst extends ILinkNode {
         VCmp,
         Call,
         Global,
+        Push,
+        Pop,
+        VPush,
+        VPop,
         Comment,   // for printing comments
         Empty;
 

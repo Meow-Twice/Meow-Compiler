@@ -407,7 +407,8 @@ public class V extends MachineInst {
 
         @Override
         public void output(PrintStream os, Machine.McFunction mf) {
-            pop_output(os, mf);
+            os.println("\tbx\tlr");
+            // pop_output(os, mf);
         }
 
         @Override

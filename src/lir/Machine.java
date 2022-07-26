@@ -1,6 +1,7 @@
 package lir;
 
 import backend.CodeGen;
+import backend.RegAllocator;
 import mir.BasicBlock;
 import mir.Constant;
 import mir.GlobalVal;
@@ -14,6 +15,7 @@ import java.util.*;
 
 import static backend.CodeGen.rParamCnt;
 import static backend.CodeGen.sParamCnt;
+import static backend.RegAllocator.SP_ALIGN;
 import static lir.Arm.Regs.FPRs.s0;
 import static lir.Arm.Regs.GPRs.*;
 import static lir.Machine.Operand.Type.*;
@@ -77,39 +79,7 @@ public class Machine {
                 os.println("@ usedCalleeSavedGPRs =\t" + function.usedCalleeSavedGPRs + " ;\n@ usedCalleeSavedFPRs =\t" + function.usedCalleeSavedFPRs + " ;\n");
 
                 os.println(function.mFunc.getName() + ":");
-                if (function.usedCalleeSavedGPRs.size() > 0) {
-                    os.print("\tpush\t{");
-                    Iterator<Arm.Regs.GPRs> gprIter = function.usedCalleeSavedGPRs.iterator();
-                    os.print(gprIter.next());
-                    while (gprIter.hasNext()) {
-                        os.print("," + gprIter.next());
-                    }
-                    os.println("}");
-                }
-                if (function.usedCalleeSavedFPRs.size() > 0) {
-                    int fprNum = FPRs.values().length;
-                    boolean[] fprBit = new boolean[fprNum];
-                    for (FPRs fpr : function.usedCalleeSavedFPRs) {
-                        fprBit[fpr.ordinal()] = true;
-                    }
-                    int start = 0;
-                    while (start < fprNum) {
-                        while (start < fprNum && !fprBit[start])
-                            start++;
-                        if (start == fprNum)
-                            break;
-                        int end = start;
-                        while (end < fprNum && fprBit[end])
-                            end++;
-                        end--;
-                        if (end == start) {
-                            os.printf("\tvpush\t{s%d}%n", start);
-                        } else if (end > start) {
-                            os.printf("\tvpush\t{s%d-s%d}%n", start, end);
-                        }
-                        start = end + 1;
-                    }
-                }
+
 
                 //asm for mb
                 for (Block mb : function.mbList) {
@@ -180,49 +150,7 @@ public class Machine {
         }
 
         public static void pop_output(PrintStream os, McFunction function) {
-            boolean retByBx = true;
-            if (function.usedCalleeSavedFPRs.size() > 0) {
 
-                int fprNum = FPRs.values().length;
-                boolean[] fprBit = new boolean[fprNum];
-                for (FPRs fpr : function.usedCalleeSavedFPRs) {
-                    fprBit[fpr.ordinal()] = true;
-                }
-                int end = fprNum - 1;
-                while (end > -1) {
-                    while (end > -1 && !fprBit[end])
-                        end--;
-                    if (end == -1)
-                        break;
-                    int start = end;
-                    while (start > -1 && fprBit[start])
-                        start--;
-                    start++;
-                    if (start == end) {
-                        os.printf("\tvpop\t{s%d}%n", end);
-                    } else if (start < end) {
-                        os.printf("\tvpop\t{s%d-s%d}%n", start, end);
-                    }
-                    end = start - 1;
-                }
-            }
-            if (function.usedCalleeSavedGPRs.size() > 0) {
-                os.print("\tpop\t{");
-                Iterator<Arm.Regs.GPRs> gprIter = function.usedCalleeSavedGPRs.iterator();
-                os.print(gprIter.next());
-                while (gprIter.hasNext()) {
-                    Arm.Regs.GPRs gpr = gprIter.next();
-                    if (gpr == lr) {
-                        gpr = pc;
-                        retByBx = false;
-                    }
-                    os.print("," + gpr);
-                }
-                os.println("}");
-            }
-            if (retByBx) {
-                os.println("\tbx\tlr");
-            }
         }
 
     }
@@ -291,6 +219,13 @@ public class Machine {
         // 方便解释器和后端生成，因为采用把参数放到caller的sp的下面若干位置的方式
         public void addParamStack(int i) {
             paramStack += i;
+        }
+
+        public void alignParamStack() {
+            int b = paramStack % SP_ALIGN;
+            if (b != 0) {
+                paramStack += SP_ALIGN - b;
+            }
         }
 
         public void addRegStack(int i) {
@@ -387,6 +322,16 @@ public class Machine {
                 }
                 if (usedCalleeSavedFPRs.add((Arm.Regs.FPRs) reg)) {
                     addRegStack(4);
+                    int idx = ((FPRs) reg).ordinal();
+                    if (idx % 2 == 0) {
+                        if (usedCalleeSavedFPRs.add((Arm.Reg.getS(idx + 1).fpr))) {
+                            addRegStack(4);
+                        }
+                    } else {
+                        if (usedCalleeSavedFPRs.add((Arm.Reg.getS(idx - 1).fpr))) {
+                            addRegStack(4);
+                        }
+                    }
                 }
             }
         }
@@ -398,6 +343,14 @@ public class Machine {
 
         public int getRegStack() {
             return regStack;
+        }
+
+        public void alignTotalStackSize() {
+            int totalSize = getTotalStackSize();
+            int b = totalSize % SP_ALIGN;
+            if(b != 0){
+                varStack += SP_ALIGN - b;
+            }
         }
     }
 

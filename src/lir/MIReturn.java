@@ -29,7 +29,8 @@ public class MIReturn extends MachineInst {
 
     @Override
     public void output(PrintStream os, Machine.McFunction mf) {
-        pop_output(os, mf);
+        // TODO vpush必须八字节对齐, 所以vpop必须在后面, 这样不能先pop lr再vpop
+        os.println("\tbx\tlr");
     }
 
     @Override

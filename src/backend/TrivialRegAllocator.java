@@ -955,6 +955,7 @@ public class TrivialRegAllocator extends RegAllocator {
             }
         }
 
+        curMF.alignTotalStackSize();
         // fixStack
         for (MIMove mv : needFixList) {
             Operand off = mv.getSrc();

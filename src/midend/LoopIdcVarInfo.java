@@ -101,7 +101,9 @@ public class LoopIdcVarInfo {
         if (!(((Instr.Alu) idcAlu).getOp().equals(Instr.Alu.Op.ADD) ||
                 ((Instr.Alu) idcAlu).getOp().equals(Instr.Alu.Op.SUB) ||
                 ((Instr.Alu) idcAlu).getOp().equals(Instr.Alu.Op.FADD) ||
-                ((Instr.Alu) idcAlu).getOp().equals(Instr.Alu.Op.FSUB))) {
+                ((Instr.Alu) idcAlu).getOp().equals(Instr.Alu.Op.FSUB) ||
+                ((Instr.Alu) idcAlu).getOp().equals(Instr.Alu.Op.MUL) ||
+                ((Instr.Alu) idcAlu).getOp().equals(Instr.Alu.Op.FMUL))) {
             return;
         }
         assert idcAlu.getType().equals(idcPHI.getType());

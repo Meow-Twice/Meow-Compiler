@@ -74,6 +74,9 @@ public class LoopUnRoll {
     }
 
     private void constLoopUnRollForLoop(Loop loop) {
+        if (loop.getHash() == 4) {
+            System.err.println("hash_4_unroll");
+        }
         Value idcInit = loop.getIdcInit();
         Value idcStep = loop.getIdcStep();
         Value idcEnd = loop.getIdcEnd();
@@ -112,8 +115,17 @@ public class LoopUnRoll {
                     case SGE, SLE -> times = (init - end) / step + 1;
                     case SGT, SLT -> times = ((init - end) % step == 0)? (init - end) / step : (init - end) / step + 1;
                 }
-            } case MUL, DIV -> {
+            } case MUL -> {
                 //TODO:把乘法除法也纳入考虑
+                double val = Math.log(end / init) / Math.log(step);
+                boolean tag = init * Math.pow(step, val) == end;
+                switch (idcCmp.getOp()) {
+                    case EQ -> times = (init == end)? 1:0;
+                    case NE -> times = tag ? (int) val : -1;
+                    case SGE, SLE -> times = (int) val + 1;
+                    case SGT, SLT -> times = tag ? (int) val : (int) val + 1;
+                }
+            } case DIV -> {
                 return;
             }
         }

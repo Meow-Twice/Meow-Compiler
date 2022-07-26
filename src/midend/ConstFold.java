@@ -23,6 +23,7 @@ public class ConstFold {
     public void Run() {
         condConstFold();
         arrayConstFold();
+        singleBBMemoryFold();
     }
 
     private void condConstFold() {
@@ -235,6 +236,35 @@ public class ConstFold {
         if (type instanceof Type.ArrayType) {
             ret.add(((Type.ArrayType) type).getSize());
             getArraySize(((Type.ArrayType) type).getBaseType(), ret);
+        }
+    }
+
+    private void singleBBMemoryFold() {
+        for (Function function: functions) {
+            for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
+                singleBBMemoryFoldForBB(bb);
+            }
+        }
+    }
+
+    private void singleBBMemoryFoldForBB(BasicBlock bb) {
+        for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+            if (instr instanceof Instr.Store) {
+                Value ptr = ((Instr.Store) instr).getPointer();
+                Value value = ((Instr.Store) instr).getValue();
+                instr = (Instr) instr.getNext();
+                while (instr.getNext() != null &&
+                        !(instr instanceof Instr.Call) &&
+                        !(instr instanceof Instr.Store)) {
+                    if (instr instanceof Instr.Load && ((Instr.Load) instr).getPointer().equals(ptr)) {
+                        instr.modifyAllUseThisToUseA(value);
+                    }
+                    instr = (Instr) instr.getNext();
+                }
+            }
+            if (instr.getNext() == null) {
+                break;
+            }
         }
     }
 }

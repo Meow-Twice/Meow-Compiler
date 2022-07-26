@@ -46,11 +46,12 @@ public class Compiler {
                     System.err.println(token.getType() + " " + token.getContent());
                 }
             }
-            // System.err.println("AST out");
+            System.err.println("AST out");
             Ast ast = new Parser(tokenList).parseAst();
             Visitor visitor = Visitor.VISITOR;
             visitor.__ONLY_PARSE_OUTSIDE_DIM = false;
             visitor.visitAst(ast);
+            System.err.println("visit end");
             // Manager manager = visitor.getIr();
             // GlobalValueLocalize globalValueLocalize = new GlobalValueLocalize(funcManager.globals);
             // globalValueLocalize.Run();
@@ -81,8 +82,8 @@ public class Compiler {
             Manager.MANAGER.outputMI();
             // Manager.outputMI(true);
             long start = System.currentTimeMillis();
-            FPRegAllocator fpRegAllocator = new FPRegAllocator();
-            fpRegAllocator.AllocateRegister(p);
+            // FPRegAllocator fpRegAllocator = new FPRegAllocator();
+            // fpRegAllocator.AllocateRegister(p);
             Manager.MANAGER.outputMI();
             TrivialRegAllocator regAllocator = new TrivialRegAllocator();
             regAllocator.AllocateRegister(p);

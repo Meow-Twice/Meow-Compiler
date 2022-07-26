@@ -520,10 +520,17 @@ public class CodeGen {
                         paramVRList.add(tmpDst);
                         new MIMove(tmpDst, Arm.Reg.getR(r0), curMB);
                     }
-                    if (sIdx == 0/* && call_inst.getType().isFloatType()*/) {
+                    // if (sIdx == 0 && call_inst.getType().isFloatType()) {
+                    //     Operand tmpDst = newSVR();
+                    //     paramSVRList.add(tmpDst);
+                    //     new V.Mov(tmpDst, Arm.Reg.getS(s0), curMB);
+                    // }
+                    while(sIdx < 2){
                         Operand tmpDst = newSVR();
                         paramSVRList.add(tmpDst);
-                        new V.Mov(tmpDst, Arm.Reg.getS(s0), curMB);
+                        Operand fpr = Arm.Reg.getS(sIdx);
+                        new V.Mov(tmpDst, fpr, curMB);
+                        sIdx++;
                     }
                     // 栈空间移位
                     Function callFunc = call_inst.getFunc();

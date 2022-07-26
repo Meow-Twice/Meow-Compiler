@@ -37,37 +37,37 @@ public class MICall extends MachineInst {
             for (int i = s0.ordinal(); i < s0.ordinal() + Math.min(mf.floatParamCount, sParamCnt); i++) {
                 useOpds.add(Reg.getS(i));
             }
-            if (mf.mFunc.hasRet()) {
-                if (mf.mFunc.getRetType().isInt32Type()) {
-                    defOpds.add(Reg.getR(r0));
-                } else if (mf.mFunc.getRetType().isFloatType()) {
-                    defOpds.add(Reg.getS(s0));
-                } else {
-                    throw new AssertionError("Wrong call func type: has ret but is type of " + mf.mFunc.getRetType());
-                }
+            // if (mf.mFunc.hasRet()) {
+            //     if (mf.mFunc.getRetType().isInt32Type()) {
+            //         defOpds.add(Reg.getR(r0));
+            //     } else if (mf.mFunc.getRetType().isFloatType()) {
+            //         defOpds.add(Reg.getS(s0));
+            //     } else {
+            //         throw new AssertionError("Wrong call func type: has ret but is type of " + mf.mFunc.getRetType());
+            //     }
+            // }
+        }
+    // TODO for bug test!!!
+        if (mf.mFunc.hasRet()) {
+            if (mf.mFunc.getRetType().isInt32Type()) {
+                defOpds.add(Reg.getR(r0));
+            } else if (mf.mFunc.getRetType().isFloatType()) {
+                defOpds.add(Reg.getS(s0));
+            } else {
+                throw new AssertionError("Wrong call func type: has ret but is type of " + mf.mFunc.getRetType());
             }
         }
-    //TODO for bug test!!!
-        // if (mf.mFunc.hasRet()) {
-        //     if (mf.mFunc.getRetType().isInt32Type()) {
-        //         defOpds.add(Reg.getR(r0));
-        //     } else if (mf.mFunc.getRetType().isFloatType()) {
-        //         defOpds.add(Reg.getS(s0));
-        //     } else {
-        //         throw new AssertionError("Wrong call func type: has ret but is type of " + mf.mFunc.getRetType());
-        //     }
-        // }
     }
 
     @Override
     public void output(PrintStream os, Machine.McFunction f) {
         if (mf.mFunc.isExternal) {
             os.println("\tpush\t{r1,r2,r3}\t");
-            os.println("\tvpush\t{s1-s15}\t");
+            os.println("\tvpush\t{s2-s15}\t");
         }
         os.println("\tblx\t" + mf.mFunc.getName());
         if (mf.mFunc.isExternal) {
-            os.println("\tvpop\t{s1-s15}\t");
+            os.println("\tvpop\t{s2-s15}\t");
             os.println("\tpop\t{r1,r2,r3}\t");
         }
     }

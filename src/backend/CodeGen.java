@@ -548,27 +548,6 @@ public class CodeGen {
                             rIdx++;
                         }
                     }
-                    /**
-                     * r0实际上依据设计不一定需要保护, 因为一定是最后ret语句才会有r0的赋值
-                     */
-                    // TODO: return getint();
-                    // if (rIdx == 0/* && call_inst.getType().isInt32Type()*/) {
-                    //     Operand tmpDst = newVR();
-                    //     paramVRList.add(tmpDst);
-                    //     new MIMove(tmpDst, Arm.Reg.getR(r0), curMB);
-                    // }
-                    // if (sIdx == 0 && call_inst.getType().isFloatType()) {
-                    //     Operand tmpDst = newSVR();
-                    //     paramSVRList.add(tmpDst);
-                    //     new V.Mov(tmpDst, Arm.Reg.getS(s0), curMB);
-                    // }
-                    // while (sIdx < 2) {
-                    //     Operand tmpDst = newSVR();
-                    //     paramSVRList.add(tmpDst);
-                    //     Operand fpr = Arm.Reg.getS(sIdx);
-                    //     new V.Mov(tmpDst, fpr, curMB);
-                    //     sIdx++;
-                    // }
                     // 栈空间移位
                     Function callFunc = call_inst.getFunc();
                     Machine.McFunction callMcFunc = func2mcFunc.get(callFunc);
@@ -590,6 +569,27 @@ public class CodeGen {
                         if (callMcFunc == null) {
                             throw new AssertionError("Callee is null");
                         }
+                        /**
+                         * r0实际上依据设计不一定需要保护, 因为一定是最后ret语句才会有r0的赋值
+                         */
+                        // TODO: return getint();
+                        if (rIdx == 0 && call_inst.getType().isInt32Type()) {
+                            Operand tmpDst = newVR();
+                            paramVRList.add(tmpDst);
+                            new MIMove(tmpDst, Arm.Reg.getR(r0), curMB);
+                        }
+                        if (sIdx == 0 && call_inst.getType().isFloatType()) {
+                            Operand tmpDst = newSVR();
+                            paramSVRList.add(tmpDst);
+                            new V.Mov(tmpDst, Arm.Reg.getS(s0), curMB);
+                        }
+                        // while (sIdx < 2) {
+                        //     Operand tmpDst = newSVR();
+                        //     paramSVRList.add(tmpDst);
+                        //     Operand fpr = Arm.Reg.getS(sIdx);
+                        //     new V.Mov(tmpDst, fpr, curMB);
+                        //     sIdx++;
+                        // }
                         // assert callMcFunc != null;
                         Operand rOp1 = new Operand(I32, 0);
                         Operand mvDst1 = newVR();

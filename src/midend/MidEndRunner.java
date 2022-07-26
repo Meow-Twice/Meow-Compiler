@@ -22,11 +22,10 @@ public class MidEndRunner {
         MakeDFG makeDFG = new MakeDFG(functions);
         makeDFG.Run();
         if (!O2) {
-
             Mem2Reg mem2Reg = new Mem2Reg(functions);
             mem2Reg.Run();
-
-
+            Pass();
+            Pass();
             return;
         }
 

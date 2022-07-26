@@ -797,6 +797,11 @@ public class Instr extends Value {
             return new ArrayList<>(useValueList.subList(1, useValueList.size()));
         }
 
+        public void addIdx(Value value) {
+            int len = useValueList.size();
+            setUse(value, len);
+        }
+
         public int getOffsetCount() {
             return useValueList.size() - 1;
         }

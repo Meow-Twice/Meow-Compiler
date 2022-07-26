@@ -169,6 +169,10 @@ public class ConstFold {
                             ret.add(indexs.get(i));
                         }
                         Value arrayElementVal = getGlobalConstArrayValue(ptr, ret);
+                        if (arrayElementVal == null) {
+                            continue;
+                        }
+                        //此时保证GEP是可以直接load的指针
                         for (Use use = instr.getBeginUse(); use.getNext() != null; use = (Use) use.getNext()) {
                             Instr user = use.getUser();
                             if (!(user instanceof Instr.Load)) {
@@ -194,7 +198,10 @@ public class ConstFold {
 
         Initial init = globalValues.get(ptr);
         ArrayList<Value> initArray = init.getFlattenInit();
-        assert indexs.size() == offsetArray.size();
+        if (indexs.size() != offsetArray.size()) {
+            return null;
+        }
+        //assert indexs.size() == offsetArray.size();
         //TODO:修改取init值的方式
         //      适配a[2][3] --> load a[0][5]
 

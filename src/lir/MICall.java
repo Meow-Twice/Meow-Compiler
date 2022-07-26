@@ -11,17 +11,17 @@ import static lir.Arm.Regs.FPRs.s0;
 import static lir.Arm.Regs.GPRs.*;
 
 public class MICall extends MachineInst {
-    public McFunction mf;
+    public McFunction callee;
 
-    public MICall(McFunction mf, Machine.Block insertAtEnd) {
+    public MICall(McFunction callee, Machine.Block insertAtEnd) {
         super(Tag.Call, insertAtEnd);
-        this.mf = mf;
+        this.callee = callee;
         genDefUse();
     }
 
     @Override
     public void genDefUse() {
-        if (mf.mFunc.isExternal) {
+        if (callee.mFunc.isExternal) {
             for (int i = r0.ordinal(); i < r0.ordinal() + rParamCnt; i++) {
                 useOpds.add(Reg.getR(i));
             }
@@ -31,10 +31,10 @@ public class MICall extends MachineInst {
         } else {
             // TODO for xry: 到底是new还是get单例
             // 调用者保存
-            for (int i = r0.ordinal(); i < r0.ordinal() + Math.min(mf.intParamCount, rParamCnt); i++) {
+            for (int i = r0.ordinal(); i < r0.ordinal() + Math.min(callee.intParamCount, rParamCnt); i++) {
                 useOpds.add(Reg.getR(i));
             }
-            for (int i = s0.ordinal(); i < s0.ordinal() + Math.min(mf.floatParamCount, sParamCnt); i++) {
+            for (int i = s0.ordinal(); i < s0.ordinal() + Math.min(callee.floatParamCount, sParamCnt); i++) {
                 useOpds.add(Reg.getS(i));
             }
             // if (mf.mFunc.hasRet()) {
@@ -48,24 +48,24 @@ public class MICall extends MachineInst {
             // }
         }
         // TODO for bug test!!!
-        if (mf.mFunc.hasRet()) {
-            if (mf.mFunc.getRetType().isInt32Type()) {
+        if (callee.mFunc.hasRet()) {
+            if (callee.mFunc.getRetType().isInt32Type()) {
                 defOpds.add(Reg.getR(r0));
-            } else if (mf.mFunc.getRetType().isFloatType()) {
+            } else if (callee.mFunc.getRetType().isFloatType()) {
                 defOpds.add(Reg.getS(s0));
             } else {
-                throw new AssertionError("Wrong call func type: has ret but is type of " + mf.mFunc.getRetType());
+                throw new AssertionError("Wrong call func type: has ret but is type of " + callee.mFunc.getRetType());
             }
         }
     }
 
     @Override
     public void output(PrintStream os, Machine.McFunction f) {
-        os.println("\tblx\t" + mf.mFunc.getName());
+        os.println("\tblx\t" + callee.mFunc.getName());
     }
 
     @Override
     public String toString() {
-        return tag + "\t" + mf.mFunc.getName();
+        return tag + "\t" + callee.mFunc.getName();
     }
 }

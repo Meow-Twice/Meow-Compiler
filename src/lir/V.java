@@ -1,5 +1,6 @@
 package lir;
 
+import backend.CodeGen;
 import mir.Constant;
 import mir.type.DataType;
 

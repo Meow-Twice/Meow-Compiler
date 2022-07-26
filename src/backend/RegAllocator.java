@@ -17,7 +17,7 @@ public class RegAllocator {
 
     protected int RK = 12;
     // TODO 尝试将sp直接设为Allocated或者不考虑sp add或sub指令
-    protected int SK = 16;
+    protected int SK = 32;
     protected DataType dataType;
 
     protected int SPILL_MAX_LIVE_INTERVAL;

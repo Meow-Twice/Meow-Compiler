@@ -1,6 +1,8 @@
 package backend;
 
+import frontend.lexer.Lexer;
 import frontend.semantic.Initial;
+import frontend.syntax.Parser;
 import lir.*;
 import lir.Machine.Operand;
 import manage.Manager;
@@ -21,6 +23,7 @@ public class CodeGen {
 
     public static final CodeGen CODEGEN = new CodeGen();
     public static boolean _DEBUG_OUTPUT_MIR_INTO_COMMENT = true;
+    public static boolean needFPU = false;
     boolean _DEBUG_MUL_DIV = false;
 
     // 当前的Machine.McFunction
@@ -59,7 +62,7 @@ public class CodeGen {
     // 整数数传参可使用最大个数
     public static final int rParamCnt = 4;
     // 浮点数传参可使用最大个数
-    public static final int sParamCnt = 8;
+    public static final int sParamCnt = 16;
 
     // div+mod optimize
     public static class Multiplier {
@@ -104,6 +107,7 @@ public class CodeGen {
 //        mcFuncList = new ArrayList<>();
         func2mcFunc = new HashMap<>();
         bb2mb = new HashMap<>();
+        needFPU = Lexer.detectFloat;
     }
 
     public void gen() {
@@ -115,6 +119,13 @@ public class CodeGen {
             // if (func.isExternal) {
             Machine.McFunction mcFunc = new Machine.McFunction(func);
             func2mcFunc.put(func, mcFunc);
+            for (Function.Param p : func.getParams()) {
+                if (p.getType().isFloatType()) {
+                    mcFunc.intParamCount++;
+                } else {
+                    mcFunc.floatParamCount++;
+                }
+            }
             // }
         }
         for (Function func : midFuncMap.values()) {
@@ -169,13 +180,17 @@ public class CodeGen {
     }
 
     private void Push(Machine.McFunction mf) {
-        new StackCtl.VPush(mf, curMB);
+        if (needFPU) {
+            new StackCtl.VPush(mf, curMB);
+        }
         new StackCtl.MIPush(mf, curMB);
     }
 
     private void Pop(Machine.McFunction curMachineFunc) {
         new StackCtl.MIPop(curMachineFunc, curMB);
-        new StackCtl.VPop(curMachineFunc, curMB);
+        if (needFPU) {
+            new StackCtl.VPop(curMachineFunc, curMB);
+        }
     }
 
     LinkedList<BasicBlock> nextBBList;
@@ -187,6 +202,7 @@ public class CodeGen {
         int sTop = sIdx;
         for (Function.Param param : curFunc.getParams()) {
             if (param.getType().isFloatType()) {
+                assert needFPU;
                 Operand opd = curMF.newSVR();
                 value2opd.put(param, opd);
                 if (sIdx < sParamCnt) {
@@ -223,8 +239,8 @@ public class CodeGen {
             }
         }
         curMF.alignParamStack();
-        curMF.floatParamCount = sIdx - 1;
-        curMF.intParamCount = rIdx - 1;
+        // curMF.floatParamCount = sIdx;
+        // curMF.intParamCount = rIdx;
     }
 
     public enum STACK_FIX {
@@ -289,7 +305,7 @@ public class CodeGen {
                     // new MIJump()
                 }
                 case fneg -> {
-                    // TODO
+                    assert needFPU;
                     Instr.Fneg fnegInst = (Instr.Fneg) instr;
                     Operand src = getVR_may_imm(fnegInst.getRVal1());
                     Operand dst = getVR_no_imm(fnegInst);
@@ -304,6 +320,7 @@ public class CodeGen {
                             Operand retOpd = getVR_may_imm(returnInst.getRetValue());
                             curMB.firstMIForBJ = new MIMove(Arm.Reg.getR(r0), retOpd, curMB);
                         } else if (returnInst.getRetValue().getType().isFloatType()) {
+                            assert needFPU;
                             retDataType = F32;
                             Operand retOpd = getVR_may_imm(returnInst.getRetValue());
                             curMB.firstMIForBJ = new V.Mov(Arm.Reg.getS(s0), retOpd, curMB);
@@ -319,6 +336,7 @@ public class CodeGen {
                     if (retDataType == I32) {
                         new MIReturn(Arm.Reg.getR(r0), curMB);
                     } else if (retDataType == F32) {
+                        assert needFPU;
                         new V.Ret(Arm.Reg.getS(s0), curMB);
                     } else {
                         new MIReturn(curMB);
@@ -331,6 +349,7 @@ public class CodeGen {
                     new MIMove(dst, src, curMB);
                 }
                 case fptosi -> {
+                    assert needFPU;
                     Operand src = getVR_may_imm(((Instr.FPtosi) instr).getRVal1());
                     Operand tmp = newSVR();
                     new V.Cvt(V.CvtType.f2i, tmp, src, curMB);
@@ -338,6 +357,7 @@ public class CodeGen {
                     new V.Mov(dst, tmp, curMB);
                 }
                 case sitofp -> {
+                    assert needFPU;
                     Operand src = getVR_may_imm(((Instr.SItofp) instr).getRVal1());
                     Operand tmp = newSVR();
                     new V.Mov(tmp, src, curMB);
@@ -368,6 +388,7 @@ public class CodeGen {
                     Operand data = getVR_no_imm(instr);
                     Operand offsetOpd = new Operand(I32, 0);
                     if (loadInst.getType().isFloatType()) {
+                        assert needFPU;
                         new V.Ldr(data, addrOpd, offsetOpd, curMB);
                     } else {
                         new MILoad(data, addrOpd, offsetOpd, curMB);
@@ -379,6 +400,7 @@ public class CodeGen {
                     Operand addr = getVR_from_ptr(storeInst.getPointer());
                     Operand offset = new Operand(I32, 0);
                     if (storeInst.getValue().getType().isFloatType()) {
+                        assert needFPU;
                         new V.Str(data, addr, offset, curMB);
                     } else {
                         new MIStore(data, addr, offset, curMB);
@@ -480,6 +502,7 @@ public class CodeGen {
                     int sParamTop = sIdx;
                     for (Value p : param_list) {
                         if (p.getType().isFloatType()) {
+                            assert needFPU;
                             if (sIdx < sParamCnt) {
                                 Operand tmpDst = newSVR();
                                 paramSVRList.add(tmpDst);
@@ -529,23 +552,23 @@ public class CodeGen {
                      * r0实际上依据设计不一定需要保护, 因为一定是最后ret语句才会有r0的赋值
                      */
                     // TODO: return getint();
-                    if (rIdx == 0/* && call_inst.getType().isInt32Type()*/) {
-                        Operand tmpDst = newVR();
-                        paramVRList.add(tmpDst);
-                        new MIMove(tmpDst, Arm.Reg.getR(r0), curMB);
-                    }
+                    // if (rIdx == 0/* && call_inst.getType().isInt32Type()*/) {
+                    //     Operand tmpDst = newVR();
+                    //     paramVRList.add(tmpDst);
+                    //     new MIMove(tmpDst, Arm.Reg.getR(r0), curMB);
+                    // }
                     // if (sIdx == 0 && call_inst.getType().isFloatType()) {
                     //     Operand tmpDst = newSVR();
                     //     paramSVRList.add(tmpDst);
                     //     new V.Mov(tmpDst, Arm.Reg.getS(s0), curMB);
                     // }
-                    while (sIdx < 2) {
-                        Operand tmpDst = newSVR();
-                        paramSVRList.add(tmpDst);
-                        Operand fpr = Arm.Reg.getS(sIdx);
-                        new V.Mov(tmpDst, fpr, curMB);
-                        sIdx++;
-                    }
+                    // while (sIdx < 2) {
+                    //     Operand tmpDst = newSVR();
+                    //     paramSVRList.add(tmpDst);
+                    //     Operand fpr = Arm.Reg.getS(sIdx);
+                    //     new V.Mov(tmpDst, fpr, curMB);
+                    //     sIdx++;
+                    // }
                     // 栈空间移位
                     Function callFunc = call_inst.getFunc();
                     Machine.McFunction callMcFunc = func2mcFunc.get(callFunc);
@@ -557,6 +580,7 @@ public class CodeGen {
                         if (call_inst.getType().isInt32Type()) {
                             new MIMove(getVR_no_imm(call_inst), Arm.Reg.getR(r0), curMB);
                         } else if (call_inst.getType().isFloatType()) {
+                            assert needFPU;
                             new V.Mov(getVR_no_imm(call_inst), Arm.Reg.getS(s0), curMB);
                         } else if (!call_inst.getType().isVoidType()) {
                             throw new AssertionError("Wrong ret type");
@@ -586,6 +610,7 @@ public class CodeGen {
                         if (call_inst.getType().isInt32Type()) {
                             new MIMove(getVR_no_imm(call_inst), Arm.Reg.getR(r0), curMB);
                         } else if (call_inst.getType().isFloatType()) {
+                            assert needFPU;
                             new V.Mov(getVR_no_imm(call_inst), Arm.Reg.getS(s0), curMB);
                         } else if (!call_inst.getType().isVoidType()) {
                             throw new AssertionError("Wrong ret type");
@@ -597,6 +622,7 @@ public class CodeGen {
                     }
                     // 需要把挪走的s0-sx再挪回来
                     for (int i = 0; i < paramSVRList.size(); i++) {
+                        assert needFPU;
                         new V.Mov(Arm.Reg.getS(i), paramSVRList.get(i), curMB);
                     }
                 }
@@ -620,6 +646,7 @@ public class CodeGen {
                     Operand source = getVR_may_imm(((Instr.Move) instr).getSrc());
                     Operand target = getVR_no_imm(((Instr.Move) instr).getDst());
                     if (source.isF32() || target.isF32()) {
+                        assert needFPU;
                         new V.Mov(target, source, curMB);
                     } else {
                         new MIMove(target, source, curMB);
@@ -684,6 +711,7 @@ public class CodeGen {
             new MIBinary(MachineInst.Tag.Sub, q, a, dst2, curMB);
             return;
         } else if (tag == MachineInst.Tag.FMod) {
+            assert needFPU;
             Operand q = getVR_no_imm(instr);
             // q = a%b = a-(a/b)*b
             // dst1 = a/b
@@ -699,6 +727,7 @@ public class CodeGen {
             return;
         }
         if (isFBino(instr.getOp())) {
+            assert needFPU;
             Operand lVR = getVR_may_imm(lhs);
             Operand rVR = getVR_may_imm(rhs);
             // instr不可能是Constant
@@ -942,7 +971,7 @@ public class CodeGen {
                 new MIMove(getIcmpOppoCond(cond), dst, new Operand(I32, 0), curMB);
             }
         } else if (instr.isFcmp()) {
-
+            assert needFPU;
             Instr.Fcmp fcmp = ((Instr.Fcmp) instr);
             Value lhs = fcmp.getRVal1();
             Value rhs = fcmp.getRVal2();
@@ -1073,6 +1102,7 @@ public class CodeGen {
     public static final HashMap<String, Operand> name2constFOpd = new HashMap<>();
 
     public Operand getFConstVR(Constant.ConstantFloat constF) {
+        assert needFPU;
         Operand dst = newSVR();
         String name = constF.getAsmName();
         Operand addr = name2constFOpd.get(name);

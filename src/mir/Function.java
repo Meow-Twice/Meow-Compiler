@@ -1,4 +1,5 @@
 package mir;
+
 import manage.Manager;
 import midend.CloneInfoMap;
 import midend.OutParam;
@@ -29,7 +30,6 @@ public class Function extends Value {
     public boolean getDeleted() {
         return isDeleted;
     }
-
 
 
     public static class Param extends Value {
@@ -386,8 +386,6 @@ public class Function extends Value {
 //            }
 
 
-
-
             Instr instr = needFixBB.getBeginInstr();
             while (instr.getNext() != null) {
                 instr.fix();
@@ -408,7 +406,6 @@ public class Function extends Value {
             }
             bb = (BasicBlock) bb.getNext();
         }
-
 
 
     }

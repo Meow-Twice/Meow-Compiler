@@ -56,11 +56,11 @@ public class MidEndRunner {
         BrOptimize();
         BrOptimize();
 
-
         MathOptimize mathOptimize = new MathOptimize(functions);
         mathOptimize.Run();
 
-        check();
+        GepSplit();
+        //check();
         //
         // RemovePhi removePhi = new RemovePhi(functions);
         // removePhi.Run();
@@ -72,6 +72,13 @@ public class MidEndRunner {
 
         DeadCodeDelete deadCodeDelete = new DeadCodeDelete(functions, globalValues);
         deadCodeDelete.Run();
+    }
+
+    private void GepSplit() {
+        GepSplit gepSplit = new GepSplit(functions);
+        gepSplit.Run();
+
+        Pass();
     }
 
     //死代码删除 指令融合 GVN/GCM

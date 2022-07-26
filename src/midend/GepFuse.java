@@ -17,7 +17,7 @@ public class GepFuse {
     }
 
     public void Run() {
-        //gepFuse();
+        gepFuse();
     }
 
     private void gepFuse() {
@@ -37,13 +37,13 @@ public class GepFuse {
         }
 
         //GEP融合
-//        for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
-//            for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
-//                if (instr instanceof Instr.GetElementPtr && !(((Instr.GetElementPtr) instr).getPtr() instanceof Instr.GetElementPtr)) {
-//                    fuseDFS(instr);
-//                }
-//            }
-//        }
+        for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
+            for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+                if (instr instanceof Instr.GetElementPtr && !(((Instr.GetElementPtr) instr).getPtr() instanceof Instr.GetElementPtr)) {
+                    fuseDFS(instr);
+                }
+            }
+        }
 
     }
 
@@ -83,7 +83,8 @@ public class GepFuse {
         if (Geps.size() == 1) {
             return;
         }
-        Instr.GetElementPtr ret = Geps.get(0);
+        Instr.GetElementPtr gep_0 = Geps.get(0);
+        Instr.GetElementPtr gep_end = Geps.get(Geps.size() - 1);
         int dim = ((Type.ArrayType) ((Type.PointerType) Geps.get(0).getPtr().getType()).getInnerType()).getDimSize();
         int sum = 0;
         for (Instr.GetElementPtr gep: Geps) {
@@ -97,12 +98,48 @@ public class GepFuse {
         if (sum < dim) {
             return;
         }
+        ArrayList<Value> retIndexs = new ArrayList<>();
+        retIndexs.addAll(gep_0.getIdxList());
         for (int i = 1; i < Geps.size(); i++) {
             Instr.GetElementPtr gep = Geps.get(i);
+
+            int num = retIndexs.size();
+            Value nowEndIndex = retIndexs.get(num - 1);
+            Value baseOffset = gep.getIdxList().get(0);
+
+            if (nowEndIndex instanceof Constant && baseOffset instanceof Constant) {
+                 int A = (int) ((Constant) nowEndIndex).getConstVal();
+                 int B = (int) ((Constant) baseOffset).getConstVal();
+                 //gep_0.modifyUse(new Constant.ConstantInt(A + B), num);
+                retIndexs.set(num - 1, new Constant.ConstantInt(A + B));
+            } else {
+                if (nowEndIndex instanceof Constant) {
+                    int A = (int) ((Constant) nowEndIndex).getConstVal();
+                    if (A != 0) {
+                        return;
+                    }
+                    //gep_0.modifyUse(baseOffset, num);
+                    retIndexs.set(num - 1, baseOffset);
+                } else if (baseOffset instanceof Constant) {
+                    int B = (int) ((Constant) baseOffset).getConstVal();
+                    if (B != 0) {
+                        return;
+                    }
+                } else {
+                    return;
+                }
+            }
+
             for (int j = 1; j < gep.getIdxList().size(); j++) {
-                ret.addIdx(gep.getIdxList().get(j));
+                //gep_0.addIdx(gep.getIdxList().get(j));
+                retIndexs.add(gep.getIdxList().get(j));
             }
         }
-        Geps.get(Geps.size() - 1).modifyAllUseThisToUseA(ret);
+        //Geps.get(Geps.size() - 1).modifyAllUseThisToUseA(gep_0);
+        //gep_0.delFromNowBB();
+        //Geps.get(Geps.size() - 1).insertAfter(gep_0);
+        //Geps.get(0).modifyType(Geps.get(Geps.size() - 1).getType());
+        gep_end.modifyPtr(gep_0.getPtr());
+        gep_end.modifyIndexs(retIndexs);
     }
 }

@@ -813,6 +813,23 @@ public class Instr extends Value {
             return useValueList.get(i + 1);
         }
 
+        public void modifyType(Type type) {
+            this.type = type;
+        }
+
+        public void modifyPtr(Value ptr) {
+            modifyUse(ptr, 0);
+        }
+
+        public void modifyIndexs(ArrayList<Value> indexs) {
+            for (int i = 0; i < getIdxList().size(); i++) {
+                modifyUse(indexs.get(i), i + 1);
+            }
+            for (int i = getIdxList().size(); i < indexs.size(); i++) {
+                setUse(indexs.get(i), i + 1);
+            }
+        }
+
         @Override
         public Instr cloneToBB(BasicBlock bb) {
             Instr ret = new GetElementPtr(getPointeeType(), getPtr(), getIdxList(), bb);

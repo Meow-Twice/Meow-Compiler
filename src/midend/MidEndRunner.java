@@ -50,14 +50,17 @@ public class MidEndRunner {
 
         loopOptimize();
 
-
         //TODO:删除冗余phi,分支优化(删除无用的br/jump等),等等
         BrOptimize();
         BrOptimize();
         BrOptimize();
 
+
         MathOptimize mathOptimize = new MathOptimize(functions);
         mathOptimize.Run();
+
+//        loopOptimize();
+//        BrOptimize();
 
         GepSplit();
         //check();

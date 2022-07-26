@@ -103,6 +103,10 @@ public class BasicBlock extends Value {
         return isExit;
     }
 
+    public void setNotLatch() {
+        isLoopLatch = false;
+    }
+
     public int getLoopDep() {
         return loop.getLoopDepth();
     }
@@ -679,5 +683,16 @@ public class BasicBlock extends Value {
         Instr instr = getEndInstr();
         instr.remove();
         insertAtEnd(jump);
+    }
+
+    @Override
+    public void remove() {
+        super.remove();
+        loop.removeBB(this);
+        isLoopHeader = false;
+        isLoopLatch = false;
+        isExit = false;
+        isLoopEntering = false;
+        isLoopExiting = false;
     }
 }

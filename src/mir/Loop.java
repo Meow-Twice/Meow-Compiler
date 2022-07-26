@@ -181,6 +181,13 @@ public class Loop {
         conds.clear();
     }
 
+    public void clear() {
+        exits.clear();
+        exitings.clear();
+        enterings.clear();
+        latchs.clear();
+    }
+
     public HashSet<BasicBlock> getNowLevelBB() {
         return nowLevelBB;
     }
@@ -340,6 +347,10 @@ public class Loop {
 
     public boolean isIdcSet() {
         return idcSet;
+    }
+
+    public void clearIdcInfo() {
+        this.idcSet = false;
     }
 
     public void setIdcTimes(int idcTimes) {

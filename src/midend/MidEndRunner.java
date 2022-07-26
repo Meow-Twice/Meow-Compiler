@@ -89,14 +89,28 @@ public class MidEndRunner {
         DeadCodeDelete deadCodeDelete_1 = new DeadCodeDelete(functions, globalValues);
         deadCodeDelete_1.Run();
 
-        InstrComb instrComb = new InstrComb(functions);
-        instrComb.Run();
+        InstrComb instrComb_1 = new InstrComb(functions);
+        instrComb_1.Run();
 
-        ConstFold constFold = new ConstFold(functions, globalValues);
-        constFold.Run();
+        ConstFold constFold_1 = new ConstFold(functions, globalValues);
+        constFold_1.Run();
 
         DeadCodeDelete deadCodeDelete_2 = new DeadCodeDelete(functions, globalValues);
         deadCodeDelete_2.Run();
+
+//        BranchOptimize branchOptimize = new BranchOptimize(functions);
+//        branchOptimize.Run();
+//
+//        reMakeCFGAndLoopInfo();
+
+//        DeadCodeDelete deadCodeDelete_3 = new DeadCodeDelete(functions, globalValues);
+//        deadCodeDelete_3.Run();
+//
+//        InstrComb instrComb_2 = new InstrComb(functions);
+//        instrComb_2.Run();
+//
+//        ConstFold constFold_2 = new ConstFold(functions, globalValues);
+//        constFold_2.Run();
 
         GVNAndGCM gvnAndGCM = new GVNAndGCM(functions);
         gvnAndGCM.Run();

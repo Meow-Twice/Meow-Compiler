@@ -251,7 +251,8 @@ public class GVNAndGCM {
             scheduleLate(y);
             BasicBlock use = y.getLatestBB();
             if (y instanceof Instr.Phi) {
-                int j = ((Instr.Phi) y).getValueIndexInUseValueList(instr);
+                //int j = ((Instr.Phi) y).getValueIndexInUseValueList(instr);
+                int j = usePos.getIdx();
                 use = y.getLatestBB().getPrecBBs().get(j);
             }
             lca = findLCA(lca, use);
@@ -508,8 +509,14 @@ public class GVNAndGCM {
             } else if (op.equals(Instr.Alu.Op.MUL)) {
                 value = new Constant.ConstantInt(ConstA * ConstB);
             } else if (op.equals(Instr.Alu.Op.DIV)) {
+                if (ConstB == 0) {
+                    ConstB = 1;
+                }
                 value = new Constant.ConstantInt(ConstA / ConstB);
             } else if (op.equals(Instr.Alu.Op.REM)) {
+                if (ConstB == 0) {
+                    ConstB = 1;
+                }
                 value = new Constant.ConstantInt(ConstA % ConstB);
             } else {
                 System.err.println("err_1");

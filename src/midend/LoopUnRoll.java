@@ -616,13 +616,14 @@ public class LoopUnRoll {
             if (!(instr instanceof Instr.Phi)) {
                 break;
             }
-            for (Value value: instr.getUseValueList()) {
-                //assert value instanceof Instr;
-                if (!(value instanceof Instr)) {
-                    continue;
-                }
-                instr.modifyUse(beginToEnd.get(value), latch_index);
-            }
+            instr.modifyUse(beginToEnd.get(instr.getUseValueList().get(latch_index)), latch_index);
+//            for (Value value: instr.getUseValueList()) {
+//                //assert value instanceof Instr;
+//                if (!(value instanceof Instr)) {
+//                    continue;
+//                }
+//            instr.modifyUse(beginToEnd.get(value), latch_index);
+//            }
         }
 
     }

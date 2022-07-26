@@ -79,6 +79,10 @@ public class Instr extends Value {
     private int condCount;
     private boolean inLoopCond =false;
 
+    public String getHash() {
+        return hash;
+    }
+
     public void setInLoopCond(){
         inLoopCond = true;
     }

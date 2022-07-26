@@ -107,10 +107,10 @@ public class CodeGen {
 //        mcFuncList = new ArrayList<>();
         func2mcFunc = new HashMap<>();
         bb2mb = new HashMap<>();
-        needFPU = Lexer.detectFloat;
     }
 
     public void gen() {
+        needFPU = Lexer.detectFloat;
         // curMachineFunc = new Machine.McFunction();
         genGlobal();
         // TODO

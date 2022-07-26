@@ -7,7 +7,6 @@ import mir.type.DataType;
 import java.io.PrintStream;
 import java.util.ArrayList;
 
-import static lir.Machine.Program.pop_output;
 import static lir.MachineInst.Tag.*;
 import static lir.Machine.Operand;
 import static mir.type.DataType.F32;

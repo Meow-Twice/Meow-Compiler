@@ -13,8 +13,7 @@ import util.Ilist;
 import java.io.PrintStream;
 import java.util.*;
 
-import static backend.CodeGen.rParamCnt;
-import static backend.CodeGen.sParamCnt;
+import static backend.CodeGen.*;
 import static backend.RegAllocator.SP_ALIGN;
 import static lir.Arm.Regs.FPRs.s0;
 import static lir.Arm.Regs.GPRs.*;
@@ -68,7 +67,9 @@ public class Machine {
         public void output(PrintStream os) {
             os.println(".arch armv7ve");
             os.println(".arm");
-            os.println(".fpu vfpv3-d16");
+            if(needFPU) {
+                os.println(".fpu vfpv3-d16");
+            }
             os.println(".section .text");
             for (McFunction function : funcList) {
                 os.println();
@@ -147,10 +148,6 @@ public class Machine {
                     os.println("\t.word\t" + last);
                 }
             }
-        }
-
-        public static void pop_output(PrintStream os, McFunction function) {
-
         }
 
     }

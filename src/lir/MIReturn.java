@@ -1,11 +1,6 @@
 package lir;
 
-import mir.type.DataType;
-
-import javax.crypto.Mac;
 import java.io.PrintStream;
-
-import static lir.Machine.Program.pop_output;
 
 public class MIReturn extends MachineInst {
     public MIReturn(Arm.Reg r0, Machine.Block insertAtEnd) {

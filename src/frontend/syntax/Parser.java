@@ -217,7 +217,9 @@ public class Parser {
             case SEMI:
                 tokenList.consume();
                 return new Ast.ExpStmt(null);
-            default: throw new SyntaxException("Bad Stmt");
+            default:
+                Ast.Exp exp = parseAddExp();
+                return new Ast.ExpStmt(exp);
         }
     }
 

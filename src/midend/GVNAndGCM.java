@@ -18,7 +18,7 @@ public class GVNAndGCM {
     private BasicBlock root;
 
 
-    HashMap<String, Instr.Alu> GvnMap = new HashMap<>();
+    HashMap<String, Instr> GvnMap = new HashMap<>();
     HashMap<String, Integer> GvnCnt = new HashMap<>();
 
     public GVNAndGCM(ArrayList<Function> functions) {
@@ -87,6 +87,7 @@ public class GVNAndGCM {
     }
 
     //逆后序遍历支配树
+    //TODO:GVN遍历支配树,在树的一条链上,先发现的定义的生命周期一定更长,因此只记录每条链上第一次发现的def即可
     private void RPOSearch(BasicBlock bb) {
         //Constant folding
         Instr alu = bb.getBeginInstr();
@@ -100,12 +101,12 @@ public class GVNAndGCM {
             alu = (Instr) alu.getNext();
         }
 
-        HashSet<Instr.Alu> alus  = new HashSet<>();
+        HashSet<Instr> instrs  = new HashSet<>();
         Instr instr = bb.getBeginInstr();
         while (instr.getNext() != null) {
-            if (instr instanceof Instr.Alu) {
-                if (!addInstrToGVN((Instr.Alu) instr)) {
-                    alus.add((Instr.Alu) instr);
+            if (canGVN(instr)) {
+                if (!addInstrToGVN(instr)) {
+                    instrs.add(instr);
                 }
             }
             instr = (Instr) instr.getNext();
@@ -115,9 +116,14 @@ public class GVNAndGCM {
             RPOSearch(next);
         }
 
-        for (Instr.Alu alu1: alus) {
-            removeInstrFromGVN(alu1);
+        for (Instr instr1: instrs) {
+            removeInstrFromGVN(instr1);
         }
+    }
+
+    private boolean canGVN(Instr instr) {
+        return instr instanceof Instr.Alu || instr instanceof Instr.GetElementPtr;
+        //return instr instanceof Instr.Alu;
     }
 
 
@@ -410,14 +416,14 @@ public class GVNAndGCM {
         }
     }
 
-    private void add(String str, Instr.Alu alu) {
+    private void add(String str, Instr instr) {
         if (!GvnCnt.containsKey(str)) {
             GvnCnt.put(str, 1);
         } else {
             GvnCnt.put(str, GvnCnt.get(str) + 1);
         }
         if (!GvnMap.containsKey(str)) {
-            GvnMap.put(str, alu);
+            GvnMap.put(str, instr);
         }
     }
 
@@ -428,41 +434,63 @@ public class GVNAndGCM {
         }
     }
 
-    private boolean addInstrToGVN(Instr.Alu alu) {
+    private boolean addInstrToGVN(Instr instr) {
         //进行替换
         boolean tag = false;
-        String hash = alu.getUseValueList().get(0).getName() + alu.getOp().getName() + alu.getUseValueList().get(1).getName();
-        if (GvnMap.containsKey(hash)) {
-            alu.modifyAllUseThisToUseA(GvnMap.get(hash));
-            alu.remove();
-            return true;
-        }
-
-        if (alu.getOp().equals(Instr.Alu.Op.ADD) || alu.getOp().equals(Instr.Alu.Op.MUL)) {
-            String str = alu.getUseValueList().get(0).getName() + alu.getOp().getName() + alu.getUseValueList().get(1).getName();
-            add(str, alu);
-            if (!alu.getUseValueList().get(0).getName().equals(alu.getUseValueList().get(1).getName())) {
-                str = alu.getUseValueList().get(1).getName() + alu.getOp().getName() + alu.getUseValueList().get(0).getName();
-                add(str, alu);
+        if (instr instanceof Instr.GetElementPtr) {
+            String hash = ((Instr.GetElementPtr) instr).getPtr().getName();
+            ArrayList<Value> indexs = ((Instr.GetElementPtr) instr).getIdxList();
+            for (int i = 0; i < indexs.size(); i++) {
+                hash = hash + "[" + indexs.get(i).getName() + "]";
             }
-        } else {
-            String str = alu.getUseValueList().get(0).getName() + alu.getOp().getName() + alu.getUseValueList().get(1).getName();
-            add(str, alu);
+            if (GvnMap.containsKey(hash)) {
+                instr.modifyAllUseThisToUseA(GvnMap.get(hash));
+                instr.remove();
+                return true;
+            }
+            add(hash, instr);
+        } else if (instr instanceof Instr.Alu) {
+            String hash = instr.getUseValueList().get(0).getName() + ((Instr.Alu) instr).getOp().getName() + instr.getUseValueList().get(1).getName();
+            if (GvnMap.containsKey(hash)) {
+                instr.modifyAllUseThisToUseA(GvnMap.get(hash));
+                instr.remove();
+                return true;
+            }
+            if (((Instr.Alu) instr).getOp().equals(Instr.Alu.Op.ADD) || ((Instr.Alu) instr).getOp().equals(Instr.Alu.Op.MUL)) {
+                String str = instr.getUseValueList().get(0).getName() + ((Instr.Alu) instr).getOp().getName() + instr.getUseValueList().get(1).getName();
+                add(str, instr);
+                if (!instr.getUseValueList().get(0).getName().equals(instr.getUseValueList().get(1).getName())) {
+                    str = instr.getUseValueList().get(1).getName() + ((Instr.Alu) instr).getOp().getName() + instr.getUseValueList().get(0).getName();
+                    add(str, instr);
+                }
+            } else {
+                String str = instr.getUseValueList().get(0).getName() + ((Instr.Alu) instr).getOp().getName() + instr.getUseValueList().get(1).getName();
+                add(str, instr);
+            }
         }
         return tag;
     }
 
-    private void removeInstrFromGVN(Instr.Alu alu) {
-        if (alu.getOp().equals(Instr.Alu.Op.ADD) || alu.getOp().equals(Instr.Alu.Op.MUL)) {
-            String str = alu.getUseValueList().get(0).getName() + alu.getOp().getName() + alu.getUseValueList().get(1).getName();
-            remove(str);
-            if (!alu.getUseValueList().get(0).getName().equals(alu.getUseValueList().get(1).getName())) {
-                str = alu.getUseValueList().get(1).getName() + alu.getOp().getName() + alu.getUseValueList().get(0).getName();
+    private void removeInstrFromGVN(Instr instr) {
+        if (instr instanceof Instr.GetElementPtr) {
+            String hash = ((Instr.GetElementPtr) instr).getPtr().getName();
+            ArrayList<Value> indexs = ((Instr.GetElementPtr) instr).getIdxList();
+            for (int i = 0; i < indexs.size(); i++) {
+                hash = hash + "[" + indexs.get(i).getName() + "]";
+            }
+            remove(hash);
+        } else if (instr instanceof Instr.Alu) {
+            if (((Instr.Alu) instr).getOp().equals(Instr.Alu.Op.ADD) || ((Instr.Alu) instr).getOp().equals(Instr.Alu.Op.MUL)) {
+                String str = instr.getUseValueList().get(0).getName() + ((Instr.Alu) instr).getOp().getName() + instr.getUseValueList().get(1).getName();
+                remove(str);
+                if (!instr.getUseValueList().get(0).getName().equals(instr.getUseValueList().get(1).getName())) {
+                    str = instr.getUseValueList().get(1).getName() + ((Instr.Alu) instr).getOp().getName() + instr.getUseValueList().get(0).getName();
+                    remove(str);
+                }
+            } else {
+                String str = instr.getUseValueList().get(0).getName() + ((Instr.Alu) instr).getOp().getName() + instr.getUseValueList().get(1).getName();
                 remove(str);
             }
-        } else {
-            String str = alu.getUseValueList().get(0).getName() + alu.getOp().getName() + alu.getUseValueList().get(1).getName();
-            remove(str);
         }
     }
 

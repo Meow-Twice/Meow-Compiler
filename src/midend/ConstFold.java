@@ -125,7 +125,7 @@ public class ConstFold {
                 if (!ret) {
                     return false;
                 }
-            } else if (user instanceof Instr.Store) {
+            } else if (user instanceof Instr.Store || user instanceof Instr.Call) {
                 return false;
             } else if (user instanceof Instr.Load) {
 

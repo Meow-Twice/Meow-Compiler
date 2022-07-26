@@ -48,9 +48,9 @@ public class GepFuse {
     }
 
     private boolean isZeroOffsetGep(Instr.GetElementPtr gep) {
-        if (!(gep.getPtr() instanceof Instr.GetElementPtr)) {
-            return false;
-        }
+//        if (!(gep.getPtr() instanceof Instr.GetElementPtr)) {
+//            return false;
+//        }
         ArrayList<Value> values = gep.getIdxList();
         if (values.size() > 1) {
             return false;

@@ -89,9 +89,9 @@ public class GepFuse {
         int sum = 0;
         for (Instr.GetElementPtr gep: Geps) {
             //TODO:在过程中发现偏移相等了
-            if (sum == dim) {
-                return;
-            }
+//            if (sum == dim) {
+//                return;
+//            }
             sum += gep.getIdxList().size() - 1;
         }
         assert sum <= dim;

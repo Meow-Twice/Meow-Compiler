@@ -552,10 +552,27 @@ public class CodeGen {
                     Function callFunc = call_inst.getFunc();
                     Machine.McFunction callMcFunc = func2mcFunc.get(callFunc);
                     if (callFunc.isExternal) {
+                        /**
+                         * r0实际上依据设计不一定需要保护, 因为一定是最后ret语句才会有r0的赋值
+                         */
+                        // TODO: return getint();
+                        while (rIdx < 2) {
+                            Operand tmpDst = newVR();
+                            paramVRList.add(tmpDst);
+                            new MIMove(tmpDst, Arm.Reg.getR(rIdx++), curMB);
+                        }
+                        if (needFPU) {
+                            while (sIdx < 2) {
+                                Operand tmpDst = newSVR();
+                                paramSVRList.add(tmpDst);
+                                new V.Mov(tmpDst, Arm.Reg.getS(sIdx++), curMB);
+                            }
+                        }
                         Machine.McFunction mf = func2mcFunc.get(callFunc);
                         assert mf != null;
                         Push(mf);
                         new MICall(mf, curMB);
+                        Pop(mf);
                         if (call_inst.getType().isInt32Type()) {
                             new MIMove(getVR_no_imm(call_inst), Arm.Reg.getR(r0), curMB);
                         } else if (call_inst.getType().isFloatType()) {
@@ -564,7 +581,6 @@ public class CodeGen {
                         } else if (!call_inst.getType().isVoidType()) {
                             throw new AssertionError("Wrong ret type");
                         }
-                        Pop(mf);
                     } else {
                         if (callMcFunc == null) {
                             throw new AssertionError("Callee is null");
@@ -583,14 +599,6 @@ public class CodeGen {
                             paramSVRList.add(tmpDst);
                             new V.Mov(tmpDst, Arm.Reg.getS(s0), curMB);
                         }
-                        // while (sIdx < 2) {
-                        //     Operand tmpDst = newSVR();
-                        //     paramSVRList.add(tmpDst);
-                        //     Operand fpr = Arm.Reg.getS(sIdx);
-                        //     new V.Mov(tmpDst, fpr, curMB);
-                        //     sIdx++;
-                        // }
-                        // assert callMcFunc != null;
                         Operand rOp1 = new Operand(I32, 0);
                         Operand mvDst1 = newVR();
                         MIMove mv1 = new MIMove(mvDst1, rOp1, curMB);

@@ -246,8 +246,8 @@ public class TrivialRegAllocator extends RegAllocator {
                         logOut(simplifyWorkSet.toString());
                         // 从度数低的结点集中随机选择一个从图中删除放到 selectStack 里
                         Operand x = simplifyWorkSet.iterator().next();
-                        if (!x.isI32())
-                            assert !x.isI32();
+                        // if (!x.isI32())
+                        assert x.isI32();
                         simplifyWorkSet.remove(x);
                         selectStack.push(x);
                         logOut(String.format("selectStack.push(%s)", x));
@@ -465,6 +465,9 @@ public class TrivialRegAllocator extends RegAllocator {
             HashSet<Operand> live = new HashSet<>(mb.liveOutSet);
             for (ILinkNode iNode = mb.getEndMI(); !iNode.equals(mb.miList.head); iNode = iNode.getPrev()) {
                 MachineInst mi = (MachineInst) iNode;
+                if (mi.isCall()) {
+                    System.err.println(mi);
+                }
                 if (mi.isComment()) continue;
                 // TODO : 此时考虑了Call
                 ArrayList<Operand> defs = mi.defOpds;

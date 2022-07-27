@@ -89,14 +89,14 @@ public class Compiler {
                 fpRegAllocator.AllocateRegister(p);
             }
             // System.err.println("middle");
-            // Manager.MANAGER.outputMI(true);
+            Manager.MANAGER.outputMI();
             // System.err.println("middle end");
             TrivialRegAllocator regAllocator = new TrivialRegAllocator();
             regAllocator.AllocateRegister(p);
             System.err.println(System.currentTimeMillis() - start);
             // Manager.outputMI(true);
             // System.err.println("after");
-            // Manager.MANAGER.outputMI(true);
+            Manager.MANAGER.outputMI();
             // System.err.println("after end");
             // System.err.println("BEGIN rerun");
             // MIDescriptor.MI_DESCRIPTOR.setRegMode();

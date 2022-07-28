@@ -5,49 +5,67 @@ import lir.Machine.McFunction;
 
 import java.io.PrintStream;
 
+import static backend.CodeGen.rParamCnt;
+import static backend.CodeGen.sParamCnt;
+import static lir.Arm.Regs.FPRs.s0;
 import static lir.Arm.Regs.GPRs.*;
 
 public class MICall extends MachineInst {
-    public McFunction mcFunction;
+    public McFunction callee;
 
-    public MICall(McFunction mcFunction, Machine.Block insertAtEnd) {
+    public MICall(McFunction callee, Machine.Block insertAtEnd) {
         super(Tag.Call, insertAtEnd);
-        this.mcFunction = mcFunction;
+        this.callee = callee;
         genDefUse();
     }
 
     @Override
     public void genDefUse() {
-        // TODO for xry: 到底是new还是get单例
-        // 调用者保存
-        for (int i = r0.ordinal(); i < r0.ordinal() + Math.min(mcFunction.mFunc.getParams().size(), 4); i++) {
-            useOpds.add(Reg.getR(i));
+        if (callee.mFunc.isExternal) {
+            for (int i = r0.ordinal(); i < r0.ordinal() + rParamCnt; i++) {
+                useOpds.add(Reg.getR(i));
+            }
+            for (int i = s0.ordinal(); i < s0.ordinal() + sParamCnt; i++) {
+                useOpds.add(Reg.getS(i));
+            }
+        } else {
+            // TODO for xry: 到底是new还是get单例
+            // 调用者保存
+            for (int i = r0.ordinal(); i < r0.ordinal() + Math.min(callee.intParamCount, rParamCnt); i++) {
+                useOpds.add(Reg.getR(i));
+            }
+            for (int i = s0.ordinal(); i < s0.ordinal() + Math.min(callee.floatParamCount, sParamCnt); i++) {
+                useOpds.add(Reg.getS(i));
+            }
+            // if (mf.mFunc.hasRet()) {
+            //     if (mf.mFunc.getRetType().isInt32Type()) {
+            //         defOpds.add(Reg.getR(r0));
+            //     } else if (mf.mFunc.getRetType().isFloatType()) {
+            //         defOpds.add(Reg.getS(s0));
+            //     } else {
+            //         throw new AssertionError("Wrong call func type: has ret but is type of " + mf.mFunc.getRetType());
+            //     }
+            // }
         }
-        // for (int i = 0; i < 4; i++) {
-        //     defOpds.add(Reg.getR(i));
-        // }
-        // defOpds.add(Reg.getR(lr));
-        // defOpds.add(Reg.getR(r12));
-        if(mcFunction.mFunc.hasRet()){
-            defOpds.add(Reg.getR(r0));
+        // TODO for bug test!!!
+        if (callee.mFunc.hasRet()) {
+            if (callee.mFunc.getRetType().isInt32Type()) {
+                defOpds.add(Reg.getR(r0));
+            } else if (callee.mFunc.getRetType().isFloatType()) {
+                defOpds.add(Reg.getS(s0));
+            } else {
+                throw new AssertionError("Wrong call func type: has ret but is type of " + callee.mFunc.getRetType());
+            }
         }
-        // TODO: 不确定浮点怎么存,不确定到底存哪些
-
     }
 
     @Override
     public void output(PrintStream os, Machine.McFunction f) {
-        if(mcFunction.mFunc.isExternal){
-            os.println("\tpush {r1,r2,r3}\t");
-        }
-        os.println("\tblx\t" + mcFunction.mFunc.getName());
-        if(mcFunction.mFunc.isExternal){
-            os.println("\tpop {r1,r2,r3}\t");
-        }
+        os.println("\tblx\t" + callee.mFunc.getName());
     }
 
     @Override
     public String toString() {
-        return tag + "\t" + mcFunction.mFunc.getName();
+        return tag + "\t" + callee.mFunc.getName();
     }
 }

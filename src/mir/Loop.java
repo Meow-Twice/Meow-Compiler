@@ -181,6 +181,13 @@ public class Loop {
         conds.clear();
     }
 
+    public void clear() {
+        exits.clear();
+        exitings.clear();
+        enterings.clear();
+        latchs.clear();
+    }
+
     public HashSet<BasicBlock> getNowLevelBB() {
         return nowLevelBB;
     }
@@ -220,9 +227,9 @@ public class Loop {
     //修正当前BB对应BB的use-def,同时修正简单的数据流:前驱后继关系
     public void fix() {
         for (BasicBlock bb: nowLevelBB) {
-            if (bb.getLabel().equals("b174")) {
-                System.err.println("ERR_174");
-            }
+//            if (bb.getLabel().equals("b174")) {
+//                System.err.println("ERR_174");
+//            }
             assert CloneInfoMap.valueMap.containsKey(bb);
             BasicBlock needFixBB = (BasicBlock) CloneInfoMap.getReflectedValue(bb);
 
@@ -340,6 +347,10 @@ public class Loop {
 
     public boolean isIdcSet() {
         return idcSet;
+    }
+
+    public void clearIdcInfo() {
+        this.idcSet = false;
     }
 
     public void setIdcTimes(int idcTimes) {

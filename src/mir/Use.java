@@ -9,6 +9,10 @@ public class Use extends ILinkNode {
     private Value used;
     private int idx;
 
+    private static int use_num = 0;
+
+    private int hash = ++use_num;
+
     public Use(){
         super();
     }
@@ -25,12 +29,12 @@ public class Use extends ILinkNode {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Use use = (Use) o;
-        return idx == use.idx && used.equals(use.used) && user.equals(use.user);
+        return hash == use.hash;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(used, user, idx);
+        return Objects.hash(hash);
     }
 
     public Value getUsed() {

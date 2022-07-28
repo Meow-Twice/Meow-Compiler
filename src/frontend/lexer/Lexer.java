@@ -10,6 +10,7 @@ public class Lexer {
     private static final boolean[] floatChar = new boolean[128];
 
     private static final Lexer lexer = new Lexer();
+    public static boolean detectFloat = false;
     private static int lineNum = 0;
     // private String str = "";
     private Character lastChar = ' ';
@@ -105,6 +106,7 @@ public class Lexer {
                 tokenList.append(tk);
             }
             case "float" -> {
+                detectFloat = true;
                 Token tk = new Token(FLOAT, str);
                 tokenList.append(tk);
             }
@@ -257,6 +259,9 @@ public class Lexer {
                 for (TokenType type : NUM_CON_LIST) {
                     Matcher matcher = type.getPattern().matcher(numStr);
                     if (matcher.matches()) {
+                        if(type == HEX_FLOAT || type == DEC_FLOAT){
+                            detectFloat = true;
+                        }
                         // String token = matcher.group(0);
                         Token tk = new Token(type, numStr.toString());
                         tokenList.append(tk);

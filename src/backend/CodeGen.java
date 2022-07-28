@@ -210,15 +210,19 @@ public class CodeGen {
                 value2opd.put(param, opd);
                 if (sIdx < sParamCnt) {
                     new V.Mov(opd, Arm.Reg.getS(sIdx), curMB);
-                    sTop = sIdx;
+                    sTop = sIdx + 1;
                 } else {
                     // 这里因为无法确认栈的大小(参数栈空间, 所用寄存器push和pop的栈空间, 数组申请栈空间, 寄存器分配时溢出所需栈空间)是否超过了立即数编码, 因此一律用move指令处理
-                    Operand offImm = new Operand(I32, 4 * (rTop + sTop - (rIdx + sIdx)));
-                    Operand dst = newVR();
-                    MIMove mv = new MIMove(dst, offImm, curMB);
-                    mv.setNeedFix(STACK_FIX.TOTAL_STACK);
+                    Operand offImm = new Operand(I32, 4 * (rTop + sTop - (rIdx + sIdx) - 1));
                     // 栈顶向下的偏移, 第四个参数 -4, 第五个参数 -8 ...修的时候只需要把这个立即数的值取出来加上getStackSize获取的栈大小即可
-                    new V.Ldr(opd, Arm.Reg.getR(sp), dst, curMB);
+
+                    Operand imm = newVR();
+                    MIMove mv = new MIMove(imm, offImm, curMB);
+                    mv.setNeedFix(STACK_FIX.TOTAL_STACK);
+                    Operand dstAddr = newVR();
+                    new MIBinary(MachineInst.Tag.Add, dstAddr, Arm.Reg.getR(sp), imm, curMB);
+                    new V.Ldr(opd, dstAddr, curMB);
+
                     curMF.addParamStack(4);
                 }
                 sIdx++;
@@ -227,10 +231,10 @@ public class CodeGen {
                 value2opd.put(param, opd);
                 if (rIdx < rParamCnt) {
                     new MIMove(opd, Arm.Reg.getR(rIdx), curMB);
-                    rTop = rIdx;
+                    rTop = rIdx + 1;
                 } else {
                     // 这里因为无法确认栈的大小(参数栈空间, 所用寄存器push和pop的栈空间, 数组申请栈空间, 寄存器分配时溢出所需栈空间)是否超过了立即数编码, 因此一律用move指令处理
-                    Operand offImm = new Operand(I32, 4 * (rTop + sTop - (rIdx + sIdx)));
+                    Operand offImm = new Operand(I32, 4 * (rTop + sTop - (rIdx + sIdx) - 1));
                     Operand dst = newVR();
                     MIMove mv = new MIMove(dst, offImm, curMB);
                     mv.setNeedFix(STACK_FIX.TOTAL_STACK);
@@ -250,7 +254,8 @@ public class CodeGen {
         NO_NEED, // 无需修栈
         VAR_STACK, // 函数push语句后的第一条的sub sp, sp, varStack用, 函数pop语句前的最后一条add sp, sp, varStack用
         ONLY_PARAM, // 函数调用前的sub sp, sp, paramStack用, 函数调用后的add sp, sp, paramStack用
-        TOTAL_STACK // 函数有超过四个的参数时ldr参数用(move vrx, #xxx那条)
+        TOTAL_STACK, // 函数有超过四个的参数时ldr参数用(move vrx, #xxx那条)
+        FLOAT_TOTAL_STACK
     }
 
     HashSet<Machine.Block> dfsBBSet = new HashSet<>();
@@ -389,11 +394,11 @@ public class CodeGen {
                     Value addrValue = loadInst.getPointer();
                     Operand addrOpd = getVR_from_ptr(addrValue);
                     Operand data = getVR_no_imm(instr);
-                    Operand offsetOpd = new Operand(I32, 0);
                     if (loadInst.getType().isFloatType()) {
                         assert needFPU;
-                        new V.Ldr(data, addrOpd, offsetOpd, curMB);
+                        new V.Ldr(data, addrOpd, curMB);
                     } else {
+                        Operand offsetOpd = new Operand(I32, 0);
                         new MILoad(data, addrOpd, offsetOpd, curMB);
                     }
                 }
@@ -401,11 +406,11 @@ public class CodeGen {
                     Instr.Store storeInst = (Instr.Store) instr;
                     Operand data = getVR_may_imm(storeInst.getValue());
                     Operand addr = getVR_from_ptr(storeInst.getPointer());
-                    Operand offset = new Operand(I32, 0);
                     if (storeInst.getValue().getType().isFloatType()) {
                         assert needFPU;
-                        new V.Str(data, addr, offset, curMB);
+                        new V.Str(data, addr, curMB);
                     } else {
+                        Operand offset = new Operand(I32, 0);
                         new MIStore(data, addr, offset, curMB);
                     }
                 }
@@ -512,19 +517,25 @@ public class CodeGen {
                                 Operand fpr = Arm.Reg.getS(sIdx);
                                 new V.Mov(tmpDst, fpr, curMB);
                                 new V.Mov(fpr, getVR_may_imm(p), curMB);
-                                sParamTop = sIdx;
+                                sParamTop = sIdx + 1;
                             } else {
-                                int offset_imm = (sParamTop + rParamTop - (rIdx + sIdx)) * 4;
+                                int offset_imm = (sParamTop + rParamTop - (rIdx + sIdx) - 1) * 4;
                                 Operand data = getVR_may_imm(p);
-                                Operand addr = Arm.Reg.getR(sp);
                                 Operand off = new Operand(I32, offset_imm);
-                                // TODO 小心函数参数个数超级多, 超过立即数可以表示的大小导致的错误
-                                if (!immCanCode(offset_imm)) {
-                                    Operand immDst = newVR();
-                                    new MIMove(immDst, off, curMB);
-                                    off = immDst;
+                                if (fpOffEncode(offset_imm)) {
+                                    new V.Str(data, Arm.Reg.getR(sp), off, curMB);
+                                } else if (immCanCode(-offset_imm)) {
+                                    // TODO 取反
+                                    Operand dstAddr = newVR();
+                                    new MIBinary(MachineInst.Tag.Sub, dstAddr, Arm.Reg.getR(sp), new Operand(I32, -offset_imm), curMB);
+                                    new V.Str(data, dstAddr, curMB);
+                                } else {
+                                    Operand imm = newVR();
+                                    new MIMove(imm, off, curMB);
+                                    Operand dstAddr = newVR();
+                                    new MIBinary(MachineInst.Tag.Sub, dstAddr, Arm.Reg.getR(sp), new Operand(I32, -offset_imm), curMB);
+                                    new V.Str(data, dstAddr, curMB);
                                 }
-                                new V.Str(data, addr, off, curMB);
                             }
                             sIdx++;
                         } else {
@@ -534,9 +545,9 @@ public class CodeGen {
                                 Operand gpr = Arm.Reg.getR(rIdx);
                                 new MIMove(tmpDst, gpr, curMB);
                                 new MIMove(gpr, getVR_may_imm(p), curMB);
-                                rParamTop = rIdx;
+                                rParamTop = rIdx + 1;
                             } else {
-                                int offset_imm = (sParamTop + rParamTop - (rIdx + sIdx)) * 4;
+                                int offset_imm = (sParamTop + rParamTop - (rIdx + sIdx) - 1) * 4;
                                 Operand data = getVR_may_imm(p);
                                 Operand addr = Arm.Reg.getR(sp);
                                 // TODO 小心函数参数个数超级多, 超过立即数可以表示的大小导致的错误
@@ -670,6 +681,10 @@ public class CodeGen {
         // for (Machine.Block mb : nextBlockList) {
         //     genBB(mb.bb);
         // }
+    }
+
+    public static boolean fpOffEncode(int off) {
+        return off <= 1020 && off >= -1020;
     }
 
     public void genGlobal() {

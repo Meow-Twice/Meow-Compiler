@@ -16,7 +16,7 @@ public class FPRegAllocator extends RegAllocator {
 
     public FPRegAllocator() {
         dataType = F32;
-        if (!CenterControl._FAST_REG_ALLOCATE){
+        if (!CenterControl._FAST_REG_ALLOCATE) {
             SPILL_MAX_LIVE_INTERVAL = SK;
         }
     }
@@ -403,13 +403,20 @@ public class FPRegAllocator extends RegAllocator {
         if (toStack) {
             if (firstUse != null) {
                 Operand offset = offImm;
-                if (offImm.get_I_Imm() >= (1 << 12)) {
-                    Operand dst = curMF.newVR();
-                    MIMove mi = new MIMove(dst, offImm, firstUse);
-                    logOut(String.format("+++++++%d Checkpoint insert {\t%s\t} before use:\t{\t%s\t}", dealSpillTimes, mi, firstUse));
-                    offset = dst;
+                V.Ldr mi;
+                if (CodeGen.fpOffEncode(offset.get_I_Imm())) {
+                    mi = new V.Ldr(curMF.getSVR(vrIdx), rSP, offset, firstUse);
+                } else {
+                    Operand dstAddr = curMF.newVR();
+                    if (!CodeGen.CODEGEN.immCanCode(offImm.get_I_Imm())) {
+                        Operand dst = curMF.newVR();
+                        MIMove mv = new MIMove(dst, offImm, firstUse);
+                        logOut(String.format("+++++++%d Checkpoint insert {\t%s\t} before use:\t{\t%s\t}", dealSpillTimes, mv, firstUse));
+                        offset = dst;
+                    }
+                    new MIBinary(MachineInst.Tag.Add, dstAddr, rSP, offset, firstUse);
+                    mi = new V.Ldr(curMF.getSVR(vrIdx), dstAddr, firstUse);
                 }
-                V.Ldr mi = new V.Ldr(curMF.getSVR(vrIdx), rSP, offset, firstUse);
                 logOut(String.format("+++++++%d Checkpoint insert {\t%s\t} before use:\t{\t%s\t}", dealSpillTimes, mi, firstUse));
                 firstUse = null;
             }

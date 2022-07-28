@@ -17,6 +17,13 @@ public class MIBinary extends MachineInst {
         useOpds.add(rOpd);
     }
 
+    public MIBinary(Tag tag, Machine.Operand dstAddr, Arm.Reg rSP, Machine.Operand offset, MachineInst firstUse) {
+        super(tag, firstUse);
+        defOpds.add(dstAddr);
+        useOpds.add(rSP);
+        useOpds.add(offset);
+    }
+
     public Machine.Operand getDst() {
         return defOpds.get(0);
     }

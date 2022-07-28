@@ -24,7 +24,7 @@ public class Token {
     public Token(final TokenType type, final String content) {
         this.type = type;
         this.content = content;
-        // System.err.print(" " + content);
+        System.err.print(" " + content);
     }
 
     public TokenType getType() {

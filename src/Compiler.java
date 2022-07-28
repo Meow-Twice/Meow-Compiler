@@ -56,7 +56,7 @@ public class Compiler {
             // GlobalValueLocalize globalValueLocalize = new GlobalValueLocalize(funcManager.globals);
             // globalValueLocalize.Run();
             Manager.MANAGER.outputLLVM();
-            MidEndRunner.O2 = arg.optimize;
+            // MidEndRunner.O2 = arg.optimize;
             System.err.println("mid optimization begin");
             long start = System.currentTimeMillis();
             MidEndRunner midEndRunner = new MidEndRunner(Manager.MANAGER.getFunctionList());

@@ -3,6 +3,7 @@ package backend;
 import lir.*;
 import lir.Machine.Operand;
 import mir.type.DataType;
+import util.CenterControl;
 import util.ILinkNode;
 
 import java.util.*;
@@ -11,11 +12,13 @@ import static lir.Arm.Regs.GPRs.sp;
 import static mir.type.DataType.F32;
 import static mir.type.DataType.I32;
 
-public class FPRegAllocator extends RegAllocator{
+public class FPRegAllocator extends RegAllocator {
 
-    public FPRegAllocator(){
+    public FPRegAllocator() {
         dataType = F32;
-        SPILL_MAX_LIVE_INTERVAL = SK;
+        if (!CenterControl._FAST_REG_ALLOCATE){
+            SPILL_MAX_LIVE_INTERVAL = SK;
+        }
     }
 
     void livenessAnalysis(Machine.McFunction mcFunc) {
@@ -188,8 +191,6 @@ public class FPRegAllocator extends RegAllocator{
      * 还未做好合并准备的传送指令的集合
      */
     HashSet<V.Mov> activeVMovSet = new HashSet<>();
-
-    public Machine.McFunction curMF;
 
     public void AllocateRegister(Machine.Program program) {
         for (Machine.McFunction mcFunc : program.funcList) {

@@ -1,6 +1,7 @@
 import arg.Arg;
 import backend.CodeGen;
 import backend.FPRegAllocator;
+import backend.SingleFuncRegAllocator;
 import backend.TrivialRegAllocator;
 // import descriptor.MIDescriptor;
 import frontend.Visitor;
@@ -13,6 +14,7 @@ import lir.Machine;
 import manage.Manager;
 import midend.MidEndRunner;
 import midend.RemovePhi;
+import util.CenterControl;
 
 import java.io.*;
 
@@ -49,7 +51,7 @@ public class Compiler {
             System.err.println("AST out");
             Ast ast = new Parser(tokenList).parseAst();
             Visitor visitor = Visitor.VISITOR;
-            visitor.__ONLY_PARSE_OUTSIDE_DIM = false;
+            // visitor.__ONLY_PARSE_OUTSIDE_DIM = false;
             visitor.visitAst(ast);
             System.err.println("visit end");
             // Manager manager = visitor.getIr();
@@ -82,18 +84,23 @@ public class Compiler {
             // System.err.println("before");
             // Manager.MANAGER.outputMI(true);
             // System.err.println("before end");
-            // Manager.outputMI(true);
-            long start = System.currentTimeMillis();
-            if (CodeGen.needFPU) {
-                FPRegAllocator fpRegAllocator = new FPRegAllocator();
-                fpRegAllocator.AllocateRegister(p);
-            }
-            // System.err.println("middle");
             Manager.MANAGER.outputMI();
-            // System.err.println("middle end");
-            TrivialRegAllocator regAllocator = new TrivialRegAllocator();
-            regAllocator.AllocateRegister(p);
-            System.err.println(System.currentTimeMillis() - start);
+            long start = System.currentTimeMillis();
+            if (CenterControl._FAST_REG_ALLOCATE) {
+                SingleFuncRegAllocator fastRegAllocator = new SingleFuncRegAllocator();
+                fastRegAllocator.AllocateRegister(p);
+            } else {
+                if (CodeGen.needFPU) {
+                    FPRegAllocator fpRegAllocator = new FPRegAllocator();
+                    fpRegAllocator.AllocateRegister(p);
+                }
+                // System.err.println("middle");
+                Manager.MANAGER.outputMI();
+                // System.err.println("middle end");
+                TrivialRegAllocator regAllocator = new TrivialRegAllocator();
+                regAllocator.AllocateRegister(p);
+                System.err.println(System.currentTimeMillis() - start);
+            }
             // Manager.outputMI(true);
             // System.err.println("after");
             Manager.MANAGER.outputMI();

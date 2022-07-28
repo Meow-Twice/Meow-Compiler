@@ -186,7 +186,6 @@ public class TrivialRegAllocator extends RegAllocator {
      */
     HashSet<MIMove> activeMoveSet = new HashSet<>();
 
-    public Machine.McFunction curMF;
 
     public void AllocateRegister(Machine.Program program) {
         for (Machine.McFunction mcFunc : program.funcList) {

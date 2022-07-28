@@ -17,6 +17,7 @@ public class GlobalVal extends Value {
         // private static int GLOBAL_COUNT = 0;
         public Ast.Def def;
         public Initial initial;
+        public boolean local = false;
 
         public GlobalValue(Type pointeeType, Ast.Def def, Initial initial) {
             super(new Type.PointerType(pointeeType));
@@ -25,6 +26,14 @@ public class GlobalVal extends Value {
             // name = GLOBAL_NAME_PREFIX + GLOBAL_COUNT++;
             this.def = def;
             this.initial = initial;
+        }
+
+        public void setCanLocal() {
+            this.local = true;
+        }
+
+        public boolean canLocal() {
+            return this.local;
         }
     }
 

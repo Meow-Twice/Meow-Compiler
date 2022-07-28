@@ -12,7 +12,7 @@ public class MidEndRunner {
     //TODO:另一种实现方法 functions定为static 提供init方法
     public ArrayList<Function> functions;
     private HashMap<GlobalVal.GlobalValue, Initial> globalValues = Manager.MANAGER.getGlobals();
-    private static boolean O2 = true;
+    public static boolean O2 = false;
 
     public MidEndRunner(ArrayList<Function> functions) {
         this.functions = functions;
@@ -26,8 +26,12 @@ public class MidEndRunner {
             mem2Reg.Run();
             Pass();
             Pass();
+            BrOptimize();
+            BrOptimize();
             return;
         }
+
+        System.err.println("O2 Begin");
 
         GlobalValueLocalize globalValueLocalize = new GlobalValueLocalize(functions, globalValues);
         globalValueLocalize.Run();
@@ -62,6 +66,8 @@ public class MidEndRunner {
 //        BrOptimize();
 
         GepSplit();
+
+        System.err.println("O2 End");
         //check();
         //
         // RemovePhi removePhi = new RemovePhi(functions);

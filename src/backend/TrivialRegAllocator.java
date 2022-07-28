@@ -466,7 +466,7 @@ public class TrivialRegAllocator extends RegAllocator {
             for (ILinkNode iNode = mb.getEndMI(); !iNode.equals(mb.miList.head); iNode = iNode.getPrev()) {
                 MachineInst mi = (MachineInst) iNode;
                 if (mi.isCall()) {
-                    System.err.println(mi);
+                    //System.err.println(mi);
                 }
                 if (mi.isComment()) continue;
                 // TODO : 此时考虑了Call

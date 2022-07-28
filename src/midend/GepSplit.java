@@ -34,7 +34,7 @@ public class GepSplit {
     private void gepSplitForFunc(Function function) {
         for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
             for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
-                if (instr instanceof Instr.GetElementPtr && ((Instr.GetElementPtr) instr).getIdxList().size() > 2) {
+                if (instr instanceof Instr.GetElementPtr && ((Instr.GetElementPtr) instr).getIdxList().size() >= 2) {
                     split((Instr.GetElementPtr) instr);
                 }
             }
@@ -49,6 +49,11 @@ public class GepSplit {
         Value pre = gep.getIdxList().get(0);
         ArrayList<Value> preIndexs = new ArrayList<>();
         preIndexs.add(pre);
+        if (gep.getIdxList().size() == 2) {
+            if (pre instanceof Constant && ((int) ((Constant) pre).getConstVal()) == 0) {
+                return;
+            }
+        }
         Instr preOffset = new Instr.GetElementPtr(((Type.PointerType) ptr.getType()).getInnerType(), ptr, preIndexs, bb);
         pos.insertAfter(preOffset);
         pos = preOffset;

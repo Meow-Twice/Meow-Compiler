@@ -63,11 +63,13 @@ public class FuncInline {
             Use use = function.getBeginUse();
             while (use.getNext() != null) {
                 Function userFunc = use.getUser().parentBB().getFunction();
-                reserveMap.get(function).add(userFunc);
+                boolean ret = reserveMap.get(function).add(userFunc);
                 if (!inNum.containsKey(userFunc)) {
                     inNum.put(userFunc, 0);
                 }
-                inNum.put(userFunc, inNum.get(userFunc) + 1);
+                if (ret) {
+                    inNum.put(userFunc, inNum.get(userFunc) + 1);
+                }
                 use = (Use) use.getNext();
             }
         }

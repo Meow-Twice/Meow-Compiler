@@ -13,7 +13,7 @@ import static lir.Arm.Regs.GPRs.sp;
 public class RegAllocator {
     public static final int SP_ALIGN = 2 * 4;
 
-    protected final boolean DEBUG_STDIN_OUT = true;
+    protected final boolean DEBUG_STDIN_OUT = false;
 
     protected int RK = 12;
     // TODO 尝试将sp直接设为Allocated或者不考虑sp add或sub指令

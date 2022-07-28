@@ -69,7 +69,7 @@ public class GVNAndGCM {
         for (Function function: functions) {
             scheduleLateForFunc(function);
         }
-        printBeforeMove();
+        //printBeforeMove();
         move();
     }
 

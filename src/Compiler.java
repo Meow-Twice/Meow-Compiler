@@ -19,7 +19,7 @@ import java.io.*;
 public class Compiler {
 
     public static boolean OUTPUT_LEX = false;
-    public static boolean ONLY_FRONTEND = false;
+    public static boolean ONLY_FRONTEND = true;
 
     private static String input(InputStream in) throws IOException {
         BufferedReader reader = new BufferedReader(new InputStreamReader(in));
@@ -56,11 +56,15 @@ public class Compiler {
             // GlobalValueLocalize globalValueLocalize = new GlobalValueLocalize(funcManager.globals);
             // globalValueLocalize.Run();
             Manager.MANAGER.outputLLVM();
+            MidEndRunner.O2 = arg.optimize;
+            System.err.println("mid optimization begin");
+            long start = System.currentTimeMillis();
             MidEndRunner midEndRunner = new MidEndRunner(Manager.MANAGER.getFunctionList());
             midEndRunner.Run();
             if (arg.outputLLVM()) {
                 Manager.MANAGER.outputLLVM(arg.llvmStream);
             }
+            System.err.println("mid optimization end, Use Time: " + String.valueOf(((double) System.currentTimeMillis() - start) / 1000) + "s");
 
             // DeadCodeDelete deadCodeDelete = new DeadCodeDelete(Manager.MANAGER.getFunctionList());
             // deadCodeDelete.Run();
@@ -71,8 +75,11 @@ public class Compiler {
             RemovePhi removePhi = new RemovePhi(midEndRunner.functions);
             removePhi.Run();
 
-            Manager.MANAGER.outputLLVM();
+            System.err.println("code gen begin");
+            start = System.currentTimeMillis();
+            //Manager.MANAGER.outputLLVM();
             CodeGen.CODEGEN.gen();
+            System.err.println("code gen end, Use Time: " + String.valueOf(((double) System.currentTimeMillis() - start) / 1000) + "s");
             Machine.Program p = Machine.Program.PROGRAM;
             // 为 MI Descriptor 设置输入输出流
             // MIDescriptor.MI_DESCRIPTOR.setInput(arg.interpretInputStream);
@@ -83,7 +90,8 @@ public class Compiler {
             // Manager.MANAGER.outputMI(true);
             // System.err.println("before end");
             // Manager.outputMI(true);
-            long start = System.currentTimeMillis();
+            start = System.currentTimeMillis();
+            System.err.println("Reg Alloc begin");
             if (CodeGen.needFPU) {
                 FPRegAllocator fpRegAllocator = new FPRegAllocator();
                 fpRegAllocator.AllocateRegister(p);
@@ -93,7 +101,7 @@ public class Compiler {
             // System.err.println("middle end");
             TrivialRegAllocator regAllocator = new TrivialRegAllocator();
             regAllocator.AllocateRegister(p);
-            System.err.println(System.currentTimeMillis() - start);
+            System.err.println("Reg Alloc end, Use Time: " + String.valueOf(((double) System.currentTimeMillis() - start) / 1000) + "s");
             // Manager.outputMI(true);
             // System.err.println("after");
             Manager.MANAGER.outputMI();

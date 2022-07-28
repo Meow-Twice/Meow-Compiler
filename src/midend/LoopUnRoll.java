@@ -74,9 +74,9 @@ public class LoopUnRoll {
     }
 
     private void constLoopUnRollForLoop(Loop loop) {
-        if (loop.getHash() == 4) {
-            System.err.println("hash_4_unroll");
-        }
+//        if (loop.getHash() == 4) {
+//            System.err.println("hash_4_unroll");
+//        }
         Value idcInit = loop.getIdcInit();
         Value idcStep = loop.getIdcStep();
         Value idcEnd = loop.getIdcEnd();

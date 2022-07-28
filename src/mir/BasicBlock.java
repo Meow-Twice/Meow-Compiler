@@ -651,7 +651,6 @@ public class BasicBlock extends Value {
     //修改转跳和前驱后继关系
     //仅在LoopUnRoll中使用
     //this(entering) -> A(Head) -> B
-
     //同时维护了B的前驱
     public void modifySucAToB(BasicBlock A, BasicBlock B) {
         Instr instr = getEndInstr();

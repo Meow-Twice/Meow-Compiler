@@ -53,6 +53,8 @@ public class MidEndRunner {
 
         loopOptimize();
 
+        outputLLVM();
+
         //TODO:删除冗余phi,分支优化(删除无用的br/jump等),等等
         BrOptimize();
         BrOptimize();
@@ -64,6 +66,8 @@ public class MidEndRunner {
 
 //        loopOptimize();
 //        BrOptimize();
+
+        Pass();
 
         GepSplit();
 
@@ -183,8 +187,9 @@ public class MidEndRunner {
 
         //前驱后继关系已经维护
         //拆分MakeCFG
-        MakeDFG makeDFG = new MakeDFG(functions);
-        makeDFG.Run();
+//        MakeDFG makeDFG = new MakeDFG(functions);
+//        makeDFG.Run();
+        reMakeCFGAndLoopInfo();
 
         Pass();
     }

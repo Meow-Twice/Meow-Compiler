@@ -1,6 +1,7 @@
 package midend;
 
 import frontend.semantic.Initial;
+import mir.BasicBlock;
 import mir.Function;
 import mir.GlobalVal;
 import mir.Instr;
@@ -13,6 +14,7 @@ import java.util.HashSet;
 public class ArraySSA {
     private ArrayList<Function> functions;
     private HashMap<GlobalVal.GlobalValue, Initial> globalValues;
+    private HashSet<Instr.Alloc> allocs = new HashSet<>();
 
     public ArraySSA(ArrayList<Function> functions, HashMap<GlobalVal.GlobalValue, Initial> globalValues) {
         this.functions = functions;
@@ -21,9 +23,13 @@ public class ArraySSA {
 
     //TODO:插入Def PHI和merge PHI
     private void Run() {
-        //只考虑局部数组
-        insertPHIForLocalArray();
-        //考虑全局数组
+        GetAllocs();
+        //局部数组
+        for (Instr.Alloc alloc: allocs) {
+
+        }
+
+        //全局数组
         for (GlobalVal.GlobalValue globalValue: globalValues.keySet()) {
             if (((Type.PointerType) globalValue.getType()).getInnerType().isArrType() && globalValue.canLocal()) {
                 //认为入口块定义全局数组
@@ -31,13 +37,23 @@ public class ArraySSA {
         }
     }
 
-    private void insertPHIForLocalArray() {
+    private void GetAllocs() {
         for (Function function: functions) {
-            insertPHI(function);
+            for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
+                for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+                    if (instr instanceof Instr.Alloc) {
+                        allocs.add((Instr.Alloc) instr);
+                    }
+                }
+            }
         }
     }
 
-    private void insertPHI(Function function) {
-        HashSet<Instr.Alloc> allocs = new HashSet<>();
+    private void insertPHIForLocalArray(Instr instr) {
+
+    }
+
+    private void insertPHIForGlobalArray(GlobalVal.GlobalValue globalValue) {
+
     }
 }

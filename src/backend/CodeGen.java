@@ -975,7 +975,7 @@ public class CodeGen {
             // Icmp或Fcmp后紧接着BranchInst，而且前者的结果仅被后者使用，那么就可以不用计算结果，而是直接用bxx的指令
             if (((Instr) icmp.getNext()).isBranch()
                     && icmp.onlyOneUser()
-                    && icmp.getBeginUse().getUser().isBranch()) {
+                    && icmp.getBeginUse().getUser().isBranch() && icmp.getNext().equals(icmp.getBeginUse().getUser())) {
                 cmpInst2MICmpMap.put(instr, new CMPAndArmCond(cmp, cond));
             } else {
                 new MIMove(cond, dst, new Operand(I32, 1), curMB);
@@ -1000,7 +1000,7 @@ public class CodeGen {
             // Icmp或Fcmp后紧接着BranchInst，而且前者的结果仅被后者使用，那么就可以不用计算结果，而是直接用bxx的指令
             if (((Instr) fcmp.getNext()).isBranch()
                     && fcmp.onlyOneUser()
-                    && fcmp.getBeginUse().getUser().isBranch()) {
+                    && fcmp.getBeginUse().getUser().isBranch() && fcmp.getNext().equals(fcmp.getBeginUse().getUser())) {
                 cmpInst2MICmpMap.put(instr, new CMPAndArmCond(vcmp, cond));
             } else {
                 // TODO 这里不是很确定能不能执行

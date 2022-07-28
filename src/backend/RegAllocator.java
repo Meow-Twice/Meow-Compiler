@@ -11,6 +11,7 @@ import java.util.Objects;
 import static lir.Arm.Regs.GPRs.sp;
 
 public class RegAllocator {
+    protected Machine.McFunction curMF;
     public static final int SP_ALIGN = 2 * 4;
 
     protected final boolean DEBUG_STDIN_OUT = false;
@@ -20,7 +21,7 @@ public class RegAllocator {
     protected int SK = 32;
     protected DataType dataType;
 
-    protected int SPILL_MAX_LIVE_INTERVAL;
+    protected int SPILL_MAX_LIVE_INTERVAL = 1;
     protected final Arm.Reg rSP = Arm.Reg.getR(sp);
     protected int MAX_DEGREE = Integer.MAX_VALUE >> 2;
 
@@ -87,4 +88,5 @@ public class RegAllocator {
             System.err.println(s);
     }
 
+    public void AllocateRegister(Machine.Program program) {}
 }

@@ -28,6 +28,7 @@ public class SymTable {
     }
 
     public void add(Symbol symbol) {
+        assert !symbolMap.containsKey(symbol.getName());
         symbolMap.putIfAbsent(symbol.getName(), symbol);
     }
 

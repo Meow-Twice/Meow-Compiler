@@ -25,7 +25,7 @@ import static mir.type.Type.BasicType.*;
  */
 public class Visitor {
     public static final Visitor VISITOR = new Visitor();
-    public boolean __ONLY_PARSE_OUTSIDE_DIM = true;
+    private final boolean __ONLY_PARSE_OUTSIDE_DIM = false;
     private final Manager manager = Manager.MANAGER; // 最终生成的 IR
     public static SymTable currentSymTable = new SymTable(); // 当前符号表, 初始时是全局符号表
     // 用于记录loop的单cond中的累计第几个, 不可直接public获取, 很危险
@@ -68,7 +68,8 @@ public class Visitor {
     private Value trimTo(Value value, BasicType targetType) /*throws SemanticException*/ {
         assert value != null;
         if (!(value.getType() instanceof BasicType)) {
-            throw new AssertionError("Wrong trimTo " + targetType);
+            System.exit(value.tag.ordinal());
+            throw new AssertionError("Wrong trimTo " + targetType + " from " + value.getType());
         }
         // Value res = value;
         // if (value.getType().equals(targetType)) {
@@ -756,16 +757,27 @@ public class Visitor {
                             }
                         }
                         if (!allZero) {
+                            boolean afterMemset = false;
+                            if (initValueList.size() / 5 > checkSet.size() / 3) {
+                                initZeroHelper(pointer, pointeeType);
+                                afterMemset = true;
+                            }
                             ArrayList<Value> dimList = new ArrayList<>();
                             for (int i = 0; i <= ((ArrayType) pointeeType).getDimSize(); i++) {
                                 dimList.add(CONST_0);
                             }
                             BasicType basicType = ((ArrayType) pointeeType).getBaseEleType();
                             Value ptr = new GetElementPtr(basicType, pointer, dimList, curBB);
-                            dimList = new ArrayList<>();
-                            dimList.add(CONST_0);
-                            new Store(initValueList.get(0), ptr, curBB);
+                            if (!(initValueList.get(0) == CONST_0 && afterMemset)) {
+                                dimList = new ArrayList<>();
+                                dimList.add(CONST_0);
+                                new Store(initValueList.get(0), ptr, curBB);
+                            }
                             for (int i = 1; i < initValueList.size(); i++) {
+                                Value initVal = initValueList.get(i);
+                                if (initVal == CONST_0 && afterMemset) {
+                                    continue;
+                                }
                                 dimList = new ArrayList<>();
                                 dimList.add(Constant.ConstantInt.getConstInt(i));
                                 Value p = new GetElementPtr(basicType, ptr, dimList, curBB);

@@ -121,9 +121,9 @@ public class CodeGen {
             func2mcFunc.put(func, mcFunc);
             for (Function.Param p : func.getParams()) {
                 if (p.getType().isFloatType()) {
-                    mcFunc.intParamCount++;
-                } else {
                     mcFunc.floatParamCount++;
+                } else {
+                    mcFunc.intParamCount++;
                 }
             }
             // }

@@ -102,11 +102,6 @@ public class MIMove extends MachineInst {
             } else {
                 int imm = getSrc().value;
                 if (encode_imm(imm)) {
-            /*
-            if(src.type == float){
-                os.println("vldr" + cond +".32"+ "\t" + getDst().toString() + ",=" + imm);
-            }
-            */
                     os.println("\tmov" + cond + "\t" + getDst().toString() + ",\t#" + imm);
                 } else {
                     int lowImm = (imm << 16) >>> 16;
@@ -118,14 +113,6 @@ public class MIMove extends MachineInst {
                 }
             }
         } else {
-            //TODO:这里需要考虑Dst为s寄存器
-            /*
-            if(getDst().type == float){
-                os.print("vmov" + cond +".32"+ "\t" + getDst().toString() + "," + getSrc().toString());
-                os.println("," + shift.toString());
-
-            }
-            */
             os.print("\tmov" + cond + "\t" + getDst().toString() + ",\t" + getSrc().toString());
             if (shift != Arm.Shift.NONE_SHIFT) {
                 os.println(",\t" + shift.toString());
@@ -135,17 +122,12 @@ public class MIMove extends MachineInst {
         }
     }
 
-    @Override
-    public boolean isMove() {
-        return true;
-    }
-
     public Machine.Operand getDst() {
         return defOpds.get(0);
     }
 
     public boolean directColor() {
-        return getDst().needColor() && getSrc().needColor() && cond == Arm.Cond.Any && shift.shiftType == Arm.ShiftType.None;
+        return getDst().need_I_Color() && getSrc().need_I_Color() && cond == Arm.Cond.Any && shift.shiftType == Arm.ShiftType.None;
     }
 
     public Machine.Operand getSrc() {

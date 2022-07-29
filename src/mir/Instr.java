@@ -27,6 +27,8 @@ public class Instr extends Value {
     private BasicBlock earliestBB;
     private BasicBlock latestBB;//在本算法中,last is best
 
+    private boolean arrayInit = false;
+
     public void setEarliestBB(BasicBlock earliestBB) {
         this.earliestBB = earliestBB;
     }
@@ -242,6 +244,14 @@ public class Instr extends Value {
             return false;
         }
         return true;
+    }
+
+    public void setArrayInit(boolean arrayInit) {
+        this.arrayInit = arrayInit;
+    }
+
+    public boolean isArrayInit() {
+        return arrayInit;
     }
 
     public boolean canComb() {

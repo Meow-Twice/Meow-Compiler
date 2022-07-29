@@ -553,10 +553,24 @@ public class BasicBlock extends Value {
     }
 
     //循环展开的时候,复制bb
-    public BasicBlock cloneToFunc_LUR(Function function) {
-        Loop tagLoop = getLoop();
+    public BasicBlock cloneToFunc_LUR(Function function, Loop loop) {
+        Loop tagLoop = null, srcLoop = null;
+        if (getLoop().equals(loop)) {
+           tagLoop = getLoop();
+        } else {
+            srcLoop = getLoop();
+            tagLoop = CloneInfoMap.loopMap.containsKey(srcLoop)?
+                    CloneInfoMap.getReflectedLoop(srcLoop):
+                    new Loop(CloneInfoMap.getReflectedLoop(srcLoop.getParentLoop()));
+            tagLoop.setFunc(function);
+            CloneInfoMap.addLoopReflect(srcLoop, tagLoop);
+        }
         BasicBlock ret = new BasicBlock(function, tagLoop);
         CloneInfoMap.addValueReflect(this, ret);
+        if (this.isLoopHeader) {
+            tagLoop.setHeader(ret);
+            ret.setLoopHeader();
+        }
         Instr instr = this.getBeginInstr();
         while (instr.getNext() != null) {
             Instr tmp = instr.cloneToBB(ret);

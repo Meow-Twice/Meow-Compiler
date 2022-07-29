@@ -59,6 +59,7 @@ public class LoopInfo {
         }
 
         know.add(bb);
+        //bb.getLoop().addBB(bb);
 
         //clear
         if (bb.getLoopDep() > 0) {

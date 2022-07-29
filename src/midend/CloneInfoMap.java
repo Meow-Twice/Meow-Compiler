@@ -4,12 +4,14 @@ import mir.Loop;
 import mir.Value;
 
 import java.util.HashMap;
+import java.util.HashSet;
 
 public class CloneInfoMap {
 
     public static HashMap<Loop, Loop> loopMap = new HashMap<>();
     public static HashMap<Integer, Integer> loopCondCntMap = new HashMap<>();
     public static HashMap<Value, Value> valueMap = new HashMap<>();
+    //public static HashSet<Loop> loopNeedFix = new HashSet<>();
     //public static HashSet<BasicBlock> bbNeedFix = new HashSet<>();
 
     public static void addLoopReflect(Loop srcLoop, Loop tagLoop) {
@@ -52,8 +54,8 @@ public class CloneInfoMap {
         return value;
     }
 
-//    public static void addBBNeedFix(BasicBlock bb) {
-//        bbNeedFix.add(bb);
+//    public static void addLoopNeedFix(Loop loop) {
+//        loopNeedFix.add(loop);
 //    }
 //
 //    public static void rmBBNeedFix(BasicBlock bb) {
@@ -64,6 +66,7 @@ public class CloneInfoMap {
         loopMap.clear();
         loopCondCntMap.clear();
         valueMap.clear();
+        //loopNeedFix.clear();
     }
 
 }

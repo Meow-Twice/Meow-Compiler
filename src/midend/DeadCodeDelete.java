@@ -274,10 +274,19 @@ public class DeadCodeDelete {
         }
     }
 
-    private void tryRemoveLoop(Loop loop) {
+    private boolean tryRemoveLoop(Loop loop) {
+        HashSet<Loop> removes = new HashSet<>();
         for (Loop next: loop.getChildrenLoops()) {
-            tryRemoveLoop(next);
+            boolean ret = tryRemoveLoop(next);
+            if (ret) {
+                removes.add(next);
+            }
         }
+
+        for (Loop loop1: removes) {
+            loop.getChildrenLoops().remove(loop1);
+        }
+
         if (loopCanRemove(loop)) {
             //TODO:REMOVE
             HashSet<BasicBlock> enterings = loop.getEnterings();
@@ -294,7 +303,6 @@ public class DeadCodeDelete {
                 pres.add(entering);
             }
             exit.modifyPres(pres);
-            loop.getParentLoop().getChildrenLoops().remove(loop);
             HashSet<BasicBlock> bbRemove = new HashSet<>();
             for (BasicBlock bb: loop.getNowLevelBB()) {
                 for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
@@ -305,8 +313,9 @@ public class DeadCodeDelete {
             for (BasicBlock bb: bbRemove) {
                 bb.remove();
             }
-
+            return true;
         }
+        return false;
     }
 
     private boolean loopCanRemove(Loop loop) {

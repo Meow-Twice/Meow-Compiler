@@ -53,7 +53,15 @@ public class MidEndRunner {
 
         loopOptimize();
 
+        //outputLLVM();
+
         outputLLVM();
+
+        MemSetOptimize memSetOptimize = new MemSetOptimize(functions, globalValues);
+        memSetOptimize.Run();
+
+        reMakeCFGAndLoopInfo();
+
 
         //TODO:删除冗余phi,分支优化(删除无用的br/jump等),等等
         BrOptimize();
@@ -133,6 +141,9 @@ public class MidEndRunner {
         LoopInfo loopInfo = new LoopInfo(functions);
         loopInfo.Run();
 
+        LoopIdcVarInfo loopIdcVarInfo = new LoopIdcVarInfo(functions);
+        loopIdcVarInfo.Run();
+
     }
 
     //循环优化
@@ -164,12 +175,14 @@ public class MidEndRunner {
         loopIdcVarInfo.Run();
 //
 ////        // TODO:循环展开
+        //outputLLVM();
+
         LoopUnRoll loopUnRoll = new LoopUnRoll(functions);
         loopUnRoll.Run();
 
         reMakeCFGAndLoopInfo();
 
-        check();
+        //outputLLVM();
 
         Pass();
 

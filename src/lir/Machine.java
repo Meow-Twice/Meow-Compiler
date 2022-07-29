@@ -67,7 +67,7 @@ public class Machine {
         public void output(PrintStream os) {
             os.println(".arch armv7ve");
             os.println(".arm");
-            if(needFPU) {
+            if (needFPU) {
                 os.println(".fpu vfpv3-d16");
             }
             os.println(".section .text");
@@ -345,7 +345,7 @@ public class Machine {
         public void alignTotalStackSize() {
             int totalSize = getTotalStackSize();
             int b = totalSize % SP_ALIGN;
-            if(b != 0){
+            if (b != 0) {
                 varStack += SP_ALIGN - b;
             }
         }
@@ -699,14 +699,6 @@ public class Machine {
             }
             this.reg = reg;
             value = ((Enum<?>) reg).ordinal();
-        }
-
-        public boolean compareTo(Operand other) {
-            if (this.type != other.type) {
-                return type.compareTo(other.type) < 0;
-            } else {
-                return this.value < other.value;
-            }
         }
 
         public String getPrefix() {

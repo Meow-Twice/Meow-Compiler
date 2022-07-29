@@ -3,6 +3,16 @@ package lir;
 import java.io.PrintStream;
 
 public class MIMove extends MachineInst {
+    // @Override
+    // public Arm.Cond getCond() {
+    //     return cond;
+    // }
+
+    // Arm.Cond cond = Arm.Cond.Any;
+    // // Machine.Operand dOpd;
+    // // Machine.Operand sOpd;
+    // Arm.Shift shift = Arm.Shift.NONE_SHIFT;
+
     public boolean encode_imm(int imm) {
         for (int ror = 0; ror < 32; ror += 2) {
             if ((imm & ~0xFF) == 0) {
@@ -17,12 +27,18 @@ public class MIMove extends MachineInst {
         super(Tag.Mv, insertAtEnd);
         defOpds.add(dOpd);
         useOpds.add(sOpd);
+        // this.dOpd = dOpd;
+        // this.sOpd = sOpd;
+        // this.cond = Arm.Cond.Any;
     }
 
     public MIMove(Machine.Operand dOpd, Machine.Operand sOpd, Arm.Shift shift, Machine.Block insertAtEnd) {
         super(Tag.Mv, insertAtEnd);
         defOpds.add(dOpd);
         useOpds.add(sOpd);
+        // this.dOpd = dOpd;
+        // this.sOpd = sOpd;
+        // this.cond = Arm.Cond.Any;
         this.shift = shift;
     }
 
@@ -30,12 +46,18 @@ public class MIMove extends MachineInst {
         super(inst, Tag.Mv);
         defOpds.add(dOpd);
         useOpds.add(sOpd);
+        // this.dOpd = dOpd;
+        // this.sOpd = sOpd;
+        // this.cond = Arm.Cond.Any;
     }
 
     public MIMove(Machine.Operand dOpd, Machine.Operand sOpd, MachineInst inst) {
         super(Tag.Mv, inst);
         defOpds.add(dOpd);
         useOpds.add(sOpd);
+        // this.dOpd = dOpd;
+        // this.sOpd = sOpd;
+        // this.cond = Arm.Cond.Any;
     }
 
     public MIMove(Arm.Cond cond, Machine.Operand dOpd, Machine.Operand sOpd, Machine.Block insertAtEnd) {
@@ -43,7 +65,30 @@ public class MIMove extends MachineInst {
         this.cond = cond;
         defOpds.add(dOpd);
         useOpds.add(sOpd);
+        // this.dOpd = dOpd;
+        // this.sOpd = sOpd;
     }
+
+    public boolean operator(MIMove move) {
+        if (this.cond != move.cond)
+            return this.cond.compareTo(move.cond) < 0;
+        if (!this.getDst().equals(this.getDst()))
+            return this.getDst().compareTo(this.getDst());
+        if (this.getSrc() != this.getSrc())
+            return this.getSrc().compareTo(this.getSrc());
+        return false;
+    }
+
+    public MIMove() {
+        super(Tag.Mv);
+        // cond = Arm.Cond.Any;
+    }
+
+    // @Override
+    // public void genDefUse() {
+    //     defOpds.add(dOpd);
+    //     useOpds.add(sOpd);
+    // }
 
     @Override
     public void output(PrintStream os, Machine.McFunction f) {

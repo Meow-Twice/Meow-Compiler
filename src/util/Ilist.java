@@ -1,9 +1,6 @@
 package util;
 
-import java.util.ConcurrentModificationException;
 import java.util.Iterator;
-import java.util.Objects;
-import java.util.function.Consumer;
 
 public class Ilist<E extends ILinkNode> implements Iterable<E> {
     // 此种写法head和tail仍然是ILinkNode类
@@ -37,6 +34,7 @@ public class Ilist<E extends ILinkNode> implements Iterable<E> {
     }
 
     public E getBegin() {
+        assert head.getNext() != null;
         return (E) head.getNext();
     }
 

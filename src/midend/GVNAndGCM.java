@@ -397,6 +397,7 @@ public class GVNAndGCM {
         return instr instanceof Instr.Jump || instr instanceof Instr.Branch ||
                 instr instanceof Instr.Phi || instr instanceof Instr.Return ||
                 instr instanceof Instr.Store || instr instanceof Instr.Load ||
+                // instr instanceof Instr.Icmp || instr instanceof Instr.Fcmp ||
                 //instr instanceof Instr.GetElementPtr ||
                 instr instanceof Instr.Call;
     }

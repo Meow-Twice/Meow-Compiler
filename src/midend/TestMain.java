@@ -1,14 +1,5 @@
 package midend;
 
-import lir.Arm;
-import mir.BasicBlock;
-import mir.Function;
-import mir.Instr;
-import mir.Value;
-
-import java.sql.Time;
-import java.util.ArrayList;
-
 public class TestMain {
     //fixme:test
     public static void main(String[] args) {

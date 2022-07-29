@@ -19,7 +19,7 @@ import java.io.*;
 public class Compiler {
 
     public static boolean OUTPUT_LEX = false;
-    public static boolean ONLY_FRONTEND = true;
+    public static boolean ONLY_FRONTEND = false;
 
     private static String input(InputStream in) throws IOException {
         BufferedReader reader = new BufferedReader(new InputStreamReader(in));
@@ -49,14 +49,14 @@ public class Compiler {
             System.err.println("AST out");
             Ast ast = new Parser(tokenList).parseAst();
             Visitor visitor = Visitor.VISITOR;
-            visitor.__ONLY_PARSE_OUTSIDE_DIM = false;
+            // visitor.__ONLY_PARSE_OUTSIDE_DIM = false;
             visitor.visitAst(ast);
             System.err.println("visit end");
             // Manager manager = visitor.getIr();
             // GlobalValueLocalize globalValueLocalize = new GlobalValueLocalize(funcManager.globals);
             // globalValueLocalize.Run();
             Manager.MANAGER.outputLLVM();
-            MidEndRunner.O2 = arg.optimize;
+            // MidEndRunner.O2 = arg.optimize;
             System.err.println("mid optimization begin");
             long start = System.currentTimeMillis();
             MidEndRunner midEndRunner = new MidEndRunner(Manager.MANAGER.getFunctionList());
@@ -97,14 +97,14 @@ public class Compiler {
                 fpRegAllocator.AllocateRegister(p);
             }
             // System.err.println("middle");
-            Manager.MANAGER.outputMI();
+            // Manager.MANAGER.outputMI(true);
             // System.err.println("middle end");
             TrivialRegAllocator regAllocator = new TrivialRegAllocator();
             regAllocator.AllocateRegister(p);
             System.err.println("Reg Alloc end, Use Time: " + String.valueOf(((double) System.currentTimeMillis() - start) / 1000) + "s");
             // Manager.outputMI(true);
             // System.err.println("after");
-            Manager.MANAGER.outputMI();
+            // Manager.MANAGER.outputMI(true);
             // System.err.println("after end");
             // System.err.println("BEGIN rerun");
             // MIDescriptor.MI_DESCRIPTOR.setRegMode();

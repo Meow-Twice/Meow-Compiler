@@ -66,6 +66,7 @@ public class V extends MachineInst {
         /**
          * 函数开始取出参数
          * loadInst
+         *
          * @param data
          * @param addr
          * @param offset
@@ -79,22 +80,41 @@ public class V extends MachineInst {
         }
 
         /**
-         *
-         * @param sVr
-         * @param constF
-         * @param insertAtEnd
+         * addr可能是常数立即数的地址
+         * 参数的load, 正常的Load
          */
-        public Ldr(Machine.Operand sVr, Machine.Operand constF, Machine.Block insertAtEnd) {
+        public Ldr(Machine.Operand data, Machine.Operand addr, Machine.Block insertAtEnd) {
             super(VLdr, insertAtEnd);
-            defOpds.add(sVr);
-            useOpds.add(constF);
+            defOpds.add(data);
+            useOpds.add(addr);
         }
 
+        /**
+         * 浮点寄存器分配插入的load
+         *
+         * @param data
+         * @param addr
+         * @param offset
+         * @param insertBefore
+         */
         public Ldr(Machine.Operand data, Machine.Operand addr, Machine.Operand offset, MachineInst insertBefore) {
             super(VLdr, insertBefore);
             defOpds.add(data);
             useOpds.add(addr);
             useOpds.add(offset);
+        }
+
+        /**
+         * 浮点寄存器分配插入的load
+         *
+         * @param svr
+         * @param dstAddr
+         * @param firstUse
+         */
+        public Ldr(Operand svr, Operand dstAddr, MachineInst firstUse) {
+            super(VLdr, firstUse);
+            defOpds.add(svr);
+            useOpds.add(dstAddr);
         }
 
         public Machine.Operand getData() {
@@ -115,7 +135,7 @@ public class V extends MachineInst {
             transfer_output(os);
             Operand off = getOffset();
             if (off == null) {
-                // TODO 待优化
+                // TODO 没做ldr立即数
                 os.println("\tvldr" + cond + ".32\t" + getData() + ",\t[" + getAddr() + "]");
             } else if (this.shift.shiftType == Arm.ShiftType.None) {
                 os.println("\tvldr" + cond + ".32\t" + getData() + ",\t[" + getAddr() + ",\t" + off + "]");
@@ -138,6 +158,12 @@ public class V extends MachineInst {
             useOpds.add(data);
             useOpds.add(addr);
             useOpds.add(offset);
+        }
+
+        public Str(Machine.Operand data, Machine.Operand addr, Machine.Block insertAtEnd) {
+            super(VStr, insertAtEnd);
+            useOpds.add(data);
+            useOpds.add(addr);
         }
 
         /**
@@ -163,13 +189,16 @@ public class V extends MachineInst {
         }
 
         public Machine.Operand getOffset() {
+            if (useOpds.size() < 3) return null;
             return useOpds.get(2);
         }
 
         @Override
         public void output(PrintStream os, Machine.McFunction f) {
             transfer_output(os);
-            if (getOffset().getType() == Machine.Operand.Type.Immediate) {
+            if (getOffset() == null) {
+                os.println("\tvstr" + cond + ".32\t" + getData() + ",\t[" + getAddr() + "]");
+            } else if (getOffset().getType() == Machine.Operand.Type.Immediate) {
                 int shift = (this.shift.shiftType == Arm.ShiftType.None) ? 0 : this.shift.shift;
                 int offset = this.getOffset().value << shift;
                 if (offset != 0) {
@@ -277,11 +306,13 @@ public class V extends MachineInst {
         @Override
         public String toString() {
             StringBuilder stb = new StringBuilder();
-            switch (cvtType){
+            switch (cvtType) {
                 case f2i -> stb.append("\tvcvt.s32.f32\t" + getDst() + ",\t" + getSrc());
                 case i2f -> stb.append("\tvcvt.f32.s32\t" + getDst() + ",\t" + getSrc());
                 // TODO: for debug
-                default -> {throw new AssertionError("Wrong cvtType");}
+                default -> {
+                    throw new AssertionError("Wrong cvtType");
+                }
             }
             return stb + "\n";
         }
@@ -289,11 +320,13 @@ public class V extends MachineInst {
         @Override
         public void output(PrintStream os, Machine.McFunction f) {
             transfer_output(os);
-            switch (cvtType){
+            switch (cvtType) {
                 case f2i -> os.println("\tvcvt.s32.f32\t" + getDst() + ",\t" + getSrc());
                 case i2f -> os.println("\tvcvt.f32.s32\t" + getDst() + ",\t" + getSrc());
                 // TODO: for debug
-                default -> {throw new AssertionError("Wrong cvtType");}
+                default -> {
+                    throw new AssertionError("Wrong cvtType");
+                }
             }
         }
     }

@@ -3,6 +3,7 @@ package backend;
 import lir.*;
 import lir.Machine.Operand;
 import mir.type.DataType;
+import util.CenterControl;
 import util.ILinkNode;
 
 import java.util.*;
@@ -11,11 +12,13 @@ import static lir.Arm.Regs.GPRs.sp;
 import static mir.type.DataType.F32;
 import static mir.type.DataType.I32;
 
-public class FPRegAllocator extends RegAllocator{
+public class FPRegAllocator extends RegAllocator {
 
-    public FPRegAllocator(){
+    public FPRegAllocator() {
         dataType = F32;
-        SPILL_MAX_LIVE_INTERVAL = SK;
+        if (!CenterControl._FAST_REG_ALLOCATE) {
+            SPILL_MAX_LIVE_INTERVAL = SK;
+        }
     }
 
     void livenessAnalysis(Machine.McFunction mcFunc) {
@@ -188,8 +191,6 @@ public class FPRegAllocator extends RegAllocator{
      * 还未做好合并准备的传送指令的集合
      */
     HashSet<V.Mov> activeVMovSet = new HashSet<>();
-
-    public Machine.McFunction curMF;
 
     public void AllocateRegister(Machine.Program program) {
         for (Machine.McFunction mcFunc : program.funcList) {
@@ -402,13 +403,20 @@ public class FPRegAllocator extends RegAllocator{
         if (toStack) {
             if (firstUse != null) {
                 Operand offset = offImm;
-                if (offImm.get_I_Imm() >= (1 << 12)) {
-                    Operand dst = curMF.newVR();
-                    MIMove mi = new MIMove(dst, offImm, firstUse);
-                    logOut(String.format("+++++++%d Checkpoint insert {\t%s\t} before use:\t{\t%s\t}", dealSpillTimes, mi, firstUse));
-                    offset = dst;
+                V.Ldr mi;
+                if (CodeGen.fpOffEncode(offset.get_I_Imm())) {
+                    mi = new V.Ldr(curMF.getSVR(vrIdx), rSP, offset, firstUse);
+                } else {
+                    Operand dstAddr = curMF.newVR();
+                    if (!CodeGen.CODEGEN.immCanCode(offImm.get_I_Imm())) {
+                        Operand dst = curMF.newVR();
+                        MIMove mv = new MIMove(dst, offImm, firstUse);
+                        logOut(String.format("+++++++%d Checkpoint insert {\t%s\t} before use:\t{\t%s\t}", dealSpillTimes, mv, firstUse));
+                        offset = dst;
+                    }
+                    new MIBinary(MachineInst.Tag.Add, dstAddr, rSP, offset, firstUse);
+                    mi = new V.Ldr(curMF.getSVR(vrIdx), dstAddr, firstUse);
                 }
-                V.Ldr mi = new V.Ldr(curMF.getSVR(vrIdx), rSP, offset, firstUse);
                 logOut(String.format("+++++++%d Checkpoint insert {\t%s\t} before use:\t{\t%s\t}", dealSpillTimes, mi, firstUse));
                 firstUse = null;
             }

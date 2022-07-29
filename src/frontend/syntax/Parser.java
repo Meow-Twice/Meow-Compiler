@@ -203,15 +203,23 @@ public class Parser {
                     return new Ast.ExpStmt(temp2);
                 }
                 else {
-                    tokenList.consumeExpected(TokenType.ASSIGN);
-                    Ast.Exp right = parseAddExp();
-                    tokenList.consumeExpected(TokenType.SEMI);
-                    return new Ast.Assign(left, right);
+                    // 只有一个 LVal，可能是 Exp; 也可能是 Assign
+                    if (tokenList.get().isOf(TokenType.ASSIGN)) {
+                        tokenList.consumeExpected(TokenType.ASSIGN);
+                        Ast.Exp right = parseAddExp();
+                        tokenList.consumeExpected(TokenType.SEMI);
+                        return new Ast.Assign(left, right);
+                    } else {
+                        tokenList.consumeExpected(TokenType.SEMI);
+                        return new Ast.ExpStmt(temp2);
+                    }
                 }
             case SEMI:
                 tokenList.consume();
                 return new Ast.ExpStmt(null);
-            default: throw new SyntaxException("");
+            default:
+                Ast.Exp exp = parseAddExp();
+                return new Ast.ExpStmt(exp);
         }
     }
 

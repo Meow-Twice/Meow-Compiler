@@ -55,7 +55,7 @@ public class MidEndRunner {
 
         //outputLLVM();
 
-        outputLLVM();
+        //outputLLVM();
 
         MemSetOptimize memSetOptimize = new MemSetOptimize(functions, globalValues);
         memSetOptimize.Run();
@@ -175,7 +175,7 @@ public class MidEndRunner {
         loopIdcVarInfo.Run();
 //
 ////        // TODO:循环展开
-        //outputLLVM();
+        outputLLVM();
 
         LoopUnRoll loopUnRoll = new LoopUnRoll(functions);
         loopUnRoll.Run();

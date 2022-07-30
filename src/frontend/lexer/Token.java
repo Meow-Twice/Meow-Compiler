@@ -1,8 +1,5 @@
 package frontend.lexer;
 
-import java.util.HashSet;
-import java.util.List;
-
 public class Token {
     private final TokenType type;
     public final String content;
@@ -36,7 +33,12 @@ public class Token {
     }
 
     public boolean isOf(TokenType... types) {
-        return new HashSet<>(List.of(types)).contains(type);
+        for (TokenType type : types) {
+            if (this.type.equals(type)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public boolean isNumber() {

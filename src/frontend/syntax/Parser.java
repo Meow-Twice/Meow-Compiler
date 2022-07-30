@@ -144,9 +144,7 @@ public class Parser {
     }
 
     private Ast.BlockItem parseBlockItem() throws SyntaxException {
-        if (tokenList.get().getContent().equals("const") ||
-                tokenList.get().getContent().equals("int") ||
-                tokenList.get().getContent().equals("float")) {
+        if (tokenList.get().isOf(TokenType.FLOAT, TokenType.INT, TokenType.CONST)) {
             return parseDecl();
         } else {
             return parseStmt();

@@ -24,7 +24,7 @@ public class CodeGen {
     public static final CodeGen CODEGEN = new CodeGen();
     public static boolean _DEBUG_OUTPUT_MIR_INTO_COMMENT = true;
     public static boolean needFPU = false;
-    boolean _DEBUG_MUL_DIV = true;
+    boolean _DEBUG_MUL_DIV = false;
 
     // 当前的Machine.McFunction
     private static Machine.McFunction curMF;
@@ -531,9 +531,9 @@ public class CodeGen {
                                     new V.Str(data, dstAddr, curMB);
                                 } else {
                                     Operand imm = newVR();
-                                    new MIMove(imm, off, curMB);
+                                    new MIMove(imm, new Operand(I32, -offset_imm), curMB);
                                     Operand dstAddr = newVR();
-                                    new MIBinary(MachineInst.Tag.Sub, dstAddr, Arm.Reg.getR(sp), new Operand(I32, -offset_imm), curMB);
+                                    new MIBinary(MachineInst.Tag.Sub, dstAddr, Arm.Reg.getR(sp), imm, curMB);
                                     new V.Str(data, dstAddr, curMB);
                                 }
                             }
@@ -1068,18 +1068,19 @@ public class CodeGen {
      * @param imm
      * @return
      */
-    boolean immCanCode(int imm) {
-        int encoding = imm;
+    public static boolean immCanCode(int imm) {
+        int n = imm;
         for (int i = 0; i < 32; i += 2) {
-            if ((encoding & ~((-1) >>> 24)) != 0) {
+            if ((n & ~0xFF) == 0) {
                 return true;
             }
-            encoding = (encoding << 2) | (encoding >> 30);
+            n = (n << 2) | (n >>> 30);
         }
         return false;
     }
 
 
+    // private Machine.Operand genOpdFromValue(Value value) {
     // private Machine.Operand genOpdFromValue(Value value) {
     //     return getVR_may_imm(value);
     // }

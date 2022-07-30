@@ -12,7 +12,7 @@ public class MidEndRunner {
     //TODO:另一种实现方法 functions定为static 提供init方法
     public ArrayList<Function> functions;
     private HashMap<GlobalVal.GlobalValue, Initial> globalValues = Manager.MANAGER.getGlobals();
-    public static boolean O2 = false;
+    public static boolean O2 = true;
 
     public MidEndRunner(ArrayList<Function> functions) {
         this.functions = functions;
@@ -177,8 +177,8 @@ public class MidEndRunner {
 ////        // TODO:循环展开
         //outputLLVM();
 
-        // LoopUnRoll loopUnRoll = new LoopUnRoll(functions);
-        // loopUnRoll.Run();
+        LoopUnRoll loopUnRoll = new LoopUnRoll(functions);
+        loopUnRoll.Run();
 
         reMakeCFGAndLoopInfo();
 

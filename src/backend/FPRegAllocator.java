@@ -402,35 +402,43 @@ public class FPRegAllocator extends RegAllocator {
     private void checkpoint() {
         if (toStack) {
             if (firstUse != null) {
-                Operand offset = offImm;
+                // Operand offset = offImm;
                 V.Ldr mi;
-                if (CodeGen.fpOffEncode(offset.get_I_Imm())) {
-                    mi = new V.Ldr(curMF.getSVR(vrIdx), rSP, offset, firstUse);
+                if (CodeGen.fpOffEncode(offImm.get_I_Imm())) {
+                    new V.Ldr(curMF.getSVR(vrIdx), rSP, offImm, firstUse);
                 } else {
-                    Operand dstAddr = curMF.newVR();
-                    if (!CodeGen.CODEGEN.immCanCode(offImm.get_I_Imm())) {
-                        Operand dst = curMF.newVR();
-                        MIMove mv = new MIMove(dst, offImm, firstUse);
-                        logOut(String.format("+++++++%d Checkpoint insert {\t%s\t} before use:\t{\t%s\t}", dealSpillTimes, mv, firstUse));
-                        offset = dst;
+                    if (CodeGen.immCanCode(offImm.get_I_Imm())) {
+                        Operand dstAddr = curMF.newVR();
+                        new MIBinary(MachineInst.Tag.Add, dstAddr, rSP, offImm, firstUse);
+                        new V.Ldr(curMF.getSVR(vrIdx), dstAddr, firstUse);
+                    } else {
+                        Operand dstAddr = curMF.newVR();
+                        new MIMove(dstAddr, offImm, firstUse);
+                        Operand finalAddr = curMF.newVR();
+                        new MIBinary(MachineInst.Tag.Add, finalAddr, rSP, dstAddr, firstUse);
+                        new V.Ldr(curMF.getSVR(vrIdx), finalAddr, firstUse);
                     }
-                    new MIBinary(MachineInst.Tag.Add, dstAddr, rSP, offset, firstUse);
-                    mi = new V.Ldr(curMF.getSVR(vrIdx), dstAddr, firstUse);
                 }
-                logOut(String.format("+++++++%d Checkpoint insert {\t%s\t} before use:\t{\t%s\t}", dealSpillTimes, mi, firstUse));
                 firstUse = null;
             }
             if (lastDef != null) {
-                MachineInst insertAfter = lastDef;
-                Operand offset = offImm;
-                if (offImm.get_I_Imm() >= (1 << 12)) {
-                    Operand dst = curMF.newVR();
-                    insertAfter = new MIMove(lastDef, dst, offImm);
-                    logOut(String.format("+++++++%d Checkpoint insert {\t%s\t} after def:\t{\t%s\t}", dealSpillTimes, insertAfter, lastDef));
-                    offset = dst;
+                // MachineInst insertAfter = lastDef;
+                // Operand offset = offImm;
+                if (CodeGen.fpOffEncode(offImm.get_I_Imm())) {
+                    new V.Str(lastDef, curMF.getSVR(vrIdx), rSP, offImm);
+                } else {
+                    if (CodeGen.immCanCode(offImm.get_I_Imm())) {
+                        Operand dstAddr = curMF.newVR();
+                        MIBinary bino = new MIBinary(lastDef, MachineInst.Tag.Add, dstAddr, rSP, offImm);
+                        new V.Str(bino, curMF.getSVR(vrIdx), dstAddr);
+                    } else {
+                        Operand dstAddr = curMF.newVR();
+                        MIMove mv = new MIMove(lastDef, dstAddr, offImm);
+                        Operand finalAddr = curMF.newVR();
+                        MIBinary bino = new MIBinary(mv, MachineInst.Tag.Add, finalAddr, rSP, dstAddr);
+                        new V.Str(bino, curMF.getSVR(vrIdx), finalAddr);
+                    }
                 }
-                V.Str st = new V.Str(insertAfter, curMF.getSVR(vrIdx), rSP, offset);
-                logOut(String.format("+++++++%d Checkpoint insert {\t%s\t} after def:\t{\t%s\t}", dealSpillTimes, st, insertAfter));
                 lastDef = null;
             }
             vrIdx = -1;

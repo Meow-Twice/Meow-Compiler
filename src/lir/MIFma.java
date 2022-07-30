@@ -46,13 +46,6 @@ public class MIFma extends MachineInst {
     boolean sign;
     // Arm.Cond cond;
 
-    public MIFma(boolean add, boolean sign, Machine.Block insertAtEnd, boolean isFloat) {
-        super(Tag.FMA, insertAtEnd, isFloat);
-        this.add = add;
-        this.sign = sign;
-    }
-
-
     public MIFma(boolean add, boolean sign,
                  Machine.Operand dst, Machine.Operand lOpd, Machine.Operand rOpd, Machine.Operand acc,
                  Machine.Block insertAtEnd) {

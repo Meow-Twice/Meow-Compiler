@@ -105,7 +105,7 @@ public class Machine {
                 os.println("\t.word\t" + i);
             }
             os.println(".section .data");
-            os.println(".align 4");
+            os.println(".align 2");
             for (Arm.Glob glob : globList) {
                 GlobalVal.GlobalValue val = glob.getGlobalValue();
                 os.println();
@@ -235,6 +235,16 @@ public class Machine {
 
         public int getParamStack() {
             return paramStack;
+        }
+
+        int allocStack = -1;
+
+        public void setAllocStack() {
+            allocStack = varStack;
+        }
+
+        public int getAllocStack() {
+            return allocStack;
         }
 
         public int getVarStack() {

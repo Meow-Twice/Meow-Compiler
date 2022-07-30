@@ -196,17 +196,6 @@ public class MachineInst extends ILinkNode {
         mb.insertAtEnd(this);
     }
 
-
-    /*
-    init and insert at end of the bb
-    */
-    public MachineInst(Tag tag, Machine.Block mb, boolean isFloat) {
-        this.mb = mb;
-        this.tag = tag;
-        this.isFloat = isFloat;
-        mb.insertAtEnd(this);
-    }
-
     /*
     init and inset before inst
     */
@@ -217,6 +206,7 @@ public class MachineInst extends ILinkNode {
     }
 
     /**
+     * insertAfter -> this
      * 目前给MIStore插入一个指令后面时专用
      *
      * @param tag
@@ -226,27 +216,6 @@ public class MachineInst extends ILinkNode {
         this.tag = tag;
         insertAfter.insertAfter(this);
     }
-
-    /*
-    init and inset before inst
-    */
-    public MachineInst(Tag tag, MachineInst inst, boolean isFloat) {
-        this.mb = inst.mb;
-        this.isFloat = isFloat;
-        this.tag = tag;
-        inst.insertBefore(this);
-    }
-
-    public MachineInst(Tag tag) {
-        this.tag = tag;
-        this.isFloat = false;
-    }
-
-    public MachineInst(Tag tag, boolean isFloat) {
-        this.tag = tag;
-        this.isFloat = isFloat;
-    }
-
 
     public MachineInst() {
         this.tag = Tag.Empty;

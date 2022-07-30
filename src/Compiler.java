@@ -1,8 +1,10 @@
 import arg.Arg;
 import backend.CodeGen;
 import backend.FPRegAllocator;
+import backend.NaiveRegAllocator;
 import backend.TrivialRegAllocator;
 // import descriptor.MIDescriptor;
+import descriptor.MIDescriptor;
 import frontend.Visitor;
 import frontend.lexer.Lexer;
 import frontend.lexer.Token;
@@ -13,6 +15,7 @@ import lir.Machine;
 import manage.Manager;
 import midend.MidEndRunner;
 import midend.RemovePhi;
+import util.CenterControl;
 
 import java.io.*;
 
@@ -87,20 +90,25 @@ public class Compiler {
             // 用参数给定的输入输出流后，分配寄存器前和分配寄存器后只运行一遍解释器，否则后者的输出会覆盖前者
             // MIDescriptor.MI_DESCRIPTOR.run(); // 分配寄存器前
             // System.err.println("before");
-            // Manager.MANAGER.outputMI(true);
+            Manager.MANAGER.outputMI();
             // System.err.println("before end");
             // Manager.outputMI(true);
-            start = System.currentTimeMillis();
             System.err.println("Reg Alloc begin");
-            if (CodeGen.needFPU) {
-                FPRegAllocator fpRegAllocator = new FPRegAllocator();
-                fpRegAllocator.AllocateRegister(p);
+            start = System.currentTimeMillis();
+            if (CenterControl._FAST_REG_ALLOCATE) {
+                NaiveRegAllocator regAllocator = new NaiveRegAllocator();
+                regAllocator.AllocateRegister(p);
+            } else {
+                if (CodeGen.needFPU) {
+                    FPRegAllocator fpRegAllocator = new FPRegAllocator();
+                    fpRegAllocator.AllocateRegister(p);
+                }
+                // System.err.println("middle");
+                // Manager.MANAGER.outputMI();
+                // System.err.println("middle end");
+                TrivialRegAllocator trivialRegAllocator = new TrivialRegAllocator();
+                trivialRegAllocator.AllocateRegister(p);
             }
-            // System.err.println("middle");
-            // Manager.MANAGER.outputMI(true);
-            // System.err.println("middle end");
-            TrivialRegAllocator regAllocator = new TrivialRegAllocator();
-            regAllocator.AllocateRegister(p);
             System.err.println("Reg Alloc end, Use Time: " + String.valueOf(((double) System.currentTimeMillis() - start) / 1000) + "s");
             // Manager.outputMI(true);
             // System.err.println("after");

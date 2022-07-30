@@ -112,7 +112,7 @@ public class Compiler {
             System.err.println("Reg Alloc end, Use Time: " + String.valueOf(((double) System.currentTimeMillis() - start) / 1000) + "s");
             // Manager.outputMI(true);
             // System.err.println("after");
-            Manager.MANAGER.outputMI(true);
+            // Manager.MANAGER.outputMI(true);
             // System.err.println("after end");
             // System.err.println("BEGIN rerun");
             // MIDescriptor.MI_DESCRIPTOR.setRegMode();

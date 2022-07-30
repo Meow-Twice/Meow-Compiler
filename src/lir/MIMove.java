@@ -79,17 +79,6 @@ public class MIMove extends MachineInst {
         return false;
     }
 
-    public MIMove() {
-        super(Tag.Mv);
-        // cond = Arm.Cond.Any;
-    }
-
-    // @Override
-    // public void genDefUse() {
-    //     defOpds.add(dOpd);
-    //     useOpds.add(sOpd);
-    // }
-
     @Override
     public void output(PrintStream os, Machine.McFunction f) {
         transfer_output(os);
@@ -145,16 +134,16 @@ public class MIMove extends MachineInst {
         Machine.Operand src = getSrc();
         if (src.type == Machine.Operand.Type.Immediate) {
             if (src.isGlobPtr()) {
-                os.append("\tmovw" + cond + "\t" + getDst() + ",\t:lower16:" + src.getGlob());
-                os.append("\tmovt" + cond + "\t" + getDst() + ",\t:upper16:" + src.getGlob());
+                os.append("movw" + cond + "\t" + getDst() + ",\t:lower16:" + src.getGlob());
+                os.append("movt" + cond + "\t" + getDst() + ",\t:upper16:" + src.getGlob());
                 //os.append("\tldr" + cond + "\t" + getDst().toString() + ",=" + src.getGlob());
             } else {
                 int imm = getSrc().value;
                 if (encode_imm(imm)) {
-                    os.append("\tmov" + cond + "\t" + getDst().toString() + ",\t#" + imm);
+                    os.append("mov" + cond + "\t" + getDst().toString() + ",\t#" + imm);
                 } else {
                     int lowImm = (imm << 16) >>> 16;
-                    os.append("\tmovw" + cond + "\t" + getDst().toString() + ",\t#" + lowImm);
+                    os.append("movw" + cond + "\t" + getDst().toString() + ",\t#" + lowImm);
                     int highImm = imm >>> 16;
                     if (highImm != 0) {
                         os.append("\tmovt" + cond + "\t" + getDst().toString() + ",\t#" + highImm);
@@ -162,7 +151,7 @@ public class MIMove extends MachineInst {
                 }
             }
         } else {
-            os.append("\tmov" + cond + "\t" + getDst().toString() + ",\t" + getSrc().toString());
+            os.append("mov" + cond + "\t" + getDst().toString() + ",\t" + getSrc().toString());
             if (shift != Arm.Shift.NONE_SHIFT) {
                 os.append(",\t" + shift.toString());
             }

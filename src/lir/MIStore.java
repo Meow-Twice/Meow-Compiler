@@ -57,24 +57,24 @@ public class MIStore extends MachineInst {
         transfer_output(os);
         if (!isFloat) {
             if (this.shift.shiftType == Arm.ShiftType.None) {
-                os.println("\tstr" + cond + "\t" + getData().toString() + ",[" + getAddr().toString() + "," + getOffset().toString() + "]");
+                os.println("\tstr" + cond + "\t" + getData().toString() + ",\t[" + getAddr().toString() + ",\t" + getOffset().toString() + "]");
             } else {
-                os.println("\tstr" + cond + "\t" + getData().toString() + ",[" + getAddr().toString() + "," + getOffset().toString() + ",LSL #" + this.shift.shift + "]");
+                os.println("\tstr" + cond + "\t" + getData().toString() + ",\t[" + getAddr().toString() + ",\t" + getOffset().toString() + ",LSL #" + this.shift.shift + "]");
             }
         } else {
             if (getOffset().getType() == Machine.Operand.Type.Immediate) {
                 int shift = (this.shift.shiftType == Arm.ShiftType.None) ? 0 : this.shift.shift;
                 int offset = this.getOffset().value << shift;
                 if (offset != 0) {
-                    os.println("\tvstr" + cond + ".32" + "\t" + getData().toString() + ",[" + getAddr().toString() + ",#" + offset + "]");
+                    os.println("\tvstr" + cond + ".32" + "\t" + getData().toString() + ",\t[" + getAddr().toString() + ",\t#" + offset + "]");
                 } else {
-                    os.println("\tvstr" + cond + ".32" + "\t" + getData().toString() + ",[" + getAddr().toString() + "]");
+                    os.println("\tvstr" + cond + ".32" + "\t" + getData().toString() + ",\t[" + getAddr().toString() + "]");
                 }
             } else {
                 if (this.shift.shiftType == Arm.ShiftType.None) {
-                    os.println("\tvstr" + cond + ".32" + "\t" + getData().toString() + ",[" + getAddr().toString() + "," + getOffset().toString() + "]");
+                    os.println("\tvstr" + cond + ".32" + "\t" + getData().toString() + ",\t[" + getAddr().toString() + ",\t" + getOffset().toString() + "]");
                 } else {
-                    os.println("\tvstr" + cond + ".32" + "\t" + getData().toString() + ",[" + getAddr().toString() + "," + getOffset().toString() + ",LSL #" + this.shift.shift + "]");
+                    os.println("\tvstr" + cond + ".32" + "\t" + getData().toString() + ",\t[" + getAddr().toString() + ",\t" + getOffset().toString() + ",LSL #" + this.shift.shift + "]");
                 }
             }
         }

@@ -27,7 +27,7 @@ public class ILinkNode {
         }
     }
 
-    // insert another node after this
+    // this -> node
     public void insertAfter(ILinkNode node) {
         node.setPrev(this);
         node.setNext(getNext());

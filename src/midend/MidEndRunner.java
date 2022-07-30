@@ -24,10 +24,10 @@ public class MidEndRunner {
         if (!O2) {
             Mem2Reg mem2Reg = new Mem2Reg(functions);
             mem2Reg.Run();
-            Pass();
-            Pass();
-            BrOptimize();
-            BrOptimize();
+            // Pass();
+            // Pass();
+            // BrOptimize();
+            // BrOptimize();
             return;
         }
 
@@ -177,8 +177,8 @@ public class MidEndRunner {
 ////        // TODO:循环展开
         //outputLLVM();
 
-        // LoopUnRoll loopUnRoll = new LoopUnRoll(functions);
-        // loopUnRoll.Run();
+        LoopUnRoll loopUnRoll = new LoopUnRoll(functions);
+        loopUnRoll.Run();
 
         reMakeCFGAndLoopInfo();
 

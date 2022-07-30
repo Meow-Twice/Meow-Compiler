@@ -10,6 +10,13 @@ public class MIBinary extends MachineInst {
     //     return cond;
     // }
 
+    public MIBinary(MachineInst insertAfter, Tag tag, Machine.Operand dOpd, Machine.Operand lOpd, Machine.Operand rOpd) {
+        super(insertAfter, tag);
+        defOpds.add(dOpd);
+        useOpds.add(lOpd);
+        useOpds.add(rOpd);
+    }
+
     public MIBinary(Tag tag, Machine.Operand dOpd, Machine.Operand lOpd, Machine.Operand rOpd, Machine.Block insertAtEnd) {
         super(tag, insertAtEnd);
         defOpds.add(dOpd);

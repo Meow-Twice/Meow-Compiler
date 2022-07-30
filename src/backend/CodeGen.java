@@ -1068,18 +1068,19 @@ public class CodeGen {
      * @param imm
      * @return
      */
-    boolean immCanCode(int imm) {
-        int encoding = imm;
+    public static boolean immCanCode(int imm) {
+        int n = imm;
         for (int i = 0; i < 32; i += 2) {
-            if ((encoding & ~((-1) >>> 24)) != 0) {
+            if ((n & ~0xFF) == 0) {
                 return true;
             }
-            encoding = (encoding << 2) | (encoding >> 30);
+            n = (n << 2) | (n >>> 30);
         }
         return false;
     }
 
 
+    // private Machine.Operand genOpdFromValue(Value value) {
     // private Machine.Operand genOpdFromValue(Value value) {
     //     return getVR_may_imm(value);
     // }

@@ -62,8 +62,6 @@ public class MidEndRunner {
 
         reMakeCFGAndLoopInfo();
 
-        //loopFuse
-
 
         //TODO:删除冗余phi,分支优化(删除无用的br/jump等),等等
         BrOptimize();
@@ -71,6 +69,7 @@ public class MidEndRunner {
         BrOptimize();
 
         outputLLVM();
+        //loopFold
 
 
         MathOptimize mathOptimize = new MathOptimize(functions);

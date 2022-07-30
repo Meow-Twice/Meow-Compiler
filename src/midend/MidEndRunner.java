@@ -62,11 +62,15 @@ public class MidEndRunner {
 
         reMakeCFGAndLoopInfo();
 
+        //loopFuse
+
 
         //TODO:删除冗余phi,分支优化(删除无用的br/jump等),等等
         BrOptimize();
         BrOptimize();
         BrOptimize();
+
+        outputLLVM();
 
 
         MathOptimize mathOptimize = new MathOptimize(functions);
@@ -175,7 +179,7 @@ public class MidEndRunner {
         loopIdcVarInfo.Run();
 //
 ////        // TODO:循环展开
-        outputLLVM();
+        //outputLLVM();
 
         LoopUnRoll loopUnRoll = new LoopUnRoll(functions);
         loopUnRoll.Run();

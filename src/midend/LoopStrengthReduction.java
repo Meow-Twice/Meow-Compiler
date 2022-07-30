@@ -22,5 +22,9 @@ public class LoopStrengthReduction {
 
     }
 
+    private void loopConstLift() {
+
+    }
+
 
 }

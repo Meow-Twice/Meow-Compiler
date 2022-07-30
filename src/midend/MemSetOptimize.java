@@ -59,6 +59,7 @@ public class MemSetOptimize {
         }
     }
 
+    //优化mm,mv
     private void globalArrayFold() {
         for (Loop loop: globalArrayInitLoops) {
             Value initValue = loop.getInitValue();

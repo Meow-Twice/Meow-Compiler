@@ -310,7 +310,7 @@ public class MIDescriptor implements Descriptor {
             return;
         }
         if (runningState == RunningState.AFTER_MODE) {
-            push();
+            // push();
         }
         // int spVal = (int) getFromReg(sp);
         // setToReg(spVal - curMF.getStackSize(), sp);
@@ -323,6 +323,7 @@ public class MIDescriptor implements Descriptor {
     }
 
     private void push() {
+
         if (runningState == RunningState.AFTER_MODE) {
             // push
             List<Arm.Regs.GPRs> usedRegList = curMF.getUsedRegList();
@@ -495,6 +496,7 @@ public class MIDescriptor implements Descriptor {
                 case Add -> {
                     assert lVal instanceof Integer && rVal instanceof Integer;
                     if (miBinary.isNeedFix()) {
+                        assert false;
                         rVal = (int) rVal + switch (miBinary.getFixType()) {
                             case VAR_STACK -> curMF.getVarStack();
                             case ONLY_PARAM -> miBinary.getCallee().getParamStack();
@@ -510,6 +512,7 @@ public class MIDescriptor implements Descriptor {
                 case Sub -> {
                     assert lVal instanceof Integer && rVal instanceof Integer;
                     if (miBinary.isNeedFix()) {
+                        assert false;
                         rVal = (int) rVal + switch (miBinary.getFixType()) {
                             case VAR_STACK -> curMF.getVarStack();
                             case ONLY_PARAM -> miBinary.getCallee().getParamStack();
@@ -602,6 +605,7 @@ public class MIDescriptor implements Descriptor {
                     Object val = GET_VAL_FROM_OPD(mv.getSrc());
                     // 函数传参的时候, 修栈偏移
                     if (mv.isNeedFix()) {
+                        assert false;
                         val = (int) val + curMF.getRegStack() + curMF.getVarStack();
                     }
                     //这里好像没考虑shift
@@ -636,7 +640,7 @@ public class MIDescriptor implements Descriptor {
                 }
                 case Return -> {
                     if (runningState == RunningState.AFTER_MODE) {
-                        pop();
+                        // pop();
                     }
                     isRet = true;
                 }
@@ -721,6 +725,10 @@ public class MIDescriptor implements Descriptor {
                 }
                 case Empty -> {
                 }
+                case Push -> {
+                    push();
+                }
+                case Pop -> pop();
             }
         }
         assert (isRet && !isBJ) || (!isRet && isBJ);

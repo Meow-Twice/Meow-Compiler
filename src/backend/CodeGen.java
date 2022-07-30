@@ -531,9 +531,9 @@ public class CodeGen {
                                     new V.Str(data, dstAddr, curMB);
                                 } else {
                                     Operand imm = newVR();
-                                    new MIMove(imm, off, curMB);
+                                    new MIMove(imm, new Operand(I32, -offset_imm), curMB);
                                     Operand dstAddr = newVR();
-                                    new MIBinary(MachineInst.Tag.Sub, dstAddr, Arm.Reg.getR(sp), new Operand(I32, -offset_imm), curMB);
+                                    new MIBinary(MachineInst.Tag.Sub, dstAddr, Arm.Reg.getR(sp), imm, curMB);
                                     new V.Str(data, dstAddr, curMB);
                                 }
                             }

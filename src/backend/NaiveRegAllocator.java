@@ -76,7 +76,6 @@ public class NaiveRegAllocator extends RegAllocator {
             MIMove mv = (MIMove) mi;
             Machine.Operand off = mv.getSrc();
             assert off.is_I_Imm();
-            // TODO 没对齐
             int newOff = switch (mv.getFixType()) {
                 case TOTAL_STACK -> off.getValue() + mf.getTotalStackSize();
                 case VAR_STACK -> mf.getVarStack();
@@ -84,18 +83,26 @@ public class NaiveRegAllocator extends RegAllocator {
                 default -> throw new AssertionError("needFixType Wrong");
             };
             boolean flag = false;
-            if (CodeGen.immCanCode(newOff)) {
-                if (mv.hasNext()) {
-                    if ((mv.getNext() instanceof MIBinary)) {
-                        if (((MIBinary) mv.getNext()).getLOpd().equals(rSP) && ((MIBinary) mv.getNext()).getDst().equals(rSP)) {
-                            flag = true;
+            if (mv.hasNext()) {
+                if ((mv.getNext() instanceof MIBinary)) {
+                    // TODO 可以启发式做一些优化
+                    if (((MIBinary) mv.getNext()).getLOpd().equals(rSP) && ((MIBinary) mv.getNext()).getDst().equals(rSP)) {
+                        flag = true;
+                        if (CodeGen.immCanCode(newOff)) {
                             ((MIBinary) mv.getNext()).setROpd(new Machine.Operand(I32, newOff));
                             mv.remove();
+                        } else {
+                            Arm.Reg reg = rRegPop();
+                            mv.setSrc(new Machine.Operand(I32, newOff));
+                            mv.setDst(reg);
+                            ((MIBinary) mv.getNext()).setROpd(reg);
+                            mv.clearNeedFix();
+                            reset();
                         }
                     }
                 }
             }
-            if(!flag){
+            if (!flag) {
                 mv.setSrc(new Machine.Operand(I32, newOff));
                 mv.clearNeedFix();
             }
@@ -130,6 +137,7 @@ public class NaiveRegAllocator extends RegAllocator {
                             if (Math.abs(offset) <= 1020) {
                                 Arm.Reg useReg = sRegPop();
                                 new V.Ldr(useReg, Arm.Reg.getR(Arm.Regs.GPRs.sp), new Machine.Operand(DataType.I32, offset), mi);
+                                mi.setUse(useIdx, useReg);
                             } else {
                                 Arm.Reg offReg = rRegPop();
                                 new MIMove(offReg, new Machine.Operand(DataType.I32, offset), mi);
@@ -142,7 +150,8 @@ public class NaiveRegAllocator extends RegAllocator {
                         useIdx++;
                     }
                     // reset();
-                    if (defs.size() == 1) {
+                    if (defs.size() > 0) {
+                        assert defs.size() == 1;
                         Machine.Operand def = defs.get(0);
                         if (def.is_I_Virtual()) {
                             int offset = iVrBase + 4 * def.getValue();
@@ -160,14 +169,15 @@ public class NaiveRegAllocator extends RegAllocator {
                         } else if (def.is_F_Virtual()) {
                             int offset = sVrBase + 4 * def.getValue();
                             if (Math.abs(offset) <= 1020) {
-                                Arm.Reg useReg = sRegPop();
-                                new V.Ldr(useReg, Arm.Reg.getR(Arm.Regs.GPRs.sp), new Machine.Operand(DataType.I32, offset), mi);
+                                Arm.Reg defReg = sRegPop();
+                                new V.Str(mi, defReg, rSP, new Machine.Operand(DataType.I32, offset));
+                                mi.setDef(defReg);
                             } else {
                                 Arm.Reg offReg = rRegPop();
                                 MIMove mv = new MIMove(mi, offReg, new Machine.Operand(DataType.I32, offset));
                                 MIBinary bino = new MIBinary(mv, MachineInst.Tag.Add, offReg, Arm.Reg.getR(Arm.Regs.GPRs.sp), offReg);
                                 Arm.Reg defReg = sRegPop();
-                                new V.Str(bino, defReg, Arm.Reg.getR(Arm.Regs.GPRs.sp), offReg);
+                                new V.Str(bino, defReg, offReg);
                                 mi.setDef(defReg);
                             }
                         }

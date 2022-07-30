@@ -180,6 +180,19 @@ public class V extends MachineInst {
             useOpds.add(offset);
         }
 
+        /**
+         * 寄存器分配时专用
+         *
+         * @param insertAfter
+         * @param data
+         * @param addr
+         */
+        public Str(MachineInst insertAfter, Operand data, Operand addr) {
+            super(insertAfter, VStr);
+            useOpds.add(data);
+            useOpds.add(addr);
+        }
+
         public Machine.Operand getData() {
             return useOpds.get(0);
         }

@@ -3,9 +3,10 @@ package lir;
 import frontend.semantic.Initial;
 import mir.GlobalVal;
 import mir.type.DataType;
+import mir.type.Type.*;
+import mir.type.Type;
 
-import static lir.Machine.Operand.Type.Immediate;
-import static lir.Machine.Operand.Type.PreColored;
+import static lir.Machine.Operand.Type.*;
 import static mir.type.DataType.F32;
 import static mir.type.DataType.I32;
 
@@ -38,8 +39,11 @@ public class Arm {
             // local vasiables (callee saved)
             s4("s4"), s5("s5"), s6("s6"), s7("s7"),
             s8("s8"), s9("s9"), s10("s10"), s11("s11"),
-            s12("s12"), s13("s13"), s14("s14");
-            //TODO for yyf:这个不知道能用多少
+            s12("s12"), s13("s13"), s14("s14"), s15("s15"),
+            s16("s16"), s17("s17"), s18("s18"), s19("s19"),
+            s20("s20"), s21("s21"), s22("s22"), s23("s23"),
+            s24("s24"), s25("s25"), s26("s26"), s27("s27"),
+            s28("s28"), s29("s29"), s30("s30"), s31("s31");
 
             FPRs(String fpName) {
             }
@@ -50,7 +54,7 @@ public class Arm {
      * 只供预着色使用
      */
     public static class Reg extends Machine.Operand {
-        DataType dataType;
+        // DataType dataType;
         Regs.FPRs fpr;
         Regs.GPRs gpr;
 
@@ -77,6 +81,9 @@ public class Arm {
         static {
             for (Regs.GPRs gpr : Regs.GPRs.values()) {
                 gprPool[gpr.ordinal()] = new Reg(I32, gpr);
+                if(gpr == Regs.GPRs.sp){
+                    gprPool[gpr.ordinal()].type = Allocated;
+                }
             }
             for (Regs.FPRs fpr : Regs.FPRs.values()) {
                 fprPool[fpr.ordinal()] = new Reg(F32, fpr);
@@ -125,13 +132,32 @@ public class Arm {
             globalValue = glob;
         }
 
+        public Glob(String name) {
+            super(Immediate);
+            this.name = name;
+            // this.init = glob.initial;
+            // globalValue = glob;
+        }
+
+        // /**
+        //  * 浮点的全局变量
+        //  * @param glob
+        //  * @param dataType
+        //  */
+        // public Glob(GlobalVal.GlobalValue glob, DataType dataType) {
+        //     super(FConst);
+        //     name = glob.name;
+        //     this.init = glob.initial;
+        //     globalValue = glob;
+        // }
+
         public String getGlob() {
             return name;
         }
 
         @Override
         public String toString() {
-            return "#" + name;
+            return name;
         }
 
         public GlobalVal.GlobalValue getGlobalValue() {
@@ -143,6 +169,7 @@ public class Arm {
         }
     }
 
+    // https://developer.arm.com/documentation/dui0489/i/arm-and-thumb-instructions/condition-codes?lang=en
     public enum Cond {
         // TODO: 保证Arm.Cond与Icmp.Op, Fcmp.Op的顺序相同!!!!!!!!
         Eq("eq"),
@@ -151,6 +178,8 @@ public class Arm {
         Ge("ge"),
         Lt("lt"),
         Le("le"),
+        Hi("hi"), // >
+        Pl("pl"), // >=
         Any("");
 
         Cond(String cond) {

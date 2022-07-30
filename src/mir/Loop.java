@@ -1,5 +1,6 @@
 package mir;
 
+import lir.V;
 import midend.CloneInfoMap;
 
 import java.util.ArrayList;
@@ -51,6 +52,39 @@ public class Loop {
 
     private boolean idcTimeSet = false;
 
+    private boolean isArrayInit = false;
+    private int arrayInitDims = 0;
+    private Value initArray = null;
+    private Value initValue = null;
+    private HashSet<Instr> extras = null;
+
+    public void setArrayInitInfo(int arrayInitDims, Value initArray, Value initValue, HashSet<Instr> extras) {
+        this.isArrayInit = true;
+        this.arrayInitDims = arrayInitDims;
+        this.initArray = initArray;
+        this.initValue = initValue;
+        this.extras = extras;
+    }
+
+    public HashSet<Instr> getExtras() {
+        return extras;
+    }
+
+    public boolean isArrayInit() {
+        return isArrayInit;
+    }
+
+    public Value getInitValue() {
+        return initValue;
+    }
+
+    public int getArrayInitDims() {
+        return arrayInitDims;
+    }
+
+    public Value getInitArray() {
+        return initArray;
+    }
 
     public Loop(Loop parentLoop) {
         this.hash = loop_num++;
@@ -181,6 +215,15 @@ public class Loop {
         conds.clear();
     }
 
+    public void clear() {
+        exits.clear();
+        exitings.clear();
+        enterings.clear();
+        latchs.clear();
+        //TODO:nowlevelBB手动维护(new BB 和 bb.remove时维护)
+        //nowLevelBB.clear();
+    }
+
     public HashSet<BasicBlock> getNowLevelBB() {
         return nowLevelBB;
     }
@@ -220,9 +263,9 @@ public class Loop {
     //修正当前BB对应BB的use-def,同时修正简单的数据流:前驱后继关系
     public void fix() {
         for (BasicBlock bb: nowLevelBB) {
-            if (bb.getLabel().equals("b174")) {
-                System.err.println("ERR_174");
-            }
+//            if (bb.getLabel().equals("b174")) {
+//                System.err.println("ERR_174");
+//            }
             assert CloneInfoMap.valueMap.containsKey(bb);
             BasicBlock needFixBB = (BasicBlock) CloneInfoMap.getReflectedValue(bb);
 
@@ -270,6 +313,10 @@ public class Loop {
         ret += String.valueOf(hash);
         ret += "\n";
 
+        ret += "Deep: ";
+        ret += String.valueOf(getLoopDepth());
+        ret += "\n";
+
 
         ret += "Header: ";
         ret += header.getLabel() + " pre_num: " + String.valueOf(header.getPrecBBs().size());
@@ -288,6 +335,12 @@ public class Loop {
 
         ret += "exit: ";
         for (BasicBlock bb: exits) {
+            ret += " " + bb.getLabel();
+        }
+        ret += "\n";
+
+        ret += "now_level_BB: ";
+        for (BasicBlock bb: nowLevelBB) {
             ret += " " + bb.getLabel();
         }
         ret += "\n";
@@ -342,6 +395,10 @@ public class Loop {
         return idcSet;
     }
 
+    public void clearIdcInfo() {
+        this.idcSet = false;
+    }
+
     public void setIdcTimes(int idcTimes) {
         this.idcTimes = idcTimes;
         this.idcTimeSet = true;
@@ -353,5 +410,9 @@ public class Loop {
 
     public boolean isIdcTimeSet() {
         return idcTimeSet;
+    }
+
+    public boolean hasChildLoop() {
+        return childrenLoops.size() != 0;
     }
 }

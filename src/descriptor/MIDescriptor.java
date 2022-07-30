@@ -15,8 +15,6 @@ import java.io.*;
 import java.util.*;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import static backend.CodeGen.STACK_FIX.ONLY_PARAM;
-import static backend.CodeGen.STACK_FIX.VAR_STACK;
 import static lir.Arm.Regs.FPRs.s0;
 import static lir.Arm.Regs.GPRs.*;
 import static manage.Manager.ExternFunction.*;
@@ -312,7 +310,7 @@ public class MIDescriptor implements Descriptor {
             return;
         }
         if (runningState == RunningState.AFTER_MODE) {
-            push();
+            // push();
         }
         // int spVal = (int) getFromReg(sp);
         // setToReg(spVal - curMF.getStackSize(), sp);
@@ -325,6 +323,7 @@ public class MIDescriptor implements Descriptor {
     }
 
     private void push() {
+
         if (runningState == RunningState.AFTER_MODE) {
             // push
             List<Arm.Regs.GPRs> usedRegList = curMF.getUsedRegList();
@@ -497,6 +496,7 @@ public class MIDescriptor implements Descriptor {
                 case Add -> {
                     assert lVal instanceof Integer && rVal instanceof Integer;
                     if (miBinary.isNeedFix()) {
+                        assert false;
                         rVal = (int) rVal + switch (miBinary.getFixType()) {
                             case VAR_STACK -> curMF.getVarStack();
                             case ONLY_PARAM -> miBinary.getCallee().getParamStack();
@@ -512,6 +512,7 @@ public class MIDescriptor implements Descriptor {
                 case Sub -> {
                     assert lVal instanceof Integer && rVal instanceof Integer;
                     if (miBinary.isNeedFix()) {
+                        assert false;
                         rVal = (int) rVal + switch (miBinary.getFixType()) {
                             case VAR_STACK -> curMF.getVarStack();
                             case ONLY_PARAM -> miBinary.getCallee().getParamStack();
@@ -604,6 +605,7 @@ public class MIDescriptor implements Descriptor {
                     Object val = GET_VAL_FROM_OPD(mv.getSrc());
                     // 函数传参的时候, 修栈偏移
                     if (mv.isNeedFix()) {
+                        assert false;
                         val = (int) val + curMF.getRegStack() + curMF.getVarStack();
                     }
                     //这里好像没考虑shift
@@ -638,7 +640,7 @@ public class MIDescriptor implements Descriptor {
                 }
                 case Return -> {
                     if (runningState == RunningState.AFTER_MODE) {
-                        pop();
+                        // pop();
                     }
                     isRet = true;
                 }
@@ -690,7 +692,7 @@ public class MIDescriptor implements Descriptor {
                     }
                     setMemValWithOffSet(tmp, offset);
                 }
-                case Compare -> {
+                case ICmp -> {
                     REG_SIM.CMP_STATUS = 0;
                     assert mi instanceof MICompare;
                     MICompare cmp = (MICompare) mi;
@@ -713,7 +715,7 @@ public class MIDescriptor implements Descriptor {
                     assert mi instanceof MICall;
                     vrListStackPush();
                     Machine.McFunction tmp = curMF;
-                    runMF(((MICall) mi).mcFunction);
+                    runMF(((MICall) mi).callee);
                     curMF = tmp;
                     logOut("<--> return to " + curMF.mFunc.getName());
                     vrListStackPop();
@@ -723,6 +725,10 @@ public class MIDescriptor implements Descriptor {
                 }
                 case Empty -> {
                 }
+                case Push -> {
+                    push();
+                }
+                case Pop -> pop();
             }
         }
         assert (isRet && !isBJ) || (!isRet && isBJ);
@@ -767,6 +773,7 @@ public class MIDescriptor implements Descriptor {
             case Gt -> (cmp_status & CPSR_N) == 0 && (cmp_status & CPSR_Z) == 0;
             case Le -> (cmp_status & CPSR_N) != 0 || (cmp_status & CPSR_Z) != 0;
             case Lt -> (cmp_status & CPSR_N) != 0;
+            case Hi, Pl -> throw new AssertionError("not done yet");
             case Any -> throw new AssertionError("Wrong cmp: " + cmp_status + " compare with " + cond);
         };
     }
@@ -785,11 +792,12 @@ public class MIDescriptor implements Descriptor {
     // 设为Object是为了保证int和float的兼容性
     // 可能返回int或者float或者String(glob地址)
     private Object GET_VAL_FROM_OPD(Machine.Operand o) {
-        if (isAfterRegAlloc() && o.isVirtual()) throw new AssertionError("Still has vr: " + o);
+        if (isAfterRegAlloc() && o.is_I_Virtual()) throw new AssertionError("Still has vr: " + o);
         Object val = switch (o.getType()) {
             case PreColored, Allocated -> getFromReg(o.getReg());
             case Virtual -> curVRList.get(o.getValue());
-            case Immediate -> o.isGlobPtr() ? globName2HeapOff.get(o.getGlob()) : o.getImm();
+            case Immediate -> o.isGlobPtr() ? globName2HeapOff.get(o.getGlob()) : o.get_I_Imm();
+            default -> throw new IllegalStateException("Unexpected value: " + o.getType());
         };
         if (val == null) {
             if (RANDOM_MODE) {
@@ -806,7 +814,7 @@ public class MIDescriptor implements Descriptor {
 
     // 设为Object是为了保证int和float的兼容性
     private void SET_VAL_FROM_OPD(Object val, Machine.Operand o) {
-        if (isAfterRegAlloc() && o.isVirtual()) throw new AssertionError("Still has vr: " + o);
+        if (isAfterRegAlloc() && o.is_I_Virtual()) throw new AssertionError("Still has vr: " + o);
         logOut("^ set\t" + val + "\tto\t\t" + o);
         if (val == null) {
             if (RANDOM_MODE) {

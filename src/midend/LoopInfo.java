@@ -20,15 +20,17 @@ public class LoopInfo {
     }
 
     public void Run() {
-        clearLoopCond();
+        clearLoopInfo();
         makeInfo();
     }
 
-    private void clearLoopCond() {
+    private void clearLoopInfo() {
         for (Function function: functions) {
             for (BasicBlock head: function.getLoopHeads()) {
                 Loop loop = head.getLoop();
                 loop.clearCond();
+                loop.clear();
+                loop.clearIdcInfo();
             }
         }
     }
@@ -57,6 +59,7 @@ public class LoopInfo {
         }
 
         know.add(bb);
+        //bb.getLoop().addBB(bb);
 
         //clear
         if (bb.getLoopDep() > 0) {

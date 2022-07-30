@@ -1,8 +1,5 @@
 package frontend.lexer;
 
-import java.util.HashSet;
-import java.util.List;
-
 public class Token {
     private final TokenType type;
     public final String content;
@@ -13,10 +10,10 @@ public class Token {
     private static final boolean[] IS_CMP_TYPE = new boolean[100];
 
     static {
-        for(int i = TokenType.ADD.ordinal(); i <= TokenType.MOD.ordinal(); i++){
+        for (int i = TokenType.ADD.ordinal(); i <= TokenType.MOD.ordinal(); i++) {
             IS_ALU_TYPE[i] = true;
         }
-        for(int i = TokenType.LE.ordinal(); i <= TokenType.GT.ordinal(); i++){
+        for (int i = TokenType.LE.ordinal(); i <= TokenType.GT.ordinal(); i++) {
             IS_CMP_TYPE[i] = true;
         }
     }
@@ -24,6 +21,7 @@ public class Token {
     public Token(final TokenType type, final String content) {
         this.type = type;
         this.content = content;
+        System.err.print(" " + content);
     }
 
     public TokenType getType() {
@@ -35,7 +33,12 @@ public class Token {
     }
 
     public boolean isOf(TokenType... types) {
-        return new HashSet<>(List.of(types)).contains(type);
+        for (TokenType type : types) {
+            if (this.type.equals(type)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public boolean isNumber() {
@@ -62,7 +65,7 @@ public class Token {
         return IS_ALU_TYPE[tokenType.ordinal()];
     }
 
-    public static boolean isCmp(TokenType tokenType){
+    public static boolean isCmp(TokenType tokenType) {
         return IS_CMP_TYPE[tokenType.ordinal()];
     }
 }

@@ -74,6 +74,9 @@ public class LoopUnRoll {
     }
 
     private void constLoopUnRollForLoop(Loop loop) {
+//        if (loop.getHash() == 4) {
+//            System.err.println("hash_4_unroll");
+//        }
         Value idcInit = loop.getIdcInit();
         Value idcStep = loop.getIdcStep();
         Value idcEnd = loop.getIdcEnd();
@@ -112,8 +115,17 @@ public class LoopUnRoll {
                     case SGE, SLE -> times = (init - end) / step + 1;
                     case SGT, SLT -> times = ((init - end) % step == 0)? (init - end) / step : (init - end) / step + 1;
                 }
-            } case MUL, DIV -> {
+            } case MUL -> {
                 //TODO:把乘法除法也纳入考虑
+                double val = Math.log(end / init) / Math.log(step);
+                boolean tag = init * Math.pow(step, val) == end;
+                switch (idcCmp.getOp()) {
+                    case EQ -> times = (init == end)? 1:0;
+                    case NE -> times = tag ? (int) val : -1;
+                    case SGE, SLE -> times = (int) val + 1;
+                    case SGT, SLT -> times = tag ? (int) val : (int) val + 1;
+                }
+            } case DIV -> {
                 return;
             }
         }
@@ -135,6 +147,7 @@ public class LoopUnRoll {
 //            return;
 //        }
         if (cnt * times > loop_unroll_up_lines) {
+            DoLoopUnRollForSeveralTimes(loop, cnt);
             return;
         }
 
@@ -267,6 +280,7 @@ public class LoopUnRoll {
         }
 
         Loop parentLoop = loop.getParentLoop();
+        parentLoop.getChildrenLoops().remove(loop);
         for (BasicBlock bb: loop.getNowLevelBB()) {
             bb.modifyLoop(parentLoop);
         }
@@ -275,8 +289,10 @@ public class LoopUnRoll {
             child.setParentLoop(parentLoop);
         }
 
-        //bbInWhile.remove(head);
-        bbInWhile.add(head);
+        //loop.getNowLevelBB().clear();
+
+        bbInWhile.remove(head);
+        //bbInWhile.add(head);
 
         //fixme:复制time / time - 1?份
         BasicBlock oldBegin = headNext;
@@ -285,7 +301,7 @@ public class LoopUnRoll {
         for (int i = 0; i < times - 1; i++) {
             CloneInfoMap.clear();
             for (BasicBlock bb: bbInWhile) {
-                bb.cloneToFunc_LUR(function);
+                bb.cloneToFunc_LUR(function, parentLoop);
             }
             for (BasicBlock bb: bbInWhile) {
                 BasicBlock newBB = (BasicBlock) CloneInfoMap.getReflectedValue(bb);
@@ -441,5 +457,187 @@ public class LoopUnRoll {
             cnt += cntDFS(next);
         }
         return cnt;
+    }
+
+    private void DoLoopUnRollForSeveralTimes(Loop loop, int codeCnt) {
+        Function function = loop.getHeader().getFunction();
+        int times = getUnrollTime(loop.getIdcTimes(), codeCnt);
+        BasicBlock head = loop.getHeader();
+        BasicBlock exit = null, entering = null, latch = null, headNext = null;
+        for (BasicBlock bb: head.getPrecBBs()) {
+            if (bb.isLoopLatch()) {
+                latch = bb;
+            } else {
+                entering = bb;
+            }
+        }
+        for (BasicBlock bb: loop.getExits()) {
+            exit = bb;
+        }
+        for (BasicBlock bb: head.getSuccBBs()) {
+            if (!bb.equals(exit)) {
+                headNext = bb;
+            }
+        }
+        assert headNext.getPrecBBs().size() == 1;
+
+
+        HashMap<Value, Value> reachDefBeforeHead = new HashMap();
+        HashMap<Value, Value> reachDefAfterLatch = new HashMap();
+        HashMap<Value, Value> beginToEnd = new HashMap<>();
+        HashMap<Value, Value> endToBegin = new HashMap<>();
+        for (Instr instr = head.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+            if (!(instr instanceof Instr.Phi)) {
+                break;
+            }
+            int index = head.getPrecBBs().indexOf(entering);
+            reachDefBeforeHead.put(instr, instr.getUseValueList().get(index));
+        }
+
+
+        BasicBlock latchNext = new BasicBlock(function, loop);
+        int latch_index = head.getPrecBBs().indexOf(latch);
+        for (Instr instr = head.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+            if (!(instr instanceof Instr.Phi)) {
+                break;
+            }
+            //Use use = instr.getUseList().get(latch_index);
+            ArrayList<Value> values = new ArrayList<>();
+            values.add(instr.getUseValueList().get(latch_index));
+            Instr phiInLatchNext = new Instr.Phi(instr.getType(), values, latchNext);
+            //use.remove();
+            //instr.getUseList().remove(latch_index);
+            //instr.getUseValueList().remove(latch_index);
+
+            reachDefAfterLatch.put(instr, phiInLatchNext);
+            beginToEnd.put(instr.getUseValueList().get(latch_index), phiInLatchNext);
+            endToBegin.put(phiInLatchNext, instr.getUseValueList().get(latch_index));
+        }
+
+        Instr jumpInLatchNext = new Instr.Jump(head, latchNext);
+        latch.modifySuc(head, latchNext);
+        latch.modifyBrAToB(head, latchNext);
+        latch.setNotLatch();
+        latchNext.addPre(latch);
+        latchNext.addSuc(head);
+        head.modifyPre(latch, latchNext);
+
+        HashSet<BasicBlock> bbInWhile = new HashSet<>();
+        getAllBBInLoop(loop, bbInWhile);
+
+        bbInWhile.remove(head);
+
+        BasicBlock oldBegin = headNext;
+        BasicBlock oldLatchNext = latchNext;
+        for (int i = 0; i < times - 1; i++) {
+            CloneInfoMap.clear();
+            for (BasicBlock bb: bbInWhile) {
+                bb.cloneToFunc_LUR(function, loop);
+            }
+            for (BasicBlock bb: bbInWhile) {
+                BasicBlock newBB = (BasicBlock) CloneInfoMap.getReflectedValue(bb);
+                newBB.fixPreSuc(bb);
+                newBB.fix();
+            }
+            BasicBlock newBegin = (BasicBlock) CloneInfoMap.getReflectedValue(oldBegin);
+            BasicBlock newLatchNext = (BasicBlock) CloneInfoMap.getReflectedValue(oldLatchNext);
+
+            oldLatchNext.modifySuc(head, newBegin);
+            head.modifyPre(oldLatchNext, newLatchNext);
+            ArrayList<BasicBlock> pres = new ArrayList<>();
+            pres.add(oldLatchNext);
+            newBegin.modifyPres(pres);
+            oldLatchNext.modifyBrAToB(head, newBegin);
+
+
+            HashSet<Value> keys = new HashSet<>();
+            for (Value value: reachDefAfterLatch.keySet()) {
+                keys.add(value);
+            }
+
+            for (Value A: keys) {
+                reachDefAfterLatch.put(CloneInfoMap.getReflectedValue(A), reachDefAfterLatch.get(A));
+                if (CloneInfoMap.valueMap.containsKey(A)) {
+                    reachDefAfterLatch.remove(A);
+                }
+            }
+
+            //修改引用,更新reach_def_after_latch
+            //fixme:考虑const的情况
+            for (BasicBlock temp: bbInWhile) {
+                BasicBlock bb = (BasicBlock) CloneInfoMap.getReflectedValue(temp);
+                for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+                    ArrayList<Value> values = instr.getUseValueList();
+                    for (int j = 0; j < values.size(); j++) {
+                        Value B = values.get(j);
+                        if (reachDefAfterLatch.containsKey(B)) {
+                            Value C = reachDefAfterLatch.get(B);
+                            instr.modifyUse(C, j);
+                        }
+                    }
+                }
+            }
+
+
+            keys = new HashSet<>();
+            for (Value value: reachDefAfterLatch.keySet()) {
+                keys.add(value);
+            }
+
+            for (Value AA: keys) {
+                Value D = reachDefAfterLatch.get(AA);
+                Value DD = CloneInfoMap.getReflectedValue(reachDefAfterLatch.get(AA));
+                reachDefAfterLatch.put(D, DD);
+                reachDefAfterLatch.remove(AA);
+            }
+
+            keys = new HashSet<>();
+            for (Value value: beginToEnd.keySet()) {
+                keys.add(value);
+            }
+
+            for (Value A: keys) {
+                Value DD = CloneInfoMap.getReflectedValue(beginToEnd.get(A));
+                beginToEnd.put(A, DD);
+            }
+
+
+            oldBegin = newBegin;
+            oldLatchNext = newLatchNext;
+            HashSet<BasicBlock> newBBInWhile = new HashSet<>();
+            for (BasicBlock bb: bbInWhile) {
+                newBBInWhile.add((BasicBlock) CloneInfoMap.getReflectedValue(bb));
+            }
+            bbInWhile = newBBInWhile;
+        }
+
+        //exit 中 LCSSA的phi并不需要修正
+        for (Instr instr = head.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+            if (!(instr instanceof Instr.Phi)) {
+                break;
+            }
+            instr.modifyUse(beginToEnd.get(instr.getUseValueList().get(latch_index)), latch_index);
+//            for (Value value: instr.getUseValueList()) {
+//                //assert value instanceof Instr;
+//                if (!(value instanceof Instr)) {
+//                    continue;
+//                }
+//            instr.modifyUse(beginToEnd.get(value), latch_index);
+//            }
+        }
+
+    }
+
+    private int getUnrollTime(int times, int codeCnt) {
+        int ret = 1;
+        for (int i = 2; i < ((int) Math.sqrt(times)); i++) {
+            if (i * codeCnt > loop_unroll_up_lines) {
+                break;
+            }
+            if (times % i == 0) {
+                ret = i;
+            }
+        }
+        return ret;
     }
 }

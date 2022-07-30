@@ -30,6 +30,7 @@ public class Manager {
     public int RK = 12;
     public int SK = 5;
 
+
     public ArrayList<Function> getFunctionList() {
         ArrayList<Function> list = new ArrayList<>();
         for (Function function : functions.values()) {
@@ -184,7 +185,14 @@ public class Manager {
 
 
     public HashMap<String, Function> getFunctions() {
-        return this.functions;
+        HashMap<String, Function> ret = new HashMap<>();
+        for (String str: functions.keySet()) {
+            if (!functions.get(str).getDeleted()) {
+                ret.put(str, functions.get(str));
+            }
+        }
+        return ret;
+//        return this.functions;
     }
 
 }

@@ -6,20 +6,16 @@ import java.io.PrintStream;
 public class MIBinary extends MachineInst {
     // Add, Sub, Rsb, Mul, Div, Mod, Lt, Le, Ge, Gt, Eq, Ne, And, Or
 
-    // public Machine.Operand dOpd;
-    // public Machine.Operand lOpd;
-    // public Machine.Operand rOpd;
-    // public Arm.Shift shift;
-    // Arm.Cond cond = Arm.Cond.Any;
-
     // @Override
     // public Arm.Cond getCond() {
     //     return cond;
     // }
 
-
-    public MIBinary(Tag tag, Machine.Block insertAtEnd, boolean isFloat) {
-        super(tag, insertAtEnd, isFloat);
+    public MIBinary(MachineInst insertAfter, Tag tag, Machine.Operand dOpd, Machine.Operand lOpd, Machine.Operand rOpd) {
+        super(insertAfter, tag);
+        defOpds.add(dOpd);
+        useOpds.add(lOpd);
+        useOpds.add(rOpd);
     }
 
     public MIBinary(Tag tag, Machine.Operand dOpd, Machine.Operand lOpd, Machine.Operand rOpd, Machine.Block insertAtEnd) {
@@ -27,7 +23,13 @@ public class MIBinary extends MachineInst {
         defOpds.add(dOpd);
         useOpds.add(lOpd);
         useOpds.add(rOpd);
-        genDefUse();
+    }
+
+    public MIBinary(Tag tag, Machine.Operand dstAddr, Arm.Reg rSP, Machine.Operand offset, MachineInst firstUse) {
+        super(tag, firstUse);
+        defOpds.add(dstAddr);
+        useOpds.add(rSP);
+        useOpds.add(offset);
     }
 
     public Machine.Operand getDst() {
@@ -60,11 +62,7 @@ public class MIBinary extends MachineInst {
             case Div -> "sdiv";
             case And -> "and";
             case Or -> "orr";
-            case FAdd -> "vadd.f32";
-            case FSub -> "vsub.f32";
-            case FDiv -> "vdiv.f32";
-            case FMul -> "vmul.f32";
-            default -> null;
+            default -> throw new AssertionError("Wrong Int Binary");
         };
 
         os.print(tag_str + "\t" + getDst() + ",\t" + getLOpd() + ",\t" + getROpd());
@@ -78,7 +76,7 @@ public class MIBinary extends MachineInst {
 
     @Override
     public String toString() {
-        return tag.toString() + "\t" + getDst() + ",\t" + getLOpd() + ",\t" + getROpd().value;
-                // (isNeedFix() ? getROpd().value + (this.getCallee() == null ? this.mb.mcFunc.getTotalStackSize() : this.getCallee().getTotalStackSize()) : getROpd());
+        return tag.toString() + "\t" + getDst() + ",\t" + getLOpd() + ",\t" + getROpd();
+        // (isNeedFix() ? getROpd().value + (this.getCallee() == null ? this.mb.mcFunc.getTotalStackSize() : this.getCallee().getTotalStackSize()) : getROpd());
     }
 }

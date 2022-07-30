@@ -79,10 +79,8 @@ public class MIMove extends MachineInst {
         return false;
     }
 
-    public MIMove() {
-        super(Tag.Mv);
-        // cond = Arm.Cond.Any;
-    }
+
+
 
     // @Override
     // public void genDefUse() {
@@ -110,11 +108,6 @@ public class MIMove extends MachineInst {
             } else {
                 int imm = getSrc().value;
                 if (encode_imm(imm)) {
-            /*
-            if(src.type == float){
-                os.println("vldr" + cond +".32"+ "\t" + getDst().toString() + ",=" + imm);
-            }
-            */
                     os.println("\tmov" + cond + "\t" + getDst().toString() + ",\t#" + imm);
                 } else {
                     int lowImm = (imm << 16) >>> 16;
@@ -126,14 +119,6 @@ public class MIMove extends MachineInst {
                 }
             }
         } else {
-            //TODO:这里需要考虑Dst为s寄存器
-            /*
-            if(getDst().type == float){
-                os.print("vmov" + cond +".32"+ "\t" + getDst().toString() + "," + getSrc().toString());
-                os.println("," + shift.toString());
-
-            }
-            */
             os.print("\tmov" + cond + "\t" + getDst().toString() + ",\t" + getSrc().toString());
             if (shift != Arm.Shift.NONE_SHIFT) {
                 os.println(",\t" + shift.toString());
@@ -143,17 +128,12 @@ public class MIMove extends MachineInst {
         }
     }
 
-    @Override
-    public boolean isMove() {
-        return true;
-    }
-
     public Machine.Operand getDst() {
         return defOpds.get(0);
     }
 
     public boolean directColor() {
-        return getDst().needColor() && getSrc().needColor() && cond == Arm.Cond.Any && shift.shiftType == Arm.ShiftType.None;
+        return getDst().need_I_Color() && getSrc().need_I_Color() && cond == Arm.Cond.Any && shift.shiftType == Arm.ShiftType.None;
     }
 
     public Machine.Operand getSrc() {
@@ -167,10 +147,36 @@ public class MIMove extends MachineInst {
         if (getDst() == null) {
             assert false;
         }
-        if (oldToString.equals("")) {
-            oldToString = tag.toString() + cond.toString() + '\t' + getDst().toString() + ",\t" + getSrc().toString();
+        StringBuilder os = new StringBuilder();
+        Machine.Operand src = getSrc();
+        if (src.type == Machine.Operand.Type.Immediate) {
+            if (src.isGlobPtr()) {
+                os.append("movw" + cond + "\t" + getDst() + ",\t:lower16:" + src.getGlob());
+                os.append("movt" + cond + "\t" + getDst() + ",\t:upper16:" + src.getGlob());
+                //os.append("\tldr" + cond + "\t" + getDst().toString() + ",=" + src.getGlob());
+            } else {
+                int imm = getSrc().value;
+                if (encode_imm(imm)) {
+                    os.append("mov" + cond + "\t" + getDst().toString() + ",\t#" + imm);
+                } else {
+                    int lowImm = (imm << 16) >>> 16;
+                    os.append("movw" + cond + "\t" + getDst().toString() + ",\t#" + lowImm);
+                    int highImm = imm >>> 16;
+                    if (highImm != 0) {
+                        os.append("\tmovt" + cond + "\t" + getDst().toString() + ",\t#" + highImm);
+                    }
+                }
+            }
+        } else {
+            os.append("mov" + cond + "\t" + getDst().toString() + ",\t" + getSrc().toString());
+            if (shift != Arm.Shift.NONE_SHIFT) {
+                os.append(",\t" + shift.toString());
+            }
         }
-        return tag.toString() + cond.toString() + '\t' + getDst().toString() + ",\t" + getSrc().toString() + "{\t--\t" + oldToString + "\t--\t}";
+        if (oldToString.equals("")) {
+            oldToString = os.toString();
+        }
+        return os + "{\t--\t" + oldToString + "\t--\t}";
     }
 
     public void setSrc(Machine.Operand offset_opd) {

@@ -27,6 +27,8 @@ public class Instr extends Value {
     private BasicBlock earliestBB;
     private BasicBlock latestBB;//在本算法中,last is best
 
+    private boolean arrayInit = false;
+
     public void setEarliestBB(BasicBlock earliestBB) {
         this.earliestBB = earliestBB;
     }
@@ -78,6 +80,10 @@ public class Instr extends Value {
 
     private int condCount;
     private boolean inLoopCond =false;
+
+    public String getHash() {
+        return hash;
+    }
 
     public void setInLoopCond(){
         inLoopCond = true;
@@ -238,6 +244,14 @@ public class Instr extends Value {
             return false;
         }
         return true;
+    }
+
+    public void setArrayInit(boolean arrayInit) {
+        this.arrayInit = arrayInit;
+    }
+
+    public boolean isArrayInit() {
+        return arrayInit;
     }
 
     public boolean canComb() {
@@ -797,6 +811,11 @@ public class Instr extends Value {
             return new ArrayList<>(useValueList.subList(1, useValueList.size()));
         }
 
+        public void addIdx(Value value) {
+            int len = useValueList.size();
+            setUse(value, len);
+        }
+
         public int getOffsetCount() {
             return useValueList.size() - 1;
         }
@@ -806,6 +825,23 @@ public class Instr extends Value {
                 throw new AssertionError("Out of gep idx : " + i + 1 + "\t" + this);
             }
             return useValueList.get(i + 1);
+        }
+
+        public void modifyType(Type type) {
+            this.type = type;
+        }
+
+        public void modifyPtr(Value ptr) {
+            modifyUse(ptr, 0);
+        }
+
+        public void modifyIndexs(ArrayList<Value> indexs) {
+            for (int i = 0; i < getIdxList().size(); i++) {
+                modifyUse(indexs.get(i), i + 1);
+            }
+            for (int i = getIdxList().size(); i < indexs.size(); i++) {
+                setUse(indexs.get(i), i + 1);
+            }
         }
 
         @Override

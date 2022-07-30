@@ -95,6 +95,15 @@ public class Constant extends Value {
             constFloatVal = val;
         }
 
+        String asmName = null;
+        static int floatConstCnt = 1;
+        public String getAsmName(){
+            if(asmName == null){
+                asmName = "_F_CONST_" + floatConstCnt++;
+            }
+            return asmName;
+        }
+
         @Override
         public Object getConstVal() {
             return constFloatVal;
@@ -108,6 +117,10 @@ public class Constant extends Value {
         @Override
         public String toString() {
             return String.format("0x%x",Double.doubleToRawLongBits((constFloatVal)));
+        }
+
+        public int getIntBits() {
+            return Float.floatToIntBits(constFloatVal);
         }
     }
 
@@ -134,6 +147,33 @@ public class Constant extends Value {
             }
             assert idx < constArray.size() + dims.get(dims.size() - 1);
             return constArray.get(idx);
+        }
+    }
+
+    public static class ConstantBool extends Constant {
+
+        private int constBoolVal;
+
+        public ConstantBool(int val) {
+            super(Type.BasicType.getI1Type());
+            assert val == 0 || val == 1;
+            constBoolVal = val;
+        }
+
+
+        @Override
+        public Object getConstVal() {
+            return constBoolVal;
+        }
+
+        @Override
+        public String getName() {
+            return String.valueOf(constBoolVal);
+        }
+
+        @Override
+        public String toString() {
+            return String.valueOf(constBoolVal);
         }
     }
 }

@@ -13,16 +13,16 @@ public class PeepholeOptimization {
         for(Machine.McFunction function : program.funcList){
             for(Machine.Block mb:function.mbList){
                 for(MachineInst inst : mb.miList){
-                    if(inst instanceof MIBinary && inst!=mb.getBeginMI()){
+                    if(inst instanceof MIBinary && inst!=mb.getBeginMI() && !inst.isFloat){
                         MIBinary mib = (MIBinary) inst;
                         MachineInst inst_prev = (MachineInst) inst.getPrev();
-                        if(inst_prev instanceof MIMove){
+                        if(inst_prev instanceof MIMove && !inst_prev.isFloat){
                             MIMove miMove = (MIMove) inst_prev;
                             if(miMove.canOptimize()){
                                 int value = miMove.getSrc().getValue();
                                 switch (mib.getType()){
                                     case Add:
-                                        if(mib.getROpd().isImm()){
+                                        if(mib.getROpd().is_I_Imm()){
                                             //TODO:有进一步优化的空间
                                             break;
                                         }
@@ -44,7 +44,7 @@ public class PeepholeOptimization {
                                         }
                                         break;
                                     case Sub:
-                                        if(mib.getROpd().isImm()){
+                                        if(mib.getROpd().is_I_Imm()){
                                             break;
                                         }
                                         //delete move
@@ -64,7 +64,7 @@ public class PeepholeOptimization {
                                         }
                                         break;
                                     case Rsb:
-                                        if(mib.getROpd().isImm()){
+                                        if(mib.getROpd().is_I_Imm()){
                                             break;
                                         }
                                         //delete move
@@ -126,7 +126,7 @@ public class PeepholeOptimization {
                             MICompare inst1 = (MICompare) inst;
                             MIMove inst2 = (MIMove) inst.getNext();
                             MIMove inst3 = (MIMove) inst.getNext().getNext();
-                            if(inst1.getROpd().isImm() && inst1.getROpd().getImm() == 0 && inst2.getSrc().isImm() && inst2.getSrc().getImm() == 1 && inst3.getSrc().isImm() && inst3.getSrc().getImm() == 0 && inst1.getLOpd().toString().equals(inst2.getDst().toString())
+                            if(inst1.getROpd().is_I_Imm() && inst1.getROpd().get_I_Imm() == 0 && inst2.getSrc().is_I_Imm() && inst2.getSrc().get_I_Imm() == 1 && inst3.getSrc().is_I_Imm() && inst3.getSrc().get_I_Imm() == 0 && inst1.getLOpd().toString().equals(inst2.getDst().toString())
                             && inst1.getLOpd().toString().equals(inst3.getDst().toString()) && inst2.getCond() == Arm.Cond.Ne && inst3.getCond() == Arm.Cond.Eq && inst2.getShift().isNone() && inst3.getShift().isNone()){
                                 inst3.remove();
                             }

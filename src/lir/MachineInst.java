@@ -111,14 +111,25 @@ public class MachineInst extends ILinkNode {
         LongMul,
         FMA,
         Mv,
+        VMov,
+        VCvt,
+        VNeg,
         Branch,
         Jump,
         Return,  // Control flow
+        VRet,
         Load,
+        VLdr,
         Store,  // Memory
-        Compare,
+        VStr,
+        ICmp,
+        VCmp,
         Call,
         Global,
+        Push,
+        Pop,
+        VPush,
+        VPop,
         Comment,   // for printing comments
         Empty;
 
@@ -144,6 +155,10 @@ public class MachineInst extends ILinkNode {
         return tag == Tag.Mv;
     }
 
+    public boolean isVMov() {
+        return tag == Tag.VMov;
+    }
+
     public boolean isCall() {
         return tag == Tag.Call;
     }
@@ -152,9 +167,9 @@ public class MachineInst extends ILinkNode {
         return tag == Tag.Return;
     }
 
-    public boolean isActuallyBino() {
-        return tag.ordinal() < Tag.FMA.ordinal();
-    }
+    // public boolean isActuallyBino() {
+    //     return tag.ordinal() < Tag.FMA.ordinal();
+    // }
 
     public boolean isBranch() {
         return tag == Tag.Branch;
@@ -181,17 +196,6 @@ public class MachineInst extends ILinkNode {
         mb.insertAtEnd(this);
     }
 
-
-    /*
-    init and insert at end of the bb
-    */
-    public MachineInst(Tag tag, Machine.Block mb, boolean isFloat) {
-        this.mb = mb;
-        this.tag = tag;
-        this.isFloat = isFloat;
-        mb.insertAtEnd(this);
-    }
-
     /*
     init and inset before inst
     */
@@ -202,6 +206,7 @@ public class MachineInst extends ILinkNode {
     }
 
     /**
+     * insertAfter -> this
      * 目前给MIStore插入一个指令后面时专用
      *
      * @param tag
@@ -211,27 +216,6 @@ public class MachineInst extends ILinkNode {
         this.tag = tag;
         insertAfter.insertAfter(this);
     }
-
-    /*
-    init and inset before inst
-    */
-    public MachineInst(Tag tag, MachineInst inst, boolean isFloat) {
-        this.mb = inst.mb;
-        this.isFloat = isFloat;
-        this.tag = tag;
-        inst.insertBefore(this);
-    }
-
-    public MachineInst(Tag tag) {
-        this.tag = tag;
-        this.isFloat = false;
-    }
-
-    public MachineInst(Tag tag, boolean isFloat) {
-        this.tag = tag;
-        this.isFloat = isFloat;
-    }
-
 
     public MachineInst() {
         this.tag = Tag.Empty;
@@ -252,6 +236,8 @@ public class MachineInst extends ILinkNode {
 
     public void setTag(Tag tag) {
         this.tag = tag;
+    }
+    public interface Compare {
     }
 }
 

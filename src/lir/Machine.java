@@ -1,6 +1,7 @@
 package lir;
 
 import backend.CodeGen;
+import backend.RegAllocator;
 import mir.BasicBlock;
 import mir.Constant;
 import mir.GlobalVal;
@@ -10,13 +11,14 @@ import util.ILinkNode;
 import util.Ilist;
 
 import java.io.PrintStream;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.TreeSet;
+import java.util.*;
 
+import static backend.CodeGen.*;
+import static backend.RegAllocator.SP_ALIGN;
+import static lir.Arm.Regs.FPRs.s0;
 import static lir.Arm.Regs.GPRs.*;
 import static lir.Machine.Operand.Type.*;
+import static mir.type.DataType.F32;
 import static mir.type.DataType.I32;
 
 
@@ -59,53 +61,26 @@ public class Machine {
             return false;
         }
 
-        public static void stack_output(PrintStream os, boolean push, int offset, String prefix) {
-            String op = push ? "sub" : "add";
-            Machine.Operand offset_opd = new Operand(Immediate);
-            offset_opd.value = offset;
-            if (encode_imm(-offset)) {
-                op = push ? "add" : "sub";
-                offset_opd.value = -offset;
-            }
-            if (encode_imm(offset) || encode_imm(-offset)) {
-                os.println(op + "\t" + "sp, sp," + offset_opd.toString());
-            } else {
-                //move to r4
-                MIMove move = new MIMove();
-                move.setSrc(offset_opd);
-                //r4
-                Machine.Operand r4 = Arm.Reg.getR(Arm.Regs.GPRs.r4);
-                move.setDst(r4);
-                move.output(os, null);
-                os.println(prefix + op + "\t" + "sp, sp, " + r4.toString());
-            }
-        }
-
-        // public Program(ArrayList<Function> funcList, ArrayList<GlobalVal> globList){
-        //     this.funcList = funcList;
-        //     this.globList = globList;
-        // }
         private Program() {
         }
 
         public void output(PrintStream os) {
             os.println(".arch armv7ve");
             os.println(".arm");
+            if (needFPU) {
+                os.println(".fpu vfpv3-d16");
+            }
             os.println(".section .text");
             for (McFunction function : funcList) {
                 os.println();
                 os.println(".global\t" + function.mFunc.getName());
                 os.println("\t.type\t" + function.mFunc.getName() + ",%function");
+                os.println("@ regStackSize =\t" + function.regStack + " ;\n@ varStackSize =\t" + function.varStack + " ;\n@ paramStackSize =\t" + function.paramStack + " ;");
+
+                os.println("@ usedCalleeSavedGPRs =\t" + function.usedCalleeSavedGPRs + " ;\n@ usedCalleeSavedFPRs =\t" + function.usedCalleeSavedFPRs + " ;\n");
+
                 os.println(function.mFunc.getName() + ":");
-                if (function.usedCalleeSavedRegs.size() > 0) {
-                    os.print("\tpush\t{");
-                    Iterator<Arm.Regs.GPRs> gprIter = function.usedCalleeSavedRegs.iterator();
-                    os.print(gprIter.next());
-                    while (gprIter.hasNext()) {
-                        os.print("," + gprIter.next());
-                    }
-                    os.println("}");
-                }
+
 
                 //asm for mb
                 for (Block mb : function.mbList) {
@@ -118,10 +93,19 @@ public class Machine {
                 // 前端保证一定有return语句
                 // pop_output(os, function);
             }
+
             os.println();
             os.println();
+            // output float const
+            for (Map.Entry<String, Operand> entry : CodeGen.name2constFOpd.entrySet()) {
+                String name = entry.getKey();
+                Constant.ConstantFloat constF = entry.getValue().constF;
+                int i = constF.getIntBits();
+                os.println(name + ":");
+                os.println("\t.word\t" + i);
+            }
             os.println(".section .data");
-            os.println(".align 4");
+            os.println(".align 2");
             for (Arm.Glob glob : globList) {
                 GlobalVal.GlobalValue val = glob.getGlobalValue();
                 os.println();
@@ -136,9 +120,14 @@ public class Machine {
                 for (Value value : glob.getInit().getFlattenInit()) {
                     if (!init) {
                         init = true;
-                        last = ((Constant.ConstantInt) value).constIntVal;
+                        if (value.isConstantInt()) {
+                            last = ((Constant.ConstantInt) value).constIntVal;
+                        } else {
+                            last = ((Constant.ConstantFloat) value).getIntBits();
+                        }
                     }
-                    if (((Constant.ConstantInt) value).constIntVal == last) {
+                    int now = value instanceof Constant.ConstantInt ? ((Constant.ConstantInt) value).constIntVal : ((Constant.ConstantFloat) value).getIntBits();
+                    if (now == last) {
                         count++;
                     } else {
                         if (count > 1) {
@@ -147,7 +136,7 @@ public class Machine {
                         } else {
                             os.println("\t.word\t" + last);
                         }
-                        last = ((Constant.ConstantInt) value).constIntVal;
+                        last = value instanceof Constant.ConstantInt ? ((Constant.ConstantInt) value).constIntVal : ((Constant.ConstantFloat) value).getIntBits();
                         count = 1;
                     }
                 }
@@ -160,27 +149,6 @@ public class Machine {
             }
         }
 
-        public static void pop_output(PrintStream os, McFunction function) {
-            boolean retByBx = true;
-            if (function.usedCalleeSavedRegs.size() > 0) {
-                os.print("\tpop\t{");
-                Iterator<Arm.Regs.GPRs> gprIter = function.usedCalleeSavedRegs.iterator();
-                os.print(gprIter.next());
-                while (gprIter.hasNext()) {
-                    Arm.Regs.GPRs gpr = gprIter.next();
-                    if (gpr == lr) {
-                        gpr = pc;
-                        retByBx = false;
-                    }
-                    os.print("," + gpr);
-                }
-                os.println("}");
-            }
-            if (retByBx) {
-                os.println("\tbx\tlr");
-            }
-        }
-
     }
 
     public static class McFunction extends ILinkNode {
@@ -188,7 +156,11 @@ public class Machine {
         // Block tailBlock = new Block();
         // Block headBlock = new Block();
         public Ilist<Block> mbList = new Ilist<>();
+        public int floatParamCount = 0;
+        public int intParamCount = 0;
         private int vrCount = 0;
+
+        private int sVrCount = 0;
 
         /**
          * 获取真正的第一个Block
@@ -224,11 +196,12 @@ public class Machine {
         int paramStack = 0;
         int regStack = 0;
         public mir.Function mFunc;
-        TreeSet<Arm.Regs.GPRs> usedCalleeSavedRegs = new TreeSet<>();
+        TreeSet<GPRs> usedCalleeSavedGPRs = new TreeSet<>();
+        TreeSet<FPRs> usedCalleeSavedFPRs = new TreeSet<>();
         boolean useLr = false;
 
-        public ArrayList<Arm.Regs.GPRs> getUsedRegList(){
-            return new ArrayList<>(usedCalleeSavedRegs);
+        public ArrayList<GPRs> getUsedRegList() {
+            return new ArrayList<>(usedCalleeSavedGPRs);
         }
 
         public McFunction(mir.Function function) {
@@ -244,6 +217,13 @@ public class Machine {
             paramStack += i;
         }
 
+        public void alignParamStack() {
+            int b = paramStack % SP_ALIGN;
+            if (b != 0) {
+                paramStack += SP_ALIGN - b;
+            }
+        }
+
         public void addRegStack(int i) {
             regStack += i;
         }
@@ -256,6 +236,16 @@ public class Machine {
             return paramStack;
         }
 
+        int allocStack = -1;
+
+        public void setAllocStack() {
+            allocStack = varStack;
+        }
+
+        public int getAllocStack() {
+            return allocStack;
+        }
+
         public int getVarStack() {
             return varStack;
         }
@@ -264,57 +254,109 @@ public class Machine {
             return vrCount;
         }
 
+
+        public int getSVRSize() {
+            return sVrCount;
+        }
+
         public ArrayList<Operand> vrList = new ArrayList<>();
+
+        public ArrayList<Operand> sVrList = new ArrayList<>();
 
         public Operand getVR(int idx) {
             assert idx <= vrCount;
-            if (idx >= vrCount) {
-                Operand newVR = new Operand(vrCount++);
-                vrList.add(newVR);
-                return newVR;
-            }
+            // if (idx >= vrCount) {
+            //     Operand newVR = new Operand(vrCount++);
+            //     vrList.add(newVR);
+            //     return newVR;
+            // }
             return vrList.get(idx);
         }
 
+        public Operand getSVR(int idx) {
+            assert idx <= sVrCount;
+            return sVrList.get(idx);
+        }
+
         public Operand newVR() {
-            Operand vr = new Operand(vrCount++);
+            Operand vr = new Operand(vrCount++, I32);
             vrList.add(vr);
             return vr;
         }
 
-        public void setVRCount(int i) {
-            vrCount = i;
+        public Operand newSVR() {
+            Operand sVr = new Operand(sVrCount++, F32);
+            sVrList.add(sVr);
+            return sVr;
         }
 
-        public int addVRCount(int i) {
-            assert vrCount == vrList.size() - 1;
-            vrCount = vrCount + i;
-            return vrCount;
-        }
+        // public void setVRCount(int i) {
+        //     vrCount = i;
+        // }
+        //
+        // public int addVRCount(int i) {
+        //     assert vrCount == vrList.size() - 1;
+        //     vrCount = vrCount + i;
+        //     return vrCount;
+        // }
 
         public void clearVRCount() {
             vrCount = 0;
             this.vrList = new ArrayList<>();
         }
 
-        public void addUsedRegs(Arm.Regs reg) {
-            if (reg instanceof Arm.Regs.GPRs) {
-                if (reg == sp || ((Arm.Regs.GPRs) reg).ordinal() < Math.min(4, mFunc.getParams().size()) || (this.mFunc.hasRet() && reg == r0)) {
+        public void clearSVRCount() {
+            sVrCount = 0;
+            this.sVrList = new ArrayList<>();
+        }
+
+        public void addUsedGPRs(Arm.Regs reg) {
+            if (reg instanceof GPRs) {
+                if (reg == sp || ((GPRs) reg).ordinal() < Math.min(intParamCount, rParamCnt) || (this.mFunc.getRetType().isInt32Type() && reg == r0)) {
                     return;
                 }
-                if (usedCalleeSavedRegs.add((Arm.Regs.GPRs) reg)) {
+                if (usedCalleeSavedGPRs.add((GPRs) reg)) {
                     addRegStack(4);
+                }
+            }
+        }
+
+        public void addUsedFRPs(Arm.Regs reg) {
+            if (reg instanceof FPRs) {
+                if (((FPRs) reg).ordinal() < Math.min(floatParamCount, sParamCnt) || (this.mFunc.getRetType().isFloatType() && reg == s0)) {
+                    return;
+                }
+                if (usedCalleeSavedFPRs.add((FPRs) reg)) {
+                    addRegStack(4);
+                    int idx = ((FPRs) reg).ordinal();
+                    if (idx % 2 == 0) {
+                        if (usedCalleeSavedFPRs.add((Arm.Reg.getS(idx + 1).fpr))) {
+                            addRegStack(4);
+                        }
+                    } else {
+                        if (usedCalleeSavedFPRs.add((Arm.Reg.getS(idx - 1).fpr))) {
+                            addRegStack(4);
+                        }
+                    }
                 }
             }
         }
 
         public void setUseLr() {
             useLr = true;
-            addUsedRegs(lr);
+            addUsedGPRs(lr);
         }
 
         public int getRegStack() {
             return regStack;
+        }
+
+        public void alignTotalStackSize() {
+            int totalSize = getTotalStackSize();
+            int b = totalSize % SP_ALIGN;
+            if (b != 0) {
+                varStack += SP_ALIGN - b;
+            }
         }
     }
 
@@ -380,7 +422,7 @@ public class Machine {
         public HashSet<Operand> liveInSet = new HashSet<>();
         public HashSet<Operand> liveOutSet = new HashSet<>();
 
-        public Block(BasicBlock bb, Machine.McFunction insertAtEnd) {
+        public Block(BasicBlock bb, McFunction insertAtEnd) {
             this.bb = bb;
             this.mcFunc = insertAtEnd;
             mcFunc.insertAtEnd(this);
@@ -418,7 +460,7 @@ public class Machine {
         protected int value;
 
 
-        public int getImm() {
+        public int get_I_Imm() {
             return value;
         }
 
@@ -441,12 +483,12 @@ public class Machine {
          * 与此 Operand 相关的传送指令列表的集合
          */
         public HashSet<MIMove> moveSet = new HashSet<>();
-
+        public HashSet<V.Mov> vMovSet = new HashSet<>();
         // public Arm.Reg reg;
         public Arm.Regs reg;
         // private static Arm.Reg[] regPool = new Arm.Reg[Arm.Regs.GPRs.values().length + Arm.Regs.FPRs.values().length];
 
-        public boolean isImm() {
+        public boolean is_I_Imm() {
             return type == Immediate;
         }
 
@@ -454,12 +496,20 @@ public class Machine {
             adjOpdSet.add(v);
         }
 
-        public boolean isPreColored() {
-            return type == PreColored;
+        public boolean is_I_PreColored() {
+            return type == PreColored && dataType == I32;
         }
 
-        public boolean needColor() {
-            return type == PreColored || type == Virtual;
+        public boolean is_F_PreColored() {
+            return type == PreColored && dataType == F32;
+        }
+
+        public boolean need_I_Color() {
+            return (type == PreColored || type == Virtual) && dataType == I32;
+        }
+
+        public boolean need_F_Color() {
+            return (type == PreColored || type == FVirtual) && dataType == F32;
         }
 
         public boolean isAllocated() {
@@ -474,8 +524,12 @@ public class Machine {
             return reg;
         }
 
-        public boolean isVirtual() {
+        public boolean is_I_Virtual() {
             return type == Virtual;
+        }
+
+        public boolean is_F_Virtual() {
+            return type == FVirtual;
         }
 
         public void setValue(int i) {
@@ -502,6 +556,18 @@ public class Machine {
             throw new AssertionError("not glob but try to load");
         }
 
+        public boolean fNotConst() {
+            return type != Immediate && type != FConst && dataType == F32;
+        }
+
+        public boolean isI32() {
+            return dataType == I32;
+        }
+
+        public boolean isDataType(DataType dataType) {
+            return this.dataType == dataType;
+        }
+
         // static {
         //     // 调用了子类, 所以不行
         //     int i;
@@ -518,9 +584,15 @@ public class Machine {
 
         public enum Type {
             PreColored,
-            Allocated,
             Virtual,
-            Immediate
+            Allocated,
+            Immediate,
+            FVirtual,
+            FConst,
+        }
+
+        public boolean needGPR() {
+            return (type == PreColored || type == Virtual) && dataType == I32;
         }
 
         Type type;
@@ -537,31 +609,64 @@ public class Machine {
                 case Virtual -> "v";
                 case Allocated, PreColored -> "r";
                 case Immediate -> "#";
+                case FVirtual -> "fv";
+                case FConst -> "";
             };
         }
 
-        // 默认分配通用寄存器
-        public Operand(int virtualRegCnt) {
-            this.type = Virtual;
-            value = virtualRegCnt;
-            prefix = "v";
-        }
-
-        public Operand(DataType dataType, int imm) {
-            type = Immediate;
-            prefix = "#";
+        // 新建虚拟寄存器
+        public Operand(int virtualRegCnt, DataType dataType) {
             this.dataType = dataType;
-            this.value = imm;
+            if (dataType == I32) {
+                this.type = Virtual;
+                value = virtualRegCnt;
+                prefix = "v";
+            } else if (dataType == F32) {
+                this.type = FVirtual;
+                value = virtualRegCnt;
+                prefix = "fv";
+            } else {
+                throw new AssertionError("Bad dataType when new Operand of (S)VR:\t" + dataType);
+            }
         }
 
         /**
-         * data
+         * 整数立即数
+         * 用的太多了没法改了就这样吧
+         *
+         * @param dataType
+         * @param imm
+         */
+        public Operand(DataType dataType, int imm) {
+            assert dataType == I32;
+            type = Immediate;
+            prefix = "#";
+            // this.dataType = dataType;
+            this.value = imm;
+        }
+
+        Constant.ConstantFloat constF = null;
+
+        /**
+         * 浮点常量
+         *
+         * @param constF
+         */
+        public Operand(DataType dataType, Constant.ConstantFloat constF) {
+            assert dataType == F32;
+            type = FConst;
+            this.constF = constF;
+        }
+
+        /**
+         * 只有reg初始化会用
          *
          * @param type
          * @param dataType
          */
         public Operand(Type type, DataType dataType) {
             this.type = type;
+            this.dataType = dataType;
             prefix = switch (type) {
                 case Virtual -> "v";
                 case Allocated, PreColored -> switch (dataType) {
@@ -570,6 +675,8 @@ public class Machine {
                     default -> throw new IllegalStateException("Unexpected reg type: " + dataType);
                 };
                 case Immediate -> "#";
+                case FConst -> "";
+                case FVirtual -> "fv";
             };
         }
 
@@ -583,12 +690,19 @@ public class Machine {
         //     };
         // }
 
+        /**
+         * 真正分配寄存器的时候, 即最终染色
+         *
+         * @param reg
+         */
         public Operand(Arm.Regs reg) {
             this.type = Allocated;
-            if (reg instanceof Arm.Regs.GPRs) {
+            if (reg instanceof GPRs) {
                 prefix = "r";
-            } else if (reg instanceof Arm.Regs.FPRs) {
+                // dataType = I32;
+            } else if (reg instanceof FPRs) {
                 prefix = "s";
+                dataType = F32;
             } else {
                 throw new AssertionError("Wrong reg: " + reg);
             }
@@ -613,6 +727,8 @@ public class Machine {
                     default -> throw new IllegalStateException("Unexpected reg type: " + dataType);
                 };
                 case Immediate -> "#";
+                case FVirtual -> "fv";
+                case FConst -> "";
             };
         }
 
@@ -631,13 +747,21 @@ public class Machine {
         public String toString() {
             if (this instanceof Arm.Reg) {
                 return getReg().toString();
+            } else if (type == FConst) {
+                return constF.getAsmName();
             } else {
                 return getPrefix() + value;
             }
         }
 
-        public double heuristicVal() {
-            return (double) degree / (2 << loopCounter);
+        public int heuristicVal() {
+            return degree << 10 / (2 << loopCounter);
+        }
+
+        public boolean isF32() {
+            // return type == FVirtual || type == FConst ||
+            //         ((type == PreColored || type == Allocated) && (dataType == F32));
+            return dataType == F32;
         }
 
         public Operand select(Operand o) {

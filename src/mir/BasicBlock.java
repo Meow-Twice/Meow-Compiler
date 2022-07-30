@@ -16,7 +16,7 @@ import java.util.Objects;
  */
 public class BasicBlock extends Value {
 
-    private static final boolean ENABLE_DEBUG = true;
+    private static final boolean ENABLE_DEBUG = false;
     private Function function;
 //    private ILinkNode head = new EmptyNode();
 //    private ILinkNode tail = new EmptyNode();
@@ -103,6 +103,10 @@ public class BasicBlock extends Value {
         return isExit;
     }
 
+    public void setNotLatch() {
+        isLoopLatch = false;
+    }
+
     public int getLoopDep() {
         return loop.getLoopDepth();
     }
@@ -130,9 +134,6 @@ public class BasicBlock extends Value {
         init();
         this.loop = loop;
         this.label = "b" + (++bb_count);
-        if (bb_count == 275) {
-            System.err.println("err_275");
-        }
         this.function = function;
         begin.setNext(end);
         end.setPrev(begin);
@@ -282,9 +283,9 @@ public class BasicBlock extends Value {
             if (oldPres.size() == newPres.size() && getBeginInstr() instanceof Instr.Phi) {
                 assert false;
             }
-            if (label.equals("b242")) {
-                System.err.println("b242_BB_279");
-            }
+//            if (label.equals("b242")) {
+//                System.err.println("b242_BB_279");
+//            }
             simplyPhi(oldPres, newPres);
             this.precBBs = precBBs;
         }
@@ -352,6 +353,13 @@ public class BasicBlock extends Value {
 
     @Override
     public String toString() {
+        if (OutParam.NEED_BB_USE_IN_BR_INFO) {
+            String str = getLabel();
+            for (Use use = getBeginUse(); use.getNext() != null; use = (Use) use.getNext()) {
+                str = str + "\n" + use.getUser().parentBB().getLabel() + "      " + use.getUser().toString();
+            }
+            return str;
+        }
         if (OutParam.ONLY_OUTPUT_PRE_SUC) {
             String rett = this.getLabel() + "       ;";
             rett += "pres: ";
@@ -438,9 +446,9 @@ public class BasicBlock extends Value {
     public BasicBlock cloneToFunc(Function function) {
         // 是循环内的BB, 复制的时候,
         // 先创建新的循环, 然后把BB塞到新的loop里面
-        if (label.equals("b174")) {
-            System.err.println("ERR_174");
-        }
+//        if (label.equals("b174")) {
+//            System.err.println("ERR_174");
+//        }
         Loop srcLoop = this.loop;
         Loop tagLoop = CloneInfoMap.loopMap.containsKey(srcLoop) ?
                 CloneInfoMap.getReflectedLoop(srcLoop) :
@@ -545,10 +553,24 @@ public class BasicBlock extends Value {
     }
 
     //循环展开的时候,复制bb
-    public BasicBlock cloneToFunc_LUR(Function function) {
-        Loop tagLoop = getLoop();
+    public BasicBlock cloneToFunc_LUR(Function function, Loop loop) {
+        Loop tagLoop = null, srcLoop = null;
+        if (getLoop().equals(loop)) {
+           tagLoop = getLoop();
+        } else {
+            srcLoop = getLoop();
+            tagLoop = CloneInfoMap.loopMap.containsKey(srcLoop)?
+                    CloneInfoMap.getReflectedLoop(srcLoop):
+                    new Loop(CloneInfoMap.getReflectedLoop(srcLoop.getParentLoop()));
+            tagLoop.setFunc(function);
+            CloneInfoMap.addLoopReflect(srcLoop, tagLoop);
+        }
         BasicBlock ret = new BasicBlock(function, tagLoop);
         CloneInfoMap.addValueReflect(this, ret);
+        if (this.isLoopHeader) {
+            tagLoop.setHeader(ret);
+            ret.setLoopHeader();
+        }
         Instr instr = this.getBeginInstr();
         while (instr.getNext() != null) {
             Instr tmp = instr.cloneToBB(ret);
@@ -643,7 +665,6 @@ public class BasicBlock extends Value {
     //修改转跳和前驱后继关系
     //仅在LoopUnRoll中使用
     //this(entering) -> A(Head) -> B
-
     //同时维护了B的前驱
     public void modifySucAToB(BasicBlock A, BasicBlock B) {
         Instr instr = getEndInstr();
@@ -672,5 +693,16 @@ public class BasicBlock extends Value {
         Instr instr = getEndInstr();
         instr.remove();
         insertAtEnd(jump);
+    }
+
+    @Override
+    public void remove() {
+        super.remove();
+        loop.removeBB(this);
+        isLoopHeader = false;
+        isLoopLatch = false;
+        isExit = false;
+        isLoopEntering = false;
+        isLoopExiting = false;
     }
 }

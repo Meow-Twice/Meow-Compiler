@@ -53,6 +53,16 @@ public class MidEndRunner {
 
         loopOptimize();
 
+        //outputLLVM();
+
+        outputLLVM();
+
+        MemSetOptimize memSetOptimize = new MemSetOptimize(functions, globalValues);
+        memSetOptimize.Run();
+
+        reMakeCFGAndLoopInfo();
+
+
         //TODO:删除冗余phi,分支优化(删除无用的br/jump等),等等
         BrOptimize();
         BrOptimize();
@@ -64,6 +74,8 @@ public class MidEndRunner {
 
 //        loopOptimize();
 //        BrOptimize();
+
+        Pass();
 
         GepSplit();
 
@@ -129,6 +141,9 @@ public class MidEndRunner {
         LoopInfo loopInfo = new LoopInfo(functions);
         loopInfo.Run();
 
+        LoopIdcVarInfo loopIdcVarInfo = new LoopIdcVarInfo(functions);
+        loopIdcVarInfo.Run();
+
     }
 
     //循环优化
@@ -160,12 +175,14 @@ public class MidEndRunner {
         loopIdcVarInfo.Run();
 //
 ////        // TODO:循环展开
-        LoopUnRoll loopUnRoll = new LoopUnRoll(functions);
-        loopUnRoll.Run();
+        //outputLLVM();
+
+        // LoopUnRoll loopUnRoll = new LoopUnRoll(functions);
+        // loopUnRoll.Run();
 
         reMakeCFGAndLoopInfo();
 
-        check();
+        //outputLLVM();
 
         Pass();
 
@@ -183,8 +200,9 @@ public class MidEndRunner {
 
         //前驱后继关系已经维护
         //拆分MakeCFG
-        MakeDFG makeDFG = new MakeDFG(functions);
-        makeDFG.Run();
+//        MakeDFG makeDFG = new MakeDFG(functions);
+//        makeDFG.Run();
+        reMakeCFGAndLoopInfo();
 
         Pass();
     }

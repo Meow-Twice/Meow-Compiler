@@ -27,6 +27,7 @@ public class DeadCodeDelete {
         removeUselessGlobalVal();
         removeUselessLocalArray();
         noUserCodeDelete();
+        removeUselessLoop();
     }
 
     //TODO:对于指令闭包
@@ -266,6 +267,92 @@ public class DeadCodeDelete {
         return true;
     }
 
+    private void removeUselessLoop() {
+        for (Function function: functions) {
+            Loop loop = function.getBeginBB().getLoop();
+            tryRemoveLoop(loop);
+        }
+    }
+
+    private boolean tryRemoveLoop(Loop loop) {
+        HashSet<Loop> removes = new HashSet<>();
+        for (Loop next: loop.getChildrenLoops()) {
+            boolean ret = tryRemoveLoop(next);
+            if (ret) {
+                removes.add(next);
+            }
+        }
+
+        for (Loop loop1: removes) {
+            loop.getChildrenLoops().remove(loop1);
+        }
+
+        if (loopCanRemove(loop)) {
+            //TODO:REMOVE
+            HashSet<BasicBlock> enterings = loop.getEnterings();
+            HashSet<BasicBlock> exits = loop.getExits();
+            ArrayList<BasicBlock> pres = new ArrayList<>();
+            BasicBlock head = loop.getHeader();
+            BasicBlock exit = null;
+            for (BasicBlock bb: exits) {
+                exit = bb;
+            }
+            for (BasicBlock entering: enterings) {
+                entering.modifyBrAToB(head, exit);
+                entering.modifySuc(head, exit);
+                pres.add(entering);
+            }
+            exit.modifyPres(pres);
+            HashSet<BasicBlock> bbRemove = new HashSet<>();
+            for (BasicBlock bb: loop.getNowLevelBB()) {
+                for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+                    instr.remove();
+                }
+                bbRemove.add(bb);
+            }
+            for (BasicBlock bb: bbRemove) {
+                bb.remove();
+            }
+            return true;
+        }
+        return false;
+    }
+
+    private boolean loopCanRemove(Loop loop) {
+        if (loop.getChildrenLoops().size() != 0) {
+            return false;
+        }
+        if (loop.getExits().size() != 1) {
+            return false;
+        }
+        BasicBlock exit = null;
+        for (BasicBlock bb: loop.getExits()) {
+            exit = bb;
+        }
+        if (exit.getBeginInstr() instanceof Instr.Phi) {
+            return false;
+        }
+        //TODO:trivial 待强化
+        if (loop.getExitings().size() != exit.getPrecBBs().size()) {
+            return false;
+        }
+        for (BasicBlock bb: loop.getNowLevelBB()) {
+            for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+                for (Use use = instr.getBeginUse(); use.getNext() != null; use = (Use) use.getNext()) {
+                    Instr user = use.getUser();
+                    if (!user.parentBB().getLoop().equals(loop) || hasStrongEffect(user)) {
+                        return false;
+                    }
+                }
+            }
+        }
+        return true;
+    }
+
+    private boolean hasStrongEffect(Instr instr) {
+        return instr instanceof Instr.Return || instr instanceof Instr.Call
+                || instr instanceof Instr.Store || instr instanceof Instr.Load;
+    }
 
 
 

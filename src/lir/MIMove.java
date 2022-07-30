@@ -141,10 +141,36 @@ public class MIMove extends MachineInst {
         if (getDst() == null) {
             assert false;
         }
-        if (oldToString.equals("")) {
-            oldToString = tag.toString() + cond.toString() + '\t' + getDst().toString() + ",\t" + getSrc().toString();
+        StringBuilder os = new StringBuilder();
+        Machine.Operand src = getSrc();
+        if (src.type == Machine.Operand.Type.Immediate) {
+            if (src.isGlobPtr()) {
+                os.append("\tmovw" + cond + "\t" + getDst() + ",\t:lower16:" + src.getGlob());
+                os.append("\tmovt" + cond + "\t" + getDst() + ",\t:upper16:" + src.getGlob());
+                //os.append("\tldr" + cond + "\t" + getDst().toString() + ",=" + src.getGlob());
+            } else {
+                int imm = getSrc().value;
+                if (encode_imm(imm)) {
+                    os.append("\tmov" + cond + "\t" + getDst().toString() + ",\t#" + imm);
+                } else {
+                    int lowImm = (imm << 16) >>> 16;
+                    os.append("\tmovw" + cond + "\t" + getDst().toString() + ",\t#" + lowImm);
+                    int highImm = imm >>> 16;
+                    if (highImm != 0) {
+                        os.append("\tmovt" + cond + "\t" + getDst().toString() + ",\t#" + highImm);
+                    }
+                }
+            }
+        } else {
+            os.append("\tmov" + cond + "\t" + getDst().toString() + ",\t" + getSrc().toString());
+            if (shift != Arm.Shift.NONE_SHIFT) {
+                os.append(",\t" + shift.toString());
+            }
         }
-        return tag.toString() + cond.toString() + '\t' + getDst().toString() + ",\t" + getSrc().toString() + "{\t--\t" + oldToString + "\t--\t}";
+        if (oldToString.equals("")) {
+            oldToString = os.toString();
+        }
+        return os + "{\t--\t" + oldToString + "\t--\t}";
     }
 
     public void setSrc(Machine.Operand offset_opd) {

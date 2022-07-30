@@ -301,7 +301,7 @@ public class LoopUnRoll {
         for (int i = 0; i < times - 1; i++) {
             CloneInfoMap.clear();
             for (BasicBlock bb: bbInWhile) {
-                bb.cloneToFunc_LUR(function);
+                bb.cloneToFunc_LUR(function, parentLoop);
             }
             for (BasicBlock bb: bbInWhile) {
                 BasicBlock newBB = (BasicBlock) CloneInfoMap.getReflectedValue(bb);
@@ -532,7 +532,7 @@ public class LoopUnRoll {
         for (int i = 0; i < times - 1; i++) {
             CloneInfoMap.clear();
             for (BasicBlock bb: bbInWhile) {
-                bb.cloneToFunc_LUR(function);
+                bb.cloneToFunc_LUR(function, loop);
             }
             for (BasicBlock bb: bbInWhile) {
                 BasicBlock newBB = (BasicBlock) CloneInfoMap.getReflectedValue(bb);

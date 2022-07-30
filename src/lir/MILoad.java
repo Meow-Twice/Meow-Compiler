@@ -19,14 +19,14 @@ public class MILoad extends MachineInst {
     // }
 
     public MILoad(Machine.Operand data, Machine.Operand addr, Machine.Operand offset, Machine.Block insertAtEnd) {
-        super(MachineInst.Tag.Load, insertAtEnd);
+        super(Tag.Load, insertAtEnd);
         defOpds.add(data);
         useOpds.add(addr);
         useOpds.add(offset);
     }
 
     public MILoad(Machine.Operand data, Machine.Operand addr, Machine.Operand offset, MachineInst insertBefore) {
-        super(MachineInst.Tag.Load, insertBefore);
+        super(Tag.Load, insertBefore);
         defOpds.add(data);
         useOpds.add(addr);
         useOpds.add(offset);

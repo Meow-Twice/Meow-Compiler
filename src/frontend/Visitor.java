@@ -822,7 +822,7 @@ public class Visitor {
                     singleInit = (Exp) init;
                 } else {
                     assert init instanceof InitArray && ((InitArray) init).init.size() == 1;
-                    Ast.Init preInit = ((Ast.InitArray) init).init.get(0);
+                    Init preInit = ((InitArray) init).init.get(0);
                     assert preInit instanceof Exp;
                     singleInit = (Exp) preInit;
                 }

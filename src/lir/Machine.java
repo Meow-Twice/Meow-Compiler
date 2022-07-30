@@ -67,7 +67,7 @@ public class Machine {
         public void output(PrintStream os) {
             os.println(".arch armv7ve");
             os.println(".arm");
-            if(needFPU) {
+            if (needFPU) {
                 os.println(".fpu vfpv3-d16");
             }
             os.println(".section .text");
@@ -197,11 +197,11 @@ public class Machine {
         int paramStack = 0;
         int regStack = 0;
         public mir.Function mFunc;
-        TreeSet<Arm.Regs.GPRs> usedCalleeSavedGPRs = new TreeSet<>();
-        TreeSet<Arm.Regs.FPRs> usedCalleeSavedFPRs = new TreeSet<>();
+        TreeSet<GPRs> usedCalleeSavedGPRs = new TreeSet<>();
+        TreeSet<FPRs> usedCalleeSavedFPRs = new TreeSet<>();
         boolean useLr = false;
 
-        public ArrayList<Arm.Regs.GPRs> getUsedRegList() {
+        public ArrayList<GPRs> getUsedRegList() {
             return new ArrayList<>(usedCalleeSavedGPRs);
         }
 
@@ -302,22 +302,22 @@ public class Machine {
         }
 
         public void addUsedGPRs(Arm.Regs reg) {
-            if (reg instanceof Arm.Regs.GPRs) {
-                if (reg == sp || ((Arm.Regs.GPRs) reg).ordinal() < Math.min(intParamCount, rParamCnt) || (this.mFunc.getRetType().isInt32Type() && reg == r0)) {
+            if (reg instanceof GPRs) {
+                if (reg == sp || ((GPRs) reg).ordinal() < Math.min(intParamCount, rParamCnt) || (this.mFunc.getRetType().isInt32Type() && reg == r0)) {
                     return;
                 }
-                if (usedCalleeSavedGPRs.add((Arm.Regs.GPRs) reg)) {
+                if (usedCalleeSavedGPRs.add((GPRs) reg)) {
                     addRegStack(4);
                 }
             }
         }
 
         public void addUsedFRPs(Arm.Regs reg) {
-            if (reg instanceof Arm.Regs.FPRs) {
-                if (((Arm.Regs.FPRs) reg).ordinal() < Math.min(floatParamCount, sParamCnt) || (this.mFunc.getRetType().isFloatType() && reg == s0)) {
+            if (reg instanceof FPRs) {
+                if (((FPRs) reg).ordinal() < Math.min(floatParamCount, sParamCnt) || (this.mFunc.getRetType().isFloatType() && reg == s0)) {
                     return;
                 }
-                if (usedCalleeSavedFPRs.add((Arm.Regs.FPRs) reg)) {
+                if (usedCalleeSavedFPRs.add((FPRs) reg)) {
                     addRegStack(4);
                     int idx = ((FPRs) reg).ordinal();
                     if (idx % 2 == 0) {
@@ -345,7 +345,7 @@ public class Machine {
         public void alignTotalStackSize() {
             int totalSize = getTotalStackSize();
             int b = totalSize % SP_ALIGN;
-            if(b != 0){
+            if (b != 0) {
                 varStack += SP_ALIGN - b;
             }
         }
@@ -413,7 +413,7 @@ public class Machine {
         public HashSet<Operand> liveInSet = new HashSet<>();
         public HashSet<Operand> liveOutSet = new HashSet<>();
 
-        public Block(BasicBlock bb, Machine.McFunction insertAtEnd) {
+        public Block(BasicBlock bb, McFunction insertAtEnd) {
             this.bb = bb;
             this.mcFunc = insertAtEnd;
             mcFunc.insertAtEnd(this);
@@ -688,10 +688,10 @@ public class Machine {
          */
         public Operand(Arm.Regs reg) {
             this.type = Allocated;
-            if (reg instanceof Arm.Regs.GPRs) {
+            if (reg instanceof GPRs) {
                 prefix = "r";
                 // dataType = I32;
-            } else if (reg instanceof Arm.Regs.FPRs) {
+            } else if (reg instanceof FPRs) {
                 prefix = "s";
                 dataType = F32;
             } else {
@@ -745,8 +745,8 @@ public class Machine {
             }
         }
 
-        public double heuristicVal() {
-            return (double) degree / (2 << loopCounter);
+        public int heuristicVal() {
+            return degree << 10 / (2 << loopCounter);
         }
 
         public boolean isF32() {

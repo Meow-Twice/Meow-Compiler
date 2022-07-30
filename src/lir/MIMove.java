@@ -90,6 +90,14 @@ public class MIMove extends MachineInst {
     //     useOpds.add(sOpd);
     // }
 
+    //like mov	r1,	#1
+    public boolean canOptimize(){
+        Machine.Operand src = getSrc();
+        if (src.type == Machine.Operand.Type.Immediate && !src.isGlobPtr() && encode_imm(src.value) && getCond() == Arm.Cond.Any && getShift().isNone())  {
+            return true;
+        }
+        return false;
+    }
     @Override
     public void output(PrintStream os, Machine.McFunction f) {
         transfer_output(os);

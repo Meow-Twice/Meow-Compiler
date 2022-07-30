@@ -1,5 +1,6 @@
 import arg.Arg;
 import backend.CodeGen;
+import backend.PeepholeOptimization;
 import backend.TrivialRegAllocator;
 import frontend.Visitor;
 import frontend.lexer.Lexer;
@@ -89,6 +90,12 @@ public class Compiler {
             // System.err.println("BEGIN rerun");
             // MIDescriptor.MI_DESCRIPTOR.setRegMode();
             // MIDescriptor.MI_DESCRIPTOR.run(); // 分配寄存器后
+            Manager.MANAGER.outputMI();
+             System.err.println("BEGIN rerun");
+            // MIDescriptor.MI_DESCRIPTOR.setRegMode();
+                 PeepholeOptimization peepholeOptimization = new PeepholeOptimization();
+           peepholeOptimization.run();
+           //  MIDescriptor.MI_DESCRIPTOR.run(); // 分配寄存器后
             // File output_file = new File("output.S");
             // PrintStream os = new PrintStream(output_file);
             // p.output(os);

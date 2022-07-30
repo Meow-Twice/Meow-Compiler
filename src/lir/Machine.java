@@ -129,7 +129,6 @@ public class Machine {
                 // os.println("\t.type\t" + val.name + ",%object");
                 os.println(val.name + ":");
 
-                //TODO for yyf:array init
                 int count = 0;
                 boolean init = false;
                 int last = 0;

@@ -551,7 +551,7 @@ public class CodeGen {
     }
 
     private void genBinaryInst(Instr.Alu instr) {
-        boolean _DEBUG_MUL_DIV = false;
+        boolean _DEBUG_MUL_DIV = true;
         MachineInst.Tag tag = MachineInst.Tag.map.get(instr.getOp());
         Value lhs = instr.getRVal1();
         Value rhs = instr.getRVal2();
@@ -582,9 +582,16 @@ public class CodeGen {
                 divOptimize(instr);
                 return;
             }
-            if (tag == MachineInst.Tag.Mul && rhs.isConstantInt() && is2power(Math.abs(((Constant.ConstantInt) rhs).constIntVal))) {
-                mulOptimize(instr);
-                return;
+            if(tag == MachineInst.Tag.Mul) {
+                if(lhs.isConstantInt()){
+                    Value tmp = rhs;
+                    rhs = lhs;
+                    lhs = tmp;
+                }
+                if (rhs.isConstantInt() && is2power(Math.abs(((Constant.ConstantInt) rhs).constIntVal))) {
+                    mulOptimize(lhs,rhs,instr);
+                    return;
+                }
             }
         }
         Machine.Operand lVR = getVR_may_imm(lhs);
@@ -598,10 +605,8 @@ public class CodeGen {
         return n > 0 && (n & (n - 1)) == 0;
     }
 
-    public void mulOptimize(Instr.Alu instr) {
-        Value lhs = instr.getRVal1();
+    public void mulOptimize(Value lhs,Value rhs,Instr.Alu instr) {
         Machine.Operand n = getVR_may_imm(lhs);
-        Value rhs = instr.getRVal2();
         Machine.Operand q = getVR_no_imm(instr);
         int d = ((Constant.ConstantInt) rhs).constIntVal;
         int k = Integer.toBinaryString(Math.abs(d)).length() - 1;
@@ -646,7 +651,9 @@ public class CodeGen {
             // dst1 = MULSH(m,n)
             Machine.Operand m_op = new Machine.Operand(I32, (int) m);
             Machine.Operand dst1 = newVR();
-            new MILongMul(dst1, n, m_op, curMB);
+            Machine.Operand move_dst = newVR();
+            new MIMove(move_dst,m_op,curMB);
+            new MILongMul(dst1, n,move_dst, curMB);
             // dst2 = SRA(dst1,sh_post)
             Machine.Operand dst2 = newVR();
             Arm.Shift shift2 = new Arm.Shift(Arm.ShiftType.Asr, sh_post);
@@ -663,7 +670,9 @@ public class CodeGen {
             // dst1 = MULSH(m-2^N,n)
             Machine.Operand m_op = new Machine.Operand(I32, (int) (m - (((long) 1 << N))));
             Machine.Operand dst1 = newVR();
-            new MILongMul(dst1, n, m_op, curMB);
+            Machine.Operand move_dst = newVR();
+            new MIMove(move_dst,m_op,curMB);
+            new MILongMul(dst1, n,move_dst, curMB);
             // dst2 = n+dst1
             Machine.Operand dst2 = newVR();
             new MIBinary(MachineInst.Tag.Add, dst2, n, dst1, curMB);
@@ -722,7 +731,9 @@ public class CodeGen {
             // dst1 = MULSH(m,n)
             Machine.Operand m_op = new Machine.Operand(I32, (int) m);
             Machine.Operand dst1 = newVR();
-            new MILongMul(dst1, n, m_op, curMB);
+            Machine.Operand move_dst = newVR();
+            new MIMove(move_dst,m_op,curMB);
+            new MILongMul(dst1, n,move_dst, curMB);
             // dst2 = SRA(dst1,sh_post)
             Machine.Operand dst2 = newVR();
             Arm.Shift shift2 = new Arm.Shift(Arm.ShiftType.Asr, sh_post);
@@ -739,7 +750,9 @@ public class CodeGen {
             // dst1 = MULSH(m-2^N,n)
             Machine.Operand m_op = new Machine.Operand(I32, (int) (m - (((long) 1 << N))));
             Machine.Operand dst1 = newVR();
-            new MILongMul(dst1, n, m_op, curMB);
+            Machine.Operand move_dst = newVR();
+            new MIMove(move_dst,m_op,curMB);
+            new MILongMul(dst1, n,move_dst, curMB);
             // dst2 = n+dst1
             Machine.Operand dst2 = newVR();
             new MIBinary(MachineInst.Tag.Add, dst2, n, dst1, curMB);

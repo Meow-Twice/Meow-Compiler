@@ -31,7 +31,7 @@ public class MIBinary extends MachineInst {
         useOpds.add(rSP);
         useOpds.add(offset);
     }
-
+    
     public Machine.Operand getDst() {
         return defOpds.get(0);
     }

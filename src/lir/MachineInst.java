@@ -48,6 +48,9 @@ public class MachineInst extends ILinkNode {
         setNeedFix(stack_fix);
     }
 
+    public void setCond(Arm.Cond cond) {
+        this.cond = cond;
+    }
 
     public void setUse(int i, Machine.Operand set) {
         useOpds.set(i, set);

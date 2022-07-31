@@ -93,16 +93,23 @@ public class PeepholeOptimization {
                     else if(inst instanceof MIMove){
                         MIMove miMove = (MIMove) inst;
                         if(miMove.getDst().toString().equals(miMove.getSrc().toString()) && (miMove.getShift()== Arm.Shift.NONE_SHIFT || miMove.getShift().shift == 0)){
+                            //move r1,r1(remove)
                                 miMove.remove();
                         }
                         else if(miMove.getNext() instanceof MIMove){
-                            //move r1,#1
-                            //move r1,#2
+                            //move r1,r4(remove)
+                            //move r1,r5
                             //remove useless move
                             MIMove next = (MIMove) miMove.getNext();
                             //(next.getShift()== Arm.Shift.NONE_SHIFT || next.getShift().shift == 0)
                             if(next.getDst().toString().equals(miMove.getDst().toString()) && !next.getSrc().toString().equals(miMove.getDst().toString()) && miMove.getCond().toString().equals(next.getCond().toString())){
                                 miMove.remove();
+                            }
+                            //move r1,r2
+                            //move r2,r1(remove)
+                            else if(miMove.getDst().toString().equals(next.getSrc().toString()) && miMove.getSrc().toString().equals(next.getDst().toString()) && miMove.getCond().toString().equals(next.getCond().toString()) && (next.getShift()== Arm.Shift.NONE_SHIFT || next.getShift().shift == 0) &&
+                                    (miMove.getShift()== Arm.Shift.NONE_SHIFT || miMove.getShift().shift == 0)){
+                                next.remove();
                             }
                         }
                     }

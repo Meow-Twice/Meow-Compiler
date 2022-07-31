@@ -55,10 +55,26 @@ public class TokenList {
                 return token;
             }
         }
-        for (int i = 0 ; i < index; i++){
+        for (int i = 0; i < index; i++) {
             System.err.println(tokens.get(i));
         }
         throw new SyntaxException("Expected " + Arrays.toString(types) + " but got " + token);
+    }
+
+    public Token consumeExpected(TokenType type) throws SyntaxException {
+        detectEof();
+        Token token = tokens.get(index);
+        if (token.getType().equals(type)) {
+            if (ENABLE_DEBUG) {
+                System.err.println("consume: " + tokens.get(index));
+            }
+            index++;
+            return token;
+        }
+        for (int i = 0; i < index; i++) {
+            System.err.println(tokens.get(i));
+        }
+        throw new SyntaxException("Expected " + type + " but got " + token);
     }
 }
 

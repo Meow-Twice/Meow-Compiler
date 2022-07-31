@@ -41,11 +41,6 @@ public class CodeGen {
     public HashMap<GlobalVal.GlobalValue, Arm.Glob> globptr2globOpd = new HashMap<>();
     public final ArrayList<Arm.Glob> globList = new ArrayList<>();
 
-    // Operand到Value的Map, 这个map不应该存在 , 消phi时产生的move可能造成一条Instr对应多个opd
-    // public HashMap<Machine.Operand, Value> opd2value;
-
-//    public ArrayList<Machine.McFunction> mcFuncList;
-
     // 如名
     public HashMap<Function, Machine.McFunction> func2mcFunc;
 
@@ -55,8 +50,6 @@ public class CodeGen {
     // 全局变量
     private HashMap<GlobalVal.GlobalValue, Initial> globalMap;
     private Machine.Block curMB;
-    // private int virtual_cnt = 0;
-    private int curStackTop = 0;
 
     private HashMap<Instr.Load, Instr.Alloc> load2alloc = new HashMap<>();
     // 整数数传参可使用最大个数
@@ -103,8 +96,6 @@ public class CodeGen {
         midFuncMap = Manager.MANAGER.getFunctions();
         globalMap = Manager.MANAGER.globals;
         value2opd = new HashMap<>();
-        // opd2value = new HashMap<>();
-//        mcFuncList = new ArrayList<>();
         func2mcFunc = new HashMap<>();
         bb2mb = new HashMap<>();
     }
@@ -1132,6 +1123,8 @@ public class CodeGen {
      * @return
      */
     public Operand getImmVR(int imm) {
+        if(immCanCode(imm))
+            return new Operand(I32, imm);
         // 暴力用两条指令mov一个立即数到寄存器
         Operand dst = newVR();
         Operand immOpd = new Operand(I32, imm);

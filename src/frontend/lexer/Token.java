@@ -32,6 +32,10 @@ public class Token {
         return this.content;
     }
 
+    public boolean isOf(TokenType type) {
+        return this.type.equals(type);
+    }
+
     public boolean isOf(TokenType... types) {
         for (TokenType type : types) {
             if (this.type.equals(type)) {

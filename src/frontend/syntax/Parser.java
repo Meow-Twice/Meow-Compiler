@@ -97,7 +97,7 @@ public class Parser {
         Token ident = tokenList.consumeExpected(TokenType.IDENT);
         ArrayList<Ast.FuncFParam> fParams = new ArrayList<>();
         tokenList.consumeExpected(TokenType.LPARENT);
-        if (!tokenList.get().getContent().equals(")")) {
+        if (!tokenList.get().isOf(TokenType.RPARENT)) {
             fParams = parseFuncFParams();
         }
         tokenList.consumeExpected(TokenType.RPARENT);
@@ -136,7 +136,7 @@ public class Parser {
     private Ast.Block parseBlock() throws SyntaxException {
         ArrayList<Ast.BlockItem> items = new ArrayList<>();
         tokenList.consumeExpected(TokenType.LBRACE);
-        while (!tokenList.get().getContent().equals("}")) {
+        while (!tokenList.get().isOf(TokenType.RBRACE)) {
             items.add(parseBlockItem());
         }
         tokenList.consumeExpected(TokenType.RBRACE);
@@ -187,7 +187,7 @@ public class Parser {
             case RETURN:
                 tokenList.consumeExpected(TokenType.RETURN);
                 Ast.Exp value = null;
-                if (!tokenList.get().getContent().equals(";")) {
+                if (!tokenList.get().isOf(TokenType.SEMI)) {
                     value = parseAddExp();
                 }
                 tokenList.consumeExpected(TokenType.SEMI);
@@ -254,7 +254,7 @@ public class Parser {
         Token ident = tokenList.consumeExpected(TokenType.IDENT);
         ArrayList<Ast.Exp> params = new ArrayList<>();
         tokenList.consumeExpected(TokenType.LPARENT);
-        if (!tokenList.get().getContent().equals(")")) {
+        if (!tokenList.get().isOf(TokenType.RPARENT)) {
             params.add(parseAddExp());
             while (tokenList.get().isOf(TokenType.COMMA)) {
                 tokenList.consume();

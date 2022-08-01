@@ -11,11 +11,11 @@ public class StackCtl extends MachineInst {
         super(tag, mb);
     }
 
-    public static class MIPush extends StackCtl {
+    public static class Push extends StackCtl {
         Machine.McFunction savedRegsMf;
         Machine.Block mb;
 
-        public MIPush(Machine.McFunction savedRegsMf, Machine.Block mb) {
+        public Push(Machine.McFunction savedRegsMf, Machine.Block mb) {
             super(Tag.Push, mb);
             this.savedRegsMf = savedRegsMf;
             this.mb = mb;
@@ -31,7 +31,7 @@ public class StackCtl extends MachineInst {
                 StringBuilder sb = new StringBuilder();
                 if (savedRegsMf.usedCalleeSavedGPRs.size() > 0) {
                     sb.append("\tpush\t{");
-                    Iterator<Arm.Regs.GPRs> gprIter = savedRegsMf.usedCalleeSavedGPRs.iterator();
+                    Iterator<GPRs> gprIter = savedRegsMf.usedCalleeSavedGPRs.iterator();
                     sb.append(gprIter.next());
                     while (gprIter.hasNext()) {
                         sb.append(",").append(gprIter.next());
@@ -48,11 +48,11 @@ public class StackCtl extends MachineInst {
         }
     }
 
-    public static class MIPop extends MachineInst {
+    public static class Pop extends MachineInst {
         Machine.McFunction savedRegsMf;
         Machine.Block mb;
 
-        public MIPop(Machine.McFunction savedRegsMf, Machine.Block mb) {
+        public Pop(Machine.McFunction savedRegsMf, Machine.Block mb) {
             super(Tag.Pop, mb);
             this.savedRegsMf = savedRegsMf;
             this.mb = mb;
@@ -69,10 +69,10 @@ public class StackCtl extends MachineInst {
                 StringBuilder sb = new StringBuilder();
                 if (savedRegsMf.usedCalleeSavedGPRs.size() > 0) {
                     sb.append("\tpop\t{");
-                    Iterator<Arm.Regs.GPRs> gprIter = savedRegsMf.usedCalleeSavedGPRs.iterator();
+                    Iterator<GPRs> gprIter = savedRegsMf.usedCalleeSavedGPRs.iterator();
                     sb.append(gprIter.next());
                     while (gprIter.hasNext()) {
-                        Arm.Regs.GPRs gpr = gprIter.next();
+                        GPRs gpr = gprIter.next();
                         sb.append(",").append(gpr);
                     }
                     sb.append("}");
@@ -112,9 +112,9 @@ public class StackCtl extends MachineInst {
                 sb.append(String.format("\tvpush\t{s2-s%d}", sParamCnt - 1));
             } else {
                 if (savedRegsMf.usedCalleeSavedFPRs.size() > 0) {
-                    int fprNum = Arm.Regs.FPRs.values().length;
+                    int fprNum = FPRs.values().length;
                     boolean[] fprBit = new boolean[fprNum];
-                    for (Arm.Regs.FPRs fpr : savedRegsMf.usedCalleeSavedFPRs) {
+                    for (FPRs fpr : savedRegsMf.usedCalleeSavedFPRs) {
                         fprBit[fpr.ordinal()] = true;
                     }
                     int start = 0;
@@ -170,9 +170,9 @@ public class StackCtl extends MachineInst {
                 sb.append(String.format("\tvpop\t{s2-s%d}", sParamCnt - 1));
             } else {
                 if (savedRegsMf.usedCalleeSavedFPRs.size() > 0) {
-                    int fprNum = Arm.Regs.FPRs.values().length;
+                    int fprNum = FPRs.values().length;
                     boolean[] fprBit = new boolean[fprNum];
-                    for (Arm.Regs.FPRs fpr : savedRegsMf.usedCalleeSavedFPRs) {
+                    for (FPRs fpr : savedRegsMf.usedCalleeSavedFPRs) {
                         fprBit[fpr.ordinal()] = true;
                     }
                     int end = fprNum - 1;

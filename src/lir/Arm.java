@@ -81,6 +81,9 @@ public class Arm {
         static {
             for (Regs.GPRs gpr : Regs.GPRs.values()) {
                 gprPool[gpr.ordinal()] = new Reg(I32, gpr);
+                if (gpr == Regs.GPRs.sp) {
+                    gprPool[gpr.ordinal()].type = Allocated;
+                }
             }
             for (Regs.FPRs fpr : Regs.FPRs.values()) {
                 fprPool[fpr.ordinal()] = new Reg(F32, fpr);
@@ -161,7 +164,7 @@ public class Arm {
             return globalValue;
         }
 
-        public Initial getInit(){
+        public Initial getInit() {
             return init;
         }
     }
@@ -251,6 +254,15 @@ public class Arm {
                 case Rrx -> "rrx #" + this.shift;
                 default -> "";
             };
+        }
+
+        // @Override
+        public boolean equals(Shift oth) {
+            return shift == oth.shift && shiftType == oth.shiftType;
+        }
+
+        public boolean hasShift() {
+            return shiftType != ShiftType.None;
         }
     }
 }

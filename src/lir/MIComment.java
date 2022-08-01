@@ -10,11 +10,6 @@ public class MIComment extends MachineInst {
         this.content = content;
     }
 
-    public MIComment(String content, MachineInst inst) {
-        super(Tag.Comment, inst, false);
-        this.content = content;
-    }
-
     @Override
     public void output(PrintStream os, Machine.McFunction f) {
         os.println("@ " + content);
@@ -22,6 +17,6 @@ public class MIComment extends MachineInst {
 
     @Override
     public String toString() {
-        return "@" + content;
+        return tag.toString() + content;
     }
 }

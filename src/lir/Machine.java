@@ -1,7 +1,6 @@
 package lir;
 
 import backend.CodeGen;
-import backend.RegAllocator;
 import mir.BasicBlock;
 import mir.Constant;
 import mir.GlobalVal;
@@ -29,7 +28,7 @@ public class Machine {
         public Ilist<McFunction> funcList = new Ilist<>();
         public ArrayList<Arm.Glob> globList = CodeGen.CODEGEN.globList;
         public McFunction mainMcFunc;
-        public ArrayList<MachineInst> needFixList = new ArrayList<>();
+        public ArrayList<I> needFixList = new ArrayList<>();
         int pool_count = 0;
         int inst_count = 0;
 
@@ -67,7 +66,7 @@ public class Machine {
         public void output(PrintStream os) {
             os.println(".arch armv7ve");
             os.println(".arm");
-            if(needFPU) {
+            if (needFPU) {
                 os.println(".fpu vfpv3-d16");
             }
             os.println(".section .text");
@@ -105,7 +104,7 @@ public class Machine {
                 os.println("\t.word\t" + i);
             }
             os.println(".section .data");
-            os.println(".align 4");
+            os.println(".align 2");
             for (Arm.Glob glob : globList) {
                 GlobalVal.GlobalValue val = glob.getGlobalValue();
                 os.println();
@@ -197,11 +196,11 @@ public class Machine {
         int paramStack = 0;
         int regStack = 0;
         public mir.Function mFunc;
-        TreeSet<Arm.Regs.GPRs> usedCalleeSavedGPRs = new TreeSet<>();
-        TreeSet<Arm.Regs.FPRs> usedCalleeSavedFPRs = new TreeSet<>();
+        TreeSet<GPRs> usedCalleeSavedGPRs = new TreeSet<>();
+        TreeSet<FPRs> usedCalleeSavedFPRs = new TreeSet<>();
         boolean useLr = false;
 
-        public ArrayList<Arm.Regs.GPRs> getUsedRegList() {
+        public ArrayList<GPRs> getUsedRegList() {
             return new ArrayList<>(usedCalleeSavedGPRs);
         }
 
@@ -235,6 +234,16 @@ public class Machine {
 
         public int getParamStack() {
             return paramStack;
+        }
+
+        int allocStack = -1;
+
+        public void setAllocStack() {
+            allocStack = varStack;
+        }
+
+        public int getAllocStack() {
+            return allocStack;
         }
 
         public int getVarStack() {
@@ -302,22 +311,22 @@ public class Machine {
         }
 
         public void addUsedGPRs(Arm.Regs reg) {
-            if (reg instanceof Arm.Regs.GPRs) {
-                if (reg == sp || ((Arm.Regs.GPRs) reg).ordinal() < Math.min(intParamCount, rParamCnt) || (this.mFunc.getRetType().isInt32Type() && reg == r0)) {
+            if (reg instanceof GPRs) {
+                if (reg == sp || ((GPRs) reg).ordinal() < Math.min(intParamCount, rParamCnt) || (this.mFunc.getRetType().isInt32Type() && reg == r0)) {
                     return;
                 }
-                if (usedCalleeSavedGPRs.add((Arm.Regs.GPRs) reg)) {
+                if (usedCalleeSavedGPRs.add((GPRs) reg)) {
                     addRegStack(4);
                 }
             }
         }
 
         public void addUsedFRPs(Arm.Regs reg) {
-            if (reg instanceof Arm.Regs.FPRs) {
-                if (((Arm.Regs.FPRs) reg).ordinal() < Math.min(floatParamCount, sParamCnt) || (this.mFunc.getRetType().isFloatType() && reg == s0)) {
+            if (reg instanceof FPRs) {
+                if (((FPRs) reg).ordinal() < Math.min(floatParamCount, sParamCnt) || (this.mFunc.getRetType().isFloatType() && reg == s0)) {
                     return;
                 }
-                if (usedCalleeSavedFPRs.add((Arm.Regs.FPRs) reg)) {
+                if (usedCalleeSavedFPRs.add((FPRs) reg)) {
                     addRegStack(4);
                     int idx = ((FPRs) reg).ordinal();
                     if (idx % 2 == 0) {
@@ -345,7 +354,7 @@ public class Machine {
         public void alignTotalStackSize() {
             int totalSize = getTotalStackSize();
             int b = totalSize % SP_ALIGN;
-            if(b != 0){
+            if (b != 0) {
                 varStack += SP_ALIGN - b;
             }
         }
@@ -356,7 +365,7 @@ public class Machine {
         public static String MB_Prefix = "._MB_";
         public BasicBlock bb;
         public McFunction mcFunc;
-        public MachineInst firstMIForBJ = null;
+        // public MachineInst firstMIForBJ = null;
         public Ilist<MachineInst> miList = new Ilist<>();
         static int globIndex = 0;
         int index;
@@ -407,13 +416,12 @@ public class Machine {
         //pred and successor
         public ArrayList<Block> pred = new ArrayList<>();
         public ArrayList<Block> succMB = new ArrayList<>();
-        public MachineInst con_tran = null;
         public HashSet<Operand> liveUseSet = new HashSet<>();
         public HashSet<Operand> defSet = new HashSet<>();
         public HashSet<Operand> liveInSet = new HashSet<>();
         public HashSet<Operand> liveOutSet = new HashSet<>();
 
-        public Block(BasicBlock bb, Machine.McFunction insertAtEnd) {
+        public Block(BasicBlock bb, McFunction insertAtEnd) {
             this.bb = bb;
             this.mcFunc = insertAtEnd;
             mcFunc.insertAtEnd(this);
@@ -440,10 +448,8 @@ public class Machine {
     }
 
     public static class Operand {
+        public static final Operand ZERO = new Operand(I32, 0);
         public int loopCounter = 0;
-
-        // 立即数, 默认为8888888方便debug
-        // public int imm = 88888888;
 
         private String prefix;
 
@@ -473,7 +479,7 @@ public class Machine {
         /**
          * 与此 Operand 相关的传送指令列表的集合
          */
-        public HashSet<MIMove> moveSet = new HashSet<>();
+        public HashSet<I.Mov> iMovSet = new HashSet<>();
         public HashSet<V.Mov> vMovSet = new HashSet<>();
         // public Arm.Reg reg;
         public Arm.Regs reg;
@@ -688,10 +694,10 @@ public class Machine {
          */
         public Operand(Arm.Regs reg) {
             this.type = Allocated;
-            if (reg instanceof Arm.Regs.GPRs) {
+            if (reg instanceof GPRs) {
                 prefix = "r";
                 // dataType = I32;
-            } else if (reg instanceof Arm.Regs.FPRs) {
+            } else if (reg instanceof FPRs) {
                 prefix = "s";
                 dataType = F32;
             } else {
@@ -746,7 +752,7 @@ public class Machine {
         }
 
         public double heuristicVal() {
-            return (double) degree / (2 << loopCounter);
+            return (degree << 10) / Math.pow(1.6, loopCounter);
         }
 
         public boolean isF32() {
@@ -759,4 +765,5 @@ public class Machine {
             return heuristicVal() < o.heuristicVal() ? this : o;
         }
     }
+
 }

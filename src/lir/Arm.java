@@ -75,18 +75,40 @@ public class Arm {
             reg = gpr;
         }
 
+        public Reg(Regs.GPRs gpr) {
+            super(gpr);
+            this.dataType = I32;
+            this.gpr = gpr;
+            this.value = gpr.ordinal();
+            reg = gpr;
+        }
+
+        public Reg(Regs.FPRs fpr) {
+            super(fpr);
+            this.dataType = F32;
+            this.fpr = fpr;
+            this.value = fpr.ordinal();
+            reg = fpr;
+        }
+
         private static final Reg[] gprPool = new Reg[Regs.GPRs.values().length];
         private static final Reg[] fprPool = new Reg[Regs.FPRs.values().length];
+
+        private static final Reg[] allocGprPool = new Reg[Regs.GPRs.values().length];
+        private static final Reg[] allocFprPool = new Reg[Regs.FPRs.values().length];
 
         static {
             for (Regs.GPRs gpr : Regs.GPRs.values()) {
                 gprPool[gpr.ordinal()] = new Reg(I32, gpr);
                 if (gpr == Regs.GPRs.sp) {
+                    // TODO
                     gprPool[gpr.ordinal()].type = Allocated;
                 }
+                allocGprPool[gpr.ordinal()] = new Reg(gpr);
             }
             for (Regs.FPRs fpr : Regs.FPRs.values()) {
                 fprPool[fpr.ordinal()] = new Reg(F32, fpr);
+                allocFprPool[fpr.ordinal()] = new Reg(fpr);
             }
         }
 
@@ -112,6 +134,17 @@ public class Arm {
 
         public static Reg[] getFPRPool() {
             return fprPool;
+        }
+
+        public static Machine.Operand getRSReg(Regs color) {
+            if (color instanceof Regs.GPRs) {
+                return allocGprPool[((Regs.GPRs) color).ordinal()];
+            } else if (color instanceof Regs.FPRs) {
+                return allocFprPool[((Regs.FPRs) color).ordinal()];
+            } else {
+                System.exit(101);
+                throw new AssertionError("try to get reg of " + color);
+            }
         }
 
         @Override

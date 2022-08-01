@@ -893,9 +893,9 @@ public class GPRegAllocator extends RegAllocator {
                 spilledNodeSet.add(toBeColored);
             } else {
                 // 如果有可分配的颜色则从可以分配的颜色中选取一个
-                Arm.Regs color = okColorSet.pollFirst();
+                Arm.Regs color = okColorSet.pollLast();
                 logOut("Choose " + color);
-                colorMap.put(toBeColored, new Operand(color));
+                colorMap.put(toBeColored, Arm.Reg.getRSReg(color));
                 // if (color instanceof GPRs) {
                 //     colorMap.put(toBeColored, Arm.Reg.getR((GPRs) color));
                 // } else if (color instanceof Arm.Regs.FPRs) {
@@ -933,21 +933,31 @@ public class GPRegAllocator extends RegAllocator {
                 ArrayList<Operand> uses = mi.useOpds;
                 if (defs.size() > 0) {
                     assert defs.size() == 1; // 只要有def, 除Call外均为1
-                    Operand set = colorMap.get(defs.get(0));
-                    if (set != null) {
-                        curMF.addUsedGPRs(set.reg);
-                        logOut("- Def\t" + defs.get(0) + "\tassign: " + set);
-                        defs.set(0, set);
+                    Operand def = defs.get(0);
+                    if (def.is_I_PreColored()) {
+                        defs.set(0, Arm.Reg.getRSReg(def.getReg()));
+                    } else {
+                        Operand set = colorMap.get(def);
+                        if (set != null) {
+                            curMF.addUsedGPRs(set.reg);
+                            logOut("- Def\t" + def + "\tassign: " + set);
+                            defs.set(0, set);
+                        }
                     }
                 }
 
                 for (int i = 0; i < uses.size(); i++) {
                     assert uses.get(i) != null;
-                    Operand set = colorMap.get(uses.get(i));
-                    if (set != null) {
-                        curMF.addUsedGPRs(set.reg);
-                        logOut("- Use\t" + uses.get(i) + "\tassign: " + set);
-                        mi.setUse(i, set);
+                    Operand use = uses.get(i);
+                    if (use.is_I_PreColored()) {
+                        uses.set(i, Arm.Reg.getRSReg(use.getReg()));
+                    } else {
+                        Operand set = colorMap.get(uses.get(i));
+                        if (set != null) {
+                            curMF.addUsedGPRs(set.reg);
+                            logOut("- Use\t" + uses.get(i) + "\tassign: " + set);
+                            mi.setUse(i, set);
+                        }
                     }
                 }
             }

@@ -461,6 +461,7 @@ public class BasicBlock extends Value {
         tagLoop.addBB(ret);
         if (this.isLoopHeader) {
             tagLoop.setHeader(ret);
+            ret.setLoopHeader();
         }
         Instr instr = this.getBeginInstr();
         while (instr.getNext() != null) {

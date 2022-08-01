@@ -102,8 +102,8 @@ public class LocalArrayGVN {
     }
 
     private void RPOSearch(BasicBlock bb) {
-//        if (bb.getLabel().equals("b16")) {
-//            System.err.println("b16");
+//        if (bb.getLabel().equals("b507")) {
+//            System.err.println("b507");
 //        }
         //HashSet<Instr> adds = new HashSet<>();
         //HashSet<Instr> removes = new HashSet<>();
@@ -179,7 +179,7 @@ public class LocalArrayGVN {
     }
 
     private void remove(String str) {
-        if (!GvnCnt.containsKey(str)) {
+        if (!GvnCnt.containsKey(str) || GvnCnt.get(str) == 0) {
             return;
         }
         GvnCnt.put(str, GvnCnt.get(str) - 1);

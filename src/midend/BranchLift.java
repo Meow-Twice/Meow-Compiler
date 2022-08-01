@@ -38,6 +38,9 @@ public class BranchLift {
                     if (!(br instanceof Instr.Branch)) {
                         continue;
                     }
+//                    if (loop.getChildrenLoops().size() != 0) {
+//                        continue;
+//                    }
                     liftBrOutLoop((Instr.Branch) br, loop);
                     //TODO:只提升一个branch就直接return
                     return;
@@ -51,9 +54,9 @@ public class BranchLift {
         Function function = thenLoop.getHeader().getFunction();
         BasicBlock thenHead = thenLoop.getHeader();
         thenLoop.cloneToFunc(function);
-        for (BasicBlock bb: thenLoop.getNowLevelBB()) {
-            System.err.println(bb.getLabel() + " to " + ((BasicBlock) CloneInfoMap.getReflectedValue(bb)).getLabel());
-        }
+//        for (BasicBlock bb: thenLoop.getNowLevelBB()) {
+//            System.err.println(bb.getLabel() + " to " + ((BasicBlock) CloneInfoMap.getReflectedValue(bb)).getLabel());
+//        }
 
         thenLoop.fix();
         Loop elseLoop = CloneInfoMap.getReflectedLoop(thenLoop);

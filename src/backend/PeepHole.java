@@ -2,6 +2,7 @@ package backend;
 
 import lir.*;
 import lir.Machine.Operand;
+import util.ILinkNode;
 
 import static lir.MachineInst.Tag.*;
 import static mir.type.DataType.I32;
@@ -28,10 +29,11 @@ public class PeepHole {
             for (Machine.McFunction mf : p.funcList) {
                 for (Machine.Block mb : mf.mbList) {
                     curMB = mb;
-                    for (MachineInst mi = mb.miList.getBegin(); mi.equals(mb.miList.tail); mi = (MachineInst) mi.getNext()) {
-                        mi = (MachineInst) mi.getNext();
-                        MachineInst prevInst = (MachineInst) mi.getPrev();
-                        MachineInst nextInst = (MachineInst) mi.getNext();
+                    for (ILinkNode i = mb.miList.getBegin(); !i.equals(mb.miList.tail); i =i.getNext()) {
+                        // if(mi.getPrev())
+                        MachineInst mi = (MachineInst) i;
+                        MachineInst prevInst = mi.getPrev() == mb.miList.head ? MachineInst.emptyInst : (MachineInst) mi.getPrev();
+                        MachineInst nextInst = mi.getNext() == mb.miList.tail ? MachineInst.emptyInst : (MachineInst) mi.getNext();
                         switch (mi.getTag()) {
                             case Add, Sub -> {
                                 I.Binary bino = (I.Binary) mi;
@@ -97,7 +99,7 @@ public class PeepHole {
                                         unDone = true;
                                         curMov.remove();
                                     } else if (curMov.isNoCond() && nextInst.isOf(IMov)) {
-                                        I.Mov nextMov = (I.Mov) mi;
+                                        I.Mov nextMov = (I.Mov) nextInst;
                                         if (nextMov.getDst().equals(nextMov.getSrc())) {
                                             unDone = true;
                                             nextMov.remove();
@@ -115,7 +117,7 @@ public class PeepHole {
                                         unDone = true;
                                         curVMov.remove();
                                     } else if (curVMov.isNoCond() && nextInst.isOf(VMov)) {
-                                        V.Mov nextVMov = (V.Mov) mi;
+                                        V.Mov nextVMov = (V.Mov) nextInst;
                                         if (nextVMov.getDst().equals(nextVMov.getSrc())) {
                                             unDone = true;
                                             nextVMov.remove();

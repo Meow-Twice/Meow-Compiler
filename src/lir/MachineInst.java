@@ -11,6 +11,7 @@ import java.util.EnumMap;
 import static mir.Instr.Alu.Op.*;
 
 public class MachineInst extends ILinkNode {
+    public final static MachineInst emptyInst = new MachineInst();
     protected Arm.Cond cond = Arm.Cond.Any;
     protected Arm.Shift shift = Arm.Shift.NONE_SHIFT;
     // private boolean needFix = false;

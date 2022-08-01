@@ -261,6 +261,9 @@ public class ConstFold {
                     }
                     instr = (Instr) instr.getNext();
                 }
+                if (instr instanceof Instr.Store) {
+                    instr = (Instr) instr.getPrev();
+                }
             }
             if (instr.getNext() == null) {
                 break;

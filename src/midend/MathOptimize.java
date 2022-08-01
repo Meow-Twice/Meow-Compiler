@@ -94,6 +94,17 @@ public class MathOptimize {
         if (!(user instanceof Instr.Alu && ((Instr.Alu) user).getOp().equals(Instr.Alu.Op.ADD))) {
             return false;
         }
+        if (value instanceof Constant.ConstantInt) {
+            int index = 1 - user.getUseValueList().indexOf(instr);
+            int val1 = (int) ((Constant.ConstantInt) value).getConstVal();
+            Value value2 = user.getUseValueList().get(index);
+            if (value2 instanceof Constant.ConstantInt) {
+                int val2 = (int) ((Constant.ConstantInt) value2).getConstVal();
+                return val1 == val2;
+            } else {
+                return false;
+            }
+        }
         return user.getUseValueList().contains(value);
     }
 

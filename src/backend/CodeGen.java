@@ -22,7 +22,7 @@ public class CodeGen {
     public static final CodeGen CODEGEN = new CodeGen();
     public static boolean _DEBUG_OUTPUT_MIR_INTO_COMMENT = true;
     public static boolean needFPU = false;
-    boolean _DEBUG_MUL_DIV = false;
+    boolean _DEBUG_MUL_DIV = true;
 
     // 当前的Machine.McFunction
     private static Machine.McFunction curMF;

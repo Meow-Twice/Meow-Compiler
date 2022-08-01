@@ -147,7 +147,7 @@ public class LoopUnRoll {
 //            return;
 //        }
         if (cnt * times > loop_unroll_up_lines) {
-            DoLoopUnRollForSeveralTimes(loop, cnt);
+            //DoLoopUnRollForSeveralTimes(loop, cnt);
             return;
         }
 

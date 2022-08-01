@@ -52,6 +52,41 @@ public class Loop {
 
     private boolean idcTimeSet = false;
 
+
+    private boolean isCalcLoop = false;
+    private Value aluPhiEnterValue;
+    private Value calcAlu;
+    private Value calcPhi;
+    private int aluOtherIndex;
+
+    public void setCalcLoopInfo(Value aluPhiEnterValue, Value calcAlu, Value calcPhi, int aluOtherIndex) {
+        isCalcLoop = true;
+        this.aluPhiEnterValue = aluPhiEnterValue;
+        this.calcAlu = calcAlu;
+        this.calcPhi = calcPhi;
+        this.aluOtherIndex = aluOtherIndex;
+    }
+
+    public boolean isCalcLoop() {
+        return isCalcLoop;
+    }
+
+    public Value getAluPhiEnterValue() {
+        return aluPhiEnterValue;
+    }
+
+    public Value getCalcAlu() {
+        return calcAlu;
+    }
+
+    public Value getCalcPhi() {
+        return calcPhi;
+    }
+
+    public int getAluOtherIndex() {
+        return aluOtherIndex;
+    }
+
     private boolean isArrayInit = false;
     private int arrayInitDims = 0;
     private Value initArray = null;

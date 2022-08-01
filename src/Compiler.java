@@ -18,7 +18,7 @@ import java.io.*;
 public class Compiler {
 
     public static boolean OUTPUT_LEX = false;
-    public static boolean ONLY_FRONTEND = false;
+    public static boolean ONLY_FRONTEND = true;
 
     private static String input(InputStream in) throws IOException {
         BufferedReader reader = new BufferedReader(new InputStreamReader(in));

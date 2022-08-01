@@ -12,6 +12,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 
 public class ArraySSA {
+    //只考虑局部数组
+    //全局可以考虑 遍历支配树, 遇到一个Array的store就删除之前的GVNhash,达到GVN的目的
     private ArrayList<Function> functions;
     private HashMap<GlobalVal.GlobalValue, Initial> globalValues;
     private HashSet<Instr.Alloc> allocs = new HashSet<>();

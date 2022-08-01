@@ -80,7 +80,10 @@ public class MidEndRunner {
         reMakeCFGAndLoopInfo();
 
 
+        outputLLVM();
+
         //TODO:删除冗余phi,分支优化(删除无用的br/jump等),等等
+        BrOptimize();
         BrOptimize();
         BrOptimize();
         BrOptimize();
@@ -191,8 +194,8 @@ public class MidEndRunner {
 
         //outputLLVM();
 
-//        BranchLift branchLift = new BranchLift(functions);
-//        branchLift.Run();
+        BranchLift branchLift = new BranchLift(functions);
+        branchLift.Run();
 //
         //outputLLVM();
 

@@ -712,6 +712,15 @@ public class Instr extends Value {
     public static class Load extends Instr {
 
         private Value alloc = null;
+        private Instr useStore = null;
+
+        public void setUseStore(Instr useStore) {
+            this.useStore = useStore;
+        }
+
+        public Instr getUseStore() {
+            return useStore;
+        }
 
         public void setAlloc(Value alloc) {
             this.alloc = alloc;
@@ -757,6 +766,15 @@ public class Instr extends Value {
     public static class Store extends Instr {
 
         private Value alloc = null;
+        private HashSet<Instr> users = new HashSet<>();
+
+        public HashSet<Instr> getUsers() {
+            return users;
+        }
+
+        public void addUser(Instr user) {
+            users.add(user);
+        }
 
         public void setAlloc(Value alloc) {
             this.alloc = alloc;

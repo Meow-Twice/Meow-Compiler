@@ -206,4 +206,52 @@ public class LocalArrayGVN {
         String hash = ((Instr.Load) load).getPointer().getName();
         remove(hash);
     }
+
+    private HashMap<Value, Instr> reachDef = new HashMap<>();
+
+    private HashMap<Function, HashSet<Instr>> pinnedInstrs = new HashMap<>();
+
+    //TODO:GVM添加store
+    private void GCM() {
+        GVMInit();
+    }
+
+    private void GVMInit() {
+        for (Function function: functions) {
+            pinnedInstrs.put(function, new HashSet<>());
+            for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
+                for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+                    pinnedInstrs.get(function).add(instr);
+                }
+            }
+            reachDef.clear();
+            DFS(function.getBeginBB());
+        }
+
+    }
+
+    private void DFS(BasicBlock bb) {
+        for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+            if (instr instanceof Instr.Store && ((Instr.Store) instr).getAlloc() != null) {
+                reachDef.put(((Instr.Store) instr).getAlloc(), instr);
+            } else if (instr instanceof Instr.Load && ((Instr.Load) instr).getAlloc() != null) {
+                ((Instr.Load) instr).setUseStore(reachDef.get(((Instr.Load) instr).getAlloc()));
+                Instr def = reachDef.get(((Instr.Load) instr).getAlloc());
+                if (def instanceof Instr.Store) {
+                    ((Instr.Store) def).addUser(instr);
+                }
+            } else if (instr instanceof Instr.Alloc) {
+                for (Value value: reachDef.keySet()) {
+                    reachDef.put(value, instr);
+                }
+            }
+        }
+    }
+
+    //只移动Load,Store
+    //  store的user认为是store的数组的所有被store支配的load
+    //  load的use除了基本的use还有 所有支配它的store
+    private boolean isPinned(Instr instr) {
+        return !(instr instanceof Instr.Store) && !(instr instanceof Instr.Load);
+    }
 }

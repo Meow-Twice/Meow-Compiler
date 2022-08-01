@@ -267,13 +267,15 @@ public class GVNAndGCM {
         BasicBlock best = lca;
         if (lca == null) {
             System.err.println("err_GCM");
-            assert true;
         }
         while (!lca.equals(instr.getEarliestBB())) {
             if (lca.getLoopDep() < best.getLoopDep()) {
                 best = lca;
             }
             lca = lca.getIDominator();
+            if (lca == null) {
+                System.err.println("err_GCM");
+            }
         }
         if (lca.getLoopDep() < best.getLoopDep()) {
             best = lca;

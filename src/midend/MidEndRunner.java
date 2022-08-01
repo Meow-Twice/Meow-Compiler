@@ -25,6 +25,7 @@ public class MidEndRunner {
         if (!O2) {
             Mem2Reg mem2Reg = new Mem2Reg(functions);
             mem2Reg.Run();
+            reMakeCFGAndLoopInfo();
             Pass();
             Pass();
             BrOptimize();
@@ -57,12 +58,14 @@ public class MidEndRunner {
 
         Pass();
 
+        //outputLLVM();
+
         LocalArrayGVN localArrayGVN = new LocalArrayGVN(functions);
         localArrayGVN.Run();
 
-        Pass();
+        //outputLLVM();
 
-        outputLLVM();
+        Pass();
 
         loopOptimize();
 
@@ -159,20 +162,6 @@ public class MidEndRunner {
         DeadCodeDelete deadCodeDelete_2 = new DeadCodeDelete(functions, globalValues);
         deadCodeDelete_2.Run();
 
-//        BranchOptimize branchOptimize = new BranchOptimize(functions);
-//        branchOptimize.Run();
-//
-//        reMakeCFGAndLoopInfo();
-
-//        DeadCodeDelete deadCodeDelete_3 = new DeadCodeDelete(functions, globalValues);
-//        deadCodeDelete_3.Run();
-//
-//        InstrComb instrComb_2 = new InstrComb(functions);
-//        instrComb_2.Run();
-//
-//        ConstFold constFold_2 = new ConstFold(functions, globalValues);
-//        constFold_2.Run();
-
         GVNAndGCM gvnAndGCM = new GVNAndGCM(functions);
         gvnAndGCM.Run();
     }
@@ -202,13 +191,13 @@ public class MidEndRunner {
 
         //outputLLVM();
 
-        BranchLift branchLift = new BranchLift(functions);
-        branchLift.Run();
+//        BranchLift branchLift = new BranchLift(functions);
+//        branchLift.Run();
 //
         //outputLLVM();
 
         reMakeCFGAndLoopInfo();
-        outputLLVM();
+//        outputLLVM();
 
         Pass();
 

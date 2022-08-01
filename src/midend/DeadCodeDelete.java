@@ -28,6 +28,10 @@ public class DeadCodeDelete {
         removeUselessGlobalVal();
         removeUselessLocalArray();
         noUserCodeDelete();
+//        if (MidEndRunner.O2) {
+//            //基于正确的循环信息
+//            removeUselessLoop();
+//        }
         removeUselessLoop();
     }
 
@@ -406,6 +410,7 @@ public class DeadCodeDelete {
     }
 
     private boolean tryRemoveLoop(Loop loop) {
+        //return false;
         HashSet<Loop> removes = new HashSet<>();
         for (Loop next: loop.getChildrenLoops()) {
             boolean ret = tryRemoveLoop(next);
@@ -469,6 +474,9 @@ public class DeadCodeDelete {
         }
         for (BasicBlock bb: loop.getNowLevelBB()) {
             for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+                if (hasStrongEffect(instr)) {
+                    return false;
+                }
                 for (Use use = instr.getBeginUse(); use.getNext() != null; use = (Use) use.getNext()) {
                     Instr user = use.getUser();
                     if (!user.parentBB().getLoop().equals(loop) || hasStrongEffect(user)) {

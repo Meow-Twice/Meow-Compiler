@@ -34,6 +34,9 @@ public class LCSSA {
     private void addPhiForLoop(Loop loop) {
         HashSet<BasicBlock> exits = loop.getExits();
         for (BasicBlock bb: loop.getNowLevelBB()) {
+//            if (bb.getLabel().equals("b472")) {
+//                System.err.println("b472");
+//            }
             Instr instr = bb.getBeginInstr();
             while (instr.getNext() != null) {
                 if (usedOutLoop(instr, loop)) {
@@ -181,10 +184,10 @@ public class LCSSA {
 
     //判断value是否在loop外被使用
     private boolean usedOutLoop(Value value, Loop loop) {
-        if (value instanceof Instr.Load
-                || value instanceof Instr.GetElementPtr || value instanceof Instr.Store) {
-            return false;
-        }
+//        if (value instanceof Instr.Load
+//                || value instanceof Instr.GetElementPtr || value instanceof Instr.Store) {
+//            return false;
+//        }
         Use use = value.getBeginUse();
         while (use.getNext() != null) {
             Instr user = use.getUser();

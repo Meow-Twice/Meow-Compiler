@@ -191,8 +191,8 @@ public class MidEndRunner {
 
         //outputLLVM();
 
-//        BranchLift branchLift = new BranchLift(functions);
-//        branchLift.Run();
+       BranchLift branchLift = new BranchLift(functions);
+       branchLift.Run();
 //
         //outputLLVM();
 

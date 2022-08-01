@@ -2,13 +2,11 @@ package backend;
 
 import lir.*;
 import lir.Machine.Operand;
-import mir.type.DataType;
 import util.CenterControl;
 import util.ILinkNode;
 
 import java.util.*;
 
-import static lir.Arm.Regs.GPRs.sp;
 import static mir.type.DataType.F32;
 import static mir.type.DataType.I32;
 
@@ -404,18 +402,18 @@ public class FPRegAllocator extends RegAllocator {
             if (firstUse != null) {
                 // Operand offset = offImm;
                 V.Ldr mi;
-                if (CodeGen.fpOffEncode(offImm.get_I_Imm())) {
+                if (CodeGen.vLdrStrImmEncode(offImm.get_I_Imm())) {
                     new V.Ldr(curMF.getSVR(vrIdx), rSP, offImm, firstUse);
                 } else {
                     if (CodeGen.immCanCode(offImm.get_I_Imm())) {
                         Operand dstAddr = curMF.newVR();
-                        new MIBinary(MachineInst.Tag.Add, dstAddr, rSP, offImm, firstUse);
+                        new I.Binary(MachineInst.Tag.Add, dstAddr, rSP, offImm, firstUse);
                         new V.Ldr(curMF.getSVR(vrIdx), dstAddr, firstUse);
                     } else {
                         Operand dstAddr = curMF.newVR();
-                        new MIMove(dstAddr, offImm, firstUse);
+                        new I.Mov(dstAddr, offImm, firstUse);
                         Operand finalAddr = curMF.newVR();
-                        new MIBinary(MachineInst.Tag.Add, finalAddr, rSP, dstAddr, firstUse);
+                        new I.Binary(MachineInst.Tag.Add, finalAddr, rSP, dstAddr, firstUse);
                         new V.Ldr(curMF.getSVR(vrIdx), finalAddr, firstUse);
                     }
                 }
@@ -424,18 +422,18 @@ public class FPRegAllocator extends RegAllocator {
             if (lastDef != null) {
                 // MachineInst insertAfter = lastDef;
                 // Operand offset = offImm;
-                if (CodeGen.fpOffEncode(offImm.get_I_Imm())) {
+                if (CodeGen.vLdrStrImmEncode(offImm.get_I_Imm())) {
                     new V.Str(lastDef, curMF.getSVR(vrIdx), rSP, offImm);
                 } else {
                     if (CodeGen.immCanCode(offImm.get_I_Imm())) {
                         Operand dstAddr = curMF.newVR();
-                        MIBinary bino = new MIBinary(lastDef, MachineInst.Tag.Add, dstAddr, rSP, offImm);
+                        I.Binary bino = new I.Binary(lastDef, MachineInst.Tag.Add, dstAddr, rSP, offImm);
                         new V.Str(bino, curMF.getSVR(vrIdx), dstAddr);
                     } else {
                         Operand dstAddr = curMF.newVR();
-                        MIMove mv = new MIMove(lastDef, dstAddr, offImm);
+                        I.Mov mv = new I.Mov(lastDef, dstAddr, offImm);
                         Operand finalAddr = curMF.newVR();
-                        MIBinary bino = new MIBinary(mv, MachineInst.Tag.Add, finalAddr, rSP, dstAddr);
+                        I.Binary bino = new I.Binary(mv, MachineInst.Tag.Add, finalAddr, rSP, dstAddr);
                         new V.Str(bino, curMF.getSVR(vrIdx), finalAddr);
                     }
                 }

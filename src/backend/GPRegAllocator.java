@@ -2,16 +2,16 @@ package backend;
 
 import lir.*;
 import lir.Machine.Operand;
-import mir.type.DataType;
 import util.ILinkNode;
 
 import java.util.*;
 
 import static lir.Arm.Regs.GPRs;
+import static lir.Arm.Regs.GPRs.r11;
 import static mir.type.DataType.I32;
 
-public class TrivialRegAllocator extends RegAllocator {
-    public TrivialRegAllocator() {
+public class GPRegAllocator extends RegAllocator {
+    public GPRegAllocator() {
         dataType = I32;
         SPILL_MAX_LIVE_INTERVAL = RK * 2;
     }
@@ -154,17 +154,17 @@ public class TrivialRegAllocator extends RegAllocator {
     /**
      * 已经合并的传送指令的集合
      */
-    HashSet<MIMove> coalescedMoveSet = new HashSet<>();
+    HashSet<I.Mov> coalescedMoveSet = new HashSet<>();
 
     /**
      * src 和 dst相冲突的传送指令集合
      */
-    HashSet<MIMove> constrainedMoveSet = new HashSet<>();
+    HashSet<I.Mov> constrainedMoveSet = new HashSet<>();
 
     /**
      * 不再考虑合并的传送指令集合
      */
-    HashSet<MIMove> frozenMoveSet = new HashSet<>();
+    HashSet<I.Mov> frozenMoveSet = new HashSet<>();
 
     /**
      * 有可能合并的传送指令, 当结点x从高度数结点变为低度数结点时,
@@ -179,12 +179,12 @@ public class TrivialRegAllocator extends RegAllocator {
      * 如果 x 是传送有关的, 则与 x 本身关联的传送指令也要加入到此表中,
      * 因为 u 和 v 有可能都是高度数的结点
      */
-    HashSet<MIMove> workListMoveSet = new HashSet<>();
+    HashSet<I.Mov> workListMoveSet = new HashSet<>();
 
     /**
      * 还未做好合并准备的传送指令的集合
      */
-    HashSet<MIMove> activeMoveSet = new HashSet<>();
+    HashSet<I.Mov> activeMoveSet = new HashSet<>();
 
 
     public void AllocateRegister(Machine.Program program) {
@@ -351,7 +351,7 @@ public class TrivialRegAllocator extends RegAllocator {
         dealSpillTimes++;
         for (Machine.Block mb : curMF.mbList) {
             offImm = new Operand(I32, curMF.getVarStack());
-            // generate a MILoad before first use, and a MIStore after last def
+            // generate a MILoad before first use, and a I.Str after last def
             firstUse = null;
             lastDef = null;
             vrIdx = -1;
@@ -415,11 +415,11 @@ public class TrivialRegAllocator extends RegAllocator {
                 Operand offset = offImm;
                 if (offImm.get_I_Imm() >= (1 << 12)) {
                     Operand dst = curMF.newVR();
-                    MIMove mi = new MIMove(dst, offImm, firstUse);
+                    I.Mov mi = new I.Mov(dst, offImm, firstUse);
                     logOut(String.format("+++++++%d Checkpoint insert {\t%s\t} before use:\t{\t%s\t}", dealSpillTimes, mi, firstUse));
                     offset = dst;
                 }
-                MILoad mi = new MILoad(curMF.getVR(vrIdx), rSP, offset, firstUse);
+                I.Ldr mi = new I.Ldr(curMF.getVR(vrIdx), rSP, offset, firstUse);
                 logOut(String.format("+++++++%d Checkpoint insert {\t%s\t} before use:\t{\t%s\t}", dealSpillTimes, mi, firstUse));
                 firstUse = null;
             }
@@ -428,11 +428,11 @@ public class TrivialRegAllocator extends RegAllocator {
                 Operand offset = offImm;
                 if (offImm.get_I_Imm() >= (1 << 12)) {
                     Operand dst = curMF.newVR();
-                    insertAfter = new MIMove(lastDef, dst, offImm);
+                    insertAfter = new I.Mov(lastDef, dst, offImm);
                     logOut(String.format("+++++++%d Checkpoint insert {\t%s\t} after def:\t{\t%s\t}", dealSpillTimes, insertAfter, lastDef));
                     offset = dst;
                 }
-                MIStore st = new MIStore(insertAfter, curMF.getVR(vrIdx), rSP, offset);
+                I.Str st = new I.Str(insertAfter, curMF.getVR(vrIdx), rSP, offset);
                 logOut(String.format("+++++++%d Checkpoint insert {\t%s\t} after def:\t{\t%s\t}", dealSpillTimes, st, insertAfter));
                 lastDef = null;
             }
@@ -446,14 +446,14 @@ public class TrivialRegAllocator extends RegAllocator {
             reg.loopCounter = 0;
             reg.degree = MAX_DEGREE;
             reg.adjOpdSet = new HashSet<>();
-            reg.moveSet = new HashSet<>();
+            reg.iMovSet = new HashSet<>();
             reg.setAlias(null);
         }
         for (Operand o : curMF.vrList) {
             o.loopCounter = 0;
             o.degree = 0;
             o.adjOpdSet = new HashSet<>();
-            o.moveSet = new HashSet<>();
+            o.iMovSet = new HashSet<>();
             o.setAlias(null);
         }
         // logOut("in build");
@@ -473,14 +473,14 @@ public class TrivialRegAllocator extends RegAllocator {
                 ArrayList<Operand> uses = mi.useOpds;
                 logOut(mi + "\tlive begin:\t" + live);
                 if (mi.isMove()) {
-                    MIMove mv = (MIMove) mi;
+                    I.Mov mv = (I.Mov) mi;
                     if (mv.directColor()) {
                         // 没有cond, 没有shift, src和dst都是虚拟寄存器的mov指令
                         // move 的 dst 和 src 不应是直接冲突的关系, 而是潜在的可合并的关系
                         // move a, b --> move rx, rx 需要a 和 b 不是冲突关系
                         live.remove(mv.getSrc());
-                        mv.getDst().moveSet.add(mv);
-                        mv.getSrc().moveSet.add(mv);
+                        mv.getDst().iMovSet.add(mv);
+                        mv.getSrc().iMovSet.add(mv);
                         workListMoveSet.add(mv);
                     }
                 }
@@ -560,9 +560,9 @@ public class TrivialRegAllocator extends RegAllocator {
      * @param x
      * @return x.moveSet ∩ (activeMoveSet ∪ workListMoveSet)
      */
-    private HashSet<MIMove> nodeMoves(Operand x) {
+    private HashSet<I.Mov> nodeMoves(Operand x) {
         assertDataType(x);
-        HashSet<MIMove> canCoalesceSet = new HashSet<>(x.moveSet);
+        HashSet<I.Mov> canCoalesceSet = new HashSet<>(x.iMovSet);
         canCoalesceSet.removeIf(r -> !(activeMoveSet.contains(r) || workListMoveSet.contains(r)));
         return canCoalesceSet;
     }
@@ -608,7 +608,7 @@ public class TrivialRegAllocator extends RegAllocator {
         assertDataType(x);
         x.degree--;
         if (x.degree == RK - 1) {
-            for (MIMove mv : nodeMoves(x)) {
+            for (I.Mov mv : nodeMoves(x)) {
                 // 考虑 x 关联的可能合并的 move
                 if (activeMoveSet.contains(mv)) {
                     // 未做好合并准备的集合如果包含mv, 就挪到workListMoveSet中
@@ -618,7 +618,7 @@ public class TrivialRegAllocator extends RegAllocator {
             }
             for (Operand adj : adjacent(x)) {
                 // 对于o的每个实际邻接冲突adj
-                for (MIMove mv : nodeMoves(adj)) {
+                for (I.Mov mv : nodeMoves(adj)) {
                     // adj关联的move, 如果是有可能合并的move
                     if (activeMoveSet.contains(mv)) {
                         // 未做好合并准备的集合如果包含mv, 就挪到workListMoveSet中
@@ -682,7 +682,7 @@ public class TrivialRegAllocator extends RegAllocator {
         // 合并 move u, v, 将v加入 coalescedNodeSet
         coalescedNodeSet.add(v);
         v.setAlias(u);
-        u.moveSet.addAll(v.moveSet);
+        u.iMovSet.addAll(v.iMovSet);
         // 对于 v 在冲突图上的每个邻结点 adj , 建立 adj, u 之间的冲突边, 且为t
 
         for (Operand adj : v.adjOpdSet) {
@@ -705,7 +705,7 @@ public class TrivialRegAllocator extends RegAllocator {
     //-------------------------------------------------------------------------------------------------
     public void coalesce() {
         // When workListMoveSet.size() > 0;
-        MIMove mv = workListMoveSet.iterator().next();
+        I.Mov mv = workListMoveSet.iterator().next();
         // u <- v
         Operand u = getAlias(mv.getDst());
         Operand v = getAlias(mv.getSrc());
@@ -820,7 +820,7 @@ public class TrivialRegAllocator extends RegAllocator {
      * @param u
      */
     public void freezeMoves(Operand u) {
-        for (MIMove mv : nodeMoves(u)) {
+        for (I.Mov mv : nodeMoves(u)) {
             // nodeMoves(x) 取出来的只可能是 activeMoveSet 中的或者 workListMoveSet 中的
             // if (!activeMoveSet.remove(mv)) {
             //     workListMoveSet.remove(mv);
@@ -893,9 +893,7 @@ public class TrivialRegAllocator extends RegAllocator {
                 spilledNodeSet.add(toBeColored);
             } else {
                 // 如果有可分配的颜色则从可以分配的颜色中选取一个
-                // Arm.Regs color = okColorSet.iterator().next();
-                // TODO 尝试重新验证写法
-                Arm.Regs color = okColorSet.pollLast();
+                Arm.Regs color = okColorSet.pollFirst();
                 logOut("Choose " + color);
                 colorMap.put(toBeColored, new Operand(color));
                 // if (color instanceof GPRs) {
@@ -918,13 +916,11 @@ public class TrivialRegAllocator extends RegAllocator {
             colorMap.put(v, a.is_I_PreColored() ? a : colorMap.get(a));
         }
 
-        ArrayList<MIMove> needFixList = new ArrayList<>();
+        ArrayList<I> needFixList = new ArrayList<>();
         for (Machine.Block mb : curMF.mbList) {
             for (MachineInst mi : mb.miList) {
                 if (mi.isNeedFix()) {
-                    if (mi.isMove()) {
-                        needFixList.add((MIMove) mi);
-                    }
+                    needFixList.add((I) mi);
                 }
                 // TODO 这里不考虑Call
                 if (mi.isComment()) continue;
@@ -959,17 +955,6 @@ public class TrivialRegAllocator extends RegAllocator {
 
         curMF.alignTotalStackSize();
         // fixStack
-        for (MIMove mv : needFixList) {
-            Operand off = mv.getSrc();
-            assert off.is_I_Imm();
-            int newOff = switch (mv.getFixType()) {
-                case TOTAL_STACK -> off.getValue() + curMF.getTotalStackSize();
-                case VAR_STACK -> curMF.getVarStack();
-                case ONLY_PARAM -> mv.getCallee().getParamStack();
-                default -> throw new AssertionError("");
-            };
-            mv.setSrc(new Operand(I32, newOff));
-            mv.clearNeedFix();
-        }
+        fixStack(needFixList);
     }
 }

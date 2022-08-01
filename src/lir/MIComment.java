@@ -17,6 +17,6 @@ public class MIComment extends MachineInst {
 
     @Override
     public String toString() {
-        return "@" + content;
+        return tag.toString() + content;
     }
 }

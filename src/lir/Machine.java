@@ -1,7 +1,6 @@
 package lir;
 
 import backend.CodeGen;
-import backend.RegAllocator;
 import mir.BasicBlock;
 import mir.Constant;
 import mir.GlobalVal;
@@ -29,7 +28,7 @@ public class Machine {
         public Ilist<McFunction> funcList = new Ilist<>();
         public ArrayList<Arm.Glob> globList = CodeGen.CODEGEN.globList;
         public McFunction mainMcFunc;
-        public ArrayList<MachineInst> needFixList = new ArrayList<>();
+        public ArrayList<I> needFixList = new ArrayList<>();
         int pool_count = 0;
         int inst_count = 0;
 
@@ -366,7 +365,7 @@ public class Machine {
         public static String MB_Prefix = "._MB_";
         public BasicBlock bb;
         public McFunction mcFunc;
-        public MachineInst firstMIForBJ = null;
+        // public MachineInst firstMIForBJ = null;
         public Ilist<MachineInst> miList = new Ilist<>();
         static int globIndex = 0;
         int index;
@@ -417,7 +416,6 @@ public class Machine {
         //pred and successor
         public ArrayList<Block> pred = new ArrayList<>();
         public ArrayList<Block> succMB = new ArrayList<>();
-        public MachineInst con_tran = null;
         public HashSet<Operand> liveUseSet = new HashSet<>();
         public HashSet<Operand> defSet = new HashSet<>();
         public HashSet<Operand> liveInSet = new HashSet<>();
@@ -450,10 +448,8 @@ public class Machine {
     }
 
     public static class Operand {
+        public static final Operand ZERO = new Operand(I32, 0);
         public int loopCounter = 0;
-
-        // 立即数, 默认为8888888方便debug
-        // public int imm = 88888888;
 
         private String prefix;
 
@@ -483,7 +479,7 @@ public class Machine {
         /**
          * 与此 Operand 相关的传送指令列表的集合
          */
-        public HashSet<MIMove> moveSet = new HashSet<>();
+        public HashSet<I.Mov> iMovSet = new HashSet<>();
         public HashSet<V.Mov> vMovSet = new HashSet<>();
         // public Arm.Reg reg;
         public Arm.Regs reg;
@@ -755,8 +751,8 @@ public class Machine {
             }
         }
 
-        public int heuristicVal() {
-            return degree << 10 / (2 << loopCounter);
+        public double heuristicVal() {
+            return (degree << 10) / Math.pow(1.6, loopCounter);
         }
 
         public boolean isF32() {
@@ -769,4 +765,5 @@ public class Machine {
             return heuristicVal() < o.heuristicVal() ? this : o;
         }
     }
+
 }

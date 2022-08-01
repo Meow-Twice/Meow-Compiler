@@ -1,10 +1,6 @@
 import arg.Arg;
-import backend.CodeGen;
-import backend.FPRegAllocator;
-import backend.NaiveRegAllocator;
-import backend.TrivialRegAllocator;
+import backend.*;
 // import descriptor.MIDescriptor;
-import descriptor.MIDescriptor;
 import frontend.Visitor;
 import frontend.lexer.Lexer;
 import frontend.lexer.Token;
@@ -59,7 +55,7 @@ public class Compiler {
             // GlobalValueLocalize globalValueLocalize = new GlobalValueLocalize(funcManager.globals);
             // globalValueLocalize.Run();
             Manager.MANAGER.outputLLVM();
-            MidEndRunner.O2 = arg.optimize;
+            // MidEndRunner.O2 = arg.optimize;
             System.err.println("mid optimization begin");
             long start = System.currentTimeMillis();
             MidEndRunner midEndRunner = new MidEndRunner(Manager.MANAGER.getFunctionList());
@@ -106,8 +102,8 @@ public class Compiler {
                 // System.err.println("middle");
                 // Manager.MANAGER.outputMI();
                 // System.err.println("middle end");
-                TrivialRegAllocator trivialRegAllocator = new TrivialRegAllocator();
-                trivialRegAllocator.AllocateRegister(p);
+                GPRegAllocator GPRegAllocator = new GPRegAllocator();
+                GPRegAllocator.AllocateRegister(p);
             }
             System.err.println("Reg Alloc end, Use Time: " + String.valueOf(((double) System.currentTimeMillis() - start) / 1000) + "s");
             // Manager.outputMI(true);
@@ -121,12 +117,15 @@ public class Compiler {
             // PrintStream os = new PrintStream(output_file);
             // p.output(os);
 
+            PeepHole peepHole = new PeepHole(p);
+            peepHole.run();
+
             if (arg.outputAsm()) {
                 p.output(new PrintStream(arg.asmStream));
             }
         } catch (Exception e) {
             e.printStackTrace();
-            System.exit(1);
+            System.exit(e.getClass().getSimpleName().length());
         }
     }
 }

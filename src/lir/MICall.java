@@ -19,47 +19,38 @@ public class MICall extends MachineInst {
         genDefUse();
     }
 
-    @Override
     public void genDefUse() {
-        if (callee.mFunc.isExternal) {
-            for (int i = 0; i < 2; i++) {
-                if(needFPU) {
-                    useOpds.add(Reg.getS(i));
-                }
-                useOpds.add(Reg.getR(i));
-            }
-            for (int i = r0.ordinal(); i < r0.ordinal() + rParamCnt; i++) {
-                defOpds.add(Reg.getR(i));
-            }
-            if(needFPU) {
-                for (int i = s0.ordinal(); i < s0.ordinal() + sParamCnt; i++) {
-                    defOpds.add(Reg.getS(i));
-                }
-            }
-        } else {
-            for (int i = r0.ordinal(); i < r0.ordinal() + Math.min(callee.intParamCount, rParamCnt); i++) {
-                useOpds.add(Reg.getR(i));
-                defOpds.add(Reg.getR(i));
-            }
-            if(needFPU) {
-                for (int i = s0.ordinal(); i < s0.ordinal() + Math.min(callee.floatParamCount, sParamCnt); i++) {
-                    useOpds.add(Reg.getS(i));
-                    defOpds.add(Reg.getS(i));
-                }
-            }
-            // TODO for xry: 到底是new还是get单例
-            // 调用者保存
-            // if (mf.mFunc.hasRet()) {
-            //     if (mf.mFunc.getRetType().isInt32Type()) {
-            //         defOpds.add(Reg.getR(r0));
-            //     } else if (mf.mFunc.getRetType().isFloatType()) {
-            //         defOpds.add(Reg.getS(s0));
-            //     } else {
-            //         throw new AssertionError("Wrong call func type: has ret but is type of " + mf.mFunc.getRetType());
-            //     }
-            // }
+        defOpds.add(Reg.getR(r12));
+        defOpds.add(Reg.getR(lr));
+        // if (callee.mFunc.isExternal) {
+        //     for (int i = 0; i < 2; i++) {
+        //         if(needFPU) {
+        //             useOpds.add(Reg.getS(i));
+        //         }
+        //         useOpds.add(Reg.getR(i));
+        //     }
+        for (int i = r0.ordinal(); i < r0.ordinal() + rParamCnt; i++) {
+            defOpds.add(Reg.getR(i));
         }
+        if (needFPU) {
+            for (int i = s0.ordinal(); i < s0.ordinal() + sParamCnt; i++) {
+                defOpds.add(Reg.getS(i));
+            }
+        }
+        // } else {
+        for (int i = r0.ordinal(); i < r0.ordinal() + Math.min(callee.intParamCount, rParamCnt); i++) {
+            useOpds.add(Reg.getR(i));
+            // defOpds.add(Reg.getR(i));
+        }
+        if (needFPU) {
+            for (int i = s0.ordinal(); i < s0.ordinal() + Math.min(callee.floatParamCount, sParamCnt); i++) {
+                useOpds.add(Reg.getS(i));
+                // defOpds.add(Reg.getS(i));
+            }
+        }
+        // }
         // TODO for bug test!!!
+        /*
         if (callee.mFunc.hasRet()) {
             if (callee.mFunc.getRetType().isInt32Type()) {
                 defOpds.add(Reg.getR(r0));
@@ -71,6 +62,7 @@ public class MICall extends MachineInst {
                 throw new AssertionError("Wrong call func type: has ret but is type of " + callee.mFunc.getRetType());
             }
         }
+        */
     }
 
     @Override

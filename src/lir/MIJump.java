@@ -14,14 +14,18 @@ public class MIJump extends MachineInst {
         this.target = target;
     }
 
+    public MIJump(Arm.Cond cond, Machine.Block target, MachineInst before) {
+        super(Tag.Jump, before);
+        this.target = target;
+        this.cond = cond;
+    }
     @Override
     public void output(PrintStream os, Machine.McFunction f) {
-        transfer_output(os);
-        os.println("\tb\t" + target.getDebugLabel());
+        os.println("\t" + this);
     }
 
     @Override
     public String toString() {
-        return tag + "\t" + target.getDebugLabel();
+        return tag.toString() + cond + "\t" + target.getDebugLabel();
     }
 }

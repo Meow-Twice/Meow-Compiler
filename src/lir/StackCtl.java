@@ -11,11 +11,11 @@ public class StackCtl extends MachineInst {
         super(tag, mb);
     }
 
-    public static class MIPush extends StackCtl {
+    public static class Push extends StackCtl {
         Machine.McFunction savedRegsMf;
         Machine.Block mb;
 
-        public MIPush(Machine.McFunction savedRegsMf, Machine.Block mb) {
+        public Push(Machine.McFunction savedRegsMf, Machine.Block mb) {
             super(Tag.Push, mb);
             this.savedRegsMf = savedRegsMf;
             this.mb = mb;
@@ -48,11 +48,11 @@ public class StackCtl extends MachineInst {
         }
     }
 
-    public static class MIPop extends MachineInst {
+    public static class Pop extends MachineInst {
         Machine.McFunction savedRegsMf;
         Machine.Block mb;
 
-        public MIPop(Machine.McFunction savedRegsMf, Machine.Block mb) {
+        public Pop(Machine.McFunction savedRegsMf, Machine.Block mb) {
             super(Tag.Pop, mb);
             this.savedRegsMf = savedRegsMf;
             this.mb = mb;

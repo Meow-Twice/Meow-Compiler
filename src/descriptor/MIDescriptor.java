@@ -478,12 +478,12 @@ public class MIDescriptor implements Descriptor {
                 continue;
             }
             curMI = mi;
-            MIBinary miBinary = null;
+            I.Binary miBinary = null;
             MILongMul miLongMul = null;
             Object lVal = null;
             Object rVal = null;
-            if (curMI instanceof MIBinary) {
-                miBinary = (MIBinary) curMI;
+            if (curMI instanceof I.Binary) {
+                miBinary = (I.Binary) curMI;
                 lVal = GET_VAL_FROM_OPD(miBinary.getLOpd());
                 rVal = GET_VAL_FROM_OPD(miBinary.getROpd());
             }
@@ -492,7 +492,7 @@ public class MIDescriptor implements Descriptor {
                 lVal = GET_VAL_FROM_OPD(miLongMul.getLOpd());
                 rVal = GET_VAL_FROM_OPD(miLongMul.getROpd());
             }
-            switch (curMI.getType()) {
+            switch (curMI.getTag()) {
                 case Add -> {
                     assert lVal instanceof Integer && rVal instanceof Integer;
                     if (miBinary.isNeedFix()) {
@@ -580,8 +580,8 @@ public class MIDescriptor implements Descriptor {
                     SET_VAL_FROM_OPD((int) ((((Integer) lVal).longValue() *  ((Integer) rVal).longValue()) >>> 32), miLongMul.getDst());
                 }
                 case FMA -> {
-                    assert mi instanceof MIFma;
-                    MIFma fma = (MIFma) mi;
+                    assert mi instanceof I.Fma;
+                    I.Fma fma = (I.Fma) mi;
                     Machine.Operand dst = fma.getDst();
                     Machine.Operand acc = fma.getAcc();
                     Machine.Operand lOpd = fma.getlOpd();
@@ -592,16 +592,16 @@ public class MIDescriptor implements Descriptor {
                     } else {
                         res = (int) GET_VAL_FROM_OPD(lOpd) * (int) GET_VAL_FROM_OPD(rOpd);
                     }
-                    if (fma.isAdd()) {
+                    if (fma.add()) {
                         res = (int) GET_VAL_FROM_OPD(acc) + res;
                     } else {
                         res = (int) GET_VAL_FROM_OPD(acc) - res;
                     }
                     SET_VAL_FROM_OPD(res, dst);
                 }
-                case Mv -> {
-                    assert mi instanceof MIMove;
-                    MIMove mv = (MIMove) mi;
+                case IMov -> {
+                    assert mi instanceof I.Mov;
+                    I.Mov mv = (I.Mov) mi;
                     Object val = GET_VAL_FROM_OPD(mv.getSrc());
                     // 函数传参的时候, 修栈偏移
                     if (mv.isNeedFix()) {
@@ -638,18 +638,18 @@ public class MIDescriptor implements Descriptor {
                     MIJump j = (MIJump) mi;
                     nextMB = j.getTarget();
                 }
-                case Return -> {
+                case IRet -> {
                     if (runningState == RunningState.AFTER_MODE) {
                         // pop();
                     }
                     isRet = true;
                 }
-                case Load -> {
-                    if (!(mi instanceof MILoad)) {
+                case Ldr -> {
+                    if (!(mi instanceof I.Ldr)) {
                         throw new AssertionError("Not MILoad: " + mi);
                     }
                     // assert mi instanceof MILoad;
-                    MILoad load = (MILoad) mi;
+                    I.Ldr load = (I.Ldr) mi;
                     Object tmp = GET_VAL_FROM_OPD(load.getOffset());
                     assert tmp instanceof Integer;
                     int offset = (int) tmp;
@@ -665,9 +665,9 @@ public class MIDescriptor implements Descriptor {
                     // }
                     SET_VAL_FROM_OPD(getMemValWithOffset(offset), load.getData());
                 }
-                case Store -> {
-                    assert mi instanceof MIStore;
-                    MIStore store = (MIStore) mi;
+                case Str -> {
+                    assert mi instanceof I.Str;
+                    I.Str store = (I.Str) mi;
                     Object tmp = GET_VAL_FROM_OPD(store.getOffset());
                     assert tmp instanceof Integer;
                     int offset = (int) tmp;
@@ -694,8 +694,8 @@ public class MIDescriptor implements Descriptor {
                 }
                 case ICmp -> {
                     REG_SIM.CMP_STATUS = 0;
-                    assert mi instanceof MICompare;
-                    MICompare cmp = (MICompare) mi;
+                    assert mi instanceof I.Cmp;
+                    I.Cmp cmp = (I.Cmp) mi;
                     Object lTmp = GET_VAL_FROM_OPD(cmp.getLOpd());
                     Object rTmp = GET_VAL_FROM_OPD(cmp.getROpd());
                     if (!(lTmp instanceof Integer && rTmp instanceof Integer)) {

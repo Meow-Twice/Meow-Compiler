@@ -36,7 +36,7 @@ public class MachineInst extends ILinkNode {
      * return之前要对sp进行加操作
      */
     public void setNeedFix(CodeGen.STACK_FIX stack_fix) {
-        Machine.Program.PROGRAM.needFixList.add(this);
+        Machine.Program.PROGRAM.needFixList.add((I) this);
         fixType = stack_fix;
     }
 
@@ -48,12 +48,11 @@ public class MachineInst extends ILinkNode {
         setNeedFix(stack_fix);
     }
 
-
     public void setUse(int i, Machine.Operand set) {
         useOpds.set(i, set);
     }
 
-    public Tag getType() {
+    public Tag getTag() {
         return tag;
     }
 
@@ -73,10 +72,6 @@ public class MachineInst extends ILinkNode {
         defOpds.set(0, operand);
     }
 
-    public boolean isIAddOrISub() {
-        return tag == Tag.Add || tag == Tag.Sub;
-    }
-
     public CodeGen.STACK_FIX getFixType() {
         return fixType;
     }
@@ -85,54 +80,70 @@ public class MachineInst extends ILinkNode {
         fixType = CodeGen.STACK_FIX.NO_NEED;
     }
 
+    public boolean isOf(Tag... tags) {
+        for (Tag tag : tags) {
+            if (this.tag == tag) return true;
+        }
+        return false;
+    }
+
+    public boolean isOf(Tag tag) {
+        return (this.tag == tag);
+    }
+
+    public boolean isNoCond() {
+        return cond == Arm.Cond.Any;
+    }
+
     public enum Tag {
         // Binary
-        Add,
-        FAdd,
-        Sub,
-        FSub,
-        Rsb,
-        Mul,
-        FMul,
-        Div,
-        FDiv,
-        Mod,
-        FMod,
-        Lt,
-        Le,
-        Ge,
-        Gt,
-        Eq,
-        Ne,
-        And,
-        FAnd,
-        Or,
-        FOr,
-        LongMul,
-        FMA,
-        Mv,
-        VMov,
-        VCvt,
-        VNeg,
-        Branch,
-        Jump,
-        Return,  // Control flow
-        VRet,
-        Load,
-        VLdr,
-        Store,  // Memory
-        VStr,
-        ICmp,
-        VCmp,
-        Call,
-        Global,
-        Push,
-        Pop,
-        VPush,
-        VPop,
-        Comment,   // for printing comments
-        Empty;
+        Add("add"),
+        FAdd("vadd.f32"),
+        Sub("sub"),
+        FSub("vsub.f32"),
+        Rsb("rsb"),
+        Mul("mul"),
+        FMul("vmul.f32"),
+        Div("sdiv"),
+        FDiv("vdiv.f32"),
+        Mod("!Mod"),
+        FMod("!Fmod"),
+        Lt("lt"),
+        Le("le"),
+        Ge("ge"),
+        Gt("gt"),
+        Eq("eq"),
+        Ne("ne"),
+        And("!And"),
+        FAnd("!Fand"),
+        Or("!Or"),
+        FOr("!FOr"),
+        LongMul("smmul"),
+        FMA("!Fma"),
+        IMov("mov"),
+        VMov("!Vmov"),
+        VCvt("!Vcvt"),
+        VNeg("vneg.f32"),
+        Branch("b"),
+        Jump("b"),
+        IRet("bx"),  // Control flow
+        VRet("bx"),
+        Ldr("ldr"),
+        VLdr("vldr.f32"),
+        Str("str"),  // Memory
+        VStr("vstr.f32"),
+        ICmp("cmp"),
+        VCmp("!Vcmp"),
+        Call("bl"),
+        Global("@g?"),
+        Push("push"),
+        Pop("pop"),
+        VPush("vpush"),
+        VPop("vpop"),
+        Comment("@"),   // for printing comments
+        Empty("!?");
 
+        private final String name;
         public static final EnumMap<Instr.Alu.Op, Tag> map = new EnumMap<>(Instr.Alu.Op.class);
 
         static {
@@ -149,10 +160,19 @@ public class MachineInst extends ILinkNode {
             map.put(AND, Tag.FAnd);
             map.put(OR, Tag.FOr);
         }
+
+        Tag(String name) {
+            this.name = name;
+        }
+
+        @Override
+        public String toString() {
+            return name;
+        }
     }
 
     public boolean isMove() {
-        return tag == Tag.Mv;
+        return tag == Tag.IMov;
     }
 
     public boolean isVMov() {
@@ -164,7 +184,7 @@ public class MachineInst extends ILinkNode {
     }
 
     public boolean isReturn() {
-        return tag == Tag.Return;
+        return tag == Tag.IRet || tag == Tag.VRet;
     }
 
     // public boolean isActuallyBino() {
@@ -175,7 +195,6 @@ public class MachineInst extends ILinkNode {
         return tag == Tag.Branch;
     }
 
-
     Machine.Block mb;
 
     public Machine.Block getMb() {
@@ -183,7 +202,6 @@ public class MachineInst extends ILinkNode {
     }
 
     Tag tag;
-    public boolean isFloat = false;
     public ArrayList<Machine.Operand> defOpds = new ArrayList<>();
     public ArrayList<Machine.Operand> useOpds = new ArrayList<>();
 
@@ -224,17 +242,31 @@ public class MachineInst extends ILinkNode {
     public void genDefUse() {
     }
 
-    public void transfer_output(PrintStream os) {
-        if (mb != null && mb.con_tran == this) {
-            os.println("@ control transfer");
-        }
-    }
-
     public void output(PrintStream os, Machine.McFunction f) {
-        return;
     }
 
     public interface Compare {
+    }
+
+
+    public interface MachineMemInst {
+        Machine.Operand getData();
+
+        Machine.Operand getAddr();
+
+        Machine.Operand getOffset();
+
+        void remove();
+    }
+
+    public interface MachineMove {
+
+        Machine.Operand getDst();
+
+        Machine.Operand getSrc();
+
+        void remove();
+
     }
 }
 

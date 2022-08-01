@@ -2,14 +2,12 @@ package backend;
 
 import frontend.lexer.Lexer;
 import frontend.semantic.Initial;
-import frontend.syntax.Parser;
 import lir.*;
 import lir.Machine.Operand;
 import manage.Manager;
 import mir.*;
 import mir.type.DataType;
 import mir.type.Type;
-import util.FileDealer;
 
 import java.util.*;
 
@@ -33,29 +31,38 @@ public class CodeGen {
     private static mir.Function curFunc;
 
     // mir中func的名字到Function的Map
-    private HashMap<String, Function> midFuncMap;
+    private final HashMap<String, Function> fMap;
 
     // 每个LLVM IR为一个值, 需要有一个虚拟寄存器(或常数->立即数)与之一一对应
     // Value到Operand的Map
     public HashMap<Value, Operand> value2opd;
-    public HashMap<GlobalVal.GlobalValue, Arm.Glob> globptr2globOpd = new HashMap<>();
+    public HashMap<GlobalVal.GlobalValue, Arm.Glob> globPtr2globOpd = new HashMap<>();
     public final ArrayList<Arm.Glob> globList = new ArrayList<>();
 
     // 如名
-    public HashMap<Function, Machine.McFunction> func2mcFunc;
+    public HashMap<Function, Machine.McFunction> f2mf;
 
     // 如名
     public HashMap<BasicBlock, Machine.Block> bb2mb;
 
     // 全局变量
-    private HashMap<GlobalVal.GlobalValue, Initial> globalMap;
+    private final HashMap<GlobalVal.GlobalValue, Initial> globalMap;
     private Machine.Block curMB;
 
-    private HashMap<Instr.Load, Instr.Alloc> load2alloc = new HashMap<>();
     // 整数数传参可使用最大个数
     public static final int rParamCnt = 4;
     // 浮点数传参可使用最大个数
     public static final int sParamCnt = 16;
+
+    private CodeGen() {
+        curFunc = null;
+        curMF = null;
+        fMap = Manager.MANAGER.getFunctions();
+        globalMap = Manager.MANAGER.globals;
+        value2opd = new HashMap<>();
+        f2mf = new HashMap<>();
+        bb2mb = new HashMap<>();
+    }
 
     // div+mod optimize
     public static class Multiplier {
@@ -85,19 +92,7 @@ public class CodeGen {
             m_high >>= 1;
             sh_post -= 1;
         }
-
         return new Multiplier(m_high, l, sh_post);
-
-    }
-
-    private CodeGen() {
-        curFunc = null;
-        curMF = null;
-        midFuncMap = Manager.MANAGER.getFunctions();
-        globalMap = Manager.MANAGER.globals;
-        value2opd = new HashMap<>();
-        func2mcFunc = new HashMap<>();
-        bb2mb = new HashMap<>();
     }
 
     public void gen() {
@@ -106,10 +101,9 @@ public class CodeGen {
         genGlobal();
         // TODO
 
-        for (Function func : midFuncMap.values()) {
-            // if (func.isExternal) {
+        for (Function func : fMap.values()) {
             Machine.McFunction mcFunc = new Machine.McFunction(func);
-            func2mcFunc.put(func, mcFunc);
+            f2mf.put(func, mcFunc);
             for (Function.Param p : func.getParams()) {
                 if (p.getType().isFloatType()) {
                     mcFunc.floatParamCount++;
@@ -117,15 +111,15 @@ public class CodeGen {
                     mcFunc.intParamCount++;
                 }
             }
-            // }
         }
-        for (Function func : midFuncMap.values()) {
+        for (Function func : fMap.values()) {
             // Machine.McFunction mcFunc = new Machine.McFunction(func);
             // func2mcFunc.put(func, mcFunc);
             if (func.isExternal) {
                 continue;
             }
-            curMF = func2mcFunc.get(func);
+            curMF = f2mf.get(func);
+            curMF.setUseLr();
             Machine.Program.PROGRAM.funcList.insertAtEnd(curMF);
             curFunc = func;
             boolean isMain = false;
@@ -133,18 +127,15 @@ public class CodeGen {
                 isMain = true;
                 Machine.Program.PROGRAM.mainMcFunc = curMF;
             }
-            // curMachineFunc = mcFunc;
             curMF.clearVRCount();
             curMF.clearSVRCount();
             value2opd = new HashMap<>();
+            cmpInst2MICmpMap = new HashMap<>();
 
             BasicBlock bb = func.getBeginBB();
             BasicBlock endBB = func.getEnd();
             // 先造出来防止br找不到目标
             while (!bb.equals(endBB)) {
-//                if (bb.isNoUse()) {
-//                    System.err.println("err_code_gen");
-//                }
                 Machine.Block mb = new Machine.Block(bb);
                 bb.setMB(mb);
                 bb2mb.put(bb, mb);
@@ -154,11 +145,12 @@ public class CodeGen {
             curMB = bb.getMb();
             // 这里不可使用单例
             Push(curMF);
-            Operand rOp = new Operand(I32, 0);
-            Operand mvDst = newVR();
-            MIMove mv = new MIMove(mvDst, rOp, curMB);
-            mv.setNeedFix(STACK_FIX.VAR_STACK);
-            new MIBinary(MachineInst.Tag.Sub, Arm.Reg.getR(sp), Arm.Reg.getR(sp), mvDst, curMB);
+            // Operand rOp = new Operand(I32, 0);
+            // Operand mvDst = newVR();
+            // I.Mov mv = new I.Mov(mvDst, rOp, curMB);
+            // mv.setNeedFix(STACK_FIX.VAR_STACK);
+            I.Binary bino = new I.Binary(MachineInst.Tag.Sub, Arm.Reg.getR(sp), Arm.Reg.getR(sp), new Operand(I32, 0), curMB);
+            bino.setNeedFix(STACK_FIX.VAR_STACK);
             if (!isMain) {
                 dealParam();
             }
@@ -174,17 +166,13 @@ public class CodeGen {
     }
 
     private void Push(Machine.McFunction mf) {
-        if (needFPU) {
-            new StackCtl.VPush(mf, curMB);
-        }
-        new StackCtl.MIPush(mf, curMB);
+        if (needFPU) new StackCtl.VPush(mf, curMB);
+        new StackCtl.Push(mf, curMB);
     }
 
-    private void Pop(Machine.McFunction curMachineFunc) {
-        new StackCtl.MIPop(curMachineFunc, curMB);
-        if (needFPU) {
-            new StackCtl.VPop(curMachineFunc, curMB);
-        }
+    private void Pop(Machine.McFunction mf) {
+        new StackCtl.Pop(mf, curMB);
+        if (needFPU) new StackCtl.VPop(mf, curMB);
     }
 
     LinkedList<BasicBlock> nextBBList;
@@ -197,40 +185,46 @@ public class CodeGen {
         for (Function.Param param : curFunc.getParams()) {
             if (param.getType().isFloatType()) {
                 assert needFPU;
-                Operand opd = curMF.newSVR();
+                Operand opd = newSVR();
                 value2opd.put(param, opd);
                 if (sIdx < sParamCnt) {
                     new V.Mov(opd, Arm.Reg.getS(sIdx), curMB);
                     sTop = sIdx + 1;
                 } else {
-                    // 这里因为无法确认栈的大小(参数栈空间, 所用寄存器push和pop的栈空间, 数组申请栈空间, 寄存器分配时溢出所需栈空间)是否超过了立即数编码, 因此一律用move指令处理
+                    /**
+                     * (rIdx - rTop) * 4: 通用参数栈的大小, rIdx <= 3 时 = 0; rIdx > 3 时恰为已使用的栈大小
+                     * (sIdx - sTop) * 4: 浮点参数栈的大小, sIdx <= 16 时 = 0; sIdx > 16 时恰为已使用的栈大小
+                     * 所以需要再减1
+                     */
                     Operand offImm = new Operand(I32, 4 * (rTop + sTop - (rIdx + sIdx) - 1));
-                    // 栈顶向下的偏移, 第四个参数 -4, 第五个参数 -8 ...修的时候只需要把这个立即数的值取出来加上getStackSize获取的栈大小即可
-
+                    // 修栈时窥孔消除
                     Operand imm = newVR();
-                    MIMove mv = new MIMove(imm, offImm, curMB);
-                    mv.setNeedFix(STACK_FIX.TOTAL_STACK);
+                    I.Mov mv = new I.Mov(imm, offImm, curMB);
+                    mv.setNeedFix(STACK_FIX.FLOAT_TOTAL_STACK);
                     Operand dstAddr = newVR();
-                    new MIBinary(MachineInst.Tag.Add, dstAddr, Arm.Reg.getR(sp), imm, curMB);
+                    new I.Binary(MachineInst.Tag.Add, dstAddr, Arm.Reg.getR(sp), imm, curMB);
                     new V.Ldr(opd, dstAddr, curMB);
-
                     curMF.addParamStack(4);
                 }
                 sIdx++;
             } else {
-                Operand opd = curMF.newVR();
+                Operand opd = newVR();
                 value2opd.put(param, opd);
                 if (rIdx < rParamCnt) {
-                    new MIMove(opd, Arm.Reg.getR(rIdx), curMB);
+                    new I.Mov(opd, Arm.Reg.getR(rIdx), curMB);
                     rTop = rIdx + 1;
                 } else {
-                    // 这里因为无法确认栈的大小(参数栈空间, 所用寄存器push和pop的栈空间, 数组申请栈空间, 寄存器分配时溢出所需栈空间)是否超过了立即数编码, 因此一律用move指令处理
+                    /**
+                     * (rIdx - rTop) * 4: 通用参数栈的大小, rIdx <= 3 时 = 0; rIdx > 3 时恰为已使用的栈大小
+                     * (sIdx - sTop) * 4: 浮点参数栈的大小, sIdx <= 16 时 = 0; sIdx > 16 时恰为已使用的栈大小
+                     * 所以需要再减1
+                     */
                     Operand offImm = new Operand(I32, 4 * (rTop + sTop - (rIdx + sIdx) - 1));
                     Operand dst = newVR();
-                    MIMove mv = new MIMove(dst, offImm, curMB);
-                    mv.setNeedFix(STACK_FIX.TOTAL_STACK);
+                    I.Mov mv = new I.Mov(dst, offImm, curMB);
+                    mv.setNeedFix(STACK_FIX.INT_TOTAL_STACK);
                     // 栈顶向下的偏移, 第四个参数 -4, 第五个参数 -8 ...修的时候只需要把这个立即数的值取出来加上getStackSize获取的栈大小即可
-                    new MILoad(opd, Arm.Reg.getR(sp), dst, curMB);
+                    new I.Ldr(opd, Arm.Reg.getR(sp), dst, curMB);
                     curMF.addParamStack(4);
                 }
                 rIdx++;
@@ -245,15 +239,15 @@ public class CodeGen {
         NO_NEED, // 无需修栈
         VAR_STACK, // 函数push语句后的第一条的sub sp, sp, varStack用, 函数pop语句前的最后一条add sp, sp, varStack用
         ONLY_PARAM, // 函数调用前的sub sp, sp, paramStack用, 函数调用后的add sp, sp, paramStack用
-        TOTAL_STACK, // 函数有超过四个的参数时ldr参数用(move vrx, #xxx那条)
+        INT_TOTAL_STACK, // 函数有超过四个的参数时ldr参数用(move vrx, #xxx那条)
         FLOAT_TOTAL_STACK
     }
 
-    HashSet<Machine.Block> dfsBBSet = new HashSet<>();
+    HashSet<Machine.Block> visitBBSet = new HashSet<>();
 
     public void genBB(BasicBlock bb) {
         curMB = bb.getMb();
-        dfsBBSet.add(curMB);
+        visitBBSet.add(curMB);
         curMB.setMcFunc(curMF);
         // ArrayList<BasicBlock> nextBlockList = new ArrayList<>();
         Instr instr = bb.getBeginInstr();
@@ -267,7 +261,7 @@ public class CodeGen {
                 case jump -> {
                     Machine.Block mb = ((Instr.Jump) instr).getTarget().getMb();
                     curMB.succMB.add(mb);
-                    if (!dfsBBSet.contains(mb)) nextBBList.push(mb.bb);
+                    if (!visitBBSet.contains(mb)) nextBBList.push(mb.bb);
                     new MIJump(mb, curMB);
                 }
                 case icmp, fcmp -> genCmp(instr);
@@ -279,29 +273,17 @@ public class CodeGen {
                     Machine.Block falseBlock = brInst.getElseTarget().getMb();
                     curMB.succMB.add(trueBlock);
                     curMB.succMB.add(falseBlock);
-                    if (!dfsBBSet.contains(falseBlock)) nextBBList.push(falseBlock.bb);
-                    if (!dfsBBSet.contains(trueBlock)) nextBBList.push(trueBlock.bb);
+                    if (!visitBBSet.contains(falseBlock)) nextBBList.push(falseBlock.bb);
+                    if (!visitBBSet.contains(trueBlock)) nextBBList.push(trueBlock.bb);
                     CMPAndArmCond t = cmpInst2MICmpMap.get(condValue);
                     if (t != null) {
-                        curMB.firstMIForBJ = t.CMP;
                         cond = t.ArmCond;
                     } else {
                         Operand condVR = getVR_no_imm(condValue);
-                        // TODO fcmp无法直接转换?
-                        // cond = Arm.Cond.values()[((Instr.Icmp) condValue).getOp().ordinal()];
-                        Operand dst = newVR();
-                        Operand immOpd = new Operand(I32, 0);
-                        if (curMB.firstMIForBJ != null) {
-                            new MIMove(dst, immOpd, curMB.firstMIForBJ);
-                            new MICompare(condVR, dst, curMB);
-                        } else {
-                            new MIMove(dst, immOpd, curMB);
-                            curMB.firstMIForBJ = new MICompare(condVR, dst, curMB);
-                        }
+                        new I.Cmp(condVR, new Operand(I32, 0), curMB);
                         cond = Arm.Cond.Ne;
                     }
                     new MIBranch(cond, trueBlock, falseBlock, curMB);
-                    // new MIJump()
                 }
                 case fneg -> {
                     assert needFPU;
@@ -317,38 +299,39 @@ public class CodeGen {
                         if (returnInst.getRetValue().getType().isInt32Type()) {
                             retDataType = I32;
                             Operand retOpd = getVR_may_imm(returnInst.getRetValue());
-                            curMB.firstMIForBJ = new MIMove(Arm.Reg.getR(r0), retOpd, curMB);
+                            new I.Mov(Arm.Reg.getR(r0), retOpd, curMB);
                         } else if (returnInst.getRetValue().getType().isFloatType()) {
                             assert needFPU;
                             retDataType = F32;
                             Operand retOpd = getVR_may_imm(returnInst.getRetValue());
-                            curMB.firstMIForBJ = new V.Mov(Arm.Reg.getS(s0), retOpd, curMB);
+                            new V.Mov(Arm.Reg.getS(s0), retOpd, curMB);
                         }
                     }
-                    Operand rOp = new Operand(I32, 0);
-                    Operand mvDst = newVR();
-                    MIMove mv = new MIMove(mvDst, rOp, curMB);
-                    mv.setNeedFix(STACK_FIX.VAR_STACK);
-                    new MIBinary(MachineInst.Tag.Add, Arm.Reg.getR(sp), Arm.Reg.getR(sp), mvDst, curMB);
-                    // miBinary.setNeedFix(STACK_FIX.VAR_STACK);
+                    // Operand rOp = new Operand(I32, 0);
+                    // Operand mvDst = newVR();
+                    // I.Mov mv = new I.Mov(mvDst, rOp, curMB);
+                    // mv.setNeedFix(STACK_FIX.VAR_STACK);
+                    I.Binary bino = new I.Binary(MachineInst.Tag.Add, Arm.Reg.getR(sp), Arm.Reg.getR(sp), new Operand(I32, 0), curMB);
+                    bino.setNeedFix(STACK_FIX.VAR_STACK);
                     Pop(curMF);
                     if (retDataType == I32) {
-                        new MIReturn(Arm.Reg.getR(r0), curMB);
+                        new I.Ret(Arm.Reg.getR(r0), curMB);
                     } else if (retDataType == F32) {
                         assert needFPU;
                         new V.Ret(Arm.Reg.getS(s0), curMB);
                     } else {
-                        new MIReturn(curMB);
+                        new I.Ret(curMB);
                     }
                 }
                 case zext -> {
                     Operand dst = getVR_no_imm(instr);
                     Operand src = getVR_may_imm(((Instr.Zext) instr).getRVal1());
-                    // 现阶段应该已经在上一个cmp生成好了并转移到虚拟寄存器中了, 应该不用管, 待优化
-                    new MIMove(dst, src, curMB);
+                    // TODO 已经在上一个cmp生成好了并转移到虚拟寄存器中了, 应该不用管, 待优化
+                    new I.Mov(dst, src, curMB);
                 }
                 case fptosi -> {
                     assert needFPU;
+                    // TODO 待改成立即数
                     Operand src = getVR_may_imm(((Instr.FPtosi) instr).getRVal1());
                     Operand tmp = newSVR();
                     new V.Cvt(V.CvtType.f2i, tmp, src, curMB);
@@ -357,6 +340,7 @@ public class CodeGen {
                 }
                 case sitofp -> {
                     assert needFPU;
+                    // TODO 待改成立即数
                     Operand src = getVR_may_imm(((Instr.SItofp) instr).getRVal1());
                     Operand tmp = newSVR();
                     new V.Mov(tmp, src, curMB);
@@ -367,6 +351,7 @@ public class CodeGen {
                     Instr.Alloc allocInst = (Instr.Alloc) instr;
                     Type contentType = allocInst.getContentType();
                     if (contentType.isPointerType()) {
+                        assert false;
                         break;
                     }
                     // 这里已经不可能Alloc一个Int或者Float了
@@ -375,8 +360,8 @@ public class CodeGen {
                     Operand spReg = Arm.Reg.getR(sp);
                     Operand offset = new Operand(I32, curMF.getVarStack());
                     Operand mvDst = newVR();
-                    new MIMove(mvDst, offset, curMB);
-                    new MIBinary(MachineInst.Tag.Add, addr, spReg, mvDst, curMB);
+                    new I.Mov(mvDst, offset, curMB);
+                    new I.Binary(MachineInst.Tag.Add, addr, spReg, mvDst, curMB);
                     // 栈空间移位
                     curMF.addVarStack(((Type.ArrayType) contentType).getFlattenSize() * 4);
                 }
@@ -389,8 +374,7 @@ public class CodeGen {
                         assert needFPU;
                         new V.Ldr(data, addrOpd, curMB);
                     } else {
-                        Operand offsetOpd = new Operand(I32, 0);
-                        new MILoad(data, addrOpd, offsetOpd, curMB);
+                        new I.Ldr(data, addrOpd, curMB);
                     }
                 }
                 case store -> {
@@ -401,8 +385,7 @@ public class CodeGen {
                         assert needFPU;
                         new V.Str(data, addr, curMB);
                     } else {
-                        Operand offset = new Operand(I32, 0);
-                        new MIStore(data, addr, offset, curMB);
+                        new I.Str(data, addr, curMB);
                     }
                 }
                 case gep -> {
@@ -413,18 +396,12 @@ public class CodeGen {
                      * 当前的 baseType
                      */
                     Type curBaseType = ((Type.PointerType) ptrValue.getType()).getInnerType();
-                    // if (curBaseType.isBasicType()) {
-                    //     offsetCount = 1;
-                    // } else {
-                    //     assert curBaseType.isArrType();
-                    //     offsetCount = ((Type.ArrayType) curBaseType).getDimSize();
-                    // }
                     assert !ptrValue.isConstant();
                     Operand dstVR = getVR_no_imm(gep);
                     // Machine.Operand curAddrVR = getVR_no_imm(ptrValue);
-                    Operand basePtrVR = getVR_from_ptr(ptrValue);
-                    Operand curAddrVR = newVR();
-                    new MIMove(curAddrVR, basePtrVR, curMB);
+                    Operand curAddrVR = getVR_from_ptr(ptrValue);
+                    // Operand curAddrVR = newVR();
+                    // new I.Mov(curAddrVR, basePtrVR, curMB);
                     int totalConstOff = 0;
                     for (int i = 0; i < offsetCount; i++) {
                         Value curIdxValue = gep.getIdxValueOf(i);
@@ -440,10 +417,15 @@ public class CodeGen {
                             if (i == offsetCount - 1) {
                                 // 这里的设计比较微妙
                                 if (totalConstOff == 0) {
-                                    new MIMove(dstVR, curAddrVR, curMB);
+                                    new I.Mov(dstVR, curAddrVR, curMB);
                                 } else {
-                                    Operand immVR = getImmVR(totalConstOff);
-                                    new MIBinary(MachineInst.Tag.Add, dstVR, curAddrVR, immVR, curMB);
+                                    Operand imm;
+                                    if (immCanCode(totalConstOff)) {
+                                        imm = new Operand(I32, totalConstOff);
+                                    } else {
+                                        imm = getImmVR(totalConstOff);
+                                    }
+                                    new I.Binary(MachineInst.Tag.Add, dstVR, curAddrVR, imm, curMB);
                                 }
                                 // 由于已经是最后一个偏移,所以不需要
                                 // curAddrVR = dstVR;
@@ -468,13 +450,13 @@ public class CodeGen {
                                 if (totalConstOff != 0) {
                                     Machine.Operand immVR = getImmVR(totalConstOff);
                                     Machine.Operand dst = newVR();
-                                    new MIBinary(MachineInst.Tag.Add, dst, curAddrVR, immVR, curMB);
+                                    new I.Binary(MachineInst.Tag.Add, dst, curAddrVR, immVR, curMB);
                                     curAddrVR = dst;
                                 }
-                                new MIFma(true, false, dstVR, curIdxVR, offUnitImmVR, curAddrVR, curMB);
+                                new I.Fma(true, false, dstVR, curIdxVR, offUnitImmVR, curAddrVR, curMB);
                             } else {
                                 Machine.Operand dst = newVR();
-                                new MIFma(true, false, dst, curIdxVR, offUnitImmVR, curAddrVR, curMB);
+                                new I.Fma(true, false, dst, curIdxVR, offUnitImmVR, curAddrVR, curMB);
                                 curAddrVR = dst;
                             }
                         }
@@ -485,7 +467,7 @@ public class CodeGen {
                     Instr.Bitcast bitcast = (Instr.Bitcast) instr;
                     Operand src = getVR_no_imm(bitcast.getSrcValue());
                     Operand dst = getVR_no_imm(bitcast);
-                    new MIMove(dst, src, curMB);
+                    new I.Mov(dst, src, curMB);
                 }
                 case call -> {
                     Instr.Call call_inst = (Instr.Call) instr;
@@ -493,8 +475,8 @@ public class CodeGen {
                     // TODO: ayame解决方案是在 callee 头 push 和 callee 尾部 pop 那些 callee 要用到的寄存器, 暂定此方案
                     // TODO: 如果有返回值, 则由caller保护r0或s0, 如果没有返回值则有callee保护
                     ArrayList<Value> param_list = call_inst.getParamList();
-                    ArrayList<Operand> paramVRList = new ArrayList<>();
-                    ArrayList<Operand> paramSVRList = new ArrayList<>();
+                    // ArrayList<Operand> paramVRList = new ArrayList<>();
+                    // ArrayList<Operand> paramSVRList = new ArrayList<>();
                     int rIdx = 0;
                     int sIdx = 0;
                     int rParamTop = rIdx;
@@ -503,39 +485,44 @@ public class CodeGen {
                         if (p.getType().isFloatType()) {
                             assert needFPU;
                             if (sIdx < sParamCnt) {
-                                Operand tmpDst = newSVR();
-                                paramSVRList.add(tmpDst);
+                                /*Operand tmpDst = newSVR();
+                                paramSVRList.add(tmpDst);*/
                                 Operand fpr = Arm.Reg.getS(sIdx);
-                                new V.Mov(tmpDst, fpr, curMB);
+                                /*new V.Mov(tmpDst, fpr, curMB);*/
                                 new V.Mov(fpr, getVR_may_imm(p), curMB);
                                 sParamTop = sIdx + 1;
                             } else {
                                 int offset_imm = (sParamTop + rParamTop - (rIdx + sIdx) - 1) * 4;
                                 Operand data = getVR_may_imm(p);
                                 Operand off = new Operand(I32, offset_imm);
-                                if (fpOffEncode(offset_imm)) {
+                                if (vLdrStrImmEncode(offset_imm)) {
                                     new V.Str(data, Arm.Reg.getR(sp), off, curMB);
+                                } else if (immCanCode(offset_imm)) {
+                                    // TODO 取反
+                                    Operand dstAddr = newVR();
+                                    new I.Binary(MachineInst.Tag.Sub, dstAddr, Arm.Reg.getR(sp), new Operand(I32, offset_imm), curMB);
+                                    new V.Str(data, dstAddr, curMB);
                                 } else if (immCanCode(-offset_imm)) {
                                     // TODO 取反
                                     Operand dstAddr = newVR();
-                                    new MIBinary(MachineInst.Tag.Sub, dstAddr, Arm.Reg.getR(sp), new Operand(I32, -offset_imm), curMB);
+                                    new I.Binary(MachineInst.Tag.Sub, dstAddr, Arm.Reg.getR(sp), new Operand(I32, -offset_imm), curMB);
                                     new V.Str(data, dstAddr, curMB);
                                 } else {
                                     Operand imm = newVR();
-                                    new MIMove(imm, new Operand(I32, -offset_imm), curMB);
+                                    new I.Mov(imm, new Operand(I32, -offset_imm), curMB);
                                     Operand dstAddr = newVR();
-                                    new MIBinary(MachineInst.Tag.Sub, dstAddr, Arm.Reg.getR(sp), imm, curMB);
+                                    new I.Binary(MachineInst.Tag.Sub, dstAddr, Arm.Reg.getR(sp), imm, curMB);
                                     new V.Str(data, dstAddr, curMB);
                                 }
                             }
                             sIdx++;
                         } else {
                             if (rIdx < rParamCnt) {
-                                Operand tmpDst = newVR();
-                                paramVRList.add(tmpDst);
+                                /*Operand tmpDst = newVR();
+                                paramVRList.add(tmpDst);*/
                                 Operand gpr = Arm.Reg.getR(rIdx);
-                                new MIMove(tmpDst, gpr, curMB);
-                                new MIMove(gpr, getVR_may_imm(p), curMB);
+                                /*new I.Mov(tmpDst, gpr, curMB);*/
+                                new I.Mov(gpr, getVR_may_imm(p), curMB);
                                 rParamTop = rIdx + 1;
                             } else {
                                 int offset_imm = (sParamTop + rParamTop - (rIdx + sIdx) - 1) * 4;
@@ -543,28 +530,28 @@ public class CodeGen {
                                 Operand addr = Arm.Reg.getR(sp);
                                 // TODO 小心函数参数个数超级多, 超过立即数可以表示的大小导致的错误
                                 Operand off = new Operand(I32, offset_imm);
-                                if (!immCanCode(offset_imm)) {
+                                if (!LdrStrImmEncode(offset_imm)) {
                                     Operand immDst = newVR();
-                                    new MIMove(immDst, off, curMB);
+                                    new I.Mov(immDst, off, curMB);
                                     off = immDst;
                                 }
-                                new MIStore(data, addr, off, curMB);
+                                new I.Str(data, addr, off, curMB);
                             }
                             rIdx++;
                         }
                     }
                     // 栈空间移位
                     Function callFunc = call_inst.getFunc();
-                    Machine.McFunction callMcFunc = func2mcFunc.get(callFunc);
+                    Machine.McFunction callMcFunc = f2mf.get(callFunc);
                     if (callFunc.isExternal) {
                         /**
                          * r0实际上依据设计不一定需要保护, 因为一定是最后ret语句才会有r0的赋值
                          */
                         // TODO: return getint();
-                        while (rIdx < 2) {
+                        /*while (rIdx < 2) {
                             Operand tmpDst = newVR();
                             paramVRList.add(tmpDst);
-                            new MIMove(tmpDst, Arm.Reg.getR(rIdx++), curMB);
+                            new I.Mov(tmpDst, Arm.Reg.getR(rIdx++), curMB);
                         }
                         if (needFPU) {
                             while (sIdx < 2) {
@@ -572,20 +559,12 @@ public class CodeGen {
                                 paramSVRList.add(tmpDst);
                                 new V.Mov(tmpDst, Arm.Reg.getS(sIdx++), curMB);
                             }
-                        }
-                        Machine.McFunction mf = func2mcFunc.get(callFunc);
+                        }*/
+                        Machine.McFunction mf = f2mf.get(callFunc);
                         assert mf != null;
                         Push(mf);
                         new MICall(mf, curMB);
                         Pop(mf);
-                        if (call_inst.getType().isInt32Type()) {
-                            new MIMove(getVR_no_imm(call_inst), Arm.Reg.getR(r0), curMB);
-                        } else if (call_inst.getType().isFloatType()) {
-                            assert needFPU;
-                            new V.Mov(getVR_no_imm(call_inst), Arm.Reg.getS(s0), curMB);
-                        } else if (!call_inst.getType().isVoidType()) {
-                            throw new AssertionError("Wrong ret type");
-                        }
                     } else {
                         if (callMcFunc == null) {
                             throw new AssertionError("Callee is null");
@@ -594,50 +573,48 @@ public class CodeGen {
                          * r0实际上依据设计不一定需要保护, 因为一定是最后ret语句才会有r0的赋值
                          */
                         // TODO: return getint();
-                        if (rIdx == 0 && call_inst.getType().isInt32Type()) {
+                        /*if (rIdx == 0 && call_inst.getType().isInt32Type()) {
                             Operand tmpDst = newVR();
                             paramVRList.add(tmpDst);
-                            new MIMove(tmpDst, Arm.Reg.getR(r0), curMB);
+                            new I.Mov(tmpDst, Arm.Reg.getR(r0), curMB);
                         }
                         if (sIdx == 0 && call_inst.getType().isFloatType()) {
                             Operand tmpDst = newSVR();
                             paramSVRList.add(tmpDst);
                             new V.Mov(tmpDst, Arm.Reg.getS(s0), curMB);
-                        }
-                        Operand rOp1 = new Operand(I32, 0);
-                        Operand mvDst1 = newVR();
-                        MIMove mv1 = new MIMove(mvDst1, rOp1, curMB);
-                        mv1.setNeedFix(callMcFunc, STACK_FIX.ONLY_PARAM);
-                        new MIBinary(MachineInst.Tag.Sub, Arm.Reg.getR(sp), Arm.Reg.getR(sp), mvDst1, curMB);
-                        // 设置一个boolean表示需要修复方便output .S时及时修复
-                        // miBinary.setNeedFix(callMcFunc, STACK_FIX.ONLY_PARAM);
+                        }*/
+                        // Operand rOp1 = new Operand(I32, 0);
+                        // Operand mvDst1 = newVR();
+                        // I.Mov mv1 = new I.Mov(mvDst1, rOp1, curMB);
+                        // mv1.setNeedFix(callMcFunc, STACK_FIX.ONLY_PARAM);
+                        I.Binary bino = new I.Binary(MachineInst.Tag.Sub, Arm.Reg.getR(sp), Arm.Reg.getR(sp), new Operand(I32, 0), curMB);
+                        bino.setNeedFix(callMcFunc, STACK_FIX.ONLY_PARAM);
                         // call
                         new MICall(callMcFunc, curMB);
-                        Operand rOp2 = new Operand(I32, 0);
-                        Operand mvDst2 = newVR();
-                        MIMove mv2 = new MIMove(mvDst2, rOp2, curMB);
-                        mv2.setNeedFix(callMcFunc, STACK_FIX.ONLY_PARAM);
-                        new MIBinary(MachineInst.Tag.Add, Arm.Reg.getR(sp), Arm.Reg.getR(sp), mvDst2, curMB);
-                        // miBinary.setNeedFix(callMcFunc, STACK_FIX.ONLY_PARAM);
-                        // 这是取返回值
-                        if (call_inst.getType().isInt32Type()) {
-                            new MIMove(getVR_no_imm(call_inst), Arm.Reg.getR(r0), curMB);
-                        } else if (call_inst.getType().isFloatType()) {
-                            assert needFPU;
-                            new V.Mov(getVR_no_imm(call_inst), Arm.Reg.getS(s0), curMB);
-                        } else if (!call_inst.getType().isVoidType()) {
-                            throw new AssertionError("Wrong ret type");
-                        }
+                        // Operand rOp2 = new Operand(I32, 0);
+                        // Operand mvDst2 = newVR();
+                        // I.Mov mv2 = new I.Mov(mvDst2, rOp2, curMB);
+                        // mv2.setNeedFix(callMcFunc, STACK_FIX.ONLY_PARAM);
+                        I.Binary bino2 = new I.Binary(MachineInst.Tag.Add, Arm.Reg.getR(sp), Arm.Reg.getR(sp), new Operand(I32, 0), curMB);
+                        bino2.setNeedFix(callMcFunc, STACK_FIX.ONLY_PARAM);
                     }
-                    // 需要把挪走的r0-rx再挪回来
+                    if (call_inst.getType().isInt32Type()) {
+                        new I.Mov(getVR_no_imm(call_inst), Arm.Reg.getR(r0), curMB);
+                    } else if (call_inst.getType().isFloatType()) {
+                        assert needFPU;
+                        new V.Mov(getVR_no_imm(call_inst), Arm.Reg.getS(s0), curMB);
+                    } else if (!call_inst.getType().isVoidType()) {
+                        throw new AssertionError("Wrong ret type");
+                    }
+                    /*// 需要把挪走的r0-rx再挪回来
                     for (int i = 0; i < paramVRList.size(); i++) {
-                        new MIMove(Arm.Reg.getR(i), paramVRList.get(i), curMB);
+                        new I.Mov(Arm.Reg.getR(i), paramVRList.get(i), curMB);
                     }
                     // 需要把挪走的s0-sx再挪回来
                     for (int i = 0; i < paramSVRList.size(); i++) {
                         assert needFPU;
                         new V.Mov(Arm.Reg.getS(i), paramSVRList.get(i), curMB);
-                    }
+                    }*/
                 }
                 case phi -> throw new AssertionError("Backend has phi: " + instr);
                 case pcopy -> {
@@ -662,7 +639,7 @@ public class CodeGen {
                         assert needFPU;
                         new V.Mov(target, source, curMB);
                     } else {
-                        new MIMove(target, source, curMB);
+                        new I.Mov(target, source, curMB);
                     }
                 }
             }
@@ -674,7 +651,11 @@ public class CodeGen {
         // }
     }
 
-    public static boolean fpOffEncode(int off) {
+    public static boolean LdrStrImmEncode(int off) {
+        return off < 4096 && off > -4096;
+    }
+
+    public static boolean vLdrStrImmEncode(int off) {
         return off <= 1020 && off >= -1020;
     }
 
@@ -695,7 +676,7 @@ public class CodeGen {
             //     glob = new Arm.Glob(globalValue, F32);
             // }
             globList.add(glob);
-            globptr2globOpd.put(globalValue, glob);
+            globPtr2globOpd.put(globalValue, glob);
         }
     }
 
@@ -719,13 +700,13 @@ public class CodeGen {
             if (_DEBUG_MUL_DIV && rhs.isConstantInt()) {
                 divOptimize_mod(lhs, rhs, dst1);
             } else {
-                new MIBinary(MachineInst.Tag.Div, dst1, a, b, curMB);
+                new I.Binary(MachineInst.Tag.Div, dst1, a, b, curMB);
             }
             // dst2 = dst1*b
             Machine.Operand dst2 = newVR();
-            new MIBinary(MachineInst.Tag.Mul, dst2, dst1, b, curMB);
+            new I.Binary(MachineInst.Tag.Mul, dst2, dst1, b, curMB);
             // q = a - dst2
-            new MIBinary(MachineInst.Tag.Sub, q, a, dst2, curMB);
+            new I.Binary(MachineInst.Tag.Sub, q, a, dst2, curMB);
             return;
         } else if (tag == MachineInst.Tag.FMod) {
             assert needFPU;
@@ -759,14 +740,14 @@ public class CodeGen {
                 divOptimize(instr);
                 return;
             }
-            if(tag == MachineInst.Tag.Mul) {
-                if(lhs.isConstantInt()){
+            if (tag == MachineInst.Tag.Mul) {
+                if (lhs.isConstantInt()) {
                     Value tmp = rhs;
                     rhs = lhs;
                     lhs = tmp;
                 }
                 if (rhs.isConstantInt() && is2power(Math.abs(((Constant.ConstantInt) rhs).constIntVal))) {
-                    mulOptimize(lhs,rhs,instr);
+                    mulOptimize(lhs, rhs, instr);
                     return;
                 }
             }
@@ -775,14 +756,14 @@ public class CodeGen {
         Machine.Operand rVR = getVR_may_imm(rhs);
         // instr不可能是Constant
         Machine.Operand dVR = getVR_no_imm(instr);
-        new MIBinary(tag, dVR, lVR, rVR, curMB);
+        new I.Binary(tag, dVR, lVR, rVR, curMB);
     }
 
     public boolean is2power(int n) {
         return n > 0 && (n & (n - 1)) == 0;
     }
 
-    public void mulOptimize(Value lhs,Value rhs,Instr.Alu instr) {
+    public void mulOptimize(Value lhs, Value rhs, Instr.Alu instr) {
         Machine.Operand n = getVR_may_imm(lhs);
         Machine.Operand q = getVR_no_imm(instr);
         int d = ((Constant.ConstantInt) rhs).constIntVal;
@@ -790,7 +771,7 @@ public class CodeGen {
         //q = n*d
         //q = n<<k
         Arm.Shift shift = new Arm.Shift(Arm.ShiftType.Lsl, k);
-        new MIMove(q, n, shift, curMB);
+        new I.Mov(q, n, shift, curMB);
 
     }
 
@@ -805,69 +786,69 @@ public class CodeGen {
         long m = multiplier.m;
         if (Math.abs(d) == 1) {
             // q = n
-            new MIMove(q, n, curMB);
+            new I.Mov(q, n, curMB);
 
         } else if (Math.abs(d) == (1 << l)) {
             // q = SRA(n+SRL(SRA(n,l-1),N-l),l)
             // dst1 = SRA(n,l-1)
             Machine.Operand dst1 = newVR();
             Arm.Shift shift1 = new Arm.Shift(Arm.ShiftType.Asr, l - 1);
-            new MIMove(dst1, n, shift1, curMB);
+            new I.Mov(dst1, n, shift1, curMB);
             // dst2 = SRL(dst1,N-l)
             Machine.Operand dst2 = newVR();
             Arm.Shift shift2 = new Arm.Shift(Arm.ShiftType.Lsr, N - l);
-            new MIMove(dst2, dst1, shift2, curMB);
+            new I.Mov(dst2, dst1, shift2, curMB);
             // dst3 = n+dst2
             Machine.Operand dst3 = newVR();
-            new MIBinary(MachineInst.Tag.Add, dst3, n, dst2, curMB);
+            new I.Binary(MachineInst.Tag.Add, dst3, n, dst2, curMB);
             // q = SRA(dst3,l)
             Arm.Shift shift3 = new Arm.Shift(Arm.ShiftType.Asr, l);
-            new MIMove(q, dst3, shift3, curMB);
+            new I.Mov(q, dst3, shift3, curMB);
         } else if (m < ((long) 1 << (N - 1))) {
             // q = SRA(MULSH(m,n),sh_post)-XSIGN(n)
             // dst1 = MULSH(m,n)
             Machine.Operand m_op = new Machine.Operand(I32, (int) m);
             Machine.Operand dst1 = newVR();
             Machine.Operand move_dst = newVR();
-            new MIMove(move_dst,m_op,curMB);
-            new MILongMul(dst1, n,move_dst, curMB);
+            new I.Mov(move_dst, m_op, curMB);
+            new MILongMul(dst1, n, move_dst, curMB);
             // dst2 = SRA(dst1,sh_post)
             Machine.Operand dst2 = newVR();
             Arm.Shift shift2 = new Arm.Shift(Arm.ShiftType.Asr, sh_post);
-            new MIMove(dst2, dst1, shift2, curMB);
+            new I.Mov(dst2, dst1, shift2, curMB);
             // dst3 = -XSIGN(n)
             Machine.Operand dst3 = newVR();
-            new MICompare(n, new Machine.Operand(I32, 0), curMB);
-            new MIMove(Lt, dst3, new Machine.Operand(I32, 1), curMB);
-            new MIMove(Ge, dst3, new Machine.Operand(I32, 0), curMB);
+            new I.Cmp(n, new Machine.Operand(I32, 0), curMB);
+            new I.Mov(Lt, dst3, new Machine.Operand(I32, 1), curMB);
+            new I.Mov(Ge, dst3, new Machine.Operand(I32, 0), curMB);
             // q = dst2+dst3
-            new MIBinary(MachineInst.Tag.Add, q, dst2, dst3, curMB);
+            new I.Binary(MachineInst.Tag.Add, q, dst2, dst3, curMB);
         } else {
             // q = SRA(n+MULSH(m-2^N,n),sh_post)-XSIGN(n)
             // dst1 = MULSH(m-2^N,n)
             Machine.Operand m_op = new Machine.Operand(I32, (int) (m - (((long) 1 << N))));
             Machine.Operand dst1 = newVR();
             Machine.Operand move_dst = newVR();
-            new MIMove(move_dst,m_op,curMB);
-            new MILongMul(dst1, n,move_dst, curMB);
+            new I.Mov(move_dst, m_op, curMB);
+            new MILongMul(dst1, n, move_dst, curMB);
             // dst2 = n+dst1
             Machine.Operand dst2 = newVR();
-            new MIBinary(MachineInst.Tag.Add, dst2, n, dst1, curMB);
+            new I.Binary(MachineInst.Tag.Add, dst2, n, dst1, curMB);
             // dst3 = SRA(dst2,sh_post)
             Machine.Operand dst3 = newVR();
             Arm.Shift shift = new Arm.Shift(Arm.ShiftType.Asr, sh_post);
-            new MIMove(dst3, dst2, shift, curMB);
+            new I.Mov(dst3, dst2, shift, curMB);
             // dst4 = -XSIGN(n)
             Machine.Operand dst4 = newVR();
-            new MICompare(n, new Machine.Operand(I32, 0), curMB);
-            new MIMove(Lt, dst4, new Machine.Operand(I32, 1), curMB);
-            new MIMove(Ge, dst4, new Machine.Operand(I32, 0), curMB);
+            new I.Cmp(n, new Machine.Operand(I32, 0), curMB);
+            new I.Mov(Lt, dst4, new Machine.Operand(I32, 1), curMB);
+            new I.Mov(Ge, dst4, new Machine.Operand(I32, 0), curMB);
             // q = dst3+dst4
-            new MIBinary(MachineInst.Tag.Add, q, dst3, dst4, curMB);
+            new I.Binary(MachineInst.Tag.Add, q, dst3, dst4, curMB);
         }
         if (d < 0) {
             // q=-q
-            new MIBinary(MachineInst.Tag.Rsb, q, q, new Machine.Operand(I32, 0), curMB);
+            new I.Binary(MachineInst.Tag.Rsb, q, q, new Machine.Operand(I32, 0), curMB);
         }
     }
 
@@ -885,69 +866,69 @@ public class CodeGen {
         long m = multiplier.m;
         if (Math.abs(d) == 1) {
             // q = n
-            new MIMove(q, n, curMB);
+            new I.Mov(q, n, curMB);
 
         } else if (Math.abs(d) == (1 << l)) {
             // q = SRA(n+SRL(SRA(n,l-1),N-l),l)
             // dst1 = SRA(n,l-1)
             Machine.Operand dst1 = newVR();
             Arm.Shift shift1 = new Arm.Shift(Arm.ShiftType.Asr, l - 1);
-            new MIMove(dst1, n, shift1, curMB);
+            new I.Mov(dst1, n, shift1, curMB);
             // dst2 = SRL(dst1,N-l)
             Machine.Operand dst2 = newVR();
             Arm.Shift shift2 = new Arm.Shift(Arm.ShiftType.Lsr, N - l);
-            new MIMove(dst2, dst1, shift2, curMB);
+            new I.Mov(dst2, dst1, shift2, curMB);
             // dst3 = n+dst2
             Machine.Operand dst3 = newVR();
-            new MIBinary(MachineInst.Tag.Add, dst3, n, dst2, curMB);
+            new I.Binary(MachineInst.Tag.Add, dst3, n, dst2, curMB);
             // q = SRA(dst3,l)
             Arm.Shift shift3 = new Arm.Shift(Arm.ShiftType.Asr, l);
-            new MIMove(q, dst3, shift3, curMB);
+            new I.Mov(q, dst3, shift3, curMB);
         } else if (m < ((long) 1 << (N - 1))) {
             // q = SRA(MULSH(m,n),sh_post)-XSIGN(n)
             // dst1 = MULSH(m,n)
             Machine.Operand m_op = new Machine.Operand(I32, (int) m);
             Machine.Operand dst1 = newVR();
             Machine.Operand move_dst = newVR();
-            new MIMove(move_dst,m_op,curMB);
-            new MILongMul(dst1, n,move_dst, curMB);
+            new I.Mov(move_dst, m_op, curMB);
+            new MILongMul(dst1, n, move_dst, curMB);
             // dst2 = SRA(dst1,sh_post)
             Machine.Operand dst2 = newVR();
             Arm.Shift shift2 = new Arm.Shift(Arm.ShiftType.Asr, sh_post);
-            new MIMove(dst2, dst1, shift2, curMB);
+            new I.Mov(dst2, dst1, shift2, curMB);
             // dst3 = -XSIGN(n)
             Machine.Operand dst3 = newVR();
-            new MICompare(n, new Machine.Operand(I32, 0), curMB);
-            new MIMove(Lt, dst3, new Machine.Operand(I32, 1), curMB);
-            new MIMove(Ge, dst3, new Machine.Operand(I32, 0), curMB);
+            new I.Cmp(n, new Machine.Operand(I32, 0), curMB);
+            new I.Mov(Lt, dst3, new Machine.Operand(I32, 1), curMB);
+            new I.Mov(Ge, dst3, new Machine.Operand(I32, 0), curMB);
             // q = dst2+dst3
-            new MIBinary(MachineInst.Tag.Add, q, dst2, dst3, curMB);
+            new I.Binary(MachineInst.Tag.Add, q, dst2, dst3, curMB);
         } else {
             // q = SRA(n+MULSH(m-2^N,n),sh_post)-XSIGN(n)
             // dst1 = MULSH(m-2^N,n)
             Machine.Operand m_op = new Machine.Operand(I32, (int) (m - (((long) 1 << N))));
             Machine.Operand dst1 = newVR();
             Machine.Operand move_dst = newVR();
-            new MIMove(move_dst,m_op,curMB);
-            new MILongMul(dst1, n,move_dst, curMB);
+            new I.Mov(move_dst, m_op, curMB);
+            new MILongMul(dst1, n, move_dst, curMB);
             // dst2 = n+dst1
             Machine.Operand dst2 = newVR();
-            new MIBinary(MachineInst.Tag.Add, dst2, n, dst1, curMB);
+            new I.Binary(MachineInst.Tag.Add, dst2, n, dst1, curMB);
             // dst3 = SRA(dst2,sh_post)
             Machine.Operand dst3 = newVR();
             Arm.Shift shift = new Arm.Shift(Arm.ShiftType.Asr, sh_post);
-            new MIMove(dst3, dst2, shift, curMB);
+            new I.Mov(dst3, dst2, shift, curMB);
             // dst4 = -XSIGN(n)
             Machine.Operand dst4 = newVR();
-            new MICompare(n, new Machine.Operand(I32, 0), curMB);
-            new MIMove(Lt, dst4, new Machine.Operand(I32, 1), curMB);
-            new MIMove(Ge, dst4, new Machine.Operand(I32, 0), curMB);
+            new I.Cmp(n, new Machine.Operand(I32, 0), curMB);
+            new I.Mov(Lt, dst4, new Machine.Operand(I32, 1), curMB);
+            new I.Mov(Ge, dst4, new Machine.Operand(I32, 0), curMB);
             // q = dst3+dst4
-            new MIBinary(MachineInst.Tag.Add, q, dst3, dst4, curMB);
+            new I.Binary(MachineInst.Tag.Add, q, dst3, dst4, curMB);
         }
         if (d < 0) {
             // q=-q
-            new MIBinary(MachineInst.Tag.Rsb, q, q, new Machine.Operand(I32, 0), curMB);
+            new I.Binary(MachineInst.Tag.Rsb, q, q, new Machine.Operand(I32, 0), curMB);
         }
     }
 
@@ -988,7 +969,7 @@ public class CodeGen {
             Value rhs = icmp.getRVal2();
             Operand lVR = getVR_may_imm(lhs);
             Operand rVR = getVR_may_imm(rhs);
-            MICompare cmp = new MICompare(lVR, rVR, curMB);
+            I.Cmp cmp = new I.Cmp(lVR, rVR, curMB);
             int condIdx = icmp.getOp().ordinal();
             Arm.Cond cond = Arm.Cond.values()[condIdx];
             // Icmp或Fcmp后紧接着BranchInst，而且前者的结果仅被后者使用，那么就可以不用计算结果，而是直接用bxx的指令
@@ -997,8 +978,8 @@ public class CodeGen {
                     && icmp.getBeginUse().getUser().isBranch() && icmp.getNext().equals(icmp.getBeginUse().getUser())) {
                 cmpInst2MICmpMap.put(instr, new CMPAndArmCond(cmp, cond));
             } else {
-                new MIMove(cond, dst, new Operand(I32, 1), curMB);
-                new MIMove(getIcmpOppoCond(cond), dst, new Operand(I32, 0), curMB);
+                new I.Mov(cond, dst, new Operand(I32, 1), curMB);
+                new I.Mov(getIcmpOppoCond(cond), dst, new Operand(I32, 0), curMB);
             }
         } else if (instr.isFcmp()) {
             assert needFPU;
@@ -1023,8 +1004,8 @@ public class CodeGen {
                 cmpInst2MICmpMap.put(instr, new CMPAndArmCond(vcmp, cond));
             } else {
                 // TODO 这里不是很确定能不能执行
-                new MIMove(cond, dst, new Operand(I32, 1), curMB);
-                new MIMove(getFcmpOppoCond(cond), dst, new Operand(I32, 0), curMB);
+                new I.Mov(cond, dst, new Operand(I32, 1), curMB);
+                new I.Mov(getFcmpOppoCond(cond), dst, new Operand(I32, 0), curMB);
             }
         }
     }
@@ -1070,7 +1051,6 @@ public class CodeGen {
         return false;
     }
 
-
     // private Machine.Operand genOpdFromValue(Value value) {
     // private Machine.Operand genOpdFromValue(Value value) {
     //     return getVR_may_imm(value);
@@ -1112,6 +1092,9 @@ public class CodeGen {
      * 不可能是立即数的vr获取
      */
     public Operand getVR_no_imm(Value value) {
+        // if (value.isConstantInt()) {
+        //     return getImmVR(((Constant.ConstantInt) value).constIntVal);
+        // }
         Operand opd = value2opd.get(value);
         return opd == null ? (value.getType().isFloatType() ? newSVR(value) : newVR(value)) : opd;
     }
@@ -1123,12 +1106,10 @@ public class CodeGen {
      * @return
      */
     public Operand getImmVR(int imm) {
-        if(immCanCode(imm))
-            return new Operand(I32, imm);
         // 暴力用两条指令mov一个立即数到寄存器
         Operand dst = newVR();
         Operand immOpd = new Operand(I32, imm);
-        new MIMove(dst, immOpd, curMB);
+        new I.Mov(dst, immOpd, curMB);
         return dst;
     }
 
@@ -1146,9 +1127,21 @@ public class CodeGen {
         Arm.Glob glob = new Arm.Glob(name);
         // globList.add(glob);
         Operand labelAddr = newVR();
-        new MIMove(labelAddr, glob, curMB);
+        new I.Mov(labelAddr, glob, curMB);
         new V.Ldr(dst, labelAddr, curMB);
         return dst;
+    }
+
+    public Operand get_may_imm(Value value) {
+        if (value instanceof Constant.ConstantInt) {
+            int imm = ((Constant.ConstantInt) value).constIntVal;
+            if (immCanCode(imm)) {
+                return new Operand(I32, imm);
+            } else {
+                return getImmVR(imm);
+            }
+        }
+        return getVR_may_imm(value);
     }
 
     /**
@@ -1167,8 +1160,8 @@ public class CodeGen {
     public Operand getVR_from_ptr(Value value) {
         if (value instanceof GlobalVal.GlobalValue) {
             Operand addr = newVR();
-            Arm.Glob glob = globptr2globOpd.get((GlobalVal.GlobalValue) value);
-            new MIMove(addr, glob, curMB);
+            Arm.Glob glob = globPtr2globOpd.get((GlobalVal.GlobalValue) value);
+            new I.Mov(addr, glob, curMB);
             // 取出来的Operand 是立即数类型
             return addr;
         } else {

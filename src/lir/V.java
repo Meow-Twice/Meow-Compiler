@@ -1,44 +1,15 @@
 package lir;
 
-import backend.CodeGen;
 import mir.Constant;
-import mir.type.DataType;
 
 import java.io.PrintStream;
 import java.util.ArrayList;
 
 import static lir.MachineInst.Tag.*;
 import static lir.Machine.Operand;
-import static mir.type.DataType.F32;
 import static mir.type.DataType.I32;
 
 public class V extends MachineInst {
-
-    // protected String getCvtSuffixType(Operand dst, Operand src) {
-    //     DataType lDataType = dst.dataType;
-    //     DataType rDataType = src.dataType;
-    //     CvtType cvtCvtType = switch (lDataType) {
-    //         case I32 -> switch (rDataType) {
-    //             case I32 -> throw new AssertionError("LIRI\t" + dst + "\t" + src);
-    //             case F32 -> CvtType.LIRF;
-    //             case I1 -> throw new AssertionError("LIRB\t" + dst + "\t" + src);
-    //         };
-    //         case F32 -> switch (rDataType) {
-    //             case I32 -> CvtType.LFRI;
-    //             case F32 -> CvtType.LFRF;
-    //             case I1 -> throw new AssertionError("LIRB\t" + dst + "\t" + src);
-    //         };
-    //         case I1 -> throw new AssertionError("LB\t" + dst + "\t" + src);
-    //     };
-    //
-    //     return switch (cvtCvtType) {
-    //         case LFRI -> ".f32.s32";
-    //         case LIRF -> ".s32.f32";
-    //         case LFRF -> throw new AssertionError("WRONG LFRF in vmov of LFRF");
-    //         case LIRI -> throw new AssertionError("WRONG LIRI in vmov of LIRI");
-    //         case None -> throw new AssertionError("WRONG None in vmov");
-    //     };
-    // }
 
     protected String getMvSuffixTypeSimply(Operand dst) {
         return switch (dst.dataType) {
@@ -62,22 +33,7 @@ public class V extends MachineInst {
         super(insertAfter, tag);
     }
 
-    public static class Ldr extends V {
-        /**
-         * 函数开始取出参数
-         * loadInst
-         *
-         * @param data
-         * @param addr
-         * @param offset
-         * @param insertAtEnd
-         */
-        public Ldr(Machine.Operand data, Machine.Operand addr, Machine.Operand offset, Machine.Block insertAtEnd) {
-            super(VLdr, insertAtEnd);
-            defOpds.add(data);
-            useOpds.add(addr);
-            useOpds.add(offset);
-        }
+    public static class Ldr extends V implements MachineMemInst {
 
         /**
          * addr可能是常数立即数的地址
@@ -126,32 +82,29 @@ public class V extends MachineInst {
         }
 
         public Machine.Operand getOffset() {
-            if (useOpds.size() < 2) return null;
+            if (useOpds.size() < 2) return new Operand(I32, 0);
             return useOpds.get(1);
+        }
+
+        public void setOffSet(Operand offSet) {
+            if (useOpds.size() < 2) useOpds.add(offSet);
+            useOpds.set(1, offSet);
         }
 
         @Override
         public void output(PrintStream os, Machine.McFunction f) {
-            transfer_output(os);
-            Operand off = getOffset();
-            if (off == null) {
-                // TODO 没做ldr立即数
-                os.println("\tvldr" + cond + ".32\t" + getData() + ",\t[" + getAddr() + "]");
-            } else if (this.shift.shiftType == Arm.ShiftType.None) {
-                os.println("\tvldr" + cond + ".32\t" + getData() + ",\t[" + getAddr() + ",\t" + off + "]");
-            } else {
-                os.println("\tvldr" + cond + ".32\t" + getData() + ",\t[" + getAddr() + ",\t" + off + ",\tLSL #" + this.shift.shift + "]");
-            }
+            os.println("\t" + this);
         }
 
         @Override
         public String toString() {
-            return tag.toString() + cond.toString() + '\t' + getData() + ",\t[" + getAddr() + ",\t" + getOffset()/*(this.isNeedFix() ? getOffset().value + this.mb.mcFunc.getTotalStackSize() : getOffset())*/ +
+            return tag.toString() + cond.toString() + '\t' + getData() + ",\t[" + getAddr() +
+                    (getOffset().equals(Operand.ZERO) ? "" : ",\t" + getOffset()) +
                     (shift.shiftType == Arm.ShiftType.None ? "" : ("\t," + shift)) + "\t]";
         }
     }
 
-    public static class Str extends V {
+    public static class Str extends V  implements MachineMemInst{
 
         public Str(Machine.Operand data, Machine.Operand addr, Machine.Operand offset, Machine.Block insertAtEnd) {
             super(VStr, insertAtEnd);
@@ -208,7 +161,6 @@ public class V extends MachineInst {
 
         @Override
         public void output(PrintStream os, Machine.McFunction f) {
-            transfer_output(os);
             if (getOffset() == null) {
                 os.println("\tvstr" + cond + ".32\t" + getData() + ",\t[" + getAddr() + "]");
             } else if (getOffset().getType() == Machine.Operand.Type.Immediate) {
@@ -235,7 +187,7 @@ public class V extends MachineInst {
         }
     }
 
-    public static class Mov extends V {
+    public static class Mov extends V implements MachineMove {
 
         public Mov(Operand dst, Operand src, Machine.Block insertAtEnd) {
             super(VMov, insertAtEnd);
@@ -269,7 +221,6 @@ public class V extends MachineInst {
 
         @Override
         public void output(PrintStream os, Machine.McFunction f) {
-            transfer_output(os);
             assert cond == Arm.Cond.Any;
             os.println("\tvmov" + getMvSuffixTypeSimply(getDst()) + "\t" + getDst() + ",\t" + getSrc());
         }
@@ -332,7 +283,6 @@ public class V extends MachineInst {
 
         @Override
         public void output(PrintStream os, Machine.McFunction f) {
-            transfer_output(os);
             switch (cvtType) {
                 case f2i -> os.println("\tvcvt.s32.f32\t" + getDst() + ",\t" + getSrc());
                 case i2f -> os.println("\tvcvt.f32.s32\t" + getDst() + ",\t" + getSrc());
@@ -366,7 +316,6 @@ public class V extends MachineInst {
 
         @Override
         public void output(PrintStream os, Machine.McFunction f) {
-            transfer_output(os);
             String tag_str = "\t" + switch (tag) {
                 case FAdd -> "vadd.f32";
                 case FSub -> "vsub.f32";
@@ -384,7 +333,6 @@ public class V extends MachineInst {
         @Override
         public String toString() {
             return tag.toString() + "\t" + getDst() + ",\t" + getLOpd() + ",\t" + getROpd();
-            // (isNeedFix() ? getROpd().value + (this.getCallee() == null ? this.mb.mcFunc.getTotalStackSize() : this.getCallee().getTotalStackSize()) : getROpd());
         }
     }
 
@@ -433,7 +381,6 @@ public class V extends MachineInst {
 
         @Override
         public void output(PrintStream os, Machine.McFunction f) {
-            transfer_output(os);
             os.println("\tvcmpe.f32\t" + getLOpd() + ",\t" + getROpd());
             os.println("\tvmrs\tAPSR_nzcv,\tFPSCR");
         }
@@ -454,7 +401,6 @@ public class V extends MachineInst {
         @Override
         public void output(PrintStream os, Machine.McFunction mf) {
             os.println("\tbx\tlr");
-            // pop_output(os, mf);
         }
 
         @Override

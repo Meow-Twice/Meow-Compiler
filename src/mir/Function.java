@@ -39,6 +39,20 @@ public class Function extends Value {
         // private Type type;
         private Function parentFunc;
 
+        private HashSet<Instr> loads = new HashSet<>();
+
+        public HashSet<Instr> getLoads() {
+            return loads;
+        }
+
+        public void setLoads(HashSet<Instr> loads) {
+            this.loads = loads;
+        }
+
+        public void addLoad(Instr instr) {
+            this.loads.add(instr);
+        }
+
         public Param(Type type, int idx) {
             if (!Manager.external) {
                 prefix = LOCAL_PREFIX;

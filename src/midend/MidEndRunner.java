@@ -6,6 +6,7 @@ import mir.*;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 
 public class MidEndRunner {
 
@@ -47,11 +48,24 @@ public class MidEndRunner {
         Mem2Reg mem2Reg = new Mem2Reg(functions);
         mem2Reg.Run();
 
+        MathOptimize mathOptimize = new MathOptimize(functions);
+        mathOptimize.Run();
+
+
         GepFuse();
+
 
         Pass();
 
+        LocalArrayGVN localArrayGVN = new LocalArrayGVN(functions);
+        localArrayGVN.Run();
+
+        Pass();
+
+        outputLLVM();
+
         loopOptimize();
+
 
         //outputLLVM();
 
@@ -68,12 +82,14 @@ public class MidEndRunner {
         BrOptimize();
         BrOptimize();
 
-        outputLLVM();
-        //loopFold
+        //outputLLVM();
+        LoopFold();
+        LoopFold();
 
 
-        MathOptimize mathOptimize = new MathOptimize(functions);
-        mathOptimize.Run();
+        MathOptimize mathOptimize1 = new MathOptimize(functions);
+        mathOptimize1.Run();
+
 
 //        loopOptimize();
 //        BrOptimize();
@@ -90,11 +106,27 @@ public class MidEndRunner {
     }
 
     private void GepFuse() {
+        //check_instr();
+
         GepFuse gepFuse = new GepFuse(functions);
         gepFuse.Run();
 
+        //check_instr();
+
         DeadCodeDelete deadCodeDelete = new DeadCodeDelete(functions, globalValues);
         deadCodeDelete.Run();
+    }
+
+    private void check_instr() {
+        for (Function function: functions) {
+            HashSet<Instr> instrs = new HashSet<>();
+            for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
+                for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+                    instrs.add(instr);
+                }
+            }
+            System.err.println(function.getName());
+        }
     }
 
     private void GepSplit() {
@@ -102,6 +134,15 @@ public class MidEndRunner {
         gepSplit.Run();
 
         Pass();
+    }
+
+    private void LoopFold() {
+        LoopFold loopFold = new LoopFold(functions);
+        loopFold.Run();
+
+        reMakeCFGAndLoopInfo();
+
+        BrOptimize();
     }
 
     //死代码删除 指令融合 GVN/GCM
@@ -167,17 +208,16 @@ public class MidEndRunner {
         //outputLLVM();
 
         reMakeCFGAndLoopInfo();
+        outputLLVM();
 
         Pass();
 
-//        LoopInfo loopInfo1 = new LoopInfo(functions);
-//        loopInfo1.Run();
 
         // TODO:获取迭代变量idcVar的相关信息
         LoopIdcVarInfo loopIdcVarInfo = new LoopIdcVarInfo(functions);
         loopIdcVarInfo.Run();
 //
-////        // TODO:循环展开
+        // TODO:循环展开
         //outputLLVM();
 
         LoopUnRoll loopUnRoll = new LoopUnRoll(functions);

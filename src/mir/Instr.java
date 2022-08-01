@@ -2,11 +2,11 @@ package mir;
 
 import frontend.Visitor;
 import midend.CloneInfoMap;
-import midend.LCSSA;
 import mir.type.Type;
 import mir.type.Type.*;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Objects;
 
 /**
@@ -659,6 +659,7 @@ public class Instr extends Value {
     public static class Alloc extends Instr {
 
         private Type contentType;
+        private HashSet<Instr> loads = new HashSet<>();
 
         // Alloc一定插在基本块的开始(Phi之后)
         public Alloc(Type contentType, BasicBlock parentBB) {
@@ -672,6 +673,18 @@ public class Instr extends Value {
             super(new PointerType(contentType), parentBB);
             tag = AmaTag.alloc;
             this.contentType = contentType;
+        }
+
+        public void setLoads(HashSet<Instr> loads) {
+            this.loads = loads;
+        }
+
+        public HashSet<Instr> getLoads() {
+            return loads;
+        }
+
+        public void addLoad(Instr instr) {
+            loads.add(instr);
         }
 
         @Override
@@ -697,6 +710,17 @@ public class Instr extends Value {
 
     // 读取内存
     public static class Load extends Instr {
+
+        private Value alloc = null;
+
+        public void setAlloc(Value alloc) {
+            this.alloc = alloc;
+        }
+
+        public Value getAlloc() {
+            return alloc;
+        }
+
         //TODO:修改toString()方法添加指令的Type
         public Load(Value pointer, BasicBlock parentBB) {
             super(((PointerType) pointer.getType()).getInnerType(), parentBB);
@@ -731,6 +755,16 @@ public class Instr extends Value {
     // 写入内存
     // 认为Store是VoidType
     public static class Store extends Instr {
+
+        private Value alloc = null;
+
+        public void setAlloc(Value alloc) {
+            this.alloc = alloc;
+        }
+
+        public Value getAlloc() {
+            return alloc;
+        }
 
         //TODO:修改toString()方法添加指令的Type
         public Store(Value value, Value address, BasicBlock parent) {

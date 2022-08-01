@@ -4,9 +4,7 @@ import frontend.semantic.Initial;
 import mir.*;
 import mir.type.Type;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
+import java.util.*;
 
 public class DeadCodeDelete {
     //TODO:naive:只被store,但是没有被load的数组/全局变量可以删除
@@ -24,10 +22,25 @@ public class DeadCodeDelete {
     public void Run(){
         noUserCodeDelete();
         deadCodeElimination();
+        if (MidEndRunner.O2) {
+            strongDCE();
+        }
         removeUselessGlobalVal();
         removeUselessLocalArray();
         noUserCodeDelete();
         removeUselessLoop();
+    }
+
+    private void check_instr() {
+        for (Function function: functions) {
+            HashSet<Instr> instrs = new HashSet<>();
+            for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
+                for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+                    instrs.add(instr);
+                }
+            }
+            System.err.println(function.getName());
+        }
     }
 
     //TODO:对于指令闭包
@@ -72,6 +85,124 @@ public class DeadCodeDelete {
     private void deadCodeElimination() {
         for (Function function: functions) {
             deadCodeEliminationForFunc(function);
+        }
+    }
+
+    private HashMap<Instr, HashSet<Instr>> edge = new HashMap<>();
+    private HashMap<Instr, Integer> low = new HashMap<>();
+    private HashMap<Instr, Integer> dfn = new HashMap<>();
+    private Stack<Instr> stack = new Stack<>();
+    private HashMap<Instr, Boolean> inStack = new HashMap<>();
+    private HashMap<Instr, Integer> color = new HashMap<>();
+    private HashMap<Integer, HashSet<Instr>> instr_in_color = new HashMap<>();
+    private HashMap<Integer, Integer> color_in_deep = new HashMap<>();
+    private HashSet<Instr> all_instr = new HashSet<>();
+    //private HashSet<Instr> know_tarjan = new HashSet<>();
+    private int color_num = 0;
+    private int index = 0;
+
+
+    private void strongDCE() {
+        for (Function function: functions) {
+            strongDCEForFunc(function);
+        }
+    }
+
+
+    //缩点,删除入度为0的点
+    private void strongDCEForFunc(Function function) {
+        //check_instr();
+        all_instr.clear();
+        edge.clear();
+        stack.clear();
+        for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
+            for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+                edge.put(instr, new HashSet<>());
+                low.put(instr, 0);
+                dfn.put(instr, 0);
+                inStack.put(instr, false);
+                all_instr.add(instr);
+            }
+        }
+
+        for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
+            for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+                for (Value value: instr.getUseValueList()) {
+                    if (value instanceof Instr) {
+                        edge.get(instr).add((Instr) value);
+                    }
+                }
+            }
+        }
+
+        for (Instr instr: all_instr) {
+            if (dfn.get(instr) == 0) {
+                tarjan(instr);
+            }
+        }
+
+        //缩点后重新建图
+        for (Instr x: edge.keySet()) {
+            for (Instr y: edge.get(x)) {
+                int color_x = color.get(x);
+                int color_y = color.get(y);
+                if (color_x != color_y) {
+                    color_in_deep.put(color_y, color_in_deep.get(color_y) + 1);
+                }
+            }
+        }
+
+        for (int key: color_in_deep.keySet()) {
+            if (color_in_deep.get(key) == 0) {
+                boolean canRemove = true;
+                for (Instr instr: instr_in_color.get(key)) {
+                    if (hasEffect(instr)) {
+                        canRemove = false;
+                        break;
+                    }
+                }
+                if (canRemove) {
+                    for (Instr instr : instr_in_color.get(key)) {
+                        instr.remove();
+                    }
+                }
+            }
+        }
+
+    }
+
+    private void tarjan(Instr x) {
+//        if (x instanceof Instr.Jump) {
+//            System.err.println("JUMP");
+//        }
+
+        index++;
+        dfn.put(x, index);
+        low.put(x, index);
+        stack.add(x);
+        inStack.put(x, true);
+
+        for (Instr next: edge.get(x)) {
+            if (dfn.get(next) == 0) {
+                tarjan(next);
+                low.put(x, Math.min(low.get(x), low.get(next)));
+            } else if (inStack.get(next)) {
+                low.put(x, Math.min(low.get(x), dfn.get(next)));
+            }
+        }
+        if (Objects.equals(dfn.get(x), low.get(x))) {
+            color_num++;
+            instr_in_color.put(color_num, new HashSet<>());
+            color_in_deep.put(color_num, 0);
+            while (!stack.empty()) {
+                color.put(stack.peek(), color_num);
+                inStack.put(stack.peek(), false);
+                Instr top = stack.pop();
+                instr_in_color.get(color_num).add(top);
+                if (top.equals(x)) {
+                    break;
+                }
+            }
         }
     }
 

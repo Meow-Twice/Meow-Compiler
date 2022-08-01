@@ -21,7 +21,17 @@ public class MIFma extends MachineInst {
     public Machine.Operand getlOpd() {
         return useOpds.get(0);
     }
+    public Machine.Operand setLOpd(Machine.Operand lOpd){
+        return useOpds.set(0,lOpd);
+    }
 
+    public Machine.Operand setROpd(Machine.Operand rOpd){
+        return useOpds.set(1,rOpd);
+    }
+
+    public Machine.Operand setAcc(Machine.Operand acc){
+        return useOpds.set(2,acc);
+    }
     public Machine.Operand getrOpd() {
         return useOpds.get(1);
     }

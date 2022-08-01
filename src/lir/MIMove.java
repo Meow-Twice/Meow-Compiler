@@ -139,7 +139,6 @@ public class MIMove extends MachineInst {
     public Machine.Operand getSrc() {
         return useOpds.get(0);
     }
-
     String oldToString = "";
 
     @Override

@@ -18,6 +18,13 @@ public class MICompare extends MachineInst implements MachineInst.Compare {
         return useOpds.get(1);
     }
 
+    public Machine.Operand setLOpd(Machine.Operand lOpd){
+        return useOpds.set(0,lOpd);
+    }
+
+    public Machine.Operand setROpd(Machine.Operand rOpd){
+        return useOpds.set(1,rOpd);
+    }
     @Override
     public void output(PrintStream os, Machine.McFunction f) {
         transfer_output(os);

@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.EnumMap;
 
 import static mir.Instr.Alu.Op.*;
+import static mir.type.DataType.I32;
 
 public class MachineInst extends ILinkNode {
     protected Arm.Cond cond = Arm.Cond.Any;
@@ -74,6 +75,29 @@ public class MachineInst extends ILinkNode {
 
     public void setDef(Machine.Operand operand) {
         defOpds.set(0, operand);
+    }
+
+    public ArrayList<Machine.Operand> getMIDefOpds() {
+        ArrayList<Machine.Operand> defs = defOpds;
+        Machine.Operand cond = new Machine.Operand(Arm.Regs.GPRs.cspr);
+        if(this instanceof MICompare || this instanceof MICall){
+            defs.add(cond);
+        }
+        return defs;
+
+    }
+
+
+    public ArrayList<Machine.Operand> getMIUseOpds() {
+       ArrayList<Machine.Operand> uses = useOpds;
+        Machine.Operand cond = new Machine.Operand(Arm.Regs.GPRs.cspr);
+        if(this.getCond()!= Arm.Cond.Any){
+            uses.add(cond);
+        }
+        if(this instanceof MICall){
+            uses.add(new Machine.Operand(Arm.Regs.GPRs.sp));
+        }
+        return uses;
     }
 
     public boolean isIAddOrISub() {

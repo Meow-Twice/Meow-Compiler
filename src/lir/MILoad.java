@@ -44,11 +44,17 @@ public class MILoad extends MachineInst {
     public Machine.Operand getAddr() {
         return useOpds.get(0);
     }
+    public Machine.Operand setAddr(Machine.Operand addr){
+        return useOpds.set(0,addr);
+    }
 
     public Machine.Operand getOffset() {
         return useOpds.get(1);
     }
 
+    public Machine.Operand setOffset(Machine.Operand offset){
+        return useOpds.set(1,offset);
+    }
     @Override
     public void output(PrintStream os, Machine.McFunction f) {
         transfer_output(os);

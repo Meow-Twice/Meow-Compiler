@@ -58,6 +58,13 @@ public class MILongMul extends MachineInst {
         return useOpds.get(1);
     }
 
+    public Machine.Operand setLOpd(Machine.Operand lOpd){
+        return useOpds.set(0,lOpd);
+    }
+
+    public Machine.Operand setROpd(Machine.Operand rOpd){
+        return useOpds.set(1,rOpd);
+    }
     @Override
     public String toString(){
         return "LongMul\t"+getDst().toString()+",\t"+getLOpd().toString()+",\t"+getROpd().toString();

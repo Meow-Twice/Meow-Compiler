@@ -1,5 +1,6 @@
 package lir;
 
+import javax.crypto.Mac;
 import java.io.PrintStream;
 
 public class MIStore extends MachineInst {
@@ -52,6 +53,17 @@ public class MIStore extends MachineInst {
         return useOpds.get(2);
     }
 
+    public Machine.Operand setData(Machine.Operand data){
+        return useOpds.set(0,data);
+    }
+
+    public Machine.Operand setAddr(Machine.Operand addr){
+        return useOpds.set(1,addr);
+    }
+
+    public Machine.Operand setOffst(Machine.Operand offset){
+        return useOpds.set(2,offset);
+    }
     @Override
     public void output(PrintStream os, Machine.McFunction f) {
         transfer_output(os);

@@ -117,8 +117,10 @@ public class Compiler {
             Manager.MANAGER.outputMI();
              System.err.println("BEGIN rerun");
             // MIDescriptor.MI_DESCRIPTOR.setRegMode();
+            System.err.println("Begin peepholeOptimization");
             PeepholeOptimization peepholeOptimization = new PeepholeOptimization();
-            peepholeOptimization.run();
+            peepholeOptimization.run_all();
+            System.err.println("Finish peepholeOptimization");
            // Branch2cond branch2cond = new Branch2cond();
             //branch2cond.run();
            //  MIDescriptor.MI_DESCRIPTOR.run(); // 分配寄存器后

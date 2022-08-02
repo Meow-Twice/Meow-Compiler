@@ -78,9 +78,9 @@ public class MachineInst extends ILinkNode {
     }
 
     public ArrayList<Machine.Operand> getMIDefOpds() {
-        ArrayList<Machine.Operand> defs = defOpds;
+        ArrayList<Machine.Operand> defs = getDefOpds();
         Machine.Operand cond = new Machine.Operand(Arm.Regs.GPRs.cspr);
-        if(this instanceof MICompare || this instanceof MICall){
+        if(this instanceof MICompare || this instanceof MICall || this instanceof V.Cmp){
             defs.add(cond);
         }
         return defs;
@@ -89,13 +89,10 @@ public class MachineInst extends ILinkNode {
 
 
     public ArrayList<Machine.Operand> getMIUseOpds() {
-       ArrayList<Machine.Operand> uses = useOpds;
+       ArrayList<Machine.Operand> uses = getUseOpds();;
         Machine.Operand cond = new Machine.Operand(Arm.Regs.GPRs.cspr);
         if(this.getCond()!= Arm.Cond.Any){
             uses.add(cond);
-        }
-        if(this instanceof MICall){
-            uses.add(new Machine.Operand(Arm.Regs.GPRs.sp));
         }
         return uses;
     }
@@ -255,6 +252,28 @@ public class MachineInst extends ILinkNode {
         if (mb != null && mb.con_tran == this) {
             os.println("@ control transfer");
         }
+    }
+    //这两个get方法专门给窥孔数据流分析的时候用，在Push和Pop指令处做了特殊处理(其他地方别用)
+    public ArrayList<Machine.Operand> getDefOpds() {
+        ArrayList<Machine.Operand> defs = new ArrayList<>();
+        for(Machine.Operand op:defOpds){
+            if(op.type == Machine.Operand.Type.Allocated || op.type == Machine.Operand.Type.PreColored) {
+                op.type = Machine.Operand.Type.Allocated;
+                defs.add(op);
+            }
+        }
+        return defs;
+    }
+
+    public ArrayList<Machine.Operand> getUseOpds() {
+        ArrayList<Machine.Operand> uses = new ArrayList<>();
+        for(Machine.Operand op:useOpds){
+            if(op.type == Machine.Operand.Type.Allocated || op.type == Machine.Operand.Type.PreColored) {
+                op.type = Machine.Operand.Type.Allocated;
+                uses.add(op);
+            }
+        }
+        return uses;
     }
 
     public void output(PrintStream os, Machine.McFunction f) {

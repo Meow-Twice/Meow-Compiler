@@ -699,7 +699,7 @@ public class Machine {
             this.type = Allocated;
             if (reg instanceof GPRs) {
                 prefix = "r";
-                // dataType = I32;
+                 dataType = I32;
             } else if (reg instanceof FPRs) {
                 prefix = "s";
                 dataType = F32;
@@ -744,6 +744,10 @@ public class Machine {
         }
 
         @Override
+        public int hashCode(){
+            return this.type.hashCode()+this.value+this.dataType.hashCode();
+        }
+        @Override
         public String toString() {
             if (this instanceof Arm.Reg) {
                 return getReg().toString();
@@ -767,5 +771,6 @@ public class Machine {
         public Operand select(Operand o) {
             return heuristicVal() < o.heuristicVal() ? this : o;
         }
+
     }
 }

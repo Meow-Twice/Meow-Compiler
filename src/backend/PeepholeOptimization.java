@@ -183,9 +183,19 @@ public class PeepholeOptimization {
 
     public void run_all(){
         boolean finish = false;
+        for(Machine.McFunction function : program.funcList) {
+            for (Machine.Block mb : function.mbList) {
+                for (MachineInst inst : mb.miList) {
+                    if(inst instanceof MIComment){
+                        inst.remove();
+                    }
+                }
+            }
+        }
+
         while(!finish){
             finish = run();
-       //     finish &= peepholeWithDataFlow.run();
+            finish &= peepholeWithDataFlow.run();
         }
     }
 }

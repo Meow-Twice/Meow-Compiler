@@ -697,19 +697,37 @@ public class CodeGen {
             }
         } else if (optMulDiv && tag == Div && rhs.isConstantInt()) {
             // 不允许双立即数, 只能是 r/i
+            // TODO: ayame 的 divMap 机制目前未实现
             if (lhs.isConstantInt()) {
                 System.err.println("[DIV dst, imm, imm] should never occur @ " + instr);
                 System.exit(94);
             }
+            Machine.Operand lVR = getVR_may_imm(lhs);
             int imm = (int) ((Constant.ConstantInt) rhs).getConstVal();
             int abs = (imm < 0) ? (-imm) : imm;
             if (abs == 0) {
                 System.exit(94);
-            } else if (abs == 1) {
-
+            } else if (imm == 1) {
+                new I.Mov(dVR, lVR, curMB);
+            } else if (imm == -1) {
+                new I.Binary(Rsb, dVR, lVR, new Operand(I32, 0), curMB);
+            } else if ((abs & (abs - 1)) == 0) {
+                // 除以 2 的幂
+                // src < 0 且不整除，则 (lhs >> sh) + 1 == (lhs / div)，需要修正
+                int sh = bitsOfInt - 1 - Integer.numberOfLeadingZeros(abs);
+                // sgn = (lhs >>> 31), (lhs < 0 ? -1 : 0)
+                Operand sgn = newVR();
+                new I.Mov(sgn, lVR, new Arm.Shift(Arm.ShiftType.Asr, bitsOfInt - 1), curMB);
+                // 修正负数右移和除法的偏差
+                // tmp = lhs + (sgn >> (32 - sh))
+                Operand tmp = newVR();
+                new I.Binary(Add, tmp, lVR, sgn, new Arm.Shift(Arm.ShiftType.Lsr, bitsOfInt - sh), curMB);
+                // quo = tmp >>> sh
+                new I.Mov(dVR, tmp, new Arm.Shift(Arm.ShiftType.Asr, sh), curMB);
+            } else {
+                // no opt
+                new I.Binary(tag, dVR, lVR, getImmVR(imm), curMB);
             }
-
-
         } else {
             Machine.Operand lVR = getVR_may_imm(lhs);
             Machine.Operand rVR = getVR_may_imm(rhs);

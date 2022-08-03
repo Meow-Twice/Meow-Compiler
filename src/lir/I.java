@@ -318,6 +318,14 @@ public class I extends MachineInst {
             useOpds.add(rOpd);
         }
 
+        public Binary(Tag tag, Machine.Operand dOpd, Machine.Operand lOpd, Machine.Operand rOpd, Arm.Shift shift, Machine.Block insertAtEnd) {
+            super(tag, insertAtEnd);
+            defOpds.add(dOpd);
+            useOpds.add(lOpd);
+            useOpds.add(rOpd);
+            this.shift = shift;
+        }
+
         public Binary(Tag tag, Machine.Operand dstAddr, Arm.Reg rSP, Machine.Operand offset, MachineInst firstUse) {
             super(tag, firstUse);
             defOpds.add(dstAddr);

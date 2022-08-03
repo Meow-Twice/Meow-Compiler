@@ -68,6 +68,9 @@ public class MidEndRunner {
 
         ArrayGVN();
 
+        //outputLLVM();
+        GlobalArrayGVN();
+
         MemSetOptimize memSetOptimize = new MemSetOptimize(functions, globalValues);
         memSetOptimize.Run();
 
@@ -116,6 +119,15 @@ public class MidEndRunner {
 
         LocalArrayGVN localArrayGVN = new LocalArrayGVN(functions, "GVN");
         localArrayGVN.Run();
+
+        Pass();
+    }
+
+    private void GlobalArrayGVN() {
+        Pass();
+
+        GlobalArrayGVN globalArrayGVN = new GlobalArrayGVN(functions, globalValues);
+        globalArrayGVN.Run();
 
         Pass();
     }
@@ -171,19 +183,19 @@ public class MidEndRunner {
     }
 
     private void LoopStrengthReduction() {
-        // if (CenterControl._ONLY_FRONTEND) {
+        if (CenterControl._ONLY_FRONTEND) {
             return;
-        // }
-        // outputLLVM();
-        //
-        // LoopStrengthReduction loopStrengthReduction = new LoopStrengthReduction(functions);
-        // loopStrengthReduction.Run();
-        //
-        // outputLLVM();
-        //
-        // reMakeCFGAndLoopInfo();
-        //
-        // Pass();
+        }
+        //outputLLVM();
+
+        LoopStrengthReduction loopStrengthReduction = new LoopStrengthReduction(functions);
+        loopStrengthReduction.Run();
+
+        //outputLLVM();
+
+        reMakeCFGAndLoopInfo();
+
+        Pass();
     }
 
     //死代码删除 指令融合 GVN/GCM

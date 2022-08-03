@@ -679,19 +679,17 @@ public class CodeGen {
             }
             int abs = (imm < 0) ? (-imm) : imm;
             if (abs == 0) {
-                System.err.println("[Mul Opt Zero Hit]: " + instr);
                 new I.Mov(dVR, new Operand(I32, 0), curMB); // dst = 0
             } else if (abs == 1) {
-                System.err.println("[Mul Opt One Hit]: " + instr);
                 new I.Mov(dVR, srcOp, curMB); // dst = src
             } else if ((abs & (abs - 1)) == 0) {
-                System.err.println("[Mul Opt Hit]: " + instr);
                 // imm 是 2 的幂
                 int sh = bitsOfInt - 1 - Integer.numberOfLeadingZeros(abs);
                 // dst = src << sh
                 new I.Mov(dVR, srcOp, new Arm.Shift(Arm.ShiftType.Lsl, sh), curMB);
                 if (imm < 0) {
                     // dst = -dst
+                    // TODO: 源操作数和目的操作数虚拟寄存器相同，不一定不会出 bug
                     new I.Binary(Rsb, dVR, dVR, new Operand(I32, 0), curMB); // dst = 0 - dst
                 }
             } else {

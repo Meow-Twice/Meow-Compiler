@@ -12,10 +12,15 @@ import mir.type.Type;
 import java.util.*;
 
 import static lir.Arm.Cond.*;
+import static lir.Arm.Cond.Eq;
+import static lir.Arm.Cond.Ge;
+import static lir.Arm.Cond.Gt;
+import static lir.Arm.Cond.Le;
+import static lir.Arm.Cond.Lt;
+import static lir.Arm.Cond.Ne;
 import static lir.Arm.Regs.FPRs.*;
 import static lir.Arm.Regs.GPRs.*;
-import static lir.MachineInst.Tag.FMod;
-import static lir.MachineInst.Tag.Mod;
+import static lir.MachineInst.Tag.*;
 import static mir.type.DataType.F32;
 import static mir.type.DataType.I32;
 
@@ -24,8 +29,7 @@ public class CodeGen {
     public static final CodeGen CODEGEN = new CodeGen();
     public static boolean _DEBUG_OUTPUT_MIR_INTO_COMMENT = true;
     public static boolean needFPU = false;
-    // public static boolean isNeedFPU = false;
-    boolean _DEBUG_MUL_DIV = false;
+    public static boolean optMulDiv = true;
 
     // 当前的Machine.McFunction
     private static Machine.McFunction curMF;
@@ -253,7 +257,7 @@ public class CodeGen {
                     } else {
                         Operand condVR = getVR_may_imm(condValue);
                         new I.Cmp(condVR, new Operand(I32, 0), curMB);
-                        cond = Arm.Cond.Ne;
+                        cond = Ne;
                     }
                     new MIBranch(cond, trueBlock, falseBlock, curMB);
                 }
@@ -644,40 +648,59 @@ public class CodeGen {
     }
 
     private void genBinaryInst(Instr.Alu instr) {
+        final int bitsOfInt = 32;
         MachineInst.Tag tag = MachineInst.Tag.map.get(instr.getOp());
         Value lhs = instr.getRVal1();
         Value rhs = instr.getRVal2();
+        Machine.Operand lVR = getVR_may_imm(lhs);
+        Machine.Operand rVR = getVR_may_imm(rhs);
+        // instr不可能是Constant
+        Machine.Operand dVR = getVR_no_imm(instr);
         if (tag == Mod) {
-            Machine.Operand q = getVR_no_imm(instr);
-            Machine.Operand a = getVR_may_imm(lhs);
-            Machine.Operand b = getVR_may_imm(rhs);
             Machine.Operand dst1 = newVR();
-            new I.Binary(MachineInst.Tag.Div, dst1, a, b, curMB);
+            new I.Binary(MachineInst.Tag.Div, dst1, lVR, rVR, curMB);
             Machine.Operand dst2 = newVR();
-            new I.Binary(MachineInst.Tag.Mul, dst2, dst1, b, curMB);
-            new I.Binary(MachineInst.Tag.Sub, q, a, dst2, curMB);
+            new I.Binary(MachineInst.Tag.Mul, dst2, dst1, rVR, curMB);
+            new I.Binary(MachineInst.Tag.Sub, dVR, lVR, dst2, curMB);
+        } else if (optMulDiv && tag == Mul && (lVR.isImm(I32) || rVR.isImm(I32))) {
+            // 不考虑双立即数: r*i, i*r, r*r
+            if (lVR.isImm(I32) && rVR.isImm(I32)) {
+                throw new AssertionError("[MUL dst, imm, imm] should never occur!");
+            }
+            Machine.Operand rOp;
+            int imm;
+            if (lVR.isImm(I32)) {
+                rOp = rVR;
+                imm = lVR.getValue();
+            } else {
+                rOp = lVR;
+                imm = rVR.getValue();
+            }
+            int abs = (imm < 0) ? (-imm) : imm;
+            if (abs == 0) {
+                new I.Mov(dVR, new Operand(I32, 0), curMB); // dst = 0
+            }
+            else if ((abs & (abs - 1)) == 0) {
+                // imm 是 2 的幂
+                int sh = bitsOfInt - 1 - Integer.numberOfLeadingZeros(abs);
+                // dst = src << sh
+                new I.Binary(Add, dVR, rOp, new Operand(I32, sh), curMB);
+                if (imm < 0) {
+                    // dst = -dst
+                    new I.Binary(Rsb, dVR, dVR, new Operand(I32, 0), curMB); // dst = 0 - dst
+                }
+            }
         } else if (tag == FMod) {
             assert needFPU;
-            Operand q = getVR_no_imm(instr);
-            Operand a = getVR_may_imm(lhs);
-            Operand b = getVR_may_imm(rhs);
             Operand dst1 = newSVR();
-            new V.Binary(MachineInst.Tag.FDiv, dst1, a, b, curMB);
+            new V.Binary(MachineInst.Tag.FDiv, dst1, lVR, rVR, curMB);
             Operand dst2 = newSVR();
-            new V.Binary(MachineInst.Tag.FMul, dst2, dst1, b, curMB);
-            new V.Binary(MachineInst.Tag.FSub, q, a, dst2, curMB);
+            new V.Binary(MachineInst.Tag.FMul, dst2, dst1, rVR, curMB);
+            new V.Binary(MachineInst.Tag.FSub, dVR, lVR, dst2, curMB);
         } else if (isFBino(instr.getOp())) {
             assert needFPU;
-            Operand lVR = getVR_may_imm(lhs);
-            Operand rVR = getVR_may_imm(rhs);
-            // instr不可能是Constant
-            Operand dVR = getVR_no_imm(instr);
             new V.Binary(tag, dVR, lVR, rVR, curMB);
         } else {
-            Machine.Operand lVR = getVR_may_imm(lhs);
-            Machine.Operand rVR = getVR_may_imm(rhs);
-            // instr不可能是Constant
-            Machine.Operand dVR = getVR_no_imm(instr);
             new I.Binary(tag, dVR, lVR, rVR, curMB);
         }
     }

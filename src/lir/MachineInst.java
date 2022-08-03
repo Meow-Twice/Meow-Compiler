@@ -96,6 +96,25 @@ public class MachineInst extends ILinkNode {
         return cond == Arm.Cond.Any;
     }
 
+    public boolean isJump() {
+        return tag == Tag.Jump;
+    }
+
+    private Boolean isSideEff = null;
+
+    public boolean sideEff() {
+        if (isSideEff == null) {
+            isSideEff = (tag == Tag.Branch || tag == Tag.Jump
+                    || tag == Tag.Str || tag == Tag.VStr
+                    || tag == Tag.Ldr || tag == Tag.VLdr
+                    || tag == Tag.VCvt
+                    || tag == Tag.Call
+                    || tag == Tag.IRet || tag == Tag.VRet
+                    || tag == Tag.Comment);
+        }
+        return isSideEff;
+    }
+
     public enum Tag {
         // Binary
         Add("add"),
@@ -172,7 +191,7 @@ public class MachineInst extends ILinkNode {
         }
     }
 
-    public boolean isMove() {
+    public boolean isIMov() {
         return tag == Tag.IMov;
     }
 
@@ -258,6 +277,10 @@ public class MachineInst extends ILinkNode {
         Machine.Operand getOffset();
 
         void remove();
+
+        boolean isNoCond();
+
+        Arm.Shift getShift();
     }
 
     public interface MachineMove {
@@ -268,6 +291,7 @@ public class MachineInst extends ILinkNode {
 
         void remove();
 
+        boolean isNoCond();
     }
 }
 

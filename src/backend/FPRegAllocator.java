@@ -19,10 +19,10 @@ public class FPRegAllocator extends RegAllocator {
         }
     }
 
-    void livenessAnalysis(Machine.McFunction mcFunc) {
-        for (Machine.Block mb : mcFunc.mbList) {
+    void livenessAnalysis(Machine.McFunction mf) {
+        for (Machine.Block mb : mf.mbList) {
             mb.liveUseSet = new HashSet<>();
-            mb.defSet = new HashSet<>();
+            mb.liveDefSet = new HashSet<>();
             for (MachineInst mi : mb.miList) {
                 // TODO 
                 if (!(mi instanceof V || mi instanceof MICall)) continue;
@@ -30,84 +30,24 @@ public class FPRegAllocator extends RegAllocator {
                 ArrayList<Operand> uses = mi.useOpds;
                 // liveuse 计算
                 uses.forEach(use -> {
-                    if (use.fNotConst() && !mb.defSet.contains(use)) {
+                    if (use.fNotConst() && !mb.liveDefSet.contains(use)) {
                         mb.liveUseSet.add(use);
                     }
                 });
                 // def 计算
                 defs.forEach(def -> {
                     if (def.fNotConst() && !mb.liveUseSet.contains(def)) {
-                        mb.defSet.add(def);
+                        mb.liveDefSet.add(def);
                     }
                 });
             }
-            logOut(mb.getDebugLabel() + "\tdefSet:\t" + mb.defSet.toString());
+            logOut(mb.getDebugLabel() + "\tdefSet:\t" + mb.liveDefSet.toString());
             logOut(mb.getDebugLabel() + "\tuseSet:\t" + mb.liveUseSet.toString());
             mb.liveInSet = new HashSet<>(mb.liveUseSet);
             mb.liveOutSet = new HashSet<>();
         }
 
-        // 计算LiveIn和LiveOut
-        boolean changed = true;
-        while (changed) {
-            changed = false;
-            for (ILinkNode mb = mcFunc.mbList.getEnd(); !mb.equals(mcFunc.mbList.head); mb = mb.getPrev()) {
-                final Machine.Block finalMb = (Machine.Block) mb;
-                // TODO 尝试重新验证写法
-                // 1 a = , b =  ,c =  2, 3
-                // 2 g = a + d
-                // 3 return e + f
-                // 任意succ的liveInSet如果有更新, 则可能更新 (只可能增加, 增量为newLiveOut) 当前MB的liveIn,
-                // 且当前MB如果需要更新liveIn, 只可能新增且新增的Opd一定出自newLiveOut
-                /*ArrayList<Operand> newLiveOut = new ArrayList<>();
-                for (Machine.Block succMB : finalMb.succMB) {
-                    for (Operand liveIn : succMB.liveInSet) {
-                        if (finalMb.liveOutSet.add(liveIn)) {
-                            newLiveOut.add(liveIn);
-                        }
-                    }
-                }
-                // finalMb.succMB.forEach(succMB ->
-                //         succMB.liveInSet.forEach(liveIn -> {
-                //             if (finalMb.liveOutSet.add(liveIn)) {
-                //                 // logOut(liveIn.toString());
-                //                 newLiveOut.add(liveIn);
-                //             }
-                //         }));
-                changed = newLiveOut.size() > 0;
-
-                // newLiveOut.retainAll(mb.defSet);
-                // 从 newLiveOut 删除了不存在于 mb.defSet 的元素
-
-                for (Operand newOut : newLiveOut) {
-                    if (!finalMb.defSet.contains(newOut)) {
-                        finalMb.liveInSet.add(newOut);
-                    }
-                }
-                // newLiveOut.forEach(newOut -> {
-                //     if (!finalMb.defSet.contains(newOut)) {
-                //         finalMb.liveInSet.add(newOut);
-                //     }
-                // });
-                */
-                HashSet<Operand> newLiveOut = new HashSet<>();
-                for (Machine.Block succ : finalMb.succMB) {
-                    newLiveOut.addAll(succ.liveInSet);
-                }
-                if (!newLiveOut.equals(finalMb.liveOutSet)) {
-                    changed = true;
-                    finalMb.liveOutSet = newLiveOut;
-                    finalMb.liveInSet = new HashSet<>(finalMb.liveUseSet);
-                    for (Operand o : finalMb.liveOutSet) {
-                        if (!finalMb.defSet.contains(o)) {
-                            finalMb.liveInSet.add(o);
-                        }
-                    }
-                }
-                logOut(((Machine.Block) mb).getDebugLabel() + " liveInSet:\t" + finalMb.liveInSet.toString());
-                logOut(((Machine.Block) mb).getDebugLabel() + " liveOutSet:\t" + finalMb.liveOutSet.toString());
-            }
-        }
+        liveInOutAnalysis(mf);
     }
 
     /***

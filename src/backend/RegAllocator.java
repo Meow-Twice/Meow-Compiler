@@ -3,6 +3,7 @@ package backend;
 import lir.*;
 import lir.Machine.Operand;
 import mir.type.DataType;
+import util.ILinkNode;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -16,7 +17,7 @@ public class RegAllocator {
     protected Machine.McFunction curMF;
     public static final int SP_ALIGN = 2 * 4;
 
-    protected final boolean DEBUG_STDIN_OUT = false;
+    protected static final boolean DEBUG_STDIN_OUT = false;
 
     protected int RK = 12;
     // TODO 尝试将sp直接设为Allocated或者不考虑sp add或sub指令
@@ -85,7 +86,7 @@ public class RegAllocator {
         }
     }
 
-    public void logOut(String s) {
+    public static void logOut(String s) {
         if (DEBUG_STDIN_OUT)
             System.err.println(s);
     }
@@ -121,7 +122,7 @@ public class RegAllocator {
                     binary.setROpd(off);
                 }
                 binary.clearNeedFix();
-            } else if (mi.isMove()) {
+            } else if (mi.isIMov()) {
                 I.Mov mv = (I.Mov) mi;
                 Machine.Operand off = mv.getSrc();
                 assert off.is_I_Imm();
@@ -166,6 +167,46 @@ public class RegAllocator {
             } else {
                 System.exit(120);
                 throw new AssertionError(mi + " of " + mi.getFixType());
+            }
+        }
+    }
+
+    void livenessAnalysis(Machine.McFunction mf) {
+    }
+
+    public static void liveInOutAnalysis(Machine.McFunction mf) {
+        // 计算LiveIn和LiveOut
+        boolean changed = true;
+        while (changed) {
+            changed = false;
+            for (ILinkNode mb = mf.mbList.getEnd(); !mb.equals(mf.mbList.head); mb = mb.getPrev()) {
+                final Machine.Block finalMb = (Machine.Block) mb;
+                logOut(finalMb + "\t:\t" + finalMb.succMBs);
+                // 任意succ的liveInSet如果有更新, 则可能更新 (只可能增加, 增量为newLiveOut) 当前MB的liveIn,
+                // 且当前MB如果需要更新liveIn, 只可能新增且新增的Opd一定出自newLiveOut
+
+
+                ArrayList<Operand> newLiveOut = new ArrayList<>();
+                for (Machine.Block succMB : finalMb.succMBs) {
+                    for (Operand liveIn : succMB.liveInSet) {
+                        if (finalMb.liveOutSet.add(liveIn)) {
+                            newLiveOut.add(liveIn);
+                        }
+                    }
+                }
+                if (newLiveOut.size() > 0) {
+                    changed = true;
+                }
+                if (changed) {
+                    for (Operand o : finalMb.liveOutSet) {
+                        if (!finalMb.liveDefSet.contains(o)) {
+                            finalMb.liveInSet.add(o);
+                        }
+                    }
+                }
+
+                logOut(((Machine.Block) mb).getDebugLabel() + " liveInSet:\t" + finalMb.liveInSet.toString());
+                logOut(((Machine.Block) mb).getDebugLabel() + " liveOutSet:\t" + finalMb.liveOutSet.toString());
             }
         }
     }

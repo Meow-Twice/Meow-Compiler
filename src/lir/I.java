@@ -65,7 +65,7 @@ public class I extends MachineInst {
         @Override
         public String toString() {
             return tag.toString() + cond.toString() + '\t' + getData() +
-                    ",\t[" + getAddr() + (getOffset().equals(Machine.Operand.ZERO) ? "" : ",\t" + getOffset()) +
+                    ",\t[" + getAddr() + (getOffset().equals(Machine.Operand.I_ZERO) ? "" : ",\t" + getOffset()) +
                     (shift.shiftType == Arm.ShiftType.None ? "" : ("\t," + shift)) + "]";
         }
 
@@ -76,6 +76,10 @@ public class I extends MachineInst {
                 assert useOpds.size() > 0;
                 useOpds.add(offSet);
             }
+        }
+
+        public void setAddr(Machine.Operand addr) {
+            useOpds.set(0, addr);
         }
     }
 
@@ -140,8 +144,12 @@ public class I extends MachineInst {
         @Override
         public String toString() {
             return tag.toString() + cond + '\t' + getData() + ",\t[" + getAddr() +
-                    (getOffset().equals(Machine.Operand.ZERO) ? "" : ",\t" + getOffset()) +
+                    (getOffset().equals(Machine.Operand.I_ZERO) ? "" : ",\t" + getOffset()) +
                     (shift.shiftType == Arm.ShiftType.None ? "" : ("\t," + shift)) + "]";
+        }
+
+        public void setAddr(Machine.Operand addr) {
+            useOpds.set(1, addr);
         }
     }
 
@@ -329,8 +337,8 @@ public class I extends MachineInst {
             return useOpds.get(1);
         }
 
-        public Machine.Operand setROpd(Machine.Operand o) {
-            return useOpds.set(1, o);
+        public void setROpd(Machine.Operand o) {
+            useOpds.set(1, o);
         }
 
         @Override

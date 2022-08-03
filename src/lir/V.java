@@ -99,7 +99,7 @@ public class V extends MachineInst {
         @Override
         public String toString() {
             return tag.toString() + cond.toString() + '\t' + getData() + ",\t[" + getAddr() +
-                    (getOffset().equals(Operand.ZERO) ? "" : ",\t" + getOffset()) +
+                    (getOffset().equals(Operand.I_ZERO) ? "" : ",\t" + getOffset()) +
                     (shift.shiftType == Arm.ShiftType.None ? "" : ("\t," + shift)) + "\t]";
         }
     }

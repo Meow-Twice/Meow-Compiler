@@ -9,6 +9,8 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Objects;
 
+import static lir.MachineInst.Tag.Mod;
+
 /**
  * LLVM IR 的一条指令
  */

@@ -415,9 +415,9 @@ public class Machine {
 
         //pred and successor
         public ArrayList<Block> pred = new ArrayList<>();
-        public ArrayList<Block> succMB = new ArrayList<>();
+        public ArrayList<Block> succMBs = new ArrayList<>();
         public HashSet<Operand> liveUseSet = new HashSet<>();
-        public HashSet<Operand> defSet = new HashSet<>();
+        public HashSet<Operand> liveDefSet = new HashSet<>();
         public HashSet<Operand> liveInSet = new HashSet<>();
         public HashSet<Operand> liveOutSet = new HashSet<>();
 
@@ -448,7 +448,7 @@ public class Machine {
     }
 
     public static class Operand {
-        public static final Operand ZERO = new Operand(I32, 0);
+        public static final Operand I_ZERO = new Operand(I32, 0);
         public int loopCounter = 0;
 
         private String prefix;
@@ -486,7 +486,7 @@ public class Machine {
         // private static Arm.Reg[] regPool = new Arm.Reg[Arm.Regs.GPRs.values().length + Arm.Regs.FPRs.values().length];
 
         public boolean is_I_Imm() {
-            return type == Immediate;
+            return type == Immediate && dataType == I32;
         }
 
         public void addAdj(Operand v) {
@@ -563,6 +563,10 @@ public class Machine {
 
         public boolean isDataType(DataType dataType) {
             return this.dataType == dataType;
+        }
+
+        public boolean isImm(DataType dataType) {
+            return type == Immediate && this.dataType == dataType;
         }
 
         // static {

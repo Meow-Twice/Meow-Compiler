@@ -100,11 +100,11 @@ public class Arm {
         static {
             for (Regs.GPRs gpr : Regs.GPRs.values()) {
                 gprPool[gpr.ordinal()] = new Reg(I32, gpr);
+                allocGprPool[gpr.ordinal()] = new Reg(gpr);
                 if (gpr == Regs.GPRs.sp) {
                     // TODO
-                    gprPool[gpr.ordinal()].type = Allocated;
+                    gprPool[gpr.ordinal()] = allocGprPool[gpr.ordinal()];
                 }
-                allocGprPool[gpr.ordinal()] = new Reg(gpr);
             }
             for (Regs.FPRs fpr : Regs.FPRs.values()) {
                 fprPool[fpr.ordinal()] = new Reg(F32, fpr);

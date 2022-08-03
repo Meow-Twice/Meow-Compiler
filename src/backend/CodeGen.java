@@ -12,8 +12,10 @@ import mir.type.Type;
 import java.util.*;
 
 import static lir.Arm.Cond.*;
-import static lir.Arm.Regs.GPRs.*;
 import static lir.Arm.Regs.FPRs.*;
+import static lir.Arm.Regs.GPRs.*;
+import static lir.MachineInst.Tag.FMod;
+import static lir.MachineInst.Tag.Mod;
 import static mir.type.DataType.F32;
 import static mir.type.DataType.I32;
 
@@ -22,6 +24,7 @@ public class CodeGen {
     public static final CodeGen CODEGEN = new CodeGen();
     public static boolean _DEBUG_OUTPUT_MIR_INTO_COMMENT = true;
     public static boolean needFPU = false;
+    // public static boolean isNeedFPU = false;
     boolean _DEBUG_MUL_DIV = false;
 
     // 当前的Machine.McFunction
@@ -62,37 +65,6 @@ public class CodeGen {
         value2opd = new HashMap<>();
         f2mf = new HashMap<>();
         bb2mb = new HashMap<>();
-    }
-
-    // div+mod optimize
-    public static class Multiplier {
-        long m;
-        int l;
-        int sh_post;
-
-        public Multiplier(long m, int l, int sh_post) {
-            this.m = m;
-            this.l = l;
-            this.sh_post = sh_post;
-        }
-    }
-
-    public Multiplier chooseMultiplier(int d, int prec) {
-        //  prec = 32;
-        int N = 32;
-        assert d != 0;
-        assert prec >= 1 && prec <= N;
-
-        int l = (int) Math.ceil(Math.log(d) / Math.log(2));
-        int sh_post = l;
-        long m_low = ((long) 1 << (N + l)) / d;
-        long m_high = (((long) 1 << (N + l)) + ((long) 1 << (N + l - prec))) / d;
-        while (((m_low >> 1) < (m_high >> 1)) && sh_post > 0) {
-            m_low >>= 1;
-            m_high >>= 1;
-            sh_post -= 1;
-        }
-        return new Multiplier(m_high, l, sh_post);
     }
 
     public void gen() {
@@ -260,7 +232,7 @@ public class CodeGen {
                 case bino -> genBinaryInst((Instr.Alu) instr);
                 case jump -> {
                     Machine.Block mb = ((Instr.Jump) instr).getTarget().getMb();
-                    curMB.succMB.add(mb);
+                    curMB.succMBs.add(mb);
                     if (!visitBBSet.contains(mb)) nextBBList.push(mb.bb);
                     new MIJump(mb, curMB);
                 }
@@ -271,15 +243,15 @@ public class CodeGen {
                     Instr condValue = (Instr) brInst.getCond();
                     Machine.Block trueBlock = brInst.getThenTarget().getMb();
                     Machine.Block falseBlock = brInst.getElseTarget().getMb();
-                    curMB.succMB.add(trueBlock);
-                    curMB.succMB.add(falseBlock);
+                    curMB.succMBs.add(trueBlock);
+                    curMB.succMBs.add(falseBlock);
                     if (!visitBBSet.contains(falseBlock)) nextBBList.push(falseBlock.bb);
                     if (!visitBBSet.contains(trueBlock)) nextBBList.push(trueBlock.bb);
                     CMPAndArmCond t = cmpInst2MICmpMap.get(condValue);
                     if (t != null) {
                         cond = t.ArmCond;
                     } else {
-                        Operand condVR = getVR_no_imm(condValue);
+                        Operand condVR = getVR_may_imm(condValue);
                         new I.Cmp(condVR, new Operand(I32, 0), curMB);
                         cond = Arm.Cond.Ne;
                     }
@@ -408,7 +380,6 @@ public class CodeGen {
                         int offUnit = 4;
                         if (curBaseType.isArrType()) {
                             offUnit = 4 * ((Type.ArrayType) curBaseType).getFlattenSize();
-                            // offUnit = 4 * ((Type.ArrayType) curBaseType).getBaseFlattenSize();
                             curBaseType = ((Type.ArrayType) curBaseType).getBaseType();
                         }
                         if (curIdxValue.isConstantInt()) {
@@ -417,7 +388,8 @@ public class CodeGen {
                             if (i == offsetCount - 1) {
                                 // 这里的设计比较微妙
                                 if (totalConstOff == 0) {
-                                    new I.Mov(dstVR, curAddrVR, curMB);
+                                    value2opd.put(gep, curAddrVR);
+                                    // new I.Mov(dstVR, curAddrVR, curMB);
                                 } else {
                                     Operand imm;
                                     if (immCanCode(totalConstOff)) {
@@ -427,11 +399,7 @@ public class CodeGen {
                                     }
                                     new I.Binary(MachineInst.Tag.Add, dstVR, curAddrVR, imm, curMB);
                                 }
-                                // 由于已经是最后一个偏移,所以不需要
-                                // curAddrVR = dstVR;
                             }
-                            /*} else if ((offUnit & (offUnit - 1)) == 0) {*/
-                            // TODO
                         } else {
                             // TODO 是否需要避免寄存器分配时出现use的VR与def的VR相同的情况
                             assert !curIdxValue.isConstant();
@@ -466,171 +434,15 @@ public class CodeGen {
                 case bitcast -> {
                     Instr.Bitcast bitcast = (Instr.Bitcast) instr;
                     Operand src = getVR_no_imm(bitcast.getSrcValue());
-                    Operand dst = getVR_no_imm(bitcast);
-                    new I.Mov(dst, src, curMB);
+                    value2opd.put(bitcast, src);
+                    // Operand dst = getVR_no_imm(bitcast);
+                    // new I.Mov(dst, src, curMB);
                 }
                 case call -> {
-                    Instr.Call call_inst = (Instr.Call) instr;
-                    // TODO : 函数内部可能调用其他函数, 但是在函数内部已经没有了Caller使用哪些寄存器的信息, 目前影响未知, 可能有bug
-                    // TODO: ayame解决方案是在 callee 头 push 和 callee 尾部 pop 那些 callee 要用到的寄存器, 暂定此方案
-                    // TODO: 如果有返回值, 则由caller保护r0或s0, 如果没有返回值则有callee保护
-                    ArrayList<Value> param_list = call_inst.getParamList();
-                    // ArrayList<Operand> paramVRList = new ArrayList<>();
-                    // ArrayList<Operand> paramSVRList = new ArrayList<>();
-                    int rIdx = 0;
-                    int sIdx = 0;
-                    int rParamTop = rIdx;
-                    int sParamTop = sIdx;
-                    for (Value p : param_list) {
-                        if (p.getType().isFloatType()) {
-                            assert needFPU;
-                            if (sIdx < sParamCnt) {
-                                /*Operand tmpDst = newSVR();
-                                paramSVRList.add(tmpDst);*/
-                                Operand fpr = Arm.Reg.getS(sIdx);
-                                /*new V.Mov(tmpDst, fpr, curMB);*/
-                                new V.Mov(fpr, getVR_may_imm(p), curMB);
-                                sParamTop = sIdx + 1;
-                            } else {
-                                int offset_imm = (sParamTop + rParamTop - (rIdx + sIdx) - 1) * 4;
-                                Operand data = getVR_may_imm(p);
-                                Operand off = new Operand(I32, offset_imm);
-                                if (vLdrStrImmEncode(offset_imm)) {
-                                    new V.Str(data, Arm.Reg.getR(sp), off, curMB);
-                                } else if (immCanCode(offset_imm)) {
-                                    // TODO 取反
-                                    Operand dstAddr = newVR();
-                                    new I.Binary(MachineInst.Tag.Sub, dstAddr, Arm.Reg.getR(sp), new Operand(I32, offset_imm), curMB);
-                                    new V.Str(data, dstAddr, curMB);
-                                } else if (immCanCode(-offset_imm)) {
-                                    // TODO 取反
-                                    Operand dstAddr = newVR();
-                                    new I.Binary(MachineInst.Tag.Sub, dstAddr, Arm.Reg.getR(sp), new Operand(I32, -offset_imm), curMB);
-                                    new V.Str(data, dstAddr, curMB);
-                                } else {
-                                    Operand imm = newVR();
-                                    new I.Mov(imm, new Operand(I32, -offset_imm), curMB);
-                                    Operand dstAddr = newVR();
-                                    new I.Binary(MachineInst.Tag.Sub, dstAddr, Arm.Reg.getR(sp), imm, curMB);
-                                    new V.Str(data, dstAddr, curMB);
-                                }
-                            }
-                            sIdx++;
-                        } else {
-                            if (rIdx < rParamCnt) {
-                                /*Operand tmpDst = newVR();
-                                paramVRList.add(tmpDst);*/
-                                Operand gpr = Arm.Reg.getR(rIdx);
-                                /*new I.Mov(tmpDst, gpr, curMB);*/
-                                new I.Mov(gpr, getVR_may_imm(p), curMB);
-                                rParamTop = rIdx + 1;
-                            } else {
-                                int offset_imm = (sParamTop + rParamTop - (rIdx + sIdx) - 1) * 4;
-                                Operand data = getVR_may_imm(p);
-                                Operand addr = Arm.Reg.getR(sp);
-                                // TODO 小心函数参数个数超级多, 超过立即数可以表示的大小导致的错误
-                                Operand off = new Operand(I32, offset_imm);
-                                if (!LdrStrImmEncode(offset_imm)) {
-                                    Operand immDst = newVR();
-                                    new I.Mov(immDst, off, curMB);
-                                    off = immDst;
-                                }
-                                new I.Str(data, addr, off, curMB);
-                            }
-                            rIdx++;
-                        }
-                    }
-                    // 栈空间移位
-                    Function callFunc = call_inst.getFunc();
-                    Machine.McFunction callMcFunc = f2mf.get(callFunc);
-                    if (callFunc.isExternal) {
-                        /**
-                         * r0实际上依据设计不一定需要保护, 因为一定是最后ret语句才会有r0的赋值
-                         */
-                        // TODO: return getint();
-                        /*while (rIdx < 2) {
-                            Operand tmpDst = newVR();
-                            paramVRList.add(tmpDst);
-                            new I.Mov(tmpDst, Arm.Reg.getR(rIdx++), curMB);
-                        }
-                        if (needFPU) {
-                            while (sIdx < 2) {
-                                Operand tmpDst = newSVR();
-                                paramSVRList.add(tmpDst);
-                                new V.Mov(tmpDst, Arm.Reg.getS(sIdx++), curMB);
-                            }
-                        }*/
-                        Machine.McFunction mf = f2mf.get(callFunc);
-                        assert mf != null;
-                        Push(mf);
-                        new MICall(mf, curMB);
-                        Pop(mf);
-                    } else {
-                        if (callMcFunc == null) {
-                            throw new AssertionError("Callee is null");
-                        }
-                        /**
-                         * r0实际上依据设计不一定需要保护, 因为一定是最后ret语句才会有r0的赋值
-                         */
-                        // TODO: return getint();
-                        /*if (rIdx == 0 && call_inst.getType().isInt32Type()) {
-                            Operand tmpDst = newVR();
-                            paramVRList.add(tmpDst);
-                            new I.Mov(tmpDst, Arm.Reg.getR(r0), curMB);
-                        }
-                        if (sIdx == 0 && call_inst.getType().isFloatType()) {
-                            Operand tmpDst = newSVR();
-                            paramSVRList.add(tmpDst);
-                            new V.Mov(tmpDst, Arm.Reg.getS(s0), curMB);
-                        }*/
-                        // Operand rOp1 = new Operand(I32, 0);
-                        // Operand mvDst1 = newVR();
-                        // I.Mov mv1 = new I.Mov(mvDst1, rOp1, curMB);
-                        // mv1.setNeedFix(callMcFunc, STACK_FIX.ONLY_PARAM);
-                        I.Binary bino = new I.Binary(MachineInst.Tag.Sub, Arm.Reg.getR(sp), Arm.Reg.getR(sp), new Operand(I32, 0), curMB);
-                        bino.setNeedFix(callMcFunc, STACK_FIX.ONLY_PARAM);
-                        // call
-                        new MICall(callMcFunc, curMB);
-                        // Operand rOp2 = new Operand(I32, 0);
-                        // Operand mvDst2 = newVR();
-                        // I.Mov mv2 = new I.Mov(mvDst2, rOp2, curMB);
-                        // mv2.setNeedFix(callMcFunc, STACK_FIX.ONLY_PARAM);
-                        I.Binary bino2 = new I.Binary(MachineInst.Tag.Add, Arm.Reg.getR(sp), Arm.Reg.getR(sp), new Operand(I32, 0), curMB);
-                        bino2.setNeedFix(callMcFunc, STACK_FIX.ONLY_PARAM);
-                    }
-                    if (call_inst.getType().isInt32Type()) {
-                        new I.Mov(getVR_no_imm(call_inst), Arm.Reg.getR(r0), curMB);
-                    } else if (call_inst.getType().isFloatType()) {
-                        assert needFPU;
-                        new V.Mov(getVR_no_imm(call_inst), Arm.Reg.getS(s0), curMB);
-                    } else if (!call_inst.getType().isVoidType()) {
-                        throw new AssertionError("Wrong ret type");
-                    }
-                    /*// 需要把挪走的r0-rx再挪回来
-                    for (int i = 0; i < paramVRList.size(); i++) {
-                        new I.Mov(Arm.Reg.getR(i), paramVRList.get(i), curMB);
-                    }
-                    // 需要把挪走的s0-sx再挪回来
-                    for (int i = 0; i < paramSVRList.size(); i++) {
-                        assert needFPU;
-                        new V.Mov(Arm.Reg.getS(i), paramSVRList.get(i), curMB);
-                    }*/
+                    dealCall((Instr.Call) instr);
                 }
                 case phi -> throw new AssertionError("Backend has phi: " + instr);
                 case pcopy -> {
-                    // 前端已经消完了
-                    // Instr.PCopy pCopy = (Instr.PCopy) instr;
-                    // ArrayList<Value> rList = pCopy.getRHS();
-                    // ArrayList<Value> lList = pCopy.getLHS();
-                    // assert rList.size() == lList.size();
-                    // for (int i = 0; i < lList.size(); i++) {
-                    //     Value lhs = lList.get(i);
-                    //     Value rhs = rList.get(i);
-                    //     Machine.Operand source = getVR_may_imm(rhs);
-                    //     assert !(lhs instanceof Constant);
-                    //     Machine.Operand target = getVR_no_imm(lhs);
-                    //     new MIMove(target, source, curMB);
-                    // }
                 }
                 case move -> {
                     Operand source = getVR_may_imm(((Instr.Move) instr).getSrc());
@@ -649,6 +461,153 @@ public class CodeGen {
         // for (Machine.Block mb : nextBlockList) {
         //     genBB(mb.bb);
         // }
+    }
+
+    private void dealCall(Instr.Call call_inst) {
+        // TODO : 函数内部可能调用其他函数, 但是在函数内部已经没有了Caller使用哪些寄存器的信息, 目前影响未知, 可能有bug
+        // TODO: ayame解决方案是在 callee 头 push 和 callee 尾部 pop 那些 callee 要用到的寄存器, 暂定此方案
+        // TODO: 如果有返回值, 则由caller保护r0或s0, 如果没有返回值则有callee保护
+        ArrayList<Value> param_list = call_inst.getParamList();
+        // ArrayList<Operand> paramVRList = new ArrayList<>();
+        // ArrayList<Operand> paramSVRList = new ArrayList<>();
+        int rIdx = 0;
+        int sIdx = 0;
+        int rParamTop = rIdx;
+        int sParamTop = sIdx;
+        for (Value p : param_list) {
+            if (p.getType().isFloatType()) {
+                assert needFPU;
+                if (sIdx < sParamCnt) {
+                                /*Operand tmpDst = newSVR();
+                                paramSVRList.add(tmpDst);*/
+                    Operand fpr = Arm.Reg.getS(sIdx);
+                    /*new V.Mov(tmpDst, fpr, curMB);*/
+                    new V.Mov(fpr, getVR_may_imm(p), curMB);
+                    sParamTop = sIdx + 1;
+                } else {
+                    int offset_imm = (sParamTop + rParamTop - (rIdx + sIdx) - 1) * 4;
+                    Operand data = getVR_may_imm(p);
+                    Operand off = new Operand(I32, offset_imm);
+                    if (vLdrStrImmEncode(offset_imm)) {
+                        new V.Str(data, Arm.Reg.getR(sp), off, curMB);
+                    } else if (immCanCode(offset_imm)) {
+                        // TODO 取反
+                        Operand dstAddr = newVR();
+                        new I.Binary(MachineInst.Tag.Sub, dstAddr, Arm.Reg.getR(sp), new Operand(I32, offset_imm), curMB);
+                        new V.Str(data, dstAddr, curMB);
+                    } else if (immCanCode(-offset_imm)) {
+                        // TODO 取反
+                        Operand dstAddr = newVR();
+                        new I.Binary(MachineInst.Tag.Sub, dstAddr, Arm.Reg.getR(sp), new Operand(I32, -offset_imm), curMB);
+                        new V.Str(data, dstAddr, curMB);
+                    } else {
+                        Operand imm = newVR();
+                        new I.Mov(imm, new Operand(I32, -offset_imm), curMB);
+                        Operand dstAddr = newVR();
+                        new I.Binary(MachineInst.Tag.Sub, dstAddr, Arm.Reg.getR(sp), imm, curMB);
+                        new V.Str(data, dstAddr, curMB);
+                    }
+                }
+                sIdx++;
+            } else {
+                if (rIdx < rParamCnt) {
+                                /*Operand tmpDst = newVR();
+                                paramVRList.add(tmpDst);*/
+                    Operand gpr = Arm.Reg.getR(rIdx);
+                    /*new I.Mov(tmpDst, gpr, curMB);*/
+                    new I.Mov(gpr, getVR_may_imm(p), curMB);
+                    rParamTop = rIdx + 1;
+                } else {
+                    int offset_imm = (sParamTop + rParamTop - (rIdx + sIdx) - 1) * 4;
+                    Operand data = getVR_may_imm(p);
+                    Operand addr = Arm.Reg.getR(sp);
+                    // TODO 小心函数参数个数超级多, 超过立即数可以表示的大小导致的错误
+                    Operand off = new Operand(I32, offset_imm);
+                    if (!LdrStrImmEncode(offset_imm)) {
+                        Operand immDst = newVR();
+                        new I.Mov(immDst, off, curMB);
+                        off = immDst;
+                    }
+                    new I.Str(data, addr, off, curMB);
+                }
+                rIdx++;
+            }
+        }
+        // 栈空间移位
+        Function callFunc = call_inst.getFunc();
+        Machine.McFunction callMcFunc = f2mf.get(callFunc);
+        if (callFunc.isExternal) {
+            /**
+             * r0实际上依据设计不一定需要保护, 因为一定是最后ret语句才会有r0的赋值
+             */
+            // TODO: return getint();
+                        /*while (rIdx < 2) {
+                            Operand tmpDst = newVR();
+                            paramVRList.add(tmpDst);
+                            new I.Mov(tmpDst, Arm.Reg.getR(rIdx++), curMB);
+                        }
+                        if (needFPU) {
+                            while (sIdx < 2) {
+                                Operand tmpDst = newSVR();
+                                paramSVRList.add(tmpDst);
+                                new V.Mov(tmpDst, Arm.Reg.getS(sIdx++), curMB);
+                            }
+                        }*/
+            Machine.McFunction mf = f2mf.get(callFunc);
+            assert mf != null;
+            // Push(mf);
+            new MICall(mf, curMB);
+            // Pop(mf);
+        } else {
+            if (callMcFunc == null) {
+                throw new AssertionError("Callee is null");
+            }
+            /**
+             * r0实际上依据设计不一定需要保护, 因为一定是最后ret语句才会有r0的赋值
+             */
+            // TODO: return getint();
+                        /*if (rIdx == 0 && call_inst.getType().isInt32Type()) {
+                            Operand tmpDst = newVR();
+                            paramVRList.add(tmpDst);
+                            new I.Mov(tmpDst, Arm.Reg.getR(r0), curMB);
+                        }
+                        if (sIdx == 0 && call_inst.getType().isFloatType()) {
+                            Operand tmpDst = newSVR();
+                            paramSVRList.add(tmpDst);
+                            new V.Mov(tmpDst, Arm.Reg.getS(s0), curMB);
+                        }*/
+            // Operand rOp1 = new Operand(I32, 0);
+            // Operand mvDst1 = newVR();
+            // I.Mov mv1 = new I.Mov(mvDst1, rOp1, curMB);
+            // mv1.setNeedFix(callMcFunc, STACK_FIX.ONLY_PARAM);
+            I.Binary bino = new I.Binary(MachineInst.Tag.Sub, Arm.Reg.getR(sp), Arm.Reg.getR(sp), new Operand(I32, 0), curMB);
+            bino.setNeedFix(callMcFunc, STACK_FIX.ONLY_PARAM);
+            // call
+            new MICall(callMcFunc, curMB);
+            // Operand rOp2 = new Operand(I32, 0);
+            // Operand mvDst2 = newVR();
+            // I.Mov mv2 = new I.Mov(mvDst2, rOp2, curMB);
+            // mv2.setNeedFix(callMcFunc, STACK_FIX.ONLY_PARAM);
+            I.Binary bino2 = new I.Binary(MachineInst.Tag.Add, Arm.Reg.getR(sp), Arm.Reg.getR(sp), new Operand(I32, 0), curMB);
+            bino2.setNeedFix(callMcFunc, STACK_FIX.ONLY_PARAM);
+        }
+        if (call_inst.getType().isInt32Type()) {
+            new I.Mov(getVR_no_imm(call_inst), Arm.Reg.getR(r0), curMB);
+        } else if (call_inst.getType().isFloatType()) {
+            assert needFPU;
+            new V.Mov(getVR_no_imm(call_inst), Arm.Reg.getS(s0), curMB);
+        } else if (!call_inst.getType().isVoidType()) {
+            throw new AssertionError("Wrong ret type");
+        }
+                    /*// 需要把挪走的r0-rx再挪回来
+                    for (int i = 0; i < paramVRList.size(); i++) {
+                        new I.Mov(Arm.Reg.getR(i), paramVRList.get(i), curMB);
+                    }
+                    // 需要把挪走的s0-sx再挪回来
+                    for (int i = 0; i < paramSVRList.size(); i++) {
+                        assert needFPU;
+                        new V.Mov(Arm.Reg.getS(i), paramSVRList.get(i), curMB);
+                    }*/
     }
 
     public static boolean LdrStrImmEncode(int off) {
@@ -688,250 +647,40 @@ public class CodeGen {
         MachineInst.Tag tag = MachineInst.Tag.map.get(instr.getOp());
         Value lhs = instr.getRVal1();
         Value rhs = instr.getRVal2();
-        // boolean notFloat = isFBino(instr.getOp());
-
-        if (tag == MachineInst.Tag.Mod) {
+        if (tag == Mod) {
             Machine.Operand q = getVR_no_imm(instr);
-            // q = a%b = a-(a/b)*b
-            // dst1 = a/b
             Machine.Operand a = getVR_may_imm(lhs);
             Machine.Operand b = getVR_may_imm(rhs);
             Machine.Operand dst1 = newVR();
-            if (_DEBUG_MUL_DIV && rhs.isConstantInt()) {
-                divOptimize_mod(lhs, rhs, dst1);
-            } else {
-                new I.Binary(MachineInst.Tag.Div, dst1, a, b, curMB);
-            }
-            // dst2 = dst1*b
+            new I.Binary(MachineInst.Tag.Div, dst1, a, b, curMB);
             Machine.Operand dst2 = newVR();
             new I.Binary(MachineInst.Tag.Mul, dst2, dst1, b, curMB);
-            // q = a - dst2
             new I.Binary(MachineInst.Tag.Sub, q, a, dst2, curMB);
-            return;
-        } else if (tag == MachineInst.Tag.FMod) {
+        } else if (tag == FMod) {
             assert needFPU;
             Operand q = getVR_no_imm(instr);
-            // q = a%b = a-(a/b)*b
-            // dst1 = a/b
             Operand a = getVR_may_imm(lhs);
             Operand b = getVR_may_imm(rhs);
             Operand dst1 = newSVR();
             new V.Binary(MachineInst.Tag.FDiv, dst1, a, b, curMB);
-            // dst2 = dst1*b
             Operand dst2 = newSVR();
             new V.Binary(MachineInst.Tag.FMul, dst2, dst1, b, curMB);
-            // q = a - dst2
             new V.Binary(MachineInst.Tag.FSub, q, a, dst2, curMB);
-            return;
-        }
-        if (isFBino(instr.getOp())) {
+        } else if (isFBino(instr.getOp())) {
             assert needFPU;
             Operand lVR = getVR_may_imm(lhs);
             Operand rVR = getVR_may_imm(rhs);
             // instr不可能是Constant
             Operand dVR = getVR_no_imm(instr);
             new V.Binary(tag, dVR, lVR, rVR, curMB);
-            return;
-        }
-        if (!isFBino(instr.getOp()) && _DEBUG_MUL_DIV) {
-            // div+mode optimize
-            //这里需要确定一下lhs不是浮点类型
-            if (tag == MachineInst.Tag.Div && rhs.isConstantInt()) {
-                divOptimize(instr);
-                return;
-            }
-            if (tag == MachineInst.Tag.Mul) {
-                if (lhs.isConstantInt()) {
-                    Value tmp = rhs;
-                    rhs = lhs;
-                    lhs = tmp;
-                }
-                if (rhs.isConstantInt() && is2power(Math.abs(((Constant.ConstantInt) rhs).constIntVal))) {
-                    mulOptimize(lhs, rhs, instr);
-                    return;
-                }
-            }
-        }
-        Machine.Operand lVR = getVR_may_imm(lhs);
-        Machine.Operand rVR = getVR_may_imm(rhs);
-        // instr不可能是Constant
-        Machine.Operand dVR = getVR_no_imm(instr);
-        new I.Binary(tag, dVR, lVR, rVR, curMB);
-    }
-
-    public boolean is2power(int n) {
-        return n > 0 && (n & (n - 1)) == 0;
-    }
-
-    public void mulOptimize(Value lhs, Value rhs, Instr.Alu instr) {
-        Machine.Operand n = getVR_may_imm(lhs);
-        Machine.Operand q = getVR_no_imm(instr);
-        int d = ((Constant.ConstantInt) rhs).constIntVal;
-        int k = Integer.toBinaryString(Math.abs(d)).length() - 1;
-        //q = n*d
-        //q = n<<k
-        Arm.Shift shift = new Arm.Shift(Arm.ShiftType.Lsl, k);
-        new I.Mov(q, n, shift, curMB);
-
-    }
-
-    public void divOptimize_mod(Value lhs, Value rhs, Machine.Operand q) {
-        // q = n/d
-        Machine.Operand n = getVR_may_imm(lhs);
-        int d = ((Constant.ConstantInt) rhs).constIntVal;
-        int N = 32;
-        Multiplier multiplier = chooseMultiplier(Math.abs(d), N - 1);
-        int l = multiplier.l;
-        int sh_post = multiplier.sh_post;
-        long m = multiplier.m;
-        if (Math.abs(d) == 1) {
-            // q = n
-            new I.Mov(q, n, curMB);
-
-        } else if (Math.abs(d) == (1 << l)) {
-            // q = SRA(n+SRL(SRA(n,l-1),N-l),l)
-            // dst1 = SRA(n,l-1)
-            Machine.Operand dst1 = newVR();
-            Arm.Shift shift1 = new Arm.Shift(Arm.ShiftType.Asr, l - 1);
-            new I.Mov(dst1, n, shift1, curMB);
-            // dst2 = SRL(dst1,N-l)
-            Machine.Operand dst2 = newVR();
-            Arm.Shift shift2 = new Arm.Shift(Arm.ShiftType.Lsr, N - l);
-            new I.Mov(dst2, dst1, shift2, curMB);
-            // dst3 = n+dst2
-            Machine.Operand dst3 = newVR();
-            new I.Binary(MachineInst.Tag.Add, dst3, n, dst2, curMB);
-            // q = SRA(dst3,l)
-            Arm.Shift shift3 = new Arm.Shift(Arm.ShiftType.Asr, l);
-            new I.Mov(q, dst3, shift3, curMB);
-        } else if (m < ((long) 1 << (N - 1))) {
-            // q = SRA(MULSH(m,n),sh_post)-XSIGN(n)
-            // dst1 = MULSH(m,n)
-            Machine.Operand m_op = new Machine.Operand(I32, (int) m);
-            Machine.Operand dst1 = newVR();
-            Machine.Operand move_dst = newVR();
-            new I.Mov(move_dst, m_op, curMB);
-            new MILongMul(dst1, n, move_dst, curMB);
-            // dst2 = SRA(dst1,sh_post)
-            Machine.Operand dst2 = newVR();
-            Arm.Shift shift2 = new Arm.Shift(Arm.ShiftType.Asr, sh_post);
-            new I.Mov(dst2, dst1, shift2, curMB);
-            // dst3 = -XSIGN(n)
-            Machine.Operand dst3 = newVR();
-            new I.Cmp(n, new Machine.Operand(I32, 0), curMB);
-            new I.Mov(Lt, dst3, new Machine.Operand(I32, 1), curMB);
-            new I.Mov(Ge, dst3, new Machine.Operand(I32, 0), curMB);
-            // q = dst2+dst3
-            new I.Binary(MachineInst.Tag.Add, q, dst2, dst3, curMB);
         } else {
-            // q = SRA(n+MULSH(m-2^N,n),sh_post)-XSIGN(n)
-            // dst1 = MULSH(m-2^N,n)
-            Machine.Operand m_op = new Machine.Operand(I32, (int) (m - (((long) 1 << N))));
-            Machine.Operand dst1 = newVR();
-            Machine.Operand move_dst = newVR();
-            new I.Mov(move_dst, m_op, curMB);
-            new MILongMul(dst1, n, move_dst, curMB);
-            // dst2 = n+dst1
-            Machine.Operand dst2 = newVR();
-            new I.Binary(MachineInst.Tag.Add, dst2, n, dst1, curMB);
-            // dst3 = SRA(dst2,sh_post)
-            Machine.Operand dst3 = newVR();
-            Arm.Shift shift = new Arm.Shift(Arm.ShiftType.Asr, sh_post);
-            new I.Mov(dst3, dst2, shift, curMB);
-            // dst4 = -XSIGN(n)
-            Machine.Operand dst4 = newVR();
-            new I.Cmp(n, new Machine.Operand(I32, 0), curMB);
-            new I.Mov(Lt, dst4, new Machine.Operand(I32, 1), curMB);
-            new I.Mov(Ge, dst4, new Machine.Operand(I32, 0), curMB);
-            // q = dst3+dst4
-            new I.Binary(MachineInst.Tag.Add, q, dst3, dst4, curMB);
-        }
-        if (d < 0) {
-            // q=-q
-            new I.Binary(MachineInst.Tag.Rsb, q, q, new Machine.Operand(I32, 0), curMB);
+            Machine.Operand lVR = getVR_may_imm(lhs);
+            Machine.Operand rVR = getVR_may_imm(rhs);
+            // instr不可能是Constant
+            Machine.Operand dVR = getVR_no_imm(instr);
+            new I.Binary(tag, dVR, lVR, rVR, curMB);
         }
     }
-
-    public void divOptimize(Instr.Alu instr) {
-        // q = n/d
-        Value lhs = instr.getRVal1();
-        Machine.Operand n = getVR_may_imm(lhs);
-        Value rhs = instr.getRVal2();
-        Machine.Operand q = getVR_no_imm(instr);
-        int d = ((Constant.ConstantInt) rhs).constIntVal;
-        int N = 32;
-        Multiplier multiplier = chooseMultiplier(Math.abs(d), N - 1);
-        int l = multiplier.l;
-        int sh_post = multiplier.sh_post;
-        long m = multiplier.m;
-        if (Math.abs(d) == 1) {
-            // q = n
-            new I.Mov(q, n, curMB);
-
-        } else if (Math.abs(d) == (1 << l)) {
-            // q = SRA(n+SRL(SRA(n,l-1),N-l),l)
-            // dst1 = SRA(n,l-1)
-            Machine.Operand dst1 = newVR();
-            Arm.Shift shift1 = new Arm.Shift(Arm.ShiftType.Asr, l - 1);
-            new I.Mov(dst1, n, shift1, curMB);
-            // dst2 = SRL(dst1,N-l)
-            Machine.Operand dst2 = newVR();
-            Arm.Shift shift2 = new Arm.Shift(Arm.ShiftType.Lsr, N - l);
-            new I.Mov(dst2, dst1, shift2, curMB);
-            // dst3 = n+dst2
-            Machine.Operand dst3 = newVR();
-            new I.Binary(MachineInst.Tag.Add, dst3, n, dst2, curMB);
-            // q = SRA(dst3,l)
-            Arm.Shift shift3 = new Arm.Shift(Arm.ShiftType.Asr, l);
-            new I.Mov(q, dst3, shift3, curMB);
-        } else if (m < ((long) 1 << (N - 1))) {
-            // q = SRA(MULSH(m,n),sh_post)-XSIGN(n)
-            // dst1 = MULSH(m,n)
-            Machine.Operand m_op = new Machine.Operand(I32, (int) m);
-            Machine.Operand dst1 = newVR();
-            Machine.Operand move_dst = newVR();
-            new I.Mov(move_dst, m_op, curMB);
-            new MILongMul(dst1, n, move_dst, curMB);
-            // dst2 = SRA(dst1,sh_post)
-            Machine.Operand dst2 = newVR();
-            Arm.Shift shift2 = new Arm.Shift(Arm.ShiftType.Asr, sh_post);
-            new I.Mov(dst2, dst1, shift2, curMB);
-            // dst3 = -XSIGN(n)
-            Machine.Operand dst3 = newVR();
-            new I.Cmp(n, new Machine.Operand(I32, 0), curMB);
-            new I.Mov(Lt, dst3, new Machine.Operand(I32, 1), curMB);
-            new I.Mov(Ge, dst3, new Machine.Operand(I32, 0), curMB);
-            // q = dst2+dst3
-            new I.Binary(MachineInst.Tag.Add, q, dst2, dst3, curMB);
-        } else {
-            // q = SRA(n+MULSH(m-2^N,n),sh_post)-XSIGN(n)
-            // dst1 = MULSH(m-2^N,n)
-            Machine.Operand m_op = new Machine.Operand(I32, (int) (m - (((long) 1 << N))));
-            Machine.Operand dst1 = newVR();
-            Machine.Operand move_dst = newVR();
-            new I.Mov(move_dst, m_op, curMB);
-            new MILongMul(dst1, n, move_dst, curMB);
-            // dst2 = n+dst1
-            Machine.Operand dst2 = newVR();
-            new I.Binary(MachineInst.Tag.Add, dst2, n, dst1, curMB);
-            // dst3 = SRA(dst2,sh_post)
-            Machine.Operand dst3 = newVR();
-            Arm.Shift shift = new Arm.Shift(Arm.ShiftType.Asr, sh_post);
-            new I.Mov(dst3, dst2, shift, curMB);
-            // dst4 = -XSIGN(n)
-            Machine.Operand dst4 = newVR();
-            new I.Cmp(n, new Machine.Operand(I32, 0), curMB);
-            new I.Mov(Lt, dst4, new Machine.Operand(I32, 1), curMB);
-            new I.Mov(Ge, dst4, new Machine.Operand(I32, 0), curMB);
-            // q = dst3+dst4
-            new I.Binary(MachineInst.Tag.Add, q, dst3, dst4, curMB);
-        }
-        if (d < 0) {
-            // q=-q
-            new I.Binary(MachineInst.Tag.Rsb, q, q, new Machine.Operand(I32, 0), curMB);
-        }
-    }
-
 
     /**
      * 条件相关
@@ -1041,20 +790,13 @@ public class CodeGen {
      * @return
      */
     public static boolean immCanCode(int imm) {
-        int n = imm;
-        for (int i = 0; i < 32; i += 2) {
-            if ((n & ~0xFF) == 0) {
-                return true;
-            }
-            n = (n << 2) | (n >>> 30);
-        }
+        int i = 0;
+        do {
+            int n = (imm << (2 * i)) | (imm >>> (32 - 2 * i));
+            if ((n & ~0xFF) == 0) return true;
+        } while (i++ < 16);
         return false;
     }
-
-    // private Machine.Operand genOpdFromValue(Value value) {
-    // private Machine.Operand genOpdFromValue(Value value) {
-    //     return getVR_may_imm(value);
-    // }
 
     public Operand newSVR() {
         return curMF.newSVR();
@@ -1092,9 +834,6 @@ public class CodeGen {
      * 不可能是立即数的vr获取
      */
     public Operand getVR_no_imm(Value value) {
-        // if (value.isConstantInt()) {
-        //     return getImmVR(((Constant.ConstantInt) value).constIntVal);
-        // }
         Operand opd = value2opd.get(value);
         return opd == null ? (value.getType().isFloatType() ? newSVR(value) : newVR(value)) : opd;
     }
@@ -1132,23 +871,11 @@ public class CodeGen {
         return dst;
     }
 
-    public Operand get_may_imm(Value value) {
-        if (value instanceof Constant.ConstantInt) {
-            int imm = ((Constant.ConstantInt) value).constIntVal;
-            if (immCanCode(imm)) {
-                return new Operand(I32, imm);
-            } else {
-                return getImmVR(imm);
-            }
-        }
-        return getVR_may_imm(value);
-    }
-
     /**
      * 可能是立即数的vr获取
      */
     public Operand getVR_may_imm(Value value) {
-        if (value instanceof Constant.ConstantInt) {
+        if (value instanceof Constant.ConstantInt || value instanceof Constant.ConstantBool) {
             return getImmVR((int) ((Constant) value).getConstVal());
         } else if (value instanceof Constant.ConstantFloat) {
             return getFConstVR((Constant.ConstantFloat) value);

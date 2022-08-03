@@ -3,10 +3,13 @@ package midend;
 import frontend.semantic.Initial;
 import manage.Manager;
 import mir.*;
+import util.CenterControl;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+
+import static util.CenterControl._ONLY_FRONTEND;
 
 public class MidEndRunner {
 
@@ -84,7 +87,6 @@ public class MidEndRunner {
         LoopStrengthReduction();
 
 
-
         MathOptimize mathOptimize1 = new MathOptimize(functions);
         mathOptimize1.Run();
 
@@ -141,7 +143,7 @@ public class MidEndRunner {
     }
 
     private void check_instr() {
-        for (Function function: functions) {
+        for (Function function : functions) {
             HashSet<Instr> instrs = new HashSet<>();
             for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
                 for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
@@ -169,16 +171,19 @@ public class MidEndRunner {
     }
 
     private void LoopStrengthReduction() {
-        outputLLVM();
-
-        LoopStrengthReduction loopStrengthReduction = new LoopStrengthReduction(functions);
-        loopStrengthReduction.Run();
-
-        outputLLVM();
-
-        reMakeCFGAndLoopInfo();
-
-        Pass();
+        // if (CenterControl._ONLY_FRONTEND) {
+            return;
+        // }
+        // outputLLVM();
+        //
+        // LoopStrengthReduction loopStrengthReduction = new LoopStrengthReduction(functions);
+        // loopStrengthReduction.Run();
+        //
+        // outputLLVM();
+        //
+        // reMakeCFGAndLoopInfo();
+        //
+        // Pass();
     }
 
     //死代码删除 指令融合 GVN/GCM
@@ -281,7 +286,7 @@ public class MidEndRunner {
     }
 
     private void check() {
-        for (Function function: functions) {
+        for (Function function : functions) {
             for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
                 for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
                     for (Use use = instr.getBeginUse(); use.getNext() != null; use = (Use) use.getNext()) {
@@ -289,7 +294,7 @@ public class MidEndRunner {
                         assert user.getUseValueList().contains(instr);
                     }
 
-                    for (Value value: instr.getUseValueList()) {
+                    for (Value value : instr.getUseValueList()) {
                         boolean tag = false;
                         for (Use use1 = value.getBeginUse(); use1.getNext() != null; use1 = (Use) use1.getNext()) {
                             if (use1.getUser().equals(instr)) {

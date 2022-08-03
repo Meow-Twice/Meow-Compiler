@@ -255,7 +255,14 @@ public class Arm {
         // rotate right one bit with extend
         Rrx("rrx");
 
+        String name;
         ShiftType(String shift) {
+            name = shift;
+        }
+
+        @Override
+        public String toString() {
+            return name;
         }
     }
 
@@ -263,6 +270,7 @@ public class Arm {
         public static final Shift NONE_SHIFT = new Shift();
         public ShiftType shiftType;
         public int shift;
+        public Machine.Operand shiftReg = null;
 
         Shift() {
             shift = 0;
@@ -274,19 +282,34 @@ public class Arm {
             this.shift = shift;
         }
 
+        public Shift(ShiftType shiftType, Machine.Operand shift) {
+            this.shiftType = shiftType;
+            this.shiftReg = shift;
+        }
+
         public int getShift() {
             return shift;
         }
 
         public String toString() {
-            return switch (shiftType) {
-                case Asr -> "asr #" + this.shift;
-                case Lsl -> "lsl #" + this.shift;
-                case Lsr -> "lsr #" + this.shift;
-                case Ror -> "ror #" + this.shift;
-                case Rrx -> "rrx #" + this.shift;
-                default -> "";
-            };
+            // if (shiftReg != null)
+            //     return switch (shiftType) {
+            //         case Asr -> "asr #" + this.shiftReg;
+            //         case Lsl -> "lsl #" + this.shiftReg;
+            //         case Lsr -> "lsr #" + this.shiftReg;
+            //         case Ror -> "ror #" + this.shiftReg;
+            //         case Rrx -> "rrx #" + this.shiftReg;
+            //         default -> "";
+            //     };
+            // else
+                return switch (shiftType) {
+                    case Asr -> "asr #" + this.shift;
+                    case Lsl -> "lsl #" + this.shift;
+                    case Lsr -> "lsr #" + this.shift;
+                    case Ror -> "ror #" + this.shift;
+                    case Rrx -> "rrx #" + this.shift;
+                    default -> "";
+                };
         }
 
         // @Override

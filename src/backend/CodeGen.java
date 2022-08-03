@@ -231,13 +231,13 @@ public class CodeGen {
                 case value, func, bb -> throw new AssertionError("Damaged wrong: try gen: " + instr);
                 case bino -> genBinaryInst((Instr.Alu) instr);
                 case ashr -> {
-//                    Value lhs = ((Instr.Ashr) instr).getRVal1();
-//                    Value rhs = ((Instr.Ashr) instr).getRVal2();
-//                    Machine.Operand lVR = getVR_may_imm(lhs);
-//                    Machine.Operand rVR = getVR_may_imm(rhs);
-//                    // instr不可能是Constant
-//                    Machine.Operand dVR = getVR_no_imm(instr);
-//                    new I.Binary(tag, dVR, lVR, rVR, curMB);
+                   Value lhs = ((Instr.Ashr) instr).getRVal1();
+                   Value rhs = ((Instr.Ashr) instr).getRVal2();
+                   Machine.Operand lVR = getVR_may_imm(lhs);
+                   Machine.Operand rVR = getVR_may_imm(rhs);
+                   // instr不可能是Constant
+                   Machine.Operand dVR = getVR_no_imm(instr);
+                   new I.Mov(dVR, lVR, new Arm.Shift(Arm.ShiftType.Asr, rVR), curMB);
                 }
                 case jump -> {
                     Machine.Block mb = ((Instr.Jump) instr).getTarget().getMb();

@@ -59,6 +59,14 @@ public class Loop {
     private Value calcPhi;
     private int aluOtherIndex;
 
+    public void clearCalcLoopInfo() {
+        isCalcLoop = false;
+        this.aluPhiEnterValue = null;
+        this.calcAlu = null;
+        this.calcPhi = null;
+        this.aluOtherIndex = 0;
+    }
+
     public void setCalcLoopInfo(Value aluPhiEnterValue, Value calcAlu, Value calcPhi, int aluOtherIndex) {
         isCalcLoop = true;
         this.aluPhiEnterValue = aluPhiEnterValue;

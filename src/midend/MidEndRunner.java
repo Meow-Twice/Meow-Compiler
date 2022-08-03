@@ -60,6 +60,7 @@ public class MidEndRunner {
 
         ArrayGVN();
 
+        //outputLLVM();
         loopOptimize();
 
         ArrayGVN();
@@ -79,6 +80,9 @@ public class MidEndRunner {
         //outputLLVM();
         LoopFold();
         LoopFold();
+
+        LoopStrengthReduction();
+
 
 
         MathOptimize mathOptimize1 = new MathOptimize(functions);
@@ -162,6 +166,19 @@ public class MidEndRunner {
         reMakeCFGAndLoopInfo();
 
         BrOptimize();
+    }
+
+    private void LoopStrengthReduction() {
+        outputLLVM();
+
+        LoopStrengthReduction loopStrengthReduction = new LoopStrengthReduction(functions);
+        loopStrengthReduction.Run();
+
+        outputLLVM();
+
+        reMakeCFGAndLoopInfo();
+
+        Pass();
     }
 
     //死代码删除 指令融合 GVN/GCM

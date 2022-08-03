@@ -382,6 +382,54 @@ public class Instr extends Value {
         }
     }
 
+    public static class Ashr extends Instr {
+
+        public Ashr(Type type, Value op1, Value op2, BasicBlock basicBlock) {
+            super(type, basicBlock);
+            assert type.equals(op1.type) && op1.type.equals(op2.type);
+            tag = AmaTag.ashr;
+            setUse(op1, 0);
+            setUse(op2, 1);
+        }
+
+        public Ashr(Type type, Value op1, Value op2, Instr insertBefore) {
+            super(type, insertBefore);
+            assert type.equals(op1.type) && op1.type.equals(op2.type);
+            tag = AmaTag.ashr;
+            setUse(op1, 0);
+            setUse(op2, 1);
+        }
+
+        @Override
+        public String toString() {
+            // assert getRVal1().getType().equals(getRVal2().getType());
+            return this.getName() + " = " + tag + " " + getRVal1().getDescriptor() + ", " + getRVal2().getName();
+        }
+
+
+        public Value getRVal1() {
+            return useValueList.get(0);
+        }
+
+        public Value getRVal2() {
+            return useValueList.get(1);
+        }
+
+
+        public boolean hasTwoConst() {
+            return useValueList.get(0) instanceof Constant && useValueList.get(1) instanceof Constant;
+        }
+
+        @Override
+        public Instr cloneToBB(BasicBlock bb) {
+            //Instr ret = new Alu(getType(), getOp(), CloneInfoMap.getReflectedValue(getRVal1()),
+            //        CloneInfoMap.getReflectedValue(getRVal2()), bb);
+            Instr ret = new Ashr(getType(), getRVal1(), getRVal2(), bb);
+            CloneInfoMap.addValueReflect(this, ret);
+            return ret;
+        }
+    }
+
     // 比较运算, 结果是 i1 型
     public static class Icmp extends Instr {
 

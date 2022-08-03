@@ -8,6 +8,8 @@ import java.util.HashSet;
 
 public class LoopFold {
 
+    //折叠重复计算的循环
+    //对于calc循环,如果可以优化,替换 -- 除法->位移
     private ArrayList<Function> functions;
     private HashSet<Loop> loops = new HashSet<>();
     private HashSet<Loop> removes = new HashSet<>();
@@ -49,6 +51,7 @@ public class LoopFold {
     }
 
     private void calcLoopInit(Loop loop) {
+        loop.clearCalcLoopInfo();
         if (!loop.isSimpleLoop() || !loop.isIdcSet()) {
             return;
         }

@@ -681,6 +681,10 @@ public class Instr extends Value {
             this.loads = loads;
         }
 
+        public void clearLoads() {
+            this.loads.clear();
+        }
+
         public HashSet<Instr> getLoads() {
             return loads;
         }
@@ -714,6 +718,20 @@ public class Instr extends Value {
     public static class Load extends Instr {
 
         private Value alloc = null;
+        private Instr useStore = null;
+
+        public void setUseStore(Instr useStore) {
+            this.useStore = useStore;
+        }
+
+        public Instr getUseStore() {
+            return useStore;
+        }
+
+        public void clear() {
+            alloc = null;
+            useStore = null;
+        }
 
         public void setAlloc(Value alloc) {
             this.alloc = alloc;
@@ -759,6 +777,15 @@ public class Instr extends Value {
     public static class Store extends Instr {
 
         private Value alloc = null;
+        private HashSet<Instr> users = new HashSet<>();
+
+        public HashSet<Instr> getUsers() {
+            return users;
+        }
+
+        public void addUser(Instr user) {
+            users.add(user);
+        }
 
         public void setAlloc(Value alloc) {
             this.alloc = alloc;
@@ -766,6 +793,11 @@ public class Instr extends Value {
 
         public Value getAlloc() {
             return alloc;
+        }
+
+        public void clear() {
+            alloc = null;
+            users.clear();
         }
 
         //TODO:修改toString()方法添加指令的Type

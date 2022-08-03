@@ -52,27 +52,17 @@ public class MidEndRunner {
         MathOptimize mathOptimize = new MathOptimize(functions);
         mathOptimize.Run();
 
-
         GepFuse();
 
-
         Pass();
 
         //outputLLVM();
 
-        LocalArrayGVN localArrayGVN = new LocalArrayGVN(functions);
-        localArrayGVN.Run();
-
-        //outputLLVM();
-
-        Pass();
+        ArrayGVN();
 
         loopOptimize();
 
-
-        //outputLLVM();
-
-        //outputLLVM();
+        ArrayGVN();
 
         MemSetOptimize memSetOptimize = new MemSetOptimize(functions, globalValues);
         memSetOptimize.Run();
@@ -81,6 +71,7 @@ public class MidEndRunner {
 
 
         //TODO:删除冗余phi,分支优化(删除无用的br/jump等),等等
+        BrOptimize();
         BrOptimize();
         BrOptimize();
         BrOptimize();
@@ -99,6 +90,12 @@ public class MidEndRunner {
 
         Pass();
 
+        //outputLLVM();
+        //ArrayGCM();
+        LoopInVarCodeLift loopInVarCodeLift = new LoopInVarCodeLift(functions);
+        loopInVarCodeLift.Run();
+        //outputLLVM();
+
         GepSplit();
 
         System.err.println("O2 End");
@@ -106,6 +103,25 @@ public class MidEndRunner {
         //
         // RemovePhi removePhi = new RemovePhi(functions);
         // removePhi.Run();
+    }
+
+    private void ArrayGVN() {
+        Pass();
+
+        LocalArrayGVN localArrayGVN = new LocalArrayGVN(functions, "GVN");
+        localArrayGVN.Run();
+
+        Pass();
+    }
+
+    //暂时关闭
+    private void ArrayGCM() {
+        Pass();
+
+        LocalArrayGVN localArrayGVN = new LocalArrayGVN(functions, "GCM");
+        localArrayGVN.Run();
+
+        Pass();
     }
 
     private void GepFuse() {
@@ -191,8 +207,8 @@ public class MidEndRunner {
 
         //outputLLVM();
 
-       BranchLift branchLift = new BranchLift(functions);
-       branchLift.Run();
+        BranchLift branchLift = new BranchLift(functions);
+        branchLift.Run();
 //
         //outputLLVM();
 

@@ -680,13 +680,13 @@ public class CodeGen {
             int abs = (imm < 0) ? (-imm) : imm;
             if (abs == 0) {
                 new I.Mov(dVR, new Operand(I32, 0), curMB); // dst = 0
-            } else if (abs == 1) {
-                new I.Mov(dVR, srcOp, curMB); // dst = src
             } else if ((abs & (abs - 1)) == 0) {
                 // imm 是 2 的幂
                 int sh = bitsOfInt - 1 - Integer.numberOfLeadingZeros(abs);
                 // dst = src << sh
-                new I.Mov(dVR, srcOp, new Arm.Shift(Arm.ShiftType.Lsl, sh), curMB);
+                if (sh > 0) {
+                    new I.Mov(dVR, srcOp, new Arm.Shift(Arm.ShiftType.Lsl, sh), curMB);
+                }
                 if (imm < 0) {
                     // dst = -dst
                     // TODO: 源操作数和目的操作数虚拟寄存器相同，不一定不会出 bug
@@ -695,6 +695,21 @@ public class CodeGen {
             } else {
                 new I.Binary(tag, dVR, srcOp, getImmVR(imm), curMB);
             }
+        } else if (optMulDiv && tag == Div && rhs.isConstantInt()) {
+            // 不允许双立即数, 只能是 r/i
+            if (lhs.isConstantInt()) {
+                System.err.println("[DIV dst, imm, imm] should never occur @ " + instr);
+                System.exit(94);
+            }
+            int imm = (int) ((Constant.ConstantInt) rhs).getConstVal();
+            int abs = (imm < 0) ? (-imm) : imm;
+            if (abs == 0) {
+                System.exit(94);
+            } else if (abs == 1) {
+
+            }
+
+
         } else {
             Machine.Operand lVR = getVR_may_imm(lhs);
             Machine.Operand rVR = getVR_may_imm(rhs);

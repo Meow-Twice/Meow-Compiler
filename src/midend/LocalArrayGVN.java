@@ -1,7 +1,5 @@
 package midend;
 
-import frontend.semantic.Initial;
-import lir.V;
 import mir.*;
 import mir.type.Type;
 
@@ -21,26 +19,52 @@ public class LocalArrayGVN {
     HashMap<String, Instr> GvnMap = new HashMap<>();
     HashMap<String, Integer> GvnCnt = new HashMap<>();
     private ArrayList<Function> functions;
+    private HashSet<Instr> instrCanGCM = new HashSet<>();
     //private HashMap<GlobalVal.GlobalValue, Initial> globalValues;
+    private String label;
 
-
-    public LocalArrayGVN(ArrayList<Function> functions) {
+    public LocalArrayGVN(ArrayList<Function> functions, String label) {
         this.functions = functions;
+        this.label = label;
+
     }
 
     public void Run() {
-        Init();
-        GVN();
+//        Init();
+//        GVN();
+        //GCM();
+
+        if (label.equals("GVN")) {
+            Init();
+            GVN();
+        } else if (label.equals("GCM")) {
+            Init();
+            GCM();
+        }
     }
 
     private void Init() {
         for (Function function: functions) {
             for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
                 for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
-//                    if (instr instanceof Instr.GetElementPtr) {
-//                        Value arrayPtr = ((Instr.GetElementPtr) instr).getPtr();
-//                        assert arrayPtr instanceof Instr.Alloc || arrayPtr instanceof GlobalVal;
-//                    }
+                    if (instr instanceof Instr.Alloc) {
+                        ((Instr.Alloc) instr).clearLoads();
+                    } else if (instr instanceof Instr.Load) {
+                        ((Instr.Load) instr).clear();
+                    } else if (instr instanceof Instr.Store) {
+                        ((Instr.Store) instr).clear();
+                    }
+                }
+            }
+            for (Value param: function.getParams()) {
+                if (param.getType() instanceof Type.PointerType) {
+                    ((Function.Param) param).clearLoads();
+                }
+            }
+        }
+        for (Function function: functions) {
+            for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
+                for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
                     if (instr instanceof Instr.Alloc) {
                         initAlloc(instr);
                     }
@@ -53,11 +77,6 @@ public class LocalArrayGVN {
             }
         }
 
-//        for (GlobalVal globalVal: globalValues.keySet()) {
-//            if (((Type.PointerType) globalVal.getType()).getInnerType() instanceof Type.ArrayType) {
-//
-//            }
-//        }
 
     }
 
@@ -81,8 +100,16 @@ public class LocalArrayGVN {
             } else if (alloc instanceof Function.Param) {
                 ((Function.Param) alloc).addLoad(instr);
             }
+            //TODO:待强化
+            if (alloc instanceof Instr.Alloc) {
+                instrCanGCM.add(instr);
+            }
         } else if (instr instanceof Instr.Store) {
             ((Instr.Store) instr).setAlloc(alloc);
+
+            if (alloc instanceof Instr.Alloc) {
+                instrCanGCM.add(instr);
+            }
         } else {
             //assert false;
         }
@@ -102,11 +129,6 @@ public class LocalArrayGVN {
     }
 
     private void RPOSearch(BasicBlock bb) {
-//        if (bb.getLabel().equals("b507")) {
-//            System.err.println("b507");
-//        }
-        //HashSet<Instr> adds = new HashSet<>();
-        //HashSet<Instr> removes = new HashSet<>();
         HashMap<String, Integer> tempGvnCnt = new HashMap<>();
         HashMap<String, Instr> tempGvnMap = new HashMap<>();
         for (String key: GvnCnt.keySet()) {
@@ -120,16 +142,17 @@ public class LocalArrayGVN {
         Instr instr = bb.getBeginInstr();
         while (instr.getNext() != null) {
             if (instr instanceof Instr.Load && ((Instr.Load) instr).getAlloc() != null) {
-//                if (!addLoadToGVN(instr)) {
-//                    adds.add(instr);
-//                }
                 addLoadToGVN(instr);
             } else if (instr instanceof Instr.Store && ((Instr.Store) instr).getAlloc() != null) {
                 Value alloc = ((Instr.Store) instr).getAlloc();
                 if (alloc instanceof Instr.Alloc) {
                     for (Instr load: ((Instr.Alloc) alloc).getLoads()) {
                         assert load instanceof Instr.Load;
-                        removeLoadFromGVN(load);
+                        try {
+                            removeLoadFromGVN(load);
+                        } catch (Exception e) {
+                            System.err.println("err");
+                        }
                     }
                 } else if (alloc instanceof Function.Param) {
                     for (Instr load: ((Function.Param) alloc).getLoads()) {
@@ -209,28 +232,50 @@ public class LocalArrayGVN {
 
     private HashMap<Value, Instr> reachDef = new HashMap<>();
 
-    private HashMap<Function, HashSet<Instr>> pinnedInstrs = new HashMap<>();
+    private HashMap<Function, HashSet<Instr>> pinnedInstrMap = new HashMap<>();
 
     //TODO:GVM添加store
+    //      存在一条A(store)到B(load)的路径,认为存在user/use关系
+    //      考虑循环的数据流
     private void GCM() {
-        GVMInit();
+        GCMInit();
+        for (Function function: functions) {
+            scheduleEarlyForFunc(function);
+        }
+
+        for (Function function: functions) {
+            scheduleLateForFunc(function);
+        }
     }
 
-    private void GVMInit() {
+    private void GCMInit() {
         for (Function function: functions) {
-            pinnedInstrs.put(function, new HashSet<>());
+            pinnedInstrMap.put(function, new HashSet<>());
+            reachDef.clear();
             for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
                 for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
-                    pinnedInstrs.get(function).add(instr);
+                    if (!instrCanGCM.contains(instr)) {
+                        pinnedInstrMap.get(function).add(instr);
+                    }
+                    if (instr instanceof Instr.Alloc) {
+                        reachDef.put(instr, instr);
+                    }
                 }
             }
-            reachDef.clear();
+//            for (Value param: function.getParams()) {
+//                if (param.getType() instanceof Type.PointerType) {
+//                    reachDef.put(param, function.getBeginBB().getBeginInstr());
+//                }
+//            }
             DFS(function.getBeginBB());
         }
 
     }
 
     private void DFS(BasicBlock bb) {
+//        if (bb.getLabel().equals("b25")) {
+//            System.err.println("DFS_B25");
+//        }
         for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
             if (instr instanceof Instr.Store && ((Instr.Store) instr).getAlloc() != null) {
                 reachDef.put(((Instr.Store) instr).getAlloc(), instr);
@@ -240,12 +285,232 @@ public class LocalArrayGVN {
                 if (def instanceof Instr.Store) {
                     ((Instr.Store) def).addUser(instr);
                 }
-            } else if (instr instanceof Instr.Alloc) {
+            } else if (instr instanceof Instr.Call) {
                 for (Value value: reachDef.keySet()) {
                     reachDef.put(value, instr);
                 }
             }
         }
+        for (BasicBlock next: bb.getIdoms()) {
+            DFS(next);
+        }
+    }
+
+
+    private void scheduleEarlyForFunc(Function function) {
+        HashSet<Instr> pinnedInstr = pinnedInstrMap.get(function);
+        know = new HashSet<>();
+        root = function.getBeginBB();
+        for (Instr instr: pinnedInstr) {
+            instr.setEarliestBB(instr.parentBB());
+            know.add(instr);
+        }
+//        BasicBlock bb = function.getBeginBB();
+//        while (bb.getNext() != null) {
+//            Instr instr = bb.getBeginInstr();
+//            while (instr.getNext() != null) {
+//                if (!know.contains(instr)) {
+//                    scheduleEarly(instr);
+//                } else if (pinnedInstr.contains(instr)) {
+//                    for (Value value: instr.getUseValueList()) {
+//                        if (!(value instanceof Instr)) {
+//                            continue;
+//                        }
+//                        scheduleEarly((Instr) value);
+//                    }
+//                }
+//                instr = (Instr) instr.getNext();
+//            }
+//            bb = (BasicBlock) bb.getNext();
+//        }
+        for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
+           for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+               if (!know.contains(instr)) {
+                   scheduleEarly(instr);
+               } else if (pinnedInstr.contains(instr)) {
+                   for (Value value: instr.getUseValueList()) {
+                       if (!(value instanceof Instr)) {
+                           continue;
+                       }
+                       scheduleEarly((Instr) value);
+                   }
+               }
+           }
+        }
+    }
+
+    private void scheduleEarly(Instr instr) {
+        if (know.contains(instr)) {
+            return;
+        }
+        know.add(instr);
+        instr.setEarliestBB(root);
+        for (Value X: instr.getUseValueList()) {
+            if (X instanceof Instr) {
+                scheduleEarly((Instr) X);
+                if (instr.getEarliestBB().getDomTreeDeep() < ((Instr) X).getEarliestBB().getDomTreeDeep()) {
+                    instr.setEarliestBB(((Instr) X).getEarliestBB());
+                }
+            }
+        }
+        if (instr instanceof Instr.Load) {
+            if (((Instr.Load) instr).getUseStore() == null) {
+                System.err.println("err");
+            }
+            Value X = ((Instr.Load) instr).getUseStore();
+            scheduleEarly((Instr) X);
+            if (instr.getEarliestBB().getDomTreeDeep() < ((Instr) X).getEarliestBB().getDomTreeDeep()) {
+                instr.setEarliestBB(((Instr) X).getEarliestBB());
+            }
+        }
+    }
+
+
+    private void scheduleLateForFunc(Function function) {
+        HashSet<Instr> pinnedInstr = pinnedInstrMap.get(function);
+        know = new HashSet<>();
+        for (Instr instr: pinnedInstr) {
+            instr.setLatestBB(instr.parentBB());
+            know.add(instr);
+        }
+        for (Instr instr: pinnedInstr) {
+            Use use = instr.getBeginUse();
+            while (use.getNext() != null) {
+                scheduleLate(use.getUser());
+                use = (Use) use.getNext();
+            }
+        }
+        for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
+            ArrayList<Instr> instrs = new ArrayList<>();
+            Instr instr = bb.getEndInstr();
+            while (instr.getPrev() != null) {
+                instrs.add(instr);
+                instr = (Instr) instr.getPrev();
+            }
+            for (Instr instr1: instrs) {
+                if (!know.contains(instr1)) {
+                    scheduleLate(instr1);
+                }
+            }
+        }
+    }
+
+    private void scheduleLate(Instr instr) {
+        if (instr.toString().equals("store i32 %v242, i32* %v239")) {
+            System.err.println("err");
+        }
+
+        if (know.contains(instr)) {
+            return;
+        }
+        know.add(instr);
+        BasicBlock lca = null;
+        Use usePos = instr.getBeginUse();
+        while (usePos.getNext() != null) {
+            Instr y = usePos.getUser();
+
+            scheduleLate(y);
+            BasicBlock use = y.getLatestBB();
+            if (y instanceof Instr.Phi) {
+                int j = usePos.getIdx();
+                use = y.getLatestBB().getPrecBBs().get(j);
+            }
+            lca = findLCA(lca, use);
+            usePos = (Use) usePos.getNext();
+        }
+        if (instr instanceof Instr.Store) {
+            for (Instr y :((Instr.Store) instr).getUsers()) {
+                scheduleLate(y);
+                BasicBlock use = y.getLatestBB();
+                if (y instanceof Instr.Phi) {
+                    int j = usePos.getIdx();
+                    use = y.getLatestBB().getPrecBBs().get(j);
+                }
+                lca = findLCA(lca, use);
+            }
+        }
+        // use the latest and earliest blocks to pick final positing
+        // now latest is lca
+//        if (lca == null) {
+//            instr.setLatestBB(instr.getEarliestBB());
+//            return;
+//        }
+        BasicBlock best = lca;
+        if (lca == null) {
+            instr.setLatestBB(instr.parentBB());
+            //System.err.println("err_GCM " + instr.toString());
+        } else {
+            while (!lca.equals(instr.getEarliestBB())) {
+                if (lca.getLoopDep() < best.getLoopDep()) {
+                    best = lca;
+                }
+                lca = lca.getIDominator();
+                if (lca == null) {
+                    System.err.println("err_GCM " + instr.toString());
+                }
+            }
+            if (lca.getLoopDep() < best.getLoopDep()) {
+                best = lca;
+            }
+            instr.setLatestBB(best);
+        }
+
+        if (!instr.getLatestBB().equals(instr.parentBB())) {
+            System.err.println("Array GCM Move");
+            instr.delFromNowBB();
+            //TODO:检查 insert 位置 是在头部还是尾部
+            Instr pos = findInsertPos(instr, instr.getLatestBB());
+            pos.insertBefore(instr);
+            instr.setBb(instr.getLatestBB());
+        }
+    }
+
+    private BasicBlock findLCA(BasicBlock a, BasicBlock b) {
+        if (a == null) {
+            return b;
+        }
+        while (a.getDomTreeDeep() > b.getDomTreeDeep()) {
+            a = a.getIDominator();
+        }
+        while (b.getDomTreeDeep() > a.getDomTreeDeep()) {
+            b = b.getIDominator();
+        }
+        while (!a.equals(b)) {
+            a = a.getIDominator();
+            b = b.getIDominator();
+        }
+        return a;
+    }
+
+    private Instr findInsertPos(Instr instr, BasicBlock bb) {
+        HashSet<Value> users = new HashSet<>();
+        Use use = instr.getBeginUse();
+        while (use.getNext() != null) {
+            users.add(use.getUser());
+            use = (Use) use.getNext();
+        }
+        if (instr instanceof Instr.Store) {
+            users.addAll(((Instr.Store) instr).getUsers());
+        }
+        Instr later = null;
+        Instr pos = bb.getBeginInstr();
+        while (pos.getNext() != null) {
+            if (pos instanceof Instr.Phi) {
+                pos = (Instr) pos.getNext();
+                continue;
+            }
+            if (users.contains(pos)) {
+                later = pos;
+                break;
+            }
+            pos = (Instr) pos.getNext();
+        }
+
+        if (later != null) {
+            return later;
+        }
+
+        return bb.getEndInstr();
     }
 
     //只移动Load,Store

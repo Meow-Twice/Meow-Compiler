@@ -679,6 +679,10 @@ public class Instr extends Value {
             this.loads = loads;
         }
 
+        public void clearLoads() {
+            this.loads.clear();
+        }
+
         public HashSet<Instr> getLoads() {
             return loads;
         }
@@ -720,6 +724,11 @@ public class Instr extends Value {
 
         public Instr getUseStore() {
             return useStore;
+        }
+
+        public void clear() {
+            alloc = null;
+            useStore = null;
         }
 
         public void setAlloc(Value alloc) {
@@ -782,6 +791,11 @@ public class Instr extends Value {
 
         public Value getAlloc() {
             return alloc;
+        }
+
+        public void clear() {
+            alloc = null;
+            users.clear();
         }
 
         //TODO:修改toString()方法添加指令的Type

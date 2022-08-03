@@ -49,6 +49,10 @@ public class Function extends Value {
             this.loads = loads;
         }
 
+        public void clearLoads() {
+            this.loads.clear();
+        }
+
         public void addLoad(Instr instr) {
             this.loads.add(instr);
         }

@@ -424,6 +424,7 @@ public class Function extends Value {
                     assert retPhi != null;
                     retPhi.addOptionalValue(((Instr.Return) instr).getRetValue());
                     instr.remove();
+                    //维护前驱后继
                 } else if (instr instanceof Instr.Return) {
                     Instr jumpToRetBB = new Instr.Jump(retBB, needFixBB);
                     instr.insertBefore(jumpToRetBB);

@@ -42,7 +42,7 @@ public class MidEndRunner {
         globalValueLocalize.Run();
 
         //TODO:内联,重算数据流,控制流信息并再进行一次局部化
-        //FuncInline();
+        FuncInline();
 
         Mem2Reg mem2Reg = new Mem2Reg(functions);
         mem2Reg.Run();
@@ -50,17 +50,20 @@ public class MidEndRunner {
         //FuncInline();
         //打开会影响GEPFuse 在spmv等点上
         //outputLLVM();
-        //Pass();
-        //outputLLVM();
-
         MathOptimize mathOptimize = new MathOptimize(functions);
         mathOptimize.Run();
+
+        Pass();
+        //outputLLVM();
+
+        MathOptimize mathOptimize1 = new MathOptimize(functions);
+        mathOptimize1.Run();
 
         GepFuse();
 
         //暂定函数内联的位置
         //Pass();
-        FuncInline();
+        //FuncInline();
 
         Pass();
 
@@ -95,8 +98,8 @@ public class MidEndRunner {
         LoopStrengthReduction();
 
 
-        MathOptimize mathOptimize1 = new MathOptimize(functions);
-        mathOptimize1.Run();
+        MathOptimize mathOptimize2 = new MathOptimize(functions);
+        mathOptimize2.Run();
 
 
 //        loopOptimize();

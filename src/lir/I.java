@@ -360,6 +360,7 @@ public class I extends MachineInst {
                 case Div -> "sdiv";
                 case And -> "and";
                 case Or -> "orr";
+                case LongMul -> "smmul";
                 default -> throw new AssertionError("Wrong Int Binary");
             };
 

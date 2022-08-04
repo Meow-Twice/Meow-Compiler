@@ -779,6 +779,7 @@ public class CodeGen {
                 int sh = more & s32ShiftMask;
                 int mask = (1 << sh), sign = ((more & (0x80)) != 0) ? -1 : 0, isPower2 = (magic == 0) ? 1 : 0;
                 // libdivide_s32_branchfree_do => process in runtime, use hardware instruction
+                // TODO: 性能点 int-divide-optimization 寄存器分配可能内存溢出
                 Operand q = newVR(); // quotient
                 new I.Binary(LongMul, q, lVR, getImmVR(magic), curMB); // q = mulhi(dividend, magic)
                 new I.Binary(Add, q, q, lVR, curMB); // q += dividend

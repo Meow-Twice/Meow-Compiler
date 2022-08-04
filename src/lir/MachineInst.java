@@ -115,6 +115,10 @@ public class MachineInst extends ILinkNode {
         return isSideEff;
     }
 
+    public boolean noShift() {
+        return shift.noShift();
+    }
+
     public enum Tag {
         // Binary
         Add("add"),
@@ -292,6 +296,11 @@ public class MachineInst extends ILinkNode {
         void remove();
 
         boolean isNoCond();
+    }
+
+    public interface ActualDefMI{
+        Machine.Operand getDef();
+        void setDef(Machine.Operand def);
     }
 }
 

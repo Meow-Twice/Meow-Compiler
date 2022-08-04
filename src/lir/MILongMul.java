@@ -26,7 +26,7 @@ import java.io.PrintStream;
  * Operation
  * SMMUL multiplies the 32-bit values from Rn and Rm, and stores the most significant 32 bits of the 64-bit result to Rd.
  */
-public class MILongMul extends MachineInst {
+public class MILongMul extends MachineInst implements MachineInst.ActualDefMI {
 
     public MILongMul(Machine.Operand dOpd, Machine.Operand lOpd, Machine.Operand rOpd, Machine.Block insertAtEnd) {
         super(Tag.LongMul, insertAtEnd);
@@ -61,5 +61,10 @@ public class MILongMul extends MachineInst {
     @Override
     public void output(PrintStream os, Machine.McFunction f) {
         os.println("\tsmmul\t" + getDst().toString() + ",\t" + getLOpd().toString() + ",\t" + getROpd().toString());
+    }
+
+    @Override
+    public Machine.Operand getDef() {
+        return defOpds.get(0);
     }
 }

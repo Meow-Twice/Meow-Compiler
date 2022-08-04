@@ -297,5 +297,9 @@ public class Arm {
         public boolean hasShift() {
             return shiftType != ShiftType.None;
         }
+
+        public boolean noShift() {
+            return shiftType == ShiftType.None;
+        }
     }
 }

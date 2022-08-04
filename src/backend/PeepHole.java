@@ -25,8 +25,8 @@ public class PeepHole {
             boolean unDone = true;
             while (unDone) {
                 unDone = oneStage(mf);
-                if (twoStage(mf))
-                    unDone = true;
+                // if (twoStage(mf))
+                //     unDone = true;
             }
         }
     }
@@ -208,6 +208,7 @@ public class PeepHole {
                     if (Arm.Reg.getRSReg(Arm.Regs.GPRs.sp).equals(def)) defNoSp = false;
                 }
                 if (!(isLastDefMI && defRegInLiveOut) && mi.isNoCond()) {
+                    if (mi instanceof StackCtl) continue;
                     if (lastUser == null && !mi.getShift().hasShift() && defNoSp) {
                         mi.remove();
                         unDone = true;
@@ -304,12 +305,50 @@ public class PeepHole {
                                     }
                                 }
                             }
+                        } else if (mi.isOf(IMov)) {
+                            I.Mov iMov = (I.Mov) mi;
+                            if (iMov.getSrc().isImm(I32)) {
+                                if (!mi.getNext().equals(mb.miList.tail)) {
+                                    MachineInst nextMI = (MachineInst) mi.getNext();
+                                    if (nextMI instanceof I
+                                            && (lastUser != null && lastUser.equals(nextMI))
+                                            && !nextMI.isOf(Call, IRet, VRet)) {
+                                        for (int i = 0; i < nextMI.useOpds.size(); i++) {
+                                            if (nextMI.useOpds.get(i).equals(iMov.getDst())) {
+                                                nextMI.useOpds.set(i, iMov.getSrc());
+                                                unDone = true;
+                                            }
+                                        }
+                                        mi.remove();
+                                    }
+                                }
+                            }
+                        } else if (mi instanceof MachineInst.ActualDefMI) {
+                            if (!mi.getNext().equals(mb.miList.tail)) {
+                                MachineInst nextMI = (MachineInst) mi.getNext();
+                                if (nextMI instanceof I
+                                        && (lastUser != null && lastUser.equals(nextMI))
+                                        && isSimpleIMov(nextMI)) {
+                                    Operand def = ((MachineInst.ActualDefMI) mi).getDef();
+                                    I.Mov iMov = (I.Mov) nextMI;
+                                    if (def.equals(iMov.getSrc())) {
+                                        mi.setDef(iMov.getDst());
+                                        iMov.remove();
+                                        unDone = true;
+                                    }
+                                }
+                            }
                         }
+                    } else {
+
                     }
                 }
-
             }
         }
         return unDone;
+    }
+
+    private boolean isSimpleIMov(MachineInst mi) {
+        return mi.isIMov() && mi.noShift();
     }
 }

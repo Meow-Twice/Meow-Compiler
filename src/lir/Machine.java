@@ -569,6 +569,10 @@ public class Machine {
             return type == Immediate && this.dataType == dataType;
         }
 
+        public boolean isImm(DataType i32, DataType f32) {
+            return (type == Immediate && dataType == i32) || (type == FConst && dataType == f32);
+        }
+
         // static {
         //     // 调用了子类, 所以不行
         //     int i;

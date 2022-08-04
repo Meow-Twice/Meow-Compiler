@@ -119,7 +119,7 @@ public class Compiler {
             // MIDescriptor.MI_DESCRIPTOR.setRegMode();
             System.err.println("Begin peepholeOptimization");
             PeepholeOptimization peepholeOptimization = new PeepholeOptimization();
-            peepholeOptimization.run_all();
+           peepholeOptimization.run_all();
             System.err.println("Finish peepholeOptimization");
            // Branch2cond branch2cond = new Branch2cond();
             //branch2cond.run();
@@ -127,7 +127,6 @@ public class Compiler {
             // File output_file = new File("output.S");
             // PrintStream os = new PrintStream(output_file);
             // p.output(os);
-
             if (arg.outputAsm()) {
                 p.output(new PrintStream(arg.asmStream));
             }

@@ -2,6 +2,7 @@ package lir;
 
 import backend.CodeGen;
 import mir.Constant;
+import mir.Instr;
 import mir.type.DataType;
 
 import java.io.PrintStream;
@@ -124,10 +125,16 @@ public class V extends MachineInst {
         public Machine.Operand getAddr() {
             return useOpds.get(0);
         }
-
+        public Machine.Operand setAddr(Machine.Operand o){
+            return useOpds.set(0,o);
+        }
         public Machine.Operand getOffset() {
             if (useOpds.size() < 2) return null;
             return useOpds.get(1);
+        }
+
+        public Machine.Operand setOffset(Machine.Operand o){
+            return useOpds.set(1,o);
         }
 
         @Override
@@ -196,14 +203,23 @@ public class V extends MachineInst {
         public Machine.Operand getData() {
             return useOpds.get(0);
         }
-
+        public Machine.Operand setData(Machine.Operand o){
+            return useOpds.set(0,o);
+        }
         public Machine.Operand getAddr() {
             return useOpds.get(1);
         }
 
+        public Machine.Operand setAddr(Operand o){
+            return useOpds.set(1,o);
+        }
         public Machine.Operand getOffset() {
             if (useOpds.size() < 3) return null;
             return useOpds.get(2);
+        }
+
+        public Machine.Operand setOffset(Operand o){
+            return useOpds.set(2,o);
         }
 
         @Override
@@ -313,6 +329,9 @@ public class V extends MachineInst {
         public Machine.Operand getSrc() {
             return useOpds.get(0);
         }
+        public Machine.Operand setSrc(Operand o){
+            return useOpds.set(0,o);
+        }
 
         String old = null;
 
@@ -359,11 +378,15 @@ public class V extends MachineInst {
         public Machine.Operand getLOpd() {
             return useOpds.get(0);
         }
-
+        public Operand setLOpd(Machine.Operand o){
+            return useOpds.set(0,o);
+        }
         public Machine.Operand getROpd() {
             return useOpds.get(1);
         }
-
+        public Operand setROpd(Operand o){
+            return useOpds.set(1,o);
+        }
         @Override
         public void output(PrintStream os, Machine.McFunction f) {
             transfer_output(os);
@@ -403,7 +426,9 @@ public class V extends MachineInst {
         public Machine.Operand getSrc() {
             return useOpds.get(0);
         }
-
+        public Machine.Operand setSrc(Machine.Operand o){
+            return useOpds.set(0,o);
+        }
         @Override
         public void output(PrintStream os, Machine.McFunction f) {
             os.println("\tvneg.f32" + getDst() + ",\t" + getSrc());
@@ -426,11 +451,16 @@ public class V extends MachineInst {
         public Machine.Operand getLOpd() {
             return useOpds.get(0);
         }
-
+        public Operand setLOpd(Operand o){
+            return useOpds.set(0,o);
+        }
         public Machine.Operand getROpd() {
             return useOpds.get(1);
         }
 
+        public Operand setROpd(Operand o){
+            return useOpds.set(1,o);
+        }
         @Override
         public void output(PrintStream os, Machine.McFunction f) {
             transfer_output(os);

@@ -33,7 +33,7 @@ public class PeepholeWithDataFlow {
         return result;
     }
 
-    public void replaceReg(MachineInst inst, Machine.Operand origin , Machine.Operand target){
+    public boolean replaceReg(MachineInst inst, Machine.Operand origin , Machine.Operand target){
         if(inst instanceof MIBinary){
             MIBinary miBinary = (MIBinary) inst;
             if(miBinary.getLOpd().toString().equals(origin.toString())){
@@ -42,6 +42,7 @@ public class PeepholeWithDataFlow {
             if(miBinary.getROpd().toString().equals(origin.toString())){
                 miBinary.setROpd(target);
             }
+            return true;
         }
         else if(inst instanceof MICompare){
             MICompare miCompare = (MICompare) inst;
@@ -51,6 +52,7 @@ public class PeepholeWithDataFlow {
             if(miCompare.getROpd().toString().equals(origin.toString())){
                 miCompare.setROpd(target);
             }
+            return true;
         }
         else if(inst instanceof MIFma){
             MIFma miFma = (MIFma) inst;
@@ -63,6 +65,7 @@ public class PeepholeWithDataFlow {
             if(miFma.getAcc().toString().equals(origin.toString())){
                 miFma.setAcc(target);
             }
+            return true;
         }
         else if(inst instanceof MILoad){
             MILoad miLoad = (MILoad) inst;
@@ -72,6 +75,7 @@ public class PeepholeWithDataFlow {
             if(miLoad.getOffset().toString().equals(origin.toString())){
                 miLoad.setOffset(target);
             }
+            return true;
         }
         else if(inst instanceof MILongMul){
             MILongMul miLongMul = (MILongMul) inst;
@@ -81,12 +85,14 @@ public class PeepholeWithDataFlow {
             if(miLongMul.getROpd().toString().equals(origin.toString())){
                 miLongMul.setROpd(target);
             }
+            return true;
         }
         else if(inst instanceof MIMove){
             MIMove miMove = (MIMove) inst;
             if(miMove.getSrc().toString().equals(origin.toString())){
                 miMove.setSrc(target);
             }
+            return true;
         }
         else if(inst instanceof MIStore){
             MIStore miStore = (MIStore) inst;
@@ -99,7 +105,73 @@ public class PeepholeWithDataFlow {
             if(miStore.getOffset().toString().equals(origin.toString())){
                 miStore.setOffst(target);
             }
+            return true;
         }
+        else if(inst instanceof V.Ldr){
+            V.Ldr ldr = (V.Ldr) inst;
+            if (ldr.getAddr()!=null && ldr.getAddr().toString().equals(origin.toString())) {
+                ldr.setAddr(target);
+            }
+            if(ldr.getOffset()!=null && ldr.getOffset().toString().equals(origin.toString())){
+                ldr.setOffset(target);
+            }
+            return true;
+        }
+        else if(inst instanceof V.Str){
+            V.Str str = (V.Str) inst;
+            if(str.getAddr()!=null && str.getAddr().toString().equals(origin.toString())){
+                str.setAddr(target);
+            }
+            if(str.getData()!=null && str.getData().toString().equals(origin.toString())){
+                str.setData(target);
+            }
+            if(str.getOffset() != null && str.getOffset().toString().equals(origin.toString())){
+                str.setOffset(target);
+            }
+            return true;
+        }
+        else if(inst instanceof V.Mov){
+            V.Mov mov = (V.Mov) inst;
+            if(mov.getSrc()!=null && mov.getSrc().toString().equals(origin.toString())){
+                mov.setSrc(target);
+            }
+            return true;
+        }
+        else if(inst instanceof V.Cvt){
+            V.Cvt cvt = (V.Cvt) inst;
+            if (cvt.getSrc()!=null && cvt.getSrc().toString().equals(origin.toString())) {
+                cvt.setSrc(target);
+            }
+            return true;
+        }
+        else if(inst instanceof V.Binary){
+            V.Binary binary = (V.Binary) inst;
+            if(binary.getLOpd()!=null && binary.getLOpd().toString().equals(origin.toString())){
+                binary.setLOpd(target);
+            }
+            if(binary.getROpd()!=null && binary.getROpd().toString().equals(origin.toString())){
+                binary.setROpd(target);
+            }
+            return true;
+        }
+        else if(inst instanceof V.Neg){
+            V.Neg neg = (V.Neg) inst;
+            if(neg.getSrc()!=null && neg.getSrc().toString().equals(origin.toString())){
+                neg.setSrc(target);
+            }
+            return true;
+        }
+        else if(inst instanceof V.Cmp){
+            V.Cmp cmp = (V.Cmp) inst;
+            if (cmp.getLOpd()!=null && cmp.getLOpd().toString().equals(origin.toString())) {
+                cmp.setLOpd(target);
+            }
+            if(cmp.getROpd()!=null && cmp.getROpd().toString().equals(origin.toString())){
+                cmp.setROpd(target);
+            }
+            return true;
+        }
+        return false;
     }
 
     private static class BlockLiveInfo {
@@ -170,6 +242,50 @@ public class PeepholeWithDataFlow {
                             inst.remove();
                             finish = false;
                             continue;
+                        }
+
+                        //mov a,b
+                        //inst(last user of a)
+                        //--->
+                        //inst(replace a with b)
+                        if(inst instanceof MIMove && noShift){
+                            MIMove miMove = (MIMove) inst;
+                            if(!miMove.getSrc().is_I_Imm() && inst!=block.getEndMI()){
+                                MachineInst next = (MachineInst)miMove.getNext();
+                                Machine.Operand src = miMove.getSrc();
+                                Machine.Operand dst = miMove.getDst();
+                                if(next == lastUser){
+                                    if(replaceReg(next,dst,src)){
+                                        //successfully replace---->remove
+                                        inst.remove();
+                                        finish = false;
+                                        continue;
+                                    }
+
+                                }
+                            }
+                        }
+
+                        //vmov a,b(same type)
+                        //inst(last user of a)
+                        //--->
+                        //inst(replace a with b)
+                        if(inst instanceof V.Mov && noShift){
+                            V.Mov vMove = (V.Mov) inst;
+                            if(!vMove.getSrc().is_I_Imm() && inst!=block.getEndMI()){
+                                MachineInst next = (MachineInst)vMove.getNext();
+                                Machine.Operand src = vMove.getSrc();
+                                Machine.Operand dst = vMove.getDst();
+                                if(next == lastUser && src.getReg() instanceof Arm.Regs.FPRs && dst.getReg() instanceof Arm.Regs.FPRs ){
+                                    if(replaceReg(next,dst,src)){
+                                        //successfully replace---->remove
+                                        inst.remove();
+                                        finish = false;
+                                        continue;
+                                    }
+
+                                }
+                            }
                         }
 
                     }

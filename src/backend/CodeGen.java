@@ -9,6 +9,7 @@ import mir.*;
 import mir.type.DataType;
 import mir.type.Type;
 
+import java.math.BigInteger;
 import java.util.*;
 
 import static lir.Arm.Cond.*;
@@ -727,8 +728,71 @@ public class CodeGen {
                 // quo = tmp >>> sh
                 new I.Mov(dVR, tmp, new Arm.Shift(Arm.ShiftType.Asr, sh), curMB);
             } else {
-                // no opt
-                new I.Binary(tag, dVR, lVR, getImmVR(imm), curMB);
+                /*
+                 * Reference: https://github.com/ridiculousfish/libdivide
+                 *   - struct libdivide_s32_branchfree_t
+                 *   - libdivide_s32_branchfree_gen
+                 *   - libdivide_internal_s32_gen
+                 *   - libdivide_s32_branchfree_do
+                 *
+                 * In SysY, we only consider signed-32bit division
+                 *
+                 * Use branch-free version to avoid generating new basic blocks
+                 */
+                int magic, more; // struct libdivide_s32_t {int magic; uint8_t more;}
+                int log2d = bitsOfInt - 1 - Integer.numberOfLeadingZeros(abs);
+                // libdivide_s32_branchfree_gen => process in compiler
+                // libdivide_internal_s32_gen(d, 1) => {magic, more}
+                final int negativeDivisor = 128;
+                final int addMarker = 64;
+                final int s32ShiftMask = 31;
+                // masks for type cast
+                final long uint32Mask = 0xFFFFFFFFL;
+                final int uint8Mask = 0xFF;
+                if ((abs & (abs - 1)) == 0) {
+                    magic = 0;
+                    more = (imm < 0 ? (log2d | negativeDivisor) : log2d) & uint8Mask; // more is uint8_t
+                } else {
+                    assert log2d >= 1;
+                    int rem, proposed;
+                    // proposed = libdivide_64_div_32_to_32((uint32_t)1 << (log2d - 1), 0, abs, &rem);
+                    // q = libdivide_64_div_32_to_32(u1, u0, v, &r)
+                    // n = {u1, u0}, u1 = ((uint32_t)1 << (log2d - 1))
+                    BigInteger n = BigInteger.valueOf((1 << (log2d - 1)) & uint32Mask).shiftLeft(bitsOfInt).or(BigInteger.valueOf(0));
+                    BigInteger[] div = n.divideAndRemainder(BigInteger.valueOf(abs));
+                    proposed = div[0].intValueExact();
+                    rem = div[1].intValueExact();
+                    proposed += proposed;
+                    int twiceRem = rem + rem;
+                    // twice_rem, absD, rem in libdivide is uint32, so the compare below should also base on uint32
+                    if ((twiceRem & uint32Mask) >= (abs & uint32Mask) || (twiceRem & uint32Mask) < (rem & uint32Mask)) {
+                        proposed += 1;
+                    }
+                    more = (log2d | addMarker) & uint8Mask;
+                    proposed += 1;
+                    magic = proposed;
+                    if (imm < 0) {
+                        more |= negativeDivisor;
+                    }
+                }
+                // {magic, more} got
+                int sh = more & s32ShiftMask;
+                int mask = (1 << sh), sign = ((more & (0x80)) != 0) ? -1 : 0, isPower2 = (magic == 0) ? 1 : 0;
+                // libdivide_s32_branchfree_do => process in runtime, use hardware instruction
+                Operand q = newVR(); // quotient
+                new I.Binary(LongMul, q, lVR, getImmVR(magic), curMB); // q = mulhi(dividend, magic)
+                new I.Binary(Add, q, q, lVR, curMB); // q += dividend
+                // q += (q >>> 31) & (((uint32_t)1 << shift) - is_power_of_2)
+                Operand q1 = newVR();
+                new I.Binary(And, q1, getImmVR(mask - isPower2), q, new Arm.Shift(Arm.ShiftType.Asr, 31), curMB);
+                new I.Binary(Add, q, q, q1, curMB);
+                // q = q >>> shift
+                new I.Mov(q, q, new Arm.Shift(Arm.ShiftType.Asr, sh), curMB);
+                if (sign < 0) {
+                    new I.Binary(Rsb, q, q, new Operand(I32, 0), curMB);
+                }
+                new I.Mov(dVR, q, curMB); // store result
+                // new I.Binary(tag, dVR, lVR, getImmVR(imm), curMB);
             }
         } else {
             Machine.Operand lVR = getVR_may_imm(lhs);

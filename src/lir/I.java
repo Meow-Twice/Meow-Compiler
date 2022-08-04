@@ -303,6 +303,7 @@ public class I extends MachineInst {
 
     public static class Binary extends I {
         // Add, Sub, Rsb, Mul, Div, Mod, Lt, Le, Ge, Gt, Eq, Ne, And, Or
+        // Smmul (for divide optimize)
 
         public Binary(MachineInst insertAfter, Tag tag, Machine.Operand dOpd, Machine.Operand lOpd, Machine.Operand rOpd) {
             super(insertAfter, tag);

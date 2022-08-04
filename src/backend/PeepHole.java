@@ -2,12 +2,14 @@ package backend;
 
 import lir.*;
 import lir.Machine.Operand;
+import lir.Arm.Regs.*;
 import util.ILinkNode;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 
+import static backend.CodeGen.needFPU;
 import static lir.MachineInst.MachineMemInst;
 import static lir.MachineInst.MachineMove;
 import static lir.MachineInst.Tag.*;
@@ -152,6 +154,24 @@ public class PeepHole {
         HashMap<Operand, MachineInst> lastUseMI = new HashMap<>();
     }
 
+    MachineInst[] lastGPRsDefMI = new MachineInst[GPRs.values().length];
+    MachineInst[] lastFPRsDefMI = new MachineInst[FPRs.values().length];
+
+    private MachineInst getLastDefiner(Operand opd) {
+        if (!(opd instanceof Arm.Reg)) return null;
+        if (needFPU && opd.isF32()) {
+            return lastFPRsDefMI[opd.getValue()];
+        }
+        return lastGPRsDefMI[opd.getValue()];
+    }
+
+    private void putLastDefiner(Operand opd, MachineInst mi) {
+        if (!(opd instanceof Arm.Reg)) return;
+        if (needFPU && opd.isF32()) lastFPRsDefMI[opd.getValue()] = mi;
+        else lastGPRsDefMI[opd.getValue()] = mi;
+    }
+
+
     private boolean twoStage(Machine.McFunction mf) {
         boolean unDone = false;
         for (Machine.Block mb : mf.mbList) {
@@ -160,12 +180,8 @@ public class PeepHole {
             mb.liveUseSet = new HashSet<>();
             mb.liveDefSet = new HashSet<>();
             for (MachineInst mi : mb.miList) {
-                for (Operand use : mi.useOpds) {
-                    if (!mb.liveDefSet.contains(use)) mb.liveUseSet.add(use);
-                }
-                for (Operand def : mi.defOpds) {
-                    if (!mb.liveUseSet.contains(def)) mb.liveDefSet.add(def);
-                }
+                for (Operand use : mi.useOpds) if (!mb.liveDefSet.contains(use)) mb.liveUseSet.add(use);
+                for (Operand def : mi.defOpds) if (!mb.liveUseSet.contains(def)) mb.liveDefSet.add(def);
                 if (mi.isBranch()) {
                     mb.succMBs.add(((MIBranch) mi).getTrueTargetBlock());
                     mb.succMBs.add(((MIBranch) mi).getFalseTargetBlock());
@@ -178,38 +194,42 @@ public class PeepHole {
         }
         RegAllocator.liveInOutAnalysis(mf);
 
-        HashMap<Operand, MachineInst> lastDefMI = new HashMap<>();
-        HashMap<MachineInst, MachineInst> lastUseMI = new HashMap<>();
+        // HashMap<Operand, MachineInst> lastDefMI = new HashMap<>();
+        // HashMap<MachineInst, MachineInst> defMI2lastUserMI = new HashMap<>();
         for (Machine.Block mb : mf.mbList) {
+            lastGPRsDefMI = new MachineInst[GPRs.values().length];
+            lastFPRsDefMI = new MachineInst[FPRs.values().length];
             for (MachineInst mi : mb.miList) {
+                mi.theLastUserOfDef = null; // to be removed
                 for (Operand use : mi.useOpds) {
-                    if (lastDefMI.containsKey(use)) {
-                        lastUseMI.put(lastDefMI.get(use), mi);
+                    // TODO r15
+                    MachineInst lastDefMI = getLastDefiner(use);
+                    if (lastDefMI != null) {
+                        lastDefMI.theLastUserOfDef = mi;
+                        // defMI2lastUserMI.put(lastDefMI, mi);
                     }
                 }
                 for (Operand def : mi.defOpds) {
-                    lastDefMI.put(def, mi);
+                    // TODO r15
+                    putLastDefiner(def, mi);
                 }
-                if (mi.sideEff()) {
-                    lastUseMI.put(mi, mi);
-                } else {
-                    lastUseMI.put(mi, null);
-                }
+                if (mi.sideEff()) mi.theLastUserOfDef = mi;
+                else mi.theLastUserOfDef = null;
             }
 
             for (MachineInst mi : mb.miList) {
-                MachineInst lastUser = lastUseMI.get(mi);
+                // MachineInst lastUser = defMI2lastUserMI.get(mi);
                 boolean isLastDefMI = true;
                 boolean defRegInLiveOut = false;
                 boolean defNoSp = true;
                 for (Operand def : mi.defOpds) {
-                    if (!lastDefMI.get(def).equals(mi)) isLastDefMI = false;
+                    if (!mi.equals(getLastDefiner(def))) isLastDefMI = false;
                     if (mb.liveOutSet.contains(def)) defRegInLiveOut = true;
-                    if (Arm.Reg.getRSReg(Arm.Regs.GPRs.sp).equals(def)) defNoSp = false;
+                    if (Arm.Reg.getRSReg(GPRs.sp).equals(def)) defNoSp = false;
                 }
                 if (!(isLastDefMI && defRegInLiveOut) && mi.isNoCond()) {
                     if (mi instanceof StackCtl) continue;
-                    if (lastUser == null && !mi.getShift().hasShift() && defNoSp) {
+                    if (mi.theLastUserOfDef == null && !mi.getShift().hasShift() && defNoSp) {
                         mi.remove();
                         unDone = true;
                         continue;
@@ -238,8 +258,7 @@ public class PeepHole {
                             if (binary.getROpd().isImm(I32)) {
                                 int imm = binary.getROpd().getValue();
                                 if (!mi.getNext().equals(mb.miList.tail)
-                                        && lastUser != null
-                                        && !lastUser.equals(mi.getNext())) {
+                                        && mi.lastUserIsNext()) {
                                     MachineInst nextInst = (MachineInst) mi.getNext();
                                     if (nextInst.isOf(Ldr)) {
                                         I.Ldr ldr = (I.Ldr) nextInst;
@@ -282,8 +301,7 @@ public class PeepHole {
                                     } else if (nextInst.isIMov()) {
                                         // 怀疑已经被fixStack的时候消除了
                                         if (!mi.getNext().equals(mb.miList.tail)
-                                                // && lastUser != null
-                                                && !lastUser.equals(mi.getNext())) {
+                                                && mi.lastUserIsNext()) {
                                             I.Mov iMov = (I.Mov) nextInst;
                                             MachineInst secondNextMI = (MachineInst) mi.getNext();
                                             if (secondNextMI.isOf(Str)) {
@@ -311,7 +329,7 @@ public class PeepHole {
                                 if (!mi.getNext().equals(mb.miList.tail)) {
                                     MachineInst nextMI = (MachineInst) mi.getNext();
                                     if (nextMI instanceof I
-                                            && (lastUser != null && lastUser.equals(nextMI))
+                                            && mi.lastUserIsNext()
                                             && !nextMI.isOf(Call, IRet, VRet)) {
                                         for (int i = 0; i < nextMI.useOpds.size(); i++) {
                                             if (nextMI.useOpds.get(i).equals(iMov.getDst())) {
@@ -327,7 +345,7 @@ public class PeepHole {
                             if (!mi.getNext().equals(mb.miList.tail)) {
                                 MachineInst nextMI = (MachineInst) mi.getNext();
                                 if (nextMI instanceof I
-                                        && (lastUser != null && lastUser.equals(nextMI))
+                                        && mi.lastUserIsNext()
                                         && isSimpleIMov(nextMI)) {
                                     Operand def = ((MachineInst.ActualDefMI) mi).getDef();
                                     I.Mov iMov = (I.Mov) nextMI;

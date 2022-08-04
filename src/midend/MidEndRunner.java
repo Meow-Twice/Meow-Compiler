@@ -227,6 +227,9 @@ public class MidEndRunner {
         LoopIdcVarInfo loopIdcVarInfo = new LoopIdcVarInfo(functions);
         loopIdcVarInfo.Run();
 
+        FuncInfo funcInfo = new FuncInfo(functions);
+        funcInfo.Run();
+
     }
 
     //循环优化

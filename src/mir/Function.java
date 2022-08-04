@@ -23,6 +23,9 @@ public class Function extends Value {
 
     private boolean isDeleted = false;
 
+    //读写了全局变量或者传参有数组,用于函数调用的GVN,默认为false
+    private boolean canGVN = false;
+
     public void setDeleted() {
         isDeleted = true;
     }
@@ -31,6 +34,13 @@ public class Function extends Value {
         return isDeleted;
     }
 
+    public void setCanGVN(boolean canGVN) {
+        this.canGVN = canGVN;
+    }
+
+    public boolean isCanGVN() {
+        return canGVN;
+    }
 
     public static class Param extends Value {
 

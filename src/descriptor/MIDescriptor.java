@@ -479,7 +479,7 @@ public class MIDescriptor implements Descriptor {
             }
             curMI = mi;
             I.Binary miBinary = null;
-            MILongMul miLongMul = null;
+            // MILongMul miLongMul = null;
             Object lVal = null;
             Object rVal = null;
             if (curMI instanceof I.Binary) {
@@ -487,11 +487,11 @@ public class MIDescriptor implements Descriptor {
                 lVal = GET_VAL_FROM_OPD(miBinary.getLOpd());
                 rVal = GET_VAL_FROM_OPD(miBinary.getROpd());
             }
-            if(curMI instanceof MILongMul){
-                miLongMul = (MILongMul) curMI;
-                lVal = GET_VAL_FROM_OPD(miLongMul.getLOpd());
-                rVal = GET_VAL_FROM_OPD(miLongMul.getROpd());
-            }
+            // if(curMI instanceof MILongMul){
+            //     miLongMul = (MILongMul) curMI;
+            //     lVal = GET_VAL_FROM_OPD(miLongMul.getLOpd());
+            //     rVal = GET_VAL_FROM_OPD(miLongMul.getROpd());
+            // }
             switch (curMI.getTag()) {
                 case Add -> {
                     assert lVal instanceof Integer && rVal instanceof Integer;
@@ -575,10 +575,10 @@ public class MIDescriptor implements Descriptor {
                 }
                 case FOr -> {
                 }
-                case LongMul -> {
-                    assert lVal instanceof Integer && rVal instanceof Integer;
-                    SET_VAL_FROM_OPD((int) ((((Integer) lVal).longValue() *  ((Integer) rVal).longValue()) >>> 32), miLongMul.getDst());
-                }
+                // case LongMul -> {
+                //     assert lVal instanceof Integer && rVal instanceof Integer;
+                //     SET_VAL_FROM_OPD((int) ((((Integer) lVal).longValue() *  ((Integer) rVal).longValue()) >>> 32), miLongMul.getDst());
+                // }
                 case FMA -> {
                     assert mi instanceof I.Fma;
                     I.Fma fma = (I.Fma) mi;

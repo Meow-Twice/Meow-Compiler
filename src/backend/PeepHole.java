@@ -236,7 +236,7 @@ public class PeepHole {
                     }
 
                     if (mi.isIMov()) {
-                        if (!CodeGen.immCanCode(((I.Mov) mi).getSrc().get_I_Imm())) {
+                        if (!CodeGen.immCanCode(((I.Mov) mi).getSrc().getValue())) {
                             continue;
                         }
                     }
@@ -255,7 +255,7 @@ public class PeepHole {
                         // str b [c, #x+i]
                         if (mi.isOf(Add, Sub)) {
                             I.Binary binary = (I.Binary) mi;
-                            if (binary.getROpd().isImm(I32)) {
+                            if (binary.getROpd().isPureImmWithOutGlob(I32)) {
                                 int imm = binary.getROpd().getValue();
                                 if (!mi.getNext().equals(mb.miList.tail)
                                         && mi.lastUserIsNext()) {
@@ -263,7 +263,7 @@ public class PeepHole {
                                     if (nextInst.isOf(Ldr)) {
                                         I.Ldr ldr = (I.Ldr) nextInst;
                                         if (ldr.getAddr().equals(binary.getDst())
-                                                && ldr.getOffset().isImm(I32)) {
+                                                && ldr.getOffset().isPureImmWithOutGlob(I32)) {
                                             assert !ldr.getShift().hasShift();
                                             if (mi.isOf(Add)) {
                                                 imm += ldr.getOffset().get_I_Imm();
@@ -282,7 +282,7 @@ public class PeepHole {
                                     } else if (nextInst.isOf(Str)) {
                                         I.Str str = (I.Str) nextInst;
                                         if (str.getAddr().equals(binary.getDst())
-                                                && str.getOffset().isImm(I32)) {
+                                                && str.getOffset().isPureImmWithOutGlob(I32)) {
                                             assert !str.getShift().hasShift();
                                             if (mi.isOf(Add)) {
                                                 imm += str.getOffset().get_I_Imm();
@@ -309,7 +309,7 @@ public class PeepHole {
                                                 if (iMov.getDst().equals(str.getData())
                                                         && binary.getDst().equals(str.getAddr())
                                                         && !str.getData().equals(binary.getLOpd())
-                                                        && str.getOffset().isImm(I32)) {
+                                                        && str.getOffset().isPureImmWithOutGlob(I32)) {
                                                     assert !str.getShift().hasShift();
                                                     if (CodeGen.LdrStrImmEncode(imm)) {
                                                         unDone = true;
@@ -325,7 +325,7 @@ public class PeepHole {
                             }
                         } else if (mi.isOf(IMov)) {
                             I.Mov iMov = (I.Mov) mi;
-                            if (iMov.getSrc().isImm(I32)) {
+                            if (iMov.getSrc().isPureImmWithOutGlob(I32)) {
                                 if (!mi.getNext().equals(mb.miList.tail)) {
                                     MachineInst nextMI = (MachineInst) mi.getNext();
                                     if (nextMI instanceof I

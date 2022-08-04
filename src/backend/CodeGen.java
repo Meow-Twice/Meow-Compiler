@@ -686,6 +686,8 @@ public class CodeGen {
                 // dst = src << sh
                 if (sh > 0) {
                     new I.Mov(dVR, srcOp, new Arm.Shift(Arm.ShiftType.Lsl, sh), curMB);
+                } else {
+                    new I.Mov(dVR, srcOp, curMB);
                 }
                 if (imm < 0) {
                     // dst = -dst

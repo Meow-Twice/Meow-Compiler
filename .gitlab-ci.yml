@@ -6,7 +6,7 @@ test:
   tags:
     - sysy-ci
   script:
-    - rm -r ${SRC_PATH}/* && cp -r src/* ${SRC_PATH}/
+    - rm -rf ${SRC_PATH}/* && cp -r -t ${SRC_PATH}/ src/*
     - bash ${CI_SCRIPT}
 
 # ${SRC_PATH} and ${CI_SCRIPT} are ci variables

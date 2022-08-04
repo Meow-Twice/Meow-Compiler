@@ -38,6 +38,7 @@ public class LoopInVarCodeLift {
         for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
             for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
                 if (instr instanceof Instr.Alloc) {
+                    //TODO:待加强,当前只考虑int数组
                     for (Use use = instr.getBeginUse(); use.getNext() != null; use = (Use) use.getNext()) {
                         DFS((Instr.Alloc) instr, use.getUser());
                     }
@@ -72,6 +73,40 @@ public class LoopInVarCodeLift {
             //在use之后def
             if (tag && defForThisAlloc.contains(instr)) {
                 return;
+            }
+        }
+
+        //def 都是常数
+        for (Instr def: defForThisAlloc) {
+            if (def instanceof Instr.Call) {
+                if (((Instr.Call) def).getFunc().getName().equals("memset")) {
+                    if (((Instr.Call) def).getParamList().get(1) instanceof Constant.ConstantInt &&
+                            ((Instr.Call) def).getParamList().get(2) instanceof Constant.ConstantInt) {
+                        int val = (int) ((Constant.ConstantInt) ((Instr.Call) def).getParamList().get(1)).getConstVal();
+                        if (val != 0) {
+                            return;
+                        }
+                    } else {
+                        return;
+                    }
+                } else {
+                    return;
+                }
+            } else {
+                assert def instanceof Instr.Store;
+                Value ptr = ((Instr.Store) def).getPointer();
+                if (!(((Instr.Store) def).getValue() instanceof Constant.ConstantInt)) {
+                    return;
+                }
+                if (ptr instanceof Instr.GetElementPtr) {
+                    for (Value index: ((Instr.GetElementPtr) ptr).getIdxList()) {
+                        if (!(index instanceof Constant.ConstantInt)) {
+                            return;
+                        }
+                    }
+                } else {
+                    return;
+                }
             }
         }
 
@@ -120,6 +155,7 @@ public class LoopInVarCodeLift {
             }
             users.get(alloc).add(instr);
         } else if (instr instanceof Instr.Call) {
+            //这两个函数的正确执行,不依赖于数组的原始值,所以只被认为是def
             if (((Instr.Call) instr).getFunc().getName().equals("memset") ||
                     ((Instr.Call) instr).getFunc().getName().equals("getarray")) {
                 if (!defs.containsKey(alloc)) {
@@ -131,9 +167,15 @@ public class LoopInVarCodeLift {
                     users.put(alloc, new HashSet<>());
                 }
                 users.get(alloc).add(instr);
+                defs.get(alloc).add(instr);
+            }
+        } else if (instr instanceof Instr.Bitcast) {
+            //bitcast
+            for (Use use = instr.getBeginUse(); use.getNext() != null; use = (Use) use.getNext()) {
+                Instr user = use.getUser();
+                DFS(alloc, user);
             }
         } else {
-            //bitcast
             assert false;
         }
     }

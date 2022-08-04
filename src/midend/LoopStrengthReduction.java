@@ -1,5 +1,6 @@
 package midend;
 
+import frontend.Visitor;
 import lir.V;
 import mir.*;
 import mir.type.Type;
@@ -115,6 +116,14 @@ public class LoopStrengthReduction {
         Instr.Ashr ashr = new Instr.Ashr(type, reach, mul, A);
         Instr.Icmp icmp = new Instr.Icmp(Instr.Icmp.Op.SGE, reach, new Constant.ConstantInt(0), A);
         Instr.Branch br = new Instr.Branch(icmp, B, head, A);
+
+        int cnt = ++Visitor.VISITOR.curLoopCondCount;
+        icmp.setCondCount(cnt);
+        br.setCondCount(cnt);
+        if (parentLoop.getLoopDepth() > 0) {
+            icmp.setInLoopCond();
+            br.setInLoopCond();
+        }
 
         //B
         //Instr.Alu rem = new Instr.Alu(type, Instr.Alu.Op.REM, )

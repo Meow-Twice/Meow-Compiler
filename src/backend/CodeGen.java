@@ -9,13 +9,19 @@ import mir.*;
 import mir.type.DataType;
 import mir.type.Type;
 
+import java.math.BigInteger;
 import java.util.*;
 
 import static lir.Arm.Cond.*;
+import static lir.Arm.Cond.Eq;
+import static lir.Arm.Cond.Ge;
+import static lir.Arm.Cond.Gt;
+import static lir.Arm.Cond.Le;
+import static lir.Arm.Cond.Lt;
+import static lir.Arm.Cond.Ne;
 import static lir.Arm.Regs.FPRs.*;
 import static lir.Arm.Regs.GPRs.*;
-import static lir.MachineInst.Tag.FMod;
-import static lir.MachineInst.Tag.Mod;
+import static lir.MachineInst.Tag.*;
 import static mir.type.DataType.F32;
 import static mir.type.DataType.I32;
 
@@ -24,8 +30,7 @@ public class CodeGen {
     public static final CodeGen CODEGEN = new CodeGen();
     public static boolean _DEBUG_OUTPUT_MIR_INTO_COMMENT = true;
     public static boolean needFPU = false;
-    // public static boolean isNeedFPU = false;
-    boolean _DEBUG_MUL_DIV = false;
+    public static boolean optMulDiv = true;
 
     // 当前的Machine.McFunction
     private static Machine.McFunction curMF;
@@ -253,7 +258,7 @@ public class CodeGen {
                     } else {
                         Operand condVR = getVR_may_imm(condValue);
                         new I.Cmp(condVR, new Operand(I32, 0), curMB);
-                        cond = Arm.Cond.Ne;
+                        cond = Ne;
                     }
                     new MIBranch(cond, trueBlock, falseBlock, curMB);
                 }
@@ -644,41 +649,168 @@ public class CodeGen {
     }
 
     private void genBinaryInst(Instr.Alu instr) {
+        final int bitsOfInt = 32;
         MachineInst.Tag tag = MachineInst.Tag.map.get(instr.getOp());
         Value lhs = instr.getRVal1();
         Value rhs = instr.getRVal2();
+        // instr不可能是Constant
+        Machine.Operand dVR = getVR_no_imm(instr);
         if (tag == Mod) {
-            Machine.Operand q = getVR_no_imm(instr);
-            Machine.Operand a = getVR_may_imm(lhs);
-            Machine.Operand b = getVR_may_imm(rhs);
+            Machine.Operand lVR = getVR_may_imm(lhs);
+            Machine.Operand rVR = getVR_may_imm(rhs);
             Machine.Operand dst1 = newVR();
-            new I.Binary(MachineInst.Tag.Div, dst1, a, b, curMB);
+            new I.Binary(MachineInst.Tag.Div, dst1, lVR, rVR, curMB);
             Machine.Operand dst2 = newVR();
-            new I.Binary(MachineInst.Tag.Mul, dst2, dst1, b, curMB);
-            new I.Binary(MachineInst.Tag.Sub, q, a, dst2, curMB);
-        } else if (tag == FMod) {
-            assert needFPU;
-            Operand q = getVR_no_imm(instr);
-            Operand a = getVR_may_imm(lhs);
-            Operand b = getVR_may_imm(rhs);
-            Operand dst1 = newSVR();
-            new V.Binary(MachineInst.Tag.FDiv, dst1, a, b, curMB);
-            Operand dst2 = newSVR();
-            new V.Binary(MachineInst.Tag.FMul, dst2, dst1, b, curMB);
-            new V.Binary(MachineInst.Tag.FSub, q, a, dst2, curMB);
-        } else if (isFBino(instr.getOp())) {
-            assert needFPU;
-            Operand lVR = getVR_may_imm(lhs);
-            Operand rVR = getVR_may_imm(rhs);
-            // instr不可能是Constant
-            Operand dVR = getVR_no_imm(instr);
-            new V.Binary(tag, dVR, lVR, rVR, curMB);
+            new I.Binary(MachineInst.Tag.Mul, dst2, dst1, rVR, curMB);
+            new I.Binary(MachineInst.Tag.Sub, dVR, lVR, dst2, curMB);
+        } else if (optMulDiv && tag == Mul && (lhs.isConstantInt() || rhs.isConstantInt())) {
+            // 不考虑双立即数: r*i, i*r, r*r
+            if (lhs.isConstantInt() && rhs.isConstantInt()) {
+                System.err.println("[MUL dst, imm, imm] should never occur @ " + instr);
+                System.exit(91);
+            }
+            Machine.Operand srcOp;
+            int imm;
+            if (lhs.isConstantInt()) {
+                srcOp = getVR_may_imm(rhs);
+                imm = (int) ((Constant.ConstantInt) lhs).getConstVal();
+            } else {
+                srcOp = getVR_may_imm(lhs);
+                imm = (int) ((Constant.ConstantInt) rhs).getConstVal();
+            }
+            int abs = (imm < 0) ? (-imm) : imm;
+            if (abs == 0) {
+                new I.Mov(dVR, new Operand(I32, 0), curMB); // dst = 0
+            } else if ((abs & (abs - 1)) == 0) {
+                // imm 是 2 的幂
+                int sh = bitsOfInt - 1 - Integer.numberOfLeadingZeros(abs);
+                // dst = src << sh
+                if (sh > 0) {
+                    new I.Mov(dVR, srcOp, new Arm.Shift(Arm.ShiftType.Lsl, sh), curMB);
+                } else {
+                    new I.Mov(dVR, srcOp, curMB);
+                }
+                if (imm < 0) {
+                    // dst = -dst
+                    // TODO: 源操作数和目的操作数虚拟寄存器相同，不一定不会出 bug
+                    new I.Binary(Rsb, dVR, dVR, new Operand(I32, 0), curMB); // dst = 0 - dst
+                }
+            } else {
+                new I.Binary(tag, dVR, srcOp, getImmVR(imm), curMB);
+            }
+        } else if (optMulDiv && tag == Div && rhs.isConstantInt()) {
+            // 不允许双立即数, 只能是 r/i
+            // TODO: ayame 的 divMap 机制目前未实现
+            if (lhs.isConstantInt()) {
+                System.err.println("[DIV dst, imm, imm] should never occur @ " + instr);
+                System.exit(94);
+            }
+            Machine.Operand lVR = getVR_may_imm(lhs);
+            int imm = (int) ((Constant.ConstantInt) rhs).getConstVal();
+            int abs = (imm < 0) ? (-imm) : imm;
+            if (abs == 0) {
+                System.exit(94);
+            } else if (imm == 1) {
+                new I.Mov(dVR, lVR, curMB);
+            } else if (imm == -1) {
+                new I.Binary(Rsb, dVR, lVR, new Operand(I32, 0), curMB);
+            } else if ((abs & (abs - 1)) == 0) {
+                // 除以 2 的幂
+                // src < 0 且不整除，则 (lhs >> sh) + 1 == (lhs / div)，需要修正
+                int sh = bitsOfInt - 1 - Integer.numberOfLeadingZeros(abs);
+                // sgn = (lhs >>> 31), (lhs < 0 ? -1 : 0)
+                Operand sgn = newVR();
+                new I.Mov(sgn, lVR, new Arm.Shift(Arm.ShiftType.Asr, bitsOfInt - 1), curMB);
+                // 修正负数右移和除法的偏差
+                // tmp = lhs + (sgn >> (32 - sh))
+                Operand tmp = newVR();
+                new I.Binary(Add, tmp, lVR, sgn, new Arm.Shift(Arm.ShiftType.Lsr, bitsOfInt - sh), curMB);
+                // quo = tmp >>> sh
+                new I.Mov(dVR, tmp, new Arm.Shift(Arm.ShiftType.Asr, sh), curMB);
+            } else {
+                /*
+                 * Reference: https://github.com/ridiculousfish/libdivide
+                 *   - struct libdivide_s32_branchfree_t
+                 *   - libdivide_s32_branchfree_gen
+                 *   - libdivide_internal_s32_gen
+                 *   - libdivide_s32_branchfree_do
+                 *
+                 * In SysY, we only consider signed-32bit division
+                 *
+                 * Use branch-free version to avoid generating new basic blocks
+                 */
+                int magic, more; // struct libdivide_s32_t {int magic; uint8_t more;}
+                int log2d = bitsOfInt - 1 - Integer.numberOfLeadingZeros(abs);
+                // libdivide_s32_branchfree_gen => process in compiler
+                // libdivide_internal_s32_gen(d, 1) => {magic, more}
+                final int negativeDivisor = 128;
+                final int addMarker = 64;
+                final int s32ShiftMask = 31;
+                // masks for type cast
+                final long uint32Mask = 0xFFFFFFFFL;
+                final int uint8Mask = 0xFF;
+                if ((abs & (abs - 1)) == 0) {
+                    magic = 0;
+                    more = (imm < 0 ? (log2d | negativeDivisor) : log2d) & uint8Mask; // more is uint8_t
+                } else {
+                    assert log2d >= 1;
+                    int rem, proposed;
+                    // proposed = libdivide_64_div_32_to_32((uint32_t)1 << (log2d - 1), 0, abs, &rem);
+                    // q = libdivide_64_div_32_to_32(u1, u0, v, &r)
+                    // n = {u1, u0}, u1 = ((uint32_t)1 << (log2d - 1))
+                    BigInteger n = BigInteger.valueOf((1 << (log2d - 1)) & uint32Mask).shiftLeft(bitsOfInt).or(BigInteger.valueOf(0));
+                    BigInteger[] div = n.divideAndRemainder(BigInteger.valueOf(abs));
+                    proposed = div[0].intValueExact();
+                    rem = div[1].intValueExact();
+                    proposed += proposed;
+                    int twiceRem = rem + rem;
+                    // twice_rem, absD, rem in libdivide is uint32, so the compare below should also base on uint32
+                    if ((twiceRem & uint32Mask) >= (abs & uint32Mask) || (twiceRem & uint32Mask) < (rem & uint32Mask)) {
+                        proposed += 1;
+                    }
+                    more = (log2d | addMarker) & uint8Mask;
+                    proposed += 1;
+                    magic = proposed;
+                    if (imm < 0) {
+                        more |= negativeDivisor;
+                    }
+                }
+                // {magic, more} got
+                int sh = more & s32ShiftMask;
+                int mask = (1 << sh), sign = ((more & (0x80)) != 0) ? -1 : 0, isPower2 = (magic == 0) ? 1 : 0;
+                // libdivide_s32_branchfree_do => process in runtime, use hardware instruction
+                // TODO: 不开 O2 => int-divide-optimization 寄存器分配爆内存; 开 O2 => 73_int_io 过不了
+                Operand q = newVR(); // quotient
+                new I.Binary(LongMul, q, lVR, getImmVR(magic), curMB); // q = mulhi(dividend, magic)
+                new I.Binary(Add, q, q, lVR, curMB); // q += dividend
+                // q += (q >>> 31) & (((uint32_t)1 << shift) - is_power_of_2)
+                Operand q1 = newVR();
+                new I.Binary(And, q1, getImmVR(mask - isPower2), q, new Arm.Shift(Arm.ShiftType.Asr, 31), curMB);
+                new I.Binary(Add, q, q, q1, curMB);
+                // q = q >>> shift
+                new I.Mov(q, q, new Arm.Shift(Arm.ShiftType.Asr, sh), curMB);
+                if (sign < 0) {
+                    new I.Binary(Rsb, q, q, new Operand(I32, 0), curMB);
+                }
+                new I.Mov(dVR, q, curMB); // store result
+                // new I.Binary(tag, dVR, lVR, getImmVR(imm), curMB);
+            }
         } else {
             Machine.Operand lVR = getVR_may_imm(lhs);
             Machine.Operand rVR = getVR_may_imm(rhs);
-            // instr不可能是Constant
-            Machine.Operand dVR = getVR_no_imm(instr);
-            new I.Binary(tag, dVR, lVR, rVR, curMB);
+            if (tag == FMod) {
+                assert needFPU;
+                Operand dst1 = newSVR();
+                new V.Binary(MachineInst.Tag.FDiv, dst1, lVR, rVR, curMB);
+                Operand dst2 = newSVR();
+                new V.Binary(MachineInst.Tag.FMul, dst2, dst1, rVR, curMB);
+                new V.Binary(MachineInst.Tag.FSub, dVR, lVR, dst2, curMB);
+            } else if (isFBino(instr.getOp())) {
+                assert needFPU;
+                new V.Binary(tag, dVR, lVR, rVR, curMB);
+            } else {
+                new I.Binary(tag, dVR, lVR, rVR, curMB);
+            }
         }
     }
 
@@ -869,6 +1001,17 @@ public class CodeGen {
         new I.Mov(labelAddr, glob, curMB);
         new V.Ldr(dst, labelAddr, curMB);
         return dst;
+    }
+
+    /**
+     * 可能是立即数的 Operand 获取
+     */
+    public Operand getOp_may_imm(Value value) {
+        if (value instanceof Constant.ConstantInt || value instanceof Constant.ConstantBool) {
+            return new Operand(I32, (int) ((Constant) value).getConstVal());
+        } else {
+            return getVR_may_imm(value);
+        }
     }
 
     /**

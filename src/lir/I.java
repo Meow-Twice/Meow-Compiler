@@ -39,7 +39,7 @@ public class I extends MachineInst {
             useOpds.add(addr);
             useOpds.add(offset);
         }
-        
+
         public Operand getDef(){
             return getData();
         }
@@ -313,6 +313,7 @@ public class I extends MachineInst {
 
     public static class Binary extends I implements ActualDefMI{
         // Add, Sub, Rsb, Mul, Div, Mod, Lt, Le, Ge, Gt, Eq, Ne, And, Or
+        // Smmul (for divide optimize)
 
         public Binary(MachineInst insertAfter, Tag tag, Operand dOpd, Operand lOpd, Operand rOpd) {
             super(insertAfter, tag);
@@ -326,6 +327,14 @@ public class I extends MachineInst {
             defOpds.add(dOpd);
             useOpds.add(lOpd);
             useOpds.add(rOpd);
+        }
+
+        public Binary(Tag tag, Machine.Operand dOpd, Machine.Operand lOpd, Machine.Operand rOpd, Arm.Shift shift, Machine.Block insertAtEnd) {
+            super(tag, insertAtEnd);
+            defOpds.add(dOpd);
+            useOpds.add(lOpd);
+            useOpds.add(rOpd);
+            this.shift = shift;
         }
 
         public Binary(Tag tag, Operand dstAddr, Arm.Reg rSP, Operand offset, MachineInst firstUse) {
@@ -361,6 +370,7 @@ public class I extends MachineInst {
                 case Div -> "sdiv";
                 case And -> "and";
                 case Or -> "orr";
+                case LongMul -> "smmul";
                 default -> throw new AssertionError("Wrong Int Binary");
             };
 

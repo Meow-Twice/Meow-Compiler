@@ -24,11 +24,11 @@ public class GPRegAllocator extends RegAllocator {
                 if (mi instanceof MIComment) continue;
                 // liveuse 计算
                 for (Operand use : mi.useOpds) {
-                    if (use.needGPR() && !mb.liveDefSet.contains(use)) mb.liveUseSet.add(use);
+                    if (use.needRegOf(dataType) && !mb.liveDefSet.contains(use)) mb.liveUseSet.add(use);
                 }
                 // def 计算
                 for (Operand def : mi.defOpds) {
-                    if (def.needGPR() && !mb.liveUseSet.contains(def)) mb.liveDefSet.add(def);
+                    if (def.needRegOf(dataType) && !mb.liveUseSet.contains(def)) mb.liveDefSet.add(def);
                 }
             }
             logOut(mb.getDebugLabel() + "\tdefSet:\t" + mb.liveDefSet.toString());

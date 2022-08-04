@@ -609,6 +609,10 @@ public class Machine {
             return (type == PreColored || type == Virtual) && dataType == I32;
         }
 
+        public boolean needRegOf(DataType dataType) {
+            return (type == PreColored || type == Virtual) && dataType == this.dataType;
+        }
+
         Type type;
         DataType dataType = I32;
 

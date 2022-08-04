@@ -3,6 +3,7 @@ package lir;
 import java.io.PrintStream;
 
 import static lir.Machine.Program.encode_imm;
+import static lir.Machine.Operand;
 import static mir.type.DataType.I32;
 
 public class I extends MachineInst {
@@ -18,37 +19,41 @@ public class I extends MachineInst {
         super(insertAfter, tag);
     }
 
-    public static class Ldr extends I implements MachineMemInst {
-        public Ldr(Machine.Operand data, Machine.Operand addr, Machine.Block insertAtEnd) {
+    public static class Ldr extends I implements MachineMemInst, ActualDefMI {
+        public Ldr(Operand data, Operand addr, Machine.Block insertAtEnd) {
             super(Tag.Ldr, insertAtEnd);
             defOpds.add(data);
             useOpds.add(addr);
         }
 
-        public Ldr(Machine.Operand data, Machine.Operand addr, Machine.Operand offset, Machine.Block insertAtEnd) {
+        public Ldr(Operand data, Operand addr, Operand offset, Machine.Block insertAtEnd) {
             super(Tag.Ldr, insertAtEnd);
             defOpds.add(data);
             useOpds.add(addr);
             useOpds.add(offset);
         }
 
-        public Ldr(Machine.Operand data, Machine.Operand addr, Machine.Operand offset, MachineInst insertBefore) {
+        public Ldr(Operand data, Operand addr, Operand offset, MachineInst insertBefore) {
             super(Tag.Ldr, insertBefore);
             defOpds.add(data);
             useOpds.add(addr);
             useOpds.add(offset);
         }
 
-        public Machine.Operand getData() {
+        public Operand getDef(){
+            return getData();
+        }
+
+        public Operand getData() {
             return defOpds.get(0);
         }
 
-        public Machine.Operand getAddr() {
+        public Operand getAddr() {
             return useOpds.get(0);
         }
 
-        public Machine.Operand getOffset() {
-            if (useOpds.size() < 2) return new Machine.Operand(I32, 0);
+        public Operand getOffset() {
+            if (useOpds.size() < 2) return new Operand(I32, 0);
             return useOpds.get(1);
         }
 
@@ -65,11 +70,11 @@ public class I extends MachineInst {
         @Override
         public String toString() {
             return tag.toString() + cond.toString() + '\t' + getData() +
-                    ",\t[" + getAddr() + (getOffset().equals(Machine.Operand.I_ZERO) ? "" : ",\t" + getOffset()) +
+                    ",\t[" + getAddr() + (getOffset().equals(Operand.I_ZERO) ? "" : ",\t" + getOffset()) +
                     (shift.shiftType == Arm.ShiftType.None ? "" : ("\t," + shift)) + "]";
         }
 
-        public void setOffSet(Machine.Operand offSet) {
+        public void setOffSet(Operand offSet) {
             if (useOpds.size() > 1) {
                 useOpds.set(1, offSet);
             } else {
@@ -78,7 +83,7 @@ public class I extends MachineInst {
             }
         }
 
-        public void setAddr(Machine.Operand addr) {
+        public void setAddr(Operand addr) {
             useOpds.set(0, addr);
         }
     }
@@ -90,14 +95,14 @@ public class I extends MachineInst {
             return cond;
         }
 
-        public Str(Machine.Operand data, Machine.Operand addr, Machine.Block insertAtEnd) {
+        public Str(Operand data, Operand addr, Machine.Block insertAtEnd) {
             super(Tag.Str, insertAtEnd);
             useOpds.add(data);
             useOpds.add(addr);
-            // useOpds.add(new Machine.Operand(I32, 0));
+            // useOpds.add(new Operand(I32, 0));
         }
 
-        public Str(Machine.Operand data, Machine.Operand addr, Machine.Operand offset, Machine.Block insertAtEnd) {
+        public Str(Operand data, Operand addr, Operand offset, Machine.Block insertAtEnd) {
             super(Tag.Str, insertAtEnd);
             useOpds.add(data);
             useOpds.add(addr);
@@ -111,27 +116,27 @@ public class I extends MachineInst {
          * @param data
          * @param addr
          */
-        public Str(MachineInst insertAfter, Machine.Operand data, Machine.Operand addr, Machine.Operand offset) {
+        public Str(MachineInst insertAfter, Operand data, Operand addr, Operand offset) {
             super(insertAfter, Tag.Str);
             useOpds.add(data);
             useOpds.add(addr);
             useOpds.add(offset);
         }
 
-        public Machine.Operand getData() {
+        public Operand getData() {
             return useOpds.get(0);
         }
 
-        public Machine.Operand getAddr() {
+        public Operand getAddr() {
             return useOpds.get(1);
         }
 
-        public Machine.Operand getOffset() {
-            if (useOpds.size() < 3) return new Machine.Operand(I32, 0);
+        public Operand getOffset() {
+            if (useOpds.size() < 3) return new Operand(I32, 0);
             return useOpds.get(2);
         }
 
-        public void setOffSet(Machine.Operand offSet) {
+        public void setOffSet(Operand offSet) {
             if (useOpds.size() > 2) useOpds.set(2, offSet);
             else useOpds.add(offSet);
         }
@@ -144,11 +149,11 @@ public class I extends MachineInst {
         @Override
         public String toString() {
             return tag.toString() + cond + '\t' + getData() + ",\t[" + getAddr() +
-                    (getOffset().equals(Machine.Operand.I_ZERO) ? "" : ",\t" + getOffset()) +
+                    (getOffset().equals(Operand.I_ZERO) ? "" : ",\t" + getOffset()) +
                     (shift.shiftType == Arm.ShiftType.None ? "" : ("\t," + shift)) + "]";
         }
 
-        public void setAddr(Machine.Operand addr) {
+        public void setAddr(Operand addr) {
             useOpds.set(1, addr);
         }
     }
@@ -175,33 +180,33 @@ public class I extends MachineInst {
         }
     }
 
-    public static class Mov extends I implements MachineMove {
-        public Mov(Machine.Operand dOpd, Machine.Operand sOpd, Machine.Block insertAtEnd) {
+    public static class Mov extends I implements MachineMove, ActualDefMI {
+        public Mov(Operand dOpd, Operand sOpd, Machine.Block insertAtEnd) {
             super(Tag.IMov, insertAtEnd);
             defOpds.add(dOpd);
             useOpds.add(sOpd);
         }
 
-        public Mov(Machine.Operand dOpd, Machine.Operand sOpd, Arm.Shift shift, Machine.Block insertAtEnd) {
+        public Mov(Operand dOpd, Operand sOpd, Arm.Shift shift, Machine.Block insertAtEnd) {
             super(Tag.IMov, insertAtEnd);
             defOpds.add(dOpd);
             useOpds.add(sOpd);
             this.shift = shift;
         }
 
-        public Mov(MachineInst inst, Machine.Operand dOpd, Machine.Operand sOpd) {
+        public Mov(MachineInst inst, Operand dOpd, Operand sOpd) {
             super(inst, Tag.IMov);
             defOpds.add(dOpd);
             useOpds.add(sOpd);
         }
 
-        public Mov(Machine.Operand dOpd, Machine.Operand sOpd, MachineInst inst) {
+        public Mov(Operand dOpd, Operand sOpd, MachineInst inst) {
             super(Tag.IMov, inst);
             defOpds.add(dOpd);
             useOpds.add(sOpd);
         }
 
-        public Mov(Arm.Cond cond, Machine.Operand dOpd, Machine.Operand sOpd, Machine.Block insertAtEnd) {
+        public Mov(Arm.Cond cond, Operand dOpd, Operand sOpd, Machine.Block insertAtEnd) {
             super(Tag.IMov, insertAtEnd);
             this.cond = cond;
             defOpds.add(dOpd);
@@ -210,8 +215,8 @@ public class I extends MachineInst {
 
         @Override
         public void output(PrintStream os, Machine.McFunction f) {
-            Machine.Operand src = getSrc();
-            if (src.type == Machine.Operand.Type.Immediate) {
+            Operand src = getSrc();
+            if (src.type == Operand.Type.Immediate) {
                 if (src.isGlobPtr()) {
                     os.println("\tmovw" + cond + "\t" + getDst() + ",\t:lower16:" + src.getGlob());
                     os.println("\tmovt" + cond + "\t" + getDst() + ",\t:upper16:" + src.getGlob());
@@ -239,7 +244,7 @@ public class I extends MachineInst {
             }
         }
 
-        public Machine.Operand getDst() {
+        public Operand getDst() {
             return defOpds.get(0);
         }
 
@@ -247,7 +252,7 @@ public class I extends MachineInst {
             return getDst().need_I_Color() && getSrc().need_I_Color() && cond == Arm.Cond.Any && shift.shiftType == Arm.ShiftType.None;
         }
 
-        public Machine.Operand getSrc() {
+        public Operand getSrc() {
             return useOpds.get(0);
         }
 
@@ -259,8 +264,8 @@ public class I extends MachineInst {
                 assert false;
             }
             StringBuilder os = new StringBuilder();
-            Machine.Operand src = getSrc();
-            if (src.type == Machine.Operand.Type.Immediate) {
+            Operand src = getSrc();
+            if (src.type == Operand.Type.Immediate) {
                 if (src.isGlobPtr()) {
                     os.append("movw" + cond + "\t" + getDst() + ",\t:lower16:" + src.getGlob());
                     os.append("movt" + cond + "\t" + getDst() + ",\t:upper16:" + src.getGlob());
@@ -290,29 +295,34 @@ public class I extends MachineInst {
             return os + "{\t--\t" + oldToString + "\t--\t}";
         }
 
-        public void setSrc(Machine.Operand offset_opd) {
+        public void setSrc(Operand offset_opd) {
             assert offset_opd != null;
             useOpds.set(0, offset_opd);
         }
 
-        public void setDst(Machine.Operand dst) {
+        public void setDst(Operand dst) {
             assert dst != null;
             defOpds.set(0, dst);
         }
+
+        @Override
+        public Operand getDef() {
+            return defOpds.get(0);
+        }
     }
 
-    public static class Binary extends I {
+    public static class Binary extends I implements ActualDefMI{
         // Add, Sub, Rsb, Mul, Div, Mod, Lt, Le, Ge, Gt, Eq, Ne, And, Or
         // Smmul (for divide optimize)
 
-        public Binary(MachineInst insertAfter, Tag tag, Machine.Operand dOpd, Machine.Operand lOpd, Machine.Operand rOpd) {
+        public Binary(MachineInst insertAfter, Tag tag, Operand dOpd, Operand lOpd, Operand rOpd) {
             super(insertAfter, tag);
             defOpds.add(dOpd);
             useOpds.add(lOpd);
             useOpds.add(rOpd);
         }
 
-        public Binary(Tag tag, Machine.Operand dOpd, Machine.Operand lOpd, Machine.Operand rOpd, Machine.Block insertAtEnd) {
+        public Binary(Tag tag, Operand dOpd, Operand lOpd, Operand rOpd, Machine.Block insertAtEnd) {
             super(tag, insertAtEnd);
             defOpds.add(dOpd);
             useOpds.add(lOpd);
@@ -327,26 +337,26 @@ public class I extends MachineInst {
             this.shift = shift;
         }
 
-        public Binary(Tag tag, Machine.Operand dstAddr, Arm.Reg rSP, Machine.Operand offset, MachineInst firstUse) {
+        public Binary(Tag tag, Operand dstAddr, Arm.Reg rSP, Operand offset, MachineInst firstUse) {
             super(tag, firstUse);
             defOpds.add(dstAddr);
             useOpds.add(rSP);
             useOpds.add(offset);
         }
 
-        public Machine.Operand getDst() {
+        public Operand getDst() {
             return defOpds.get(0);
         }
 
-        public Machine.Operand getLOpd() {
+        public Operand getLOpd() {
             return useOpds.get(0);
         }
 
-        public Machine.Operand getROpd() {
+        public Operand getROpd() {
             return useOpds.get(1);
         }
 
-        public void setROpd(Machine.Operand o) {
+        public void setROpd(Operand o) {
             useOpds.set(1, o);
         }
 
@@ -360,7 +370,6 @@ public class I extends MachineInst {
                 case Div -> "sdiv";
                 case And -> "and";
                 case Or -> "orr";
-                case LongMul -> "smmul";
                 default -> throw new AssertionError("Wrong Int Binary");
             };
 
@@ -377,22 +386,27 @@ public class I extends MachineInst {
         public String toString() {
             return tag.toString() + "\t" + getDst() + ",\t" + getLOpd() + ",\t" + getROpd();
         }
+
+        @Override
+        public Operand getDef() {
+            return defOpds.get(0);
+        }
     }
 
 
     public static class Cmp extends I implements MachineInst.Compare {
 
-        public Cmp(Machine.Operand lOpd, Machine.Operand rOpd, Machine.Block insertAtEnd) {
+        public Cmp(Operand lOpd, Operand rOpd, Machine.Block insertAtEnd) {
             super(Tag.ICmp, insertAtEnd);
             useOpds.add(lOpd);
             useOpds.add(rOpd);
         }
 
-        public Machine.Operand getLOpd() {
+        public Operand getLOpd() {
             return useOpds.get(0);
         }
 
-        public Machine.Operand getROpd() {
+        public Operand getROpd() {
             return useOpds.get(1);
         }
 
@@ -414,21 +428,21 @@ public class I extends MachineInst {
      * mla:Rn + (Rm * Rs)[31:0] or mls:Rd := Rn – (Rm * Rs)[31:0]
      * dst = acc +(-) lhs * rhs
      */
-    public static class Fma extends I {
+    public static class Fma extends I implements ActualDefMI {
 
-        public Machine.Operand getDst() {
+        public Operand getDst() {
             return defOpds.get(0);
         }
 
-        public Machine.Operand getlOpd() {
+        public Operand getlOpd() {
             return useOpds.get(0);
         }
 
-        public Machine.Operand getrOpd() {
+        public Operand getrOpd() {
             return useOpds.get(1);
         }
 
-        public Machine.Operand getAcc() {
+        public Operand getAcc() {
             return useOpds.get(2);
         }
 
@@ -449,7 +463,7 @@ public class I extends MachineInst {
         // Arm.Cond cond;
 
         public Fma(boolean add, boolean sign,
-                   Machine.Operand dst, Machine.Operand lOpd, Machine.Operand rOpd, Machine.Operand acc,
+                   Operand dst, Operand lOpd, Operand rOpd, Operand acc,
                    Machine.Block insertAtEnd) {
             //dst = acc +(-) lhs * rhs
             super(Tag.FMA, insertAtEnd);
@@ -490,6 +504,11 @@ public class I extends MachineInst {
             }
             res += op + cond + "\t" + getDst().toString() + ",\t" + getlOpd().toString() + ",\t" + getrOpd().toString() + ",\t" + getAcc().toString();
             return res;
+        }
+
+        @Override
+        public Operand getDef() {
+            return defOpds.get(0);
         }
     }
 

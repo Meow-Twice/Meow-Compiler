@@ -7,11 +7,13 @@ import util.ILinkNode;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.Objects;
 
 import static mir.Instr.Alu.Op.*;
 
 public class MachineInst extends ILinkNode {
     public final static MachineInst emptyInst = new MachineInst();
+    public MachineInst theLastUserOfDef = null;
     protected Arm.Cond cond = Arm.Cond.Any;
     protected Arm.Shift shift = Arm.Shift.NONE_SHIFT;
     // private boolean needFix = false;
@@ -113,6 +115,16 @@ public class MachineInst extends ILinkNode {
                     || tag == Tag.Comment);
         }
         return isSideEff;
+    }
+
+    public boolean noShift() {
+        return shift.noShift();
+    }
+
+    public boolean lastUserIsNext() {
+        if (theLastUserOfDef == null) return false;
+        // if (this.getNext().equals(this.mb.miList.tail)) return false;
+        return theLastUserOfDef.equals(this.getNext());
     }
 
     public enum Tag {
@@ -225,12 +237,15 @@ public class MachineInst extends ILinkNode {
     public ArrayList<Machine.Operand> defOpds = new ArrayList<>();
     public ArrayList<Machine.Operand> useOpds = new ArrayList<>();
 
+    int hash = 0;
+    static int cnt = 0;
     /*
     init and insert at end of the bb
     */
     public MachineInst(Tag tag, Machine.Block mb) {
         this.mb = mb;
         this.tag = tag;
+        this.hash = cnt++;
         mb.insertAtEnd(this);
     }
 
@@ -240,6 +255,7 @@ public class MachineInst extends ILinkNode {
     public MachineInst(Tag tag, MachineInst inst) {
         this.mb = inst.mb;
         this.tag = tag;
+        this.hash = cnt++;
         inst.insertBefore(this);
     }
 
@@ -252,6 +268,7 @@ public class MachineInst extends ILinkNode {
     public MachineInst(MachineInst insertAfter, Tag tag) {
         this.mb = insertAfter.mb;
         this.tag = tag;
+        this.hash = cnt++;
         insertAfter.insertAfter(this);
     }
 
@@ -292,6 +309,17 @@ public class MachineInst extends ILinkNode {
         void remove();
 
         boolean isNoCond();
+    }
+
+    public interface ActualDefMI {
+        Machine.Operand getDef();
+
+        void setDef(Machine.Operand def);
+    }
+
+    @Override
+    public int hashCode() {
+        return Integer.hashCode(hash);
     }
 }
 

@@ -236,8 +236,8 @@ public class PeepholeWithDataFlow {
                     boolean defRegInLiveOut = inst.getDefOpds().stream().anyMatch(liveout::contains);//def的后面还要用
                     boolean defNoSp = inst.getDefOpds().stream().noneMatch(def ->  (def.getReg() == Arm.Regs.GPRs.sp));
 
-                    if(!(isLastDefInst && defRegInLiveOut) && noCond){//后面基本快不再使用此变量
-                        if(lastUser == null && noShift && defNoSp){//本基本块后面不再使用此变量
+                    if(!(isLastDefInst && defRegInLiveOut) && noCond) {//后面基本快不再使用此变量
+                        if (lastUser == null && noShift && defNoSp) {//本基本块后面不再使用此变量
                             //no side effect and noshift and no sp
                             inst.remove();
                             finish = false;
@@ -248,14 +248,14 @@ public class PeepholeWithDataFlow {
                         //inst(last user of a)
                         //--->
                         //inst(replace a with b)
-                        if(inst instanceof MIMove && noShift){
+                        if (inst instanceof MIMove && noShift) {
                             MIMove miMove = (MIMove) inst;
-                            if(!miMove.getSrc().is_I_Imm() && inst!=block.getEndMI()){
-                                MachineInst next = (MachineInst)miMove.getNext();
+                            if (!miMove.getSrc().is_I_Imm() && inst != block.getEndMI()) {
+                                MachineInst next = (MachineInst) miMove.getNext();
                                 Machine.Operand src = miMove.getSrc();
                                 Machine.Operand dst = miMove.getDst();
-                                if(next == lastUser){
-                                    if(replaceReg(next,dst,src)){
+                                if (next == lastUser) {
+                                    if (replaceReg(next, dst, src)) {
                                         //successfully replace---->remove
                                         inst.remove();
                                         finish = false;
@@ -270,14 +270,14 @@ public class PeepholeWithDataFlow {
                         //inst(last user of a)
                         //--->
                         //inst(replace a with b)
-                        if(inst instanceof V.Mov && noShift){
+                        if (inst instanceof V.Mov && noShift) {
                             V.Mov vMove = (V.Mov) inst;
-                            if(!vMove.getSrc().is_I_Imm() && inst!=block.getEndMI()){
-                                MachineInst next = (MachineInst)vMove.getNext();
+                            if (!vMove.getSrc().is_I_Imm() && inst != block.getEndMI()) {
+                                MachineInst next = (MachineInst) vMove.getNext();
                                 Machine.Operand src = vMove.getSrc();
                                 Machine.Operand dst = vMove.getDst();
-                                if(next == lastUser && src.getReg() instanceof Arm.Regs.FPRs && dst.getReg() instanceof Arm.Regs.FPRs ){
-                                    if(replaceReg(next,dst,src)){
+                                if (next == lastUser && src.getReg() instanceof Arm.Regs.FPRs && dst.getReg() instanceof Arm.Regs.FPRs) {
+                                    if (replaceReg(next, dst, src)) {
                                         //successfully replace---->remove
                                         inst.remove();
                                         finish = false;
@@ -288,8 +288,28 @@ public class PeepholeWithDataFlow {
                             }
                         }
 
-                    }
 
+                        //mov a,imm
+                        //cmp b,a
+                        //----->
+                        //cmp b,imm
+                        if (inst instanceof MIMove && noShift) {
+                            MIMove miMove = (MIMove) inst;
+                            if (miMove.getSrc().is_I_Imm() && miMove.encode_imm(miMove.getSrc().get_I_Imm()) && inst != block.getEndMI() && inst.getNext() instanceof MICompare) {
+                                //can optimize
+                                MICompare next = (MICompare) inst.getNext();
+                                if (next == lastUser && next.getShift().isNone() && !next.getLOpd().toString().equals(next.getROpd().toString()) && next.getROpd().toString().equals(next.getLOpd().toString())) {
+                                    if (replaceReg(next, miMove.getDst(), miMove.getSrc())) {
+                                        inst.remove();
+                                        finish = false;
+                                        continue;
+                                    }
+                                }
+
+                            }
+                        }
+
+                    }
                 }
             }
         }

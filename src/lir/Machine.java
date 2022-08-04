@@ -566,10 +566,12 @@ public class Machine {
         }
 
         public boolean isImm(DataType dataType) {
+            if(this instanceof Arm.Glob) return false;
             return type == Immediate && this.dataType == dataType;
         }
 
         public boolean isImm(DataType i32, DataType f32) {
+            if(this instanceof Arm.Glob) return false;
             return (type == Immediate && dataType == i32) || (type == FConst && dataType == f32);
         }
 

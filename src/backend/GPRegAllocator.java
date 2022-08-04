@@ -846,7 +846,7 @@ public class GPRegAllocator extends RegAllocator {
         for (Operand v : coalescedNodeSet) {
             Operand a = getAlias(v);
             assert !a.isAllocated();
-            colorMap.put(v, a.is_I_PreColored() ? a : colorMap.get(a));
+            colorMap.put(v, a.is_I_PreColored() ? Arm.Reg.getRSReg(a.reg) : colorMap.get(a));
         }
 
         ArrayList<I> needFixList = new ArrayList<>();

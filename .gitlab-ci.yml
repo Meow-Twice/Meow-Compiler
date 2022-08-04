@@ -1,0 +1,12 @@
+stages:
+  - test
+
+test:
+  stage: test
+  tags:
+    - sysy
+  script:
+    - rm -r ${SRC_PATH}/* && cp -r src/* ${SRC_PATH}/
+    - bash ${CI_SCRIPT}
+
+# ${SRC_PATH} and ${CI_SCRIPT} are ci variables

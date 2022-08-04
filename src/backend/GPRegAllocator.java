@@ -1,12 +1,12 @@
 package backend;
 
 import lir.*;
-import lir.Machine.Operand;
-import util.ILinkNode;
+import lir.MC.Operand;
 
 import java.util.*;
 
 import static lir.Arm.Regs.GPRs;
+import static lir.Arm.Regs.GPRs.r12;
 import static mir.type.DataType.I32;
 
 public class GPRegAllocator extends RegAllocator {
@@ -16,90 +16,31 @@ public class GPRegAllocator extends RegAllocator {
         SPILL_MAX_LIVE_INTERVAL = RK * 2;
     }
 
-    void livenessAnalysis(Machine.McFunction mf) {
-        for (Machine.Block mb : mf.mbList) {
-            mb.liveUseSet = new HashSet<>();
-            mb.liveDefSet = new HashSet<>();
-            for (MachineInst mi : mb.miList) {
-                if (mi instanceof MIComment) continue;
-                // liveuse 计算
-                for (Operand use : mi.useOpds) {
-                    if (use.needRegOf(dataType) && !mb.liveDefSet.contains(use)) mb.liveUseSet.add(use);
-                }
-                // def 计算
-                for (Operand def : mi.defOpds) {
-                    if (def.needRegOf(dataType) && !mb.liveUseSet.contains(def)) mb.liveDefSet.add(def);
-                }
-            }
-            logOut(mb.getDebugLabel() + "\tdefSet:\t" + mb.liveDefSet.toString());
-            logOut(mb.getDebugLabel() + "\tuseSet:\t" + mb.liveUseSet.toString());
-            mb.liveInSet = new HashSet<>(mb.liveUseSet);
-            mb.liveOutSet = new HashSet<>();
-        }
-
-        liveInOutAnalysis(mf);
-    }
-
-    /***
-     * 传送指令的数据结构, 下面给出了5个由传送指令组成的集合,
-     * 每一条传送指令都只在其中的一个集合中(执行完Build之后直到Main结束)
-     */
-
-    /**
-     * 已经合并的传送指令的集合
-     */
-    HashSet<I.Mov> coalescedIMovSet = new HashSet<>();
-
-    /**
-     * src 和 dst相冲突的传送指令集合
-     */
-    HashSet<I.Mov> constrainedIMovSet = new HashSet<>();
-
-    /**
-     * 不再考虑合并的传送指令集合
-     */
-    HashSet<I.Mov> frozenIMovSet = new HashSet<>();
-
-    /**
-     * 有可能合并的传送指令, 当结点x从高度数结点变为低度数结点时,
-     * 与 x 的邻接点关联的传送指令必须添加到传送指令工作表 workListMoveSet .
-     * 此时原来因为合并后会有太多高度数邻结点而不能合并的传送指令现在则可能变成可合并的.
-     * 只在下面少数几种情况下传送指令才会加入到工作表 workListMoveSet :
-     * 1. 在简化期间, 删除一个结点可能导致其邻结点 x 的度数发生变化.
-     * 因此要把与 x 的邻结点相关联的传送指令加入到 workListMoveSet 中.
-     * 2. 当合并 u 和 v 时,可能存在一个与 u 和 v 都有冲突的结点 x .
-     * 因为 x 现在只于 u 和 v 合并后的这个结点相冲突, 故 x 的度将减少,
-     * 因此也要把与 x 的邻结点关联的传送指令加入到 workListMoveSet 中.
-     * 如果 x 是传送有关的, 则与 x 本身关联的传送指令也要加入到此表中,
-     * 因为 u 和 v 有可能都是高度数的结点
-     */
-    HashSet<I.Mov> workListIMovSet = new HashSet<>();
-
-    /**
-     * 还未做好合并准备的传送指令的集合
-     */
-    HashSet<I.Mov> activeIMovSet = new HashSet<>();
-
-
-    public void AllocateRegister(Machine.Program program) {
-        for (Machine.McFunction mf : program.funcList) {
+    public void AllocateRegister(MC.Program program) {
+        for (MC.McFunction mf : program.funcList) {
             curMF = mf;
             while (true) {
                 turnInit(mf);
-                coalescedIMovSet = new HashSet<>();
-                constrainedIMovSet = new HashSet<>();
-                frozenIMovSet = new HashSet<>();
-                workListIMovSet = new HashSet<>();
-                activeIMovSet = new HashSet<>();
 
                 for (int i = 0; i < K; i++) {
                     Arm.Reg.getR(i).degree = MAX_DEGREE;
                 }
-                // for (int i = 0; i < sk; i++) {
-                //     Arm.Reg.getS(i).degree = Integer.MAX_VALUE;
-                // }
-
                 logOut("RegAlloc Build start");
+                for (Arm.Reg reg : Arm.Reg.getGPRPool()) {
+                    reg.loopCounter = 0;
+                    reg.degree = MAX_DEGREE;
+                    reg.adjOpdSet = new HashSet<>();
+                    reg.movSet = new HashSet<>();
+                    reg.setAlias(null);
+                }
+                for (Operand o : curMF.vrList) {
+                    o.loopCounter = 0;
+                    o.degree = 0;
+                    o.adjOpdSet = new HashSet<>();
+                    o.movSet = new HashSet<>();
+                    o.setAlias(null);
+                }
+                // logOut("in build");
                 build();
                 logOut("RegAlloc Build end");
 
@@ -116,78 +57,7 @@ public class GPRegAllocator extends RegAllocator {
                         simplifyWorkSet.add(vr);
                     }
                 }
-                logOut("spillWorkSet:\t" + spillWorkSet.toString());
-                logOut("freezeWorkSet:\t" + freezeWorkSet.toString());
-                logOut("simplifyWorkSet:\t" + simplifyWorkSet.toString());
-
-                while (simplifyWorkSet.size() + workListIMovSet.size() + freezeWorkSet.size() + spillWorkSet.size() > 0) {
-                    // TODO 尝试验证if - else if结构的可靠性和性能
-                    // BreakPoint();
-                    if (simplifyWorkSet.size() > 0) {
-                        logOut("-- simplify");
-                        logOut(simplifyWorkSet.toString());
-                        // 从度数低的结点集中随机选择一个从图中删除放到 selectStack 里
-                        Operand x = simplifyWorkSet.iterator().next();
-                        // if (!x.isI32())
-                        assert x.isI32();
-                        simplifyWorkSet.remove(x);
-                        selectStack.push(x);
-                        logOut(String.format("selectStack.push(%s)", x));
-                        for (Operand adj : x.adjOpdSet) {
-                            // 对于 x 的邻接冲突结点adj, 如果不是已经被删除的或者已合并的
-                            if (!(selectStack.contains(adj) || coalescedNodeSet.contains(adj))) {
-                                logOut(String.format("decrementDegree(%s)", adj));
-                                decrementDegree(adj);
-                            }
-                        }
-                        // adjacent(x).forEach(this::decrementDegree);
-                    }
-                    if (workListIMovSet.size() > 0) {
-                        logOut("-- coalesce");
-                        logOut("workListMoveSet:\t" + workListIMovSet);
-                        coalesce();
-                    }
-                    if (freezeWorkSet.size() > 0) {
-                        logOut("freeze");
-                        /**
-                         * 从低度数的传送有关的结点中随机选择一个进行冻结
-                         */
-                        Operand x = freezeWorkSet.iterator().next();
-                        freezeWorkSet.remove(x);
-                        simplifyWorkSet.add(x);
-                        logOut(x + "\t" + "freezeWorkSet -> simplifyWorkSet");
-                        freezeMoves(x);
-                    }
-                    if (spillWorkSet.size() > 0) {
-                        logOut("selectSpill");
-                        /**
-                         * 从高度数结点集(spillWorkSet)中启发式选取结点 x , 挪到低度数结点集(simplifyWorkSet)中
-                         * 冻结 x 及其相关 move
-                         */
-                        Iterator<Operand> it = spillWorkSet.iterator();
-                        Operand x = it.next();
-                        assert x != null;
-                        assertDataType(x);
-                        double max = x.heuristicVal();
-                        while (it.hasNext()) {
-                            Operand o = it.next();
-                            double h = o.heuristicVal();
-                            if (h > max) {
-                                x = o;
-                                max = h;
-                            }
-                        }
-                        logOut("select: " + x + "\t" + "add to simplifyWorkSet");
-                        // Operand x = spillWorkSet.stream().reduce((a, b) -> a.heuristicVal() < b.heuristicVal() ? a : b).orElseThrow();
-                        // Operand x = spillWorkSet.stream().reduce(Operand::select).orElseThrow();
-                        // TODO 为什么这里可以先挪到simplifyWorkSet里面啊
-                        // simplifyWorkSet真正含义是希望将结点移出冲突图
-                        simplifyWorkSet.add(x);
-                        freezeMoves(x);
-                        spillWorkSet.remove(x);
-                        logOut("select: " + x + "\t" + "remove from spillWorkSet");
-                    }
-                }
+                regAllocIteration();
                 // Manager.MANAGER.outputMI();
                 assignColors();
                 // Manager.MANAGER.outputMI();
@@ -208,11 +78,6 @@ public class GPRegAllocator extends RegAllocator {
         }
     }
 
-    // private void BreakPoint() {
-    //     if (simplifyWorkSet.contains(Arm.Reg.getS(11)))
-    //         assert true;
-    // }
-
     int vrIdx = -1;
     MachineInst firstUse = null;
     MachineInst lastDef = null;
@@ -224,7 +89,7 @@ public class GPRegAllocator extends RegAllocator {
     private void dealSpillNode(Operand x) {
         assertDataType(x);
         dealSpillTimes++;
-        for (Machine.Block mb : curMF.mbList) {
+        for (MC.Block mb : curMF.mbList) {
             offImm = new Operand(I32, curMF.getVarStack());
             // generate a MILoad before first use, and a I.Str after last def
             firstUse = null;
@@ -316,372 +181,15 @@ public class GPRegAllocator extends RegAllocator {
         // TODO 计算生命周期长度
     }
 
-    public void build() {
-        for (Arm.Reg reg : Arm.Reg.getGPRPool()) {
-            reg.loopCounter = 0;
-            reg.degree = MAX_DEGREE;
-            reg.adjOpdSet = new HashSet<>();
-            reg.iMovSet = new HashSet<>();
-            reg.setAlias(null);
-        }
-        for (Operand o : curMF.vrList) {
-            o.loopCounter = 0;
-            o.degree = 0;
-            o.adjOpdSet = new HashSet<>();
-            o.iMovSet = new HashSet<>();
-            o.setAlias(null);
-        }
-        // logOut("in build");
-        for (ILinkNode mbNode = curMF.mbList.getEnd(); !mbNode.equals(curMF.mbList.head); mbNode = mbNode.getPrev()) {
-            Machine.Block mb = (Machine.Block) mbNode;
-            // 获取块的 liveOut
-            logOut("build mb: " + mb.getDebugLabel());
-            HashSet<Operand> live = new HashSet<>(mb.liveOutSet);
-            for (ILinkNode iNode = mb.getEndMI(); !iNode.equals(mb.miList.head); iNode = iNode.getPrev()) {
-                MachineInst mi = (MachineInst) iNode;
-                if (mi.isCall()) {
-                    //System.err.println(mi);
-                }
-                if (mi.isComment()) continue;
-                // TODO : 此时考虑了Call
-                logOut(mi + "\tlive begin:\t" + live);
-                if (mi.isIMov()) {
-                    I.Mov mv = (I.Mov) mi;
-                    if (mv.directColor()) {
-                        // 没有cond, 没有shift, src和dst都是虚拟寄存器的mov指令
-                        // move 的 dst 和 src 不应是直接冲突的关系, 而是潜在的可合并的关系
-                        // move a, b --> move rx, rx 需要a 和 b 不是冲突关系
-                        live.remove(mv.getSrc());
-                        mv.getDst().iMovSet.add(mv);
-                        mv.getSrc().iMovSet.add(mv);
-                        workListIMovSet.add(mv);
-                    }
-                }
-
-                dealDefUse(live, mi, mb);
-            }
-        }
-    }
-
-    /**
-     * x.moveSet 去掉
-     * 1. 已经合并的传送指令的集合 coalescedMoveSet
-     * 2. src 和 dst 相冲突的传送指令集合 constrainedMoveSet
-     * 3. 不再考虑合并的传送指令集合 frozenMoveSet
-     *
-     * @param x
-     * @return x.moveSet ∩ (activeMoveSet ∪ workListMoveSet)
-     */
-    private HashSet<I.Mov> nodeMoves(Operand x) {
-        assertDataType(x);
-        HashSet<I.Mov> canCoalesceSet = new HashSet<>(x.iMovSet);
-        canCoalesceSet.removeIf(r -> !(activeIMovSet.contains(r) || workListIMovSet.contains(r)));
-        return canCoalesceSet;
-    }
-
-    /**
-     * EnableMoves({x} ∪ Adjacent(x))
-     * 有可能合并的传送指令从 activeMoveSet 挪到 workListMoveSet
-     * @param x
-     */
-    /*
-    private void enableMoves(Operand x) {
-        for (MIMove mv : nodeMoves(x)) {
-            // 考虑 x 关联的可能合并的 move
-            if (activeMoveSet.contains(mv)) {
-                // 未做好合并准备的集合如果包含mv, 就挪到workListMoveSet中
-                activeMoveSet.remove(mv);
-                workListMoveSet.add(mv);
-            }
-        }
-        for (Operand adj : adjacent(x)) {
-            // 对于o的每个实际邻接冲突adj
-            for (MIMove mv : nodeMoves(adj)) {
-                // adj关联的move, 如果是有可能合并的move
-                if (activeMoveSet.contains(mv)) {
-                    // 未做好合并准备的集合如果包含mv, 就挪到workListMoveSet中
-                    activeMoveSet.remove(mv);
-                    workListMoveSet.add(mv);
-                }
-            }
-        }
-    }*/
-
-    /**
-     * 从图中去掉一个结点需要减少该结点的当前各个邻结点的度数.
-     * 如果某个邻结点的 degree < K - 1, 则这个邻结点一定是传送有关的,
-     * (因为低度数结点有关 move 的已经放到 freezeWorkSet 里了, 无关 move 的已经放到 simplifyWorkSet 里了)
-     * 因此不将它加入到 simplifyWorkSet 中.
-     * 当邻结点adj的度数从 K 变为 K - 1时，与它(adj)的邻结点相关的传送指令将有可能变成可合并的
-     *
-     * @param x
-     */
-    private void decrementDegree(Operand x) {
-        assertDataType(x);
-        x.degree--;
-        if (x.degree == K - 1) {
-            for (I.Mov mv : nodeMoves(x)) {
-                // 考虑 x 关联的可能合并的 move
-                if (activeIMovSet.contains(mv)) {
-                    // 未做好合并准备的集合如果包含mv, 就挪到workListMoveSet中
-                    activeIMovSet.remove(mv);
-                    workListIMovSet.add(mv);
-                }
-            }
-            for (Operand adj : adjacent(x)) {
-                // 对于o的每个实际邻接冲突adj
-                for (I.Mov mv : nodeMoves(adj)) {
-                    // adj关联的move, 如果是有可能合并的move
-                    if (activeIMovSet.contains(mv)) {
-                        // 未做好合并准备的集合如果包含mv, 就挪到workListMoveSet中
-                        activeIMovSet.remove(mv);
-                        workListIMovSet.add(mv);
-                    }
-                }
-            }
-            // enableMoves(x);
-            // TODO: 虎书上这里写的是remove
-            // TODO 在 combine 的时候, v 和 u 虽然合并了, 对 v 的冲突邻结点做 decrementDegree, 但 v 的实际冲突邻结点个数仍然是 rk 个, 那为什么还要有度这个概念呢
-            spillWorkSet.add(x);
-            if (nodeMoves(x).size() > 0) {
-                freezeWorkSet.add(x);
-            } else {
-                simplifyWorkSet.add(x);
-            }
-        }
-    }
-
-
-    /**
-     * 当 x 需要被染色, x 并不与 move 相关, x 的度 <= k - 1
-     * 低度数传送有关结点集 freezeWorkSet 删除 x , 且低度数传送无关结点集 simplifyWorkSet 添加 x
-     *
-     * @param x
-     */
-    public void addWorkList(Operand x) {
-        assertDataType(x);
-        if (!x.isPreColored(dataType) && (nodeMoves(x).size() == 0) && x.degree < K) {
-            freezeWorkSet.remove(x);
-            simplifyWorkSet.add(x);
-            logOut(String.format("%s\t from freezeWorkSet to simplifyWorkSet", x));
-        }
-    }
-
-    /**
-     * 合并move u <- v
-     * 1. u 预着色, v 是虚拟寄存器, 且 v 的冲突邻接点均满足: 要么为低度数结点, 要么预着色, 要么已经与 u 邻接
-     * 2. u, v 都不是预着色, 且两者的邻接冲突结点的高结点个数加起来也不超过 rk - 1 个
-     */
-
-    public void combine(Operand u, Operand v) {
-        assertDataType(u);
-        assertDataType(v);
-        if (freezeWorkSet.contains(v)) {
-            freezeWorkSet.remove(v);
-        } else {
-            spillWorkSet.remove(v);
-        }
-        // 合并 move u, v, 将v加入 coalescedNodeSet
-        coalescedNodeSet.add(v);
-        v.setAlias(u);
-        u.iMovSet.addAll(v.iMovSet);
-        // 对于 v 在冲突图上的每个邻结点 adj , 建立 adj, u 之间的冲突边, 且为t
-
-        for (Operand adj : v.adjOpdSet) {
-            if (!(selectStack.contains(adj) || coalescedNodeSet.contains(adj))) {
-                addEdge(adj, u);
-                decrementDegree(adj);
-            }
-        }
-        // adjacent(v).forEach(adj -> {
-        //     addEdge(adj, u);
-        //     decrementDegree(adj);
-        // });
-        // 当 u 从(合并前的)低度数结点成为(合并后的)高度数结点, 则将其从freezeWorkSet转移到 spillWorkSet
-        if (u.degree >= K && freezeWorkSet.contains(u)) {
-            freezeWorkSet.remove(u);
-            spillWorkSet.add(u);
-        }
-    }
-
-    //-------------------------------------------------------------------------------------------------
-    public void coalesce() {
-        // When workListMoveSet.size() > 0;
-        I.Mov mv = workListIMovSet.iterator().next();
-        // u <- v
-        Operand u = getAlias(mv.getDst());
-        Operand v = getAlias(mv.getSrc());
-        assertDataType(u);
-        assertDataType(v);
-        if (v.isPreColored(dataType)) {
-            // 冲突图是无向图, 这里避免把mv归到受限一类而尽可能让v不是预着色的
-            Operand tmp = u;
-            u = v;
-            v = tmp;
-        }
-        logOut(String.format("workListMoveSet.remove(%s)", mv));
-        workListIMovSet.remove(mv);
-        if (u.equals(v)) {
-            coalescedIMovSet.add(mv);
-            logOut(String.format("coalescedMoveSet.add(%s)", mv));
-            addWorkList(u);
-        } else if (v.isPreColored(dataType) || adjSet.contains(new AdjPair(u, v))) {
-            // 这里似乎必须用adjSet判断
-            // 两边都是预着色则不可能合并, 因为上面已经在 move u, v 的情况下将 u, v 互换, 如果v仍然是预着色说明u, v均为预着色
-            constrainedIMovSet.add(mv);
-            logOut(String.format("constrainedMoveSet.add(%s)", mv));
-            addWorkList(u);
-            addWorkList(v);
-        } else {
-            // TODO 尝试重新验证写法
-            // 此时 v 已经不是预着色了
-            // if (u.isPreColored()) {
-            //     /**
-            //      * v 的冲突邻接点是否均满足:
-            //      * 要么为低度数结点, 要么预着色, 要么已经与 u 邻接
-            //      */
-            //     boolean flag = true;
-            //     for (Operand adj : adjacent(v)) {
-            //         if (adj.degree >= rk && !adj.isPreColored() && !adjSet.contains(new AdjPair(adj, u))) {
-            //             // adjSet.contains(new AdjPair(adj, v))这个感觉可以改成 v.adjOpdSet.contains(adj)
-            //             flag = false;
-            //         }
-            //     }
-            //     if (flag) {
-            //         coalescedMoveSet.add(mv);
-            //         combine(u, v);
-            //         addWorkList(u);
-            //     } else {
-            //         activeMoveSet.add(mv);
-            //     }
-            // } else {
-            //     // union实际统计 u 和 v 的有效冲突邻接结点
-            //     HashSet<Operand> union = new HashSet<>(u.adjOpdSet);
-            //     union.removeIf(r -> selectStack.contains(r) || coalescedNodeSet.contains(r));
-            //     union.addAll(v.adjOpdSet);
-            //     // union.removeIf(r -> selectStack.contains(r) || coalescedNodeSet.contains(r));
-            //     int cnt = 0;
-            //     for (Operand x : union) {
-            //         if (!selectStack.contains(x) && !coalescedNodeSet.contains(x) && x.degree >= rk) {
-            //             // 统计union中的高度数结点个数
-            //             // if (x.degree >= rk) {
-            //             cnt++;
-            //         }
-            //     }
-            //     // 如果结点个数 < rk 个表示未改变冲突图的可着色性
-            //     if (cnt < rk) {
-            //         coalescedMoveSet.add(mv);
-            //         combine(u, v);
-            //         addWorkList(u);
-            //     } else {
-            //         activeMoveSet.add(mv);
-            //     }
-            // }
-            if ((u.isPreColored(dataType) && adjOk(v, u))
-                    || (!u.isPreColored(dataType) && conservative(adjacent(u), adjacent(v)))) {
-                coalescedIMovSet.add(mv);
-                combine(u, v);
-                addWorkList(u);
-            } else {
-                activeIMovSet.add(mv);
-            }
-        }
-    }
-
-    /**
-     * 对于每一个 x 相关的 move, 将其从可能合并的传送指令的集合 (activeMoveSet ∪ workListMoveSet)
-     * 挪到 frozenMoveSet 中, 同时 对于 x 相关 move 的另一端的操作数 v
-     * 如果 v 不是传送相关的低度数结点,
-     * 则将 v 从低度数传送有关结点集 freezeWorkSet 挪到低度数传送无关结点集 simplifyWorkSet
-     *
-     * @param u
-     */
-    public void freezeMoves(Operand u) {
-        for (I.Mov mv : nodeMoves(u)) {
-            // nodeMoves(x) 取出来的只可能是 activeMoveSet 中的或者 workListMoveSet 中的
-            // if (!activeMoveSet.remove(mv)) {
-            //     workListMoveSet.remove(mv);
-            // }
-            if (activeIMovSet.contains(mv)) {
-                activeIMovSet.remove(mv);
-            } else {
-                workListIMovSet.remove(mv);
-            }
-            logOut(mv + "\t: activeMoveSet, workListMoveSet -> frozenMoveSet");
-            frozenIMovSet.add(mv);
-
-            // 这个很怪, 跟书上不一样
-            // 选择 move 中非 x 方结点 v
-            var v = mv.getDst().equals(u) ? mv.getSrc() : mv.getDst();
-            // TODO 尝试验证另一写法
-            // Operand v = mv.getDst();
-            // if (v.equals(u)) v = mv.getSrc();
-            /*// 虎书:
-            Operand v;
-            if(src.alias.equals(x.alias)){
-                v = dst.alias;
-            }else{
-                v = src.alias;
-            }
-            */
-
-            // 如果 v 不是传送相关的低度数结点, 则将 v 从低度数传送有关结点集 freezeWorkSet 挪到低度数传送无关结点集 simplifyWorkSet
-            if (nodeMoves(v).size() == 0 && v.degree < K) {
-                // nodeMoves(v) = v.moveSet ∩ (activeMoveSet ∪ workListMoveSet)
-                freezeWorkSet.remove(v);
-                simplifyWorkSet.add(v);
-                logOut(v + "\t freezeWorkSet-> simplifyWorkSet");
-            }
-        }
+    @Override
+    protected TreeSet<Arm.Regs> getOkColorSet() {
+        TreeSet<Arm.Regs> res =  new TreeSet<>(Arrays.asList(GPRs.values()).subList(0, K));
+        res.remove(r12);
+        return res;
     }
 
     public void assignColors() {
-        logOut("Start to assign colors");
-        HashMap<Operand, Operand> colorMap = new HashMap<>();
-        while (selectStack.size() > 0) {
-            Operand toBeColored = selectStack.pop();
-            assertDataType(toBeColored);
-            if (toBeColored.isPreColored(dataType) || toBeColored.isAllocated()) {
-                logOut(toBeColored.toString());
-            }
-            assert !toBeColored.isPreColored(dataType) && !toBeColored.isAllocated();
-            logOut("when try assign:\t" + toBeColored);
-            // TODO 注意剔除sp
-            final TreeSet<Arm.Regs> okColorSet = new TreeSet<>(Arrays.asList(GPRs.values()).subList(0, K));
-            // logOut("--- rk = \t"+rk);
-
-            // 把待分配颜色的结点的邻接结点的颜色去除
-            toBeColored.adjOpdSet.forEach(adj -> {
-                Operand a = getAlias(adj);
-                if (a.hasReg() && a.isI32()) {
-                    // 已着色或者预分配
-                    okColorSet.remove(a.getReg());
-                } else if (a.is_I_Virtual()) {
-                    Operand r = colorMap.get(a);
-                    if (r != null) {
-                        okColorSet.remove(r.reg);
-                    }
-                }
-            });
-            logOut(okColorSet.toString());
-
-            if (okColorSet.isEmpty()) {
-                // 如果没有可分配的颜色则溢出
-                spilledNodeSet.add(toBeColored);
-            } else {
-                // 如果有可分配的颜色则从可以分配的颜色中选取一个
-                Arm.Regs color = okColorSet.pollLast();
-                logOut("Choose " + color);
-                colorMap.put(toBeColored, Arm.Reg.getRSReg(color));
-                // if (color instanceof GPRs) {
-                //     colorMap.put(toBeColored, Arm.Reg.getR((GPRs) color));
-                // } else if (color instanceof Arm.Regs.FPRs) {
-                //     colorMap.put(toBeColored, Arm.Reg.getS((Arm.Regs.FPRs) color));
-                // } else {
-                //     throw new AssertionError("");
-                // }
-            }
-        }
+        preAssignColors();
 
         if (spilledNodeSet.size() > 0) {
             return;
@@ -694,14 +202,14 @@ public class GPRegAllocator extends RegAllocator {
         }
 
         ArrayList<I> needFixList = new ArrayList<>();
-        for (Machine.Block mb : curMF.mbList) {
+        for (MC.Block mb : curMF.mbList) {
             for (MachineInst mi : mb.miList) {
                 if (mi.isNeedFix()) {
                     needFixList.add((I) mi);
                 }
-                // TODO 这里不考虑Call
                 if (mi.isComment()) continue;
                 if (mi.isCall()) {
+                    // TODO 这里不考虑Call
                     curMF.setUseLr();
                     continue;
                 }

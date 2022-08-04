@@ -1,7 +1,7 @@
 package lir;
 
 import lir.Arm.Reg;
-import lir.Machine.McFunction;
+import lir.MC.McFunction;
 
 import java.io.PrintStream;
 
@@ -13,7 +13,7 @@ import static lir.Arm.Regs.GPRs.*;
 public class MICall extends MachineInst {
     public McFunction callee;
 
-    public MICall(McFunction callee, Machine.Block insertAtEnd) {
+    public MICall(McFunction callee, MC.Block insertAtEnd) {
         super(Tag.Call, insertAtEnd);
         this.callee = callee;
         genDefUse();

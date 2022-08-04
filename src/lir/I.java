@@ -2,12 +2,12 @@ package lir;
 
 import java.io.PrintStream;
 
-import static lir.Machine.Program.encode_imm;
-import static lir.Machine.Operand;
+import static backend.CodeGen.immCanCode;
+import static lir.MC.Operand;
 import static mir.type.DataType.I32;
 
 public class I extends MachineInst {
-    public I(Tag tag, Machine.Block insertAtEnd) {
+    public I(Tag tag, MC.Block insertAtEnd) {
         super(tag, insertAtEnd);
     }
 
@@ -20,13 +20,13 @@ public class I extends MachineInst {
     }
 
     public static class Ldr extends I implements MachineMemInst, ActualDefMI {
-        public Ldr(Operand data, Operand addr, Machine.Block insertAtEnd) {
+        public Ldr(Operand data, Operand addr, MC.Block insertAtEnd) {
             super(Tag.Ldr, insertAtEnd);
             defOpds.add(data);
             useOpds.add(addr);
         }
 
-        public Ldr(Operand data, Operand addr, Operand offset, Machine.Block insertAtEnd) {
+        public Ldr(Operand data, Operand addr, Operand offset, MC.Block insertAtEnd) {
             super(Tag.Ldr, insertAtEnd);
             defOpds.add(data);
             useOpds.add(addr);
@@ -63,7 +63,7 @@ public class I extends MachineInst {
         }
 
         @Override
-        public void output(PrintStream os, Machine.McFunction f) {
+        public void output(PrintStream os, MC.McFunction f) {
             os.println("\t" + this);
         }
 
@@ -95,14 +95,14 @@ public class I extends MachineInst {
             return cond;
         }
 
-        public Str(Operand data, Operand addr, Machine.Block insertAtEnd) {
+        public Str(Operand data, Operand addr, MC.Block insertAtEnd) {
             super(Tag.Str, insertAtEnd);
             useOpds.add(data);
             useOpds.add(addr);
             // useOpds.add(new Operand(I32, 0));
         }
 
-        public Str(Operand data, Operand addr, Operand offset, Machine.Block insertAtEnd) {
+        public Str(Operand data, Operand addr, Operand offset, MC.Block insertAtEnd) {
             super(Tag.Str, insertAtEnd);
             useOpds.add(data);
             useOpds.add(addr);
@@ -142,7 +142,7 @@ public class I extends MachineInst {
         }
 
         @Override
-        public void output(PrintStream os, Machine.McFunction f) {
+        public void output(PrintStream os, MC.McFunction f) {
             os.println("\t" + this);
         }
 
@@ -159,17 +159,17 @@ public class I extends MachineInst {
     }
 
     public static class Ret extends I {
-        public Ret(Arm.Reg retReg, Machine.Block insertAtEnd) {
+        public Ret(Arm.Reg retReg, MC.Block insertAtEnd) {
             super(Tag.IRet, insertAtEnd);
             useOpds.add(retReg);
         }
 
-        public Ret(Machine.Block insertAtEnd) {
+        public Ret(MC.Block insertAtEnd) {
             super(Tag.IRet, insertAtEnd);
         }
 
         @Override
-        public void output(PrintStream os, Machine.McFunction mf) {
+        public void output(PrintStream os, MC.McFunction mf) {
             // TODO vpush我觉得可能八字节对齐比较好, 所以vpop必须在后面, 这样不能先pop lr再vpop
             os.println("\tbx\tlr");
         }
@@ -181,13 +181,13 @@ public class I extends MachineInst {
     }
 
     public static class Mov extends I implements MachineMove, ActualDefMI {
-        public Mov(Operand dOpd, Operand sOpd, Machine.Block insertAtEnd) {
+        public Mov(Operand dOpd, Operand sOpd, MC.Block insertAtEnd) {
             super(Tag.IMov, insertAtEnd);
             defOpds.add(dOpd);
             useOpds.add(sOpd);
         }
 
-        public Mov(Operand dOpd, Operand sOpd, Arm.Shift shift, Machine.Block insertAtEnd) {
+        public Mov(Operand dOpd, Operand sOpd, Arm.Shift shift, MC.Block insertAtEnd) {
             super(Tag.IMov, insertAtEnd);
             defOpds.add(dOpd);
             useOpds.add(sOpd);
@@ -209,7 +209,7 @@ public class I extends MachineInst {
             useOpds.add(sOpd);
         }
 
-        public Mov(Arm.Cond cond, Operand dOpd, Operand sOpd, Machine.Block insertAtEnd) {
+        public Mov(Arm.Cond cond, Operand dOpd, Operand sOpd, MC.Block insertAtEnd) {
             super(Tag.IMov, insertAtEnd);
             this.cond = cond;
             defOpds.add(dOpd);
@@ -217,7 +217,7 @@ public class I extends MachineInst {
         }
 
         @Override
-        public void output(PrintStream os, Machine.McFunction f) {
+        public void output(PrintStream os, MC.McFunction f) {
             Operand src = getSrc();
             if (src.type == Operand.Type.Immediate) {
                 if (src.isGlobPtr()) {
@@ -226,7 +226,7 @@ public class I extends MachineInst {
                     //os.println("\tldr" + cond + "\t" + getDst().toString() + ",=" + src.getGlob());
                 } else {
                     int imm = getSrc().value;
-                    if (encode_imm(imm)) {
+                    if (immCanCode(imm)) {
                         os.println("\tmov" + cond + "\t" + getDst().toString() + ",\t#" + imm);
                     } else {
                         int lowImm = (imm << 16) >>> 16;
@@ -277,7 +277,7 @@ public class I extends MachineInst {
                     //os.append("\tldr" + cond + "\t" + getDst().toString() + ",=" + src.getGlob());
                 } else {
                     int imm = getSrc().value;
-                    if (encode_imm(imm)) {
+                    if (immCanCode(imm)) {
                         os.append("mov" + cond + "\t" + getDst().toString() + ",\t#" + imm);
                     } else {
                         int lowImm = (imm << 16) >>> 16;
@@ -327,14 +327,14 @@ public class I extends MachineInst {
             useOpds.add(rOpd);
         }
 
-        public Binary(Tag tag, Operand dOpd, Operand lOpd, Operand rOpd, Machine.Block insertAtEnd) {
+        public Binary(Tag tag, Operand dOpd, Operand lOpd, Operand rOpd, MC.Block insertAtEnd) {
             super(tag, insertAtEnd);
             defOpds.add(dOpd);
             useOpds.add(lOpd);
             useOpds.add(rOpd);
         }
 
-        public Binary(Tag tag, Machine.Operand dOpd, Machine.Operand lOpd, Machine.Operand rOpd, Arm.Shift shift, Machine.Block insertAtEnd) {
+        public Binary(Tag tag, MC.Operand dOpd, MC.Operand lOpd, MC.Operand rOpd, Arm.Shift shift, MC.Block insertAtEnd) {
             super(tag, insertAtEnd);
             defOpds.add(dOpd);
             useOpds.add(lOpd);
@@ -366,7 +366,7 @@ public class I extends MachineInst {
         }
 
         @Override
-        public void output(PrintStream os, Machine.McFunction f) {
+        public void output(PrintStream os, MC.McFunction f) {
             String tag_str = "\t" + switch (tag) {
                 case Mul -> "mul";
                 case Add -> "add";
@@ -402,7 +402,7 @@ public class I extends MachineInst {
 
     public static class Cmp extends I implements MachineInst.Compare {
 
-        public Cmp(Operand lOpd, Operand rOpd, Machine.Block insertAtEnd) {
+        public Cmp(Operand lOpd, Operand rOpd, MC.Block insertAtEnd) {
             super(Tag.ICmp, insertAtEnd);
             useOpds.add(lOpd);
             useOpds.add(rOpd);
@@ -417,7 +417,7 @@ public class I extends MachineInst {
         }
 
         @Override
-        public void output(PrintStream os, Machine.McFunction f) {
+        public void output(PrintStream os, MC.McFunction f) {
             os.println("\tcmp\t" + getLOpd() + "," + getROpd());
         }
 
@@ -470,7 +470,7 @@ public class I extends MachineInst {
 
         public Fma(boolean add, boolean sign,
                    Operand dst, Operand lOpd, Operand rOpd, Operand acc,
-                   Machine.Block insertAtEnd) {
+                   MC.Block insertAtEnd) {
             //dst = acc +(-) lhs * rhs
             super(Tag.FMA, insertAtEnd);
             this.add = add;
@@ -482,7 +482,7 @@ public class I extends MachineInst {
         }
 
         @Override
-        public void output(PrintStream os, Machine.McFunction f) {
+        public void output(PrintStream os, MC.McFunction f) {
             if (sign) {
                 os.print("\tsm");
             }

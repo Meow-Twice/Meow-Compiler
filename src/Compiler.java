@@ -7,7 +7,7 @@ import frontend.lexer.Token;
 import frontend.lexer.TokenList;
 import frontend.syntax.Ast;
 import frontend.syntax.Parser;
-import lir.Machine;
+import lir.MC;
 import manage.Manager;
 import midend.MidEndRunner;
 import midend.RemovePhi;
@@ -83,7 +83,7 @@ public class Compiler {
             //Manager.MANAGER.outputLLVM();
             CodeGen.CODEGEN.gen();
             System.err.println("code gen end, Use Time: " + String.valueOf(((double) System.currentTimeMillis() - start) / 1000) + "s");
-            Machine.Program p = Machine.Program.PROGRAM;
+            MC.Program p = MC.Program.PROGRAM;
             // 为 MI Descriptor 设置输入输出流
             // MIDescriptor.MI_DESCRIPTOR.setInput(arg.interpretInputStream);
             // MIDescriptor.MI_DESCRIPTOR.setOutput(arg.interpretOutputStream);

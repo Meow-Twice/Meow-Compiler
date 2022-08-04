@@ -1,7 +1,7 @@
 package backend;
 
 import lir.*;
-import lir.Machine.Operand;
+import lir.MC.Operand;
 import lir.Arm.Regs.*;
 import util.ILinkNode;
 
@@ -16,14 +16,14 @@ import static lir.MachineInst.Tag.*;
 import static mir.type.DataType.I32;
 
 public class PeepHole {
-    final Machine.Program p;
+    final MC.Program p;
 
-    public PeepHole(Machine.Program p) {
+    public PeepHole(MC.Program p) {
         this.p = p;
     }
 
     public void run() {
-        for (Machine.McFunction mf : p.funcList) {
+        for (MC.McFunction mf : p.funcList) {
             boolean unDone = true;
             while (unDone) {
                 unDone = oneStage(mf);
@@ -33,12 +33,12 @@ public class PeepHole {
         }
     }
 
-    Machine.Block curMB = null;
+    MC.Block curMB = null;
 
     // 注意不能用unDone当条件来判断是否remove之类, 可能是上一次结果的残留
-    public boolean oneStage(Machine.McFunction mf) {
+    public boolean oneStage(MC.McFunction mf) {
         boolean unDone = false;
-        for (Machine.Block mb : mf.mbList) {
+        for (MC.Block mb : mf.mbList) {
             curMB = mb;
             for (ILinkNode i = mb.miList.getBegin(); !i.equals(mb.miList.tail); i = i.getNext()) {
                 MachineInst mi = (MachineInst) i;
@@ -172,9 +172,9 @@ public class PeepHole {
     }
 
 
-    private boolean twoStage(Machine.McFunction mf) {
+    private boolean twoStage(MC.McFunction mf) {
         boolean unDone = false;
-        for (Machine.Block mb : mf.mbList) {
+        for (MC.Block mb : mf.mbList) {
             curMB = mb;
             mb.succMBs = new ArrayList<>();
             mb.liveUseSet = new HashSet<>();
@@ -196,7 +196,7 @@ public class PeepHole {
 
         // HashMap<Operand, MachineInst> lastDefMI = new HashMap<>();
         // HashMap<MachineInst, MachineInst> defMI2lastUserMI = new HashMap<>();
-        for (Machine.Block mb : mf.mbList) {
+        for (MC.Block mb : mf.mbList) {
             lastGPRsDefMI = new MachineInst[GPRs.values().length];
             lastFPRsDefMI = new MachineInst[FPRs.values().length];
             for (MachineInst mi : mb.miList) {

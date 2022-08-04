@@ -7,15 +7,15 @@ import static backend.CodeGen.sParamCnt;
 import static lir.Arm.Regs.GPRs.*;
 
 public class StackCtl extends MachineInst {
-    public StackCtl(Tag tag, Machine.Block mb) {
+    public StackCtl(Tag tag, MC.Block mb) {
         super(tag, mb);
     }
 
     public static class Push extends StackCtl {
-        Machine.McFunction savedRegsMf;
-        Machine.Block mb;
+        MC.McFunction savedRegsMf;
+        MC.Block mb;
 
-        public Push(Machine.McFunction savedRegsMf, Machine.Block mb) {
+        public Push(MC.McFunction savedRegsMf, MC.Block mb) {
             super(Tag.Push, mb);
             this.savedRegsMf = savedRegsMf;
             this.mb = mb;
@@ -43,16 +43,16 @@ public class StackCtl extends MachineInst {
         }
 
         @Override
-        public void output(PrintStream os, Machine.McFunction f) {
+        public void output(PrintStream os, MC.McFunction f) {
             os.println(this);
         }
     }
 
     public static class Pop extends MachineInst {
-        Machine.McFunction savedRegsMf;
-        Machine.Block mb;
+        MC.McFunction savedRegsMf;
+        MC.Block mb;
 
-        public Pop(Machine.McFunction savedRegsMf, Machine.Block mb) {
+        public Pop(MC.McFunction savedRegsMf, MC.Block mb) {
             super(Tag.Pop, mb);
             this.savedRegsMf = savedRegsMf;
             this.mb = mb;
@@ -82,24 +82,24 @@ public class StackCtl extends MachineInst {
         }
 
         @Override
-        public void output(PrintStream os, Machine.McFunction f) {
+        public void output(PrintStream os, MC.McFunction f) {
             os.println(this);
         }
     }
 
 
     public static class VPush extends StackCtl {
-        Machine.McFunction savedRegsMf;
-        Machine.Block mb;
+        MC.McFunction savedRegsMf;
+        MC.Block mb;
 
-        public VPush(Machine.McFunction savedRegsMf, Machine.Block mb) {
+        public VPush(MC.McFunction savedRegsMf, MC.Block mb) {
             super(Tag.Push, mb);
             this.savedRegsMf = savedRegsMf;
             this.mb = mb;
         }
 
         @Override
-        public void output(PrintStream os, Machine.McFunction f) {
+        public void output(PrintStream os, MC.McFunction f) {
             os.println(this);
         }
 
@@ -146,10 +146,10 @@ public class StackCtl extends MachineInst {
     }
 
     public static class VPop extends MachineInst {
-        Machine.McFunction savedRegsMf;
-        Machine.Block mb;
+        MC.McFunction savedRegsMf;
+        MC.Block mb;
 
-        public VPop(Machine.McFunction savedRegsMf, Machine.Block mb) {
+        public VPop(MC.McFunction savedRegsMf, MC.Block mb) {
             super(Tag.Pop, mb);
             this.savedRegsMf = savedRegsMf;
             this.mb = mb;
@@ -157,7 +157,7 @@ public class StackCtl extends MachineInst {
 
 
         @Override
-        public void output(PrintStream os, Machine.McFunction f) {
+        public void output(PrintStream os, MC.McFunction f) {
             os.println(this);
         }
 

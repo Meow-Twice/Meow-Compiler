@@ -4,7 +4,7 @@ stages:
 test:
   stage: test
   tags:
-    - sysy
+    - sysy-ci
   script:
     - rm -r ${SRC_PATH}/* && cp -r src/* ${SRC_PATH}/
     - bash ${CI_SCRIPT}

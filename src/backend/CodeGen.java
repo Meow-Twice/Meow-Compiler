@@ -727,6 +727,10 @@ public class CodeGen {
                 new I.Binary(Add, tmp, lVR, sgn, new Arm.Shift(Arm.ShiftType.Lsr, bitsOfInt - sh), curMB);
                 // quo = tmp >>> sh
                 new I.Mov(dVR, tmp, new Arm.Shift(Arm.ShiftType.Asr, sh), curMB);
+                // 除数为负，结果取反
+                if (imm < 0) {
+                    new I.Binary(Rsb, dVR, dVR, new Operand(I32, 0), curMB);
+                }
             } else {
                 /*
                  * Reference: https://github.com/ridiculousfish/libdivide
@@ -776,6 +780,7 @@ public class CodeGen {
                     }
                 }
                 // {magic, more} got
+                System.err.printf("divopt: magic = %d, more = %d\n", magic, more);
                 int sh = more & s32ShiftMask;
                 int mask = (1 << sh), sign = ((more & (0x80)) != 0) ? -1 : 0, isPower2 = (magic == 0) ? 1 : 0;
                 // libdivide_s32_branchfree_do => process in runtime, use hardware instruction

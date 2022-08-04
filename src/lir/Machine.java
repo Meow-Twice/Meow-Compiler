@@ -482,6 +482,7 @@ public class Machine {
         public HashSet<I.Mov> iMovSet = new HashSet<>();
         public HashSet<V.Mov> vMovSet = new HashSet<>();
         // public Arm.Reg reg;
+        // public Arm.Reg reg;
         public Arm.Regs reg;
         // private static Arm.Reg[] regPool = new Arm.Reg[Arm.Regs.GPRs.values().length + Arm.Regs.FPRs.values().length];
 
@@ -493,20 +494,26 @@ public class Machine {
             adjOpdSet.add(v);
         }
 
-        public boolean is_I_PreColored() {
-            return type == PreColored && dataType == I32;
+        // public boolean is_I_PreColored() {
+        //     return type == PreColored && dataType == I32;
+        // }
+
+        public boolean isPreColored(DataType dataType) {
+            return type == PreColored && this.dataType == dataType;
         }
 
-        public boolean is_F_PreColored() {
-            return type == PreColored && dataType == F32;
-        }
+        // public boolean need_I_Color() {
+        //     return (type == PreColored || type == Virtual) && dataType == I32;
+        // }
+        //
+        // public boolean need_F_Color() {
+        //     return (type == PreColored || type == FVirtual) && dataType == F32;
+        // }
 
-        public boolean need_I_Color() {
-            return (type == PreColored || type == Virtual) && dataType == I32;
-        }
-
-        public boolean need_F_Color() {
-            return (type == PreColored || type == FVirtual) && dataType == F32;
+        public boolean needColor(DataType dataType) {
+            if (!(dataType == this.dataType)) return false;
+            if (dataType == I32) return (type == PreColored || type == Virtual);
+            else return (type == PreColored || type == FVirtual);
         }
 
         public boolean isAllocated() {
@@ -566,12 +573,12 @@ public class Machine {
         }
 
         public boolean isPureImmWithOutGlob(DataType dataType) {
-            if(this instanceof Arm.Glob) return false;
+            if (this instanceof Arm.Glob) return false;
             return type == Immediate && this.dataType == dataType;
         }
 
         public boolean isPureImmWithOutGlob(DataType i32, DataType f32) {
-            if(this instanceof Arm.Glob) return false;
+            if (this instanceof Arm.Glob) return false;
             return (type == Immediate && dataType == i32) || (type == FConst && dataType == f32);
         }
 

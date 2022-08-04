@@ -14,6 +14,7 @@ public class FPRegAllocator extends RegAllocator {
 
     public FPRegAllocator() {
         dataType = F32;
+        K = SK;
         if (!CenterControl._FAST_REG_ALLOCATE) {
             SPILL_MAX_LIVE_INTERVAL = SK;
         }
@@ -51,46 +52,6 @@ public class FPRegAllocator extends RegAllocator {
     }
 
     /***
-     * 结点, 工作表, 集合和栈的数据结构.
-     * 下面的表和集合总是互不相交的, 并且每个结点斗数与一个且只属于一个集合或表
-     */
-
-    /**
-     * 欲从图中删除的结点集
-     * 初始为低度数的传送(mv)无关的结点集, 实际上在select_spill的时候会把下一轮需要挪出去的点放到这里
-     */
-    HashSet<Operand> simplifyWorkSet = new HashSet<>();
-
-
-    /**
-     * 低度数的传送有关的结点
-     */
-    HashSet<Operand> freezeWorkSet = new HashSet<>();
-
-    /**
-     * 高度数的结点
-     */
-    HashSet<Operand> spillWorkSet = new HashSet<>();
-
-    /**
-     * 在本轮中要被溢出的结点集合, 初始为空
-     */
-    HashSet<Operand> spilledNodeSet = new HashSet<>();
-
-    /**
-     * 已合并的寄存器集合. 当合并 u <- v 时, 将 v 加入到这个集合中, u 则被放回到某个工作表中
-     */
-    HashSet<Operand> coalescedNodeSet = new HashSet<>();
-    /**
-     * 已成功着色的结点集合
-     */
-    ArrayList<Operand> coloredNodeList = new ArrayList<>();
-    /**
-     * 包含从图中删除的临时寄存器的栈
-     */
-    Stack<Operand> selectStack = new Stack<>();
-
-    /***
      * 传送指令的数据结构, 下面给出了5个由传送指令组成的集合,
      * 每一条传送指令都只在其中的一个集合中(执行完Build之后直到Main结束)
      */
@@ -98,17 +59,17 @@ public class FPRegAllocator extends RegAllocator {
     /**
      * 已经合并的传送指令的集合
      */
-    HashSet<V.Mov> coalescedMoveSet = new HashSet<>();
+    HashSet<V.Mov> coalescedVMovSet = new HashSet<>();
 
     /**
      * src 和 dst相冲突的传送指令集合
      */
-    HashSet<V.Mov> constrainedMoveSet = new HashSet<>();
+    HashSet<V.Mov> constrainedVMovSet = new HashSet<>();
 
     /**
      * 不再考虑合并的传送指令集合
      */
-    HashSet<V.Mov> frozenMoveSet = new HashSet<>();
+    HashSet<V.Mov> frozenVMovSet = new HashSet<>();
 
     /**
      * 有可能合并的传送指令, 当结点x从高度数结点变为低度数结点时,
@@ -131,28 +92,17 @@ public class FPRegAllocator extends RegAllocator {
     HashSet<V.Mov> activeVMovSet = new HashSet<>();
 
     public void AllocateRegister(Machine.Program program) {
-        for (Machine.McFunction mcFunc : program.funcList) {
-            curMF = mcFunc;
+        for (Machine.McFunction mf : program.funcList) {
+            curMF = mf;
             while (true) {
-                livenessAnalysis(mcFunc);
-                adjSet = new HashSet<>();
-                // AdjPair.cnt = 0;
-                simplifyWorkSet = new HashSet<>();
-                freezeWorkSet = new HashSet<>();
-                spillWorkSet = new HashSet<>();
-                spilledNodeSet = new HashSet<>();
-                coloredNodeList = new ArrayList<>();
-                selectStack = new Stack<>();
-                coalescedNodeSet = new HashSet<>();
-                coalescedMoveSet = new HashSet<>();
-                constrainedMoveSet = new HashSet<>();
-                frozenMoveSet = new HashSet<>();
+                turnInit(mf);
+                coalescedVMovSet = new HashSet<>();
+                constrainedVMovSet = new HashSet<>();
+                frozenVMovSet = new HashSet<>();
                 workListVMovSet = new HashSet<>();
                 activeVMovSet = new HashSet<>();
 
-                // rk = Manager.MANAGER.RK;
-                // sk = Manager.MANAGER.SK;
-                for (int i = 0; i < SK; i++) {
+                for (int i = 0; i < K; i++) {
                     Arm.Reg.getS(i).degree = MAX_DEGREE;
                 }
                 // for (int i = 0; i < sk; i++) {
@@ -167,7 +117,7 @@ public class FPRegAllocator extends RegAllocator {
                 // makeWorkList
                 for (Operand vr : curMF.sVrList) {
                     // initial
-                    if (vr.degree >= SK) {
+                    if (vr.degree >= K) {
                         spillWorkSet.add(vr);
                     } else if (nodeMoves(vr).size() > 0) {
                         freezeWorkSet.add(vr);
@@ -409,8 +359,6 @@ public class FPRegAllocator extends RegAllocator {
                 MachineInst mi = (MachineInst) iNode;
                 if (mi.isComment()) continue;
                 // TODO : 此时考虑了Call
-                ArrayList<Operand> defs = mi.defOpds;
-                ArrayList<Operand> uses = mi.useOpds;
                 logOut(mi + "\tlive begin:\t" + live);
                 if (mi.isVMov()) {
                     V.Mov vmov = (V.Mov) mi;
@@ -425,69 +373,9 @@ public class FPRegAllocator extends RegAllocator {
                     }
                 }
 
-                if (defs.size() == 1) {
-                    Operand def = defs.get(0);
-                    // 构建冲突图
-                    if (def.need_F_Color()) {
-                        live.add(def);
-                        // 该mi的def与当前所有活跃寄存器以及该指令的其他def均冲突
-                        for (Operand l : live) {
-                            addEdge(l, def);
-                        }
-                        def.loopCounter += mb.bb.getLoopDep();
-                    }
-                    live.remove(def);
-                } else if (defs.size() > 1) {
-                    // 一个指令的不同def也会相互冲突
-                    for (Operand def : defs) {
-                        if (def.need_F_Color()) {
-                            live.add(def);
-                        }
-                    }
-                    // defs.stream().filter(Operand::needColor).forEach(live::add);
-
-                    // 构建冲突图
-                    for (Operand def : defs) {
-                        if (def.need_F_Color()) {
-                            // 该mi的def与当前所有活跃寄存器以及该指令的其他def均冲突
-                            for (Operand l : live) {
-                                addEdge(l, def);
-                            }
-                        }
-                    }
-                    // defs.stream().filter(Operand::needColor).forEach(def -> live.forEach(l -> addEdge(l, def)));
-
-                    for (Operand def : defs) {
-                        if (def.need_F_Color()) {
-                            live.remove(def);
-                            def.loopCounter += mb.bb.getLoopDep();
-                        }
-                    }
-                }
-
-                // 使用的虚拟或预着色寄存器为活跃寄存器
-                for (Operand use : uses) {
-                    if (use.need_F_Color()) {
-                        live.add(use);
-                        use.loopCounter += mb.bb.getLoopDep();
-                    }
-                }
+                dealDefUse(live, mi, mb);
             }
         }
-    }
-
-    /**
-     * 获取有效冲突
-     * x.adjOpdSet \ (selectStack u coalescedNodeSet)
-     * 对于o, 除在selectStackList(冲突图中已删除的结点list), 和已合并的mov的src(dst在其他工作表中)
-     *
-     * @param x
-     * @return x.adjOpdSet \ (selectStack u coalescedNodeSet)
-     */
-    private HashSet<Operand> adjacent(Operand x) {
-        HashSet<Operand> validConflictOpdSet = new HashSet<>(x.adjOpdSet);
-        validConflictOpdSet.removeIf(r -> selectStack.contains(r) || coalescedNodeSet.contains(r));
-        return validConflictOpdSet;
     }
 
     /**
@@ -544,7 +432,7 @@ public class FPRegAllocator extends RegAllocator {
      */
     private void decrementDegree(Operand x) {
         x.degree--;
-        if (x.degree == SK - 1) {
+        if (x.degree == K - 1) {
             for (V.Mov mv : nodeMoves(x)) {
                 // 考虑 x 关联的可能合并的 move
                 if (activeVMovSet.contains(mv)) {
@@ -566,7 +454,7 @@ public class FPRegAllocator extends RegAllocator {
             }
             // enableMoves(x);
             // TODO: 虎书上这里写的是remove
-            // TODO 在 combine 的时候, v 和 u 虽然合并了, 对 v 的冲突邻结点做 decrementDegree, 但 v 的实际冲突邻结点个数仍然是 SK 个, 那为什么还要有度这个概念呢
+            // TODO 在 combine 的时候, v 和 u 虽然合并了, 对 v 的冲突邻结点做 decrementDegree, 但 v 的实际冲突邻结点个数仍然是 K 个, 那为什么还要有度这个概念呢
             spillWorkSet.add(x);
             if (nodeMoves(x).size() > 0) {
                 freezeWorkSet.add(x);
@@ -577,23 +465,13 @@ public class FPRegAllocator extends RegAllocator {
     }
 
     /**
-     * 当 move y, x 已被合并, x.alias = y, x 被放入 coalescedNodeSet 中
-     */
-    private Operand getAlias(Operand x) {
-        while (coalescedNodeSet.contains(x)) {
-            x = x.getAlias();
-        }
-        return x;
-    }
-
-    /**
      * 当 x 需要被染色, x 并不与 move 相关, x 的度 <= k - 1
      * 低度数传送有关结点集 freezeWorkSet 删除 x , 且低度数传送无关结点集 simplifyWorkSet 添加 x
      *
      * @param x
      */
     public void addWorkList(Operand x) {
-        if (!x.is_F_PreColored() && (nodeMoves(x).size() == 0) && x.degree < SK) {
+        if (!x.isPreColored(dataType) && (nodeMoves(x).size() == 0) && x.degree < K) {
             freezeWorkSet.remove(x);
             simplifyWorkSet.add(x);
             logOut(String.format("%s\t from freezeWorkSet to simplifyWorkSet", x));
@@ -603,7 +481,7 @@ public class FPRegAllocator extends RegAllocator {
     /**
      * 合并move u <- v
      * 1. u 预着色, v 是虚拟寄存器, 且 v 的冲突邻接点均满足: 要么为低度数结点, 要么预着色, 要么已经与 u 邻接
-     * 2. u, v 都不是预着色, 且两者的邻接冲突结点的高结点个数加起来也不超过 SK - 1 个
+     * 2. u, v 都不是预着色, 且两者的邻接冲突结点的高结点个数加起来也不超过 K - 1 个
      */
 
     public void combine(Operand u, Operand v) {
@@ -629,7 +507,7 @@ public class FPRegAllocator extends RegAllocator {
         //     decrementDegree(adj);
         // });
         // 当 u 从(合并前的)低度数结点成为(合并后的)高度数结点, 则将其从freezeWorkSet转移到 spillWorkSet
-        if (u.degree >= SK && freezeWorkSet.contains(u)) {
+        if (u.degree >= K && freezeWorkSet.contains(u)) {
             freezeWorkSet.remove(u);
             spillWorkSet.add(u);
         }
@@ -642,7 +520,7 @@ public class FPRegAllocator extends RegAllocator {
         // u <- v
         Operand u = getAlias(mv.getDst());
         Operand v = getAlias(mv.getSrc());
-        if (v.is_F_PreColored()) {
+        if (v.isPreColored(dataType)) {
             // 冲突图是无向图, 这里避免把mv归到受限一类而尽可能让v不是预着色的
             Operand tmp = u;
             u = v;
@@ -651,13 +529,13 @@ public class FPRegAllocator extends RegAllocator {
         logOut(String.format("workListVMovSet.remove(%s)", mv));
         workListVMovSet.remove(mv);
         if (u.equals(v)) {
-            coalescedMoveSet.add(mv);
+            coalescedVMovSet.add(mv);
             logOut(String.format("coalescedMoveSet.add(%s)", mv));
             addWorkList(u);
-        } else if (v.is_F_PreColored() || adjSet.contains(new AdjPair(u, v))) {
+        } else if (v.isPreColored(dataType) || adjSet.contains(new AdjPair(u, v))) {
             // 这里似乎必须用adjSet判断
             // 两边都是预着色则不可能合并, 因为上面已经在 move u, v 的情况下将 u, v 互换, 如果v仍然是预着色说明u, v均为预着色
-            constrainedMoveSet.add(mv);
+            constrainedVMovSet.add(mv);
             logOut(String.format("constrainedMoveSet.add(%s)", mv));
             addWorkList(u);
             addWorkList(v);
@@ -671,7 +549,7 @@ public class FPRegAllocator extends RegAllocator {
             //      */
             //     boolean flag = true;
             //     for (Operand adj : adjacent(v)) {
-            //         if (adj.degree >= SK && !adj.is_F_PreColored() && !adjSet.contains(new AdjPair(adj, u))) {
+            //         if (adj.degree >= K && !adj.is_F_PreColored() && !adjSet.contains(new AdjPair(adj, u))) {
             //             // adjSet.contains(new AdjPair(adj, v))这个感觉可以改成 v.adjOpdSet.contains(adj)
             //             flag = false;
             //         }
@@ -691,14 +569,14 @@ public class FPRegAllocator extends RegAllocator {
             //     // union.removeIf(r -> selectStack.contains(r) || coalescedNodeSet.contains(r));
             //     int cnt = 0;
             //     for (Operand x : union) {
-            //         if (!selectStack.contains(x) && !coalescedNodeSet.contains(x) && x.degree >= SK) {
+            //         if (!selectStack.contains(x) && !coalescedNodeSet.contains(x) && x.degree >= K) {
             //             // 统计union中的高度数结点个数
-            //             // if (x.degree >= SK) {
+            //             // if (x.degree >= K) {
             //             cnt++;
             //         }
             //     }
-            //     // 如果结点个数 < SK 个表示未改变冲突图的可着色性
-            //     if (cnt < SK) {
+            //     // 如果结点个数 < K 个表示未改变冲突图的可着色性
+            //     if (cnt < K) {
             //         coalescedMoveSet.add(mv);
             //         combine(u, v);
             //         addWorkList(u);
@@ -706,40 +584,15 @@ public class FPRegAllocator extends RegAllocator {
             //         activeVMovSet.add(mv);
             //     }
             // }
-            if ((u.is_F_PreColored() && adjOk(v, u))
-                    || (!u.is_F_PreColored() && conservative(adjacent(u), adjacent(v)))) {
-                coalescedMoveSet.add(mv);
+            if ((u.isPreColored(dataType) && adjOk(v, u))
+                    || (!u.isPreColored(dataType) && conservative(adjacent(u), adjacent(v)))) {
+                coalescedVMovSet.add(mv);
                 combine(u, v);
                 addWorkList(u);
             } else {
                 activeVMovSet.add(mv);
             }
         }
-    }
-
-    boolean ok(Operand t, Operand r) {
-        return t.degree < SK || t.is_F_PreColored() || adjSet.contains(new AdjPair(t, r));
-    }
-
-    boolean adjOk(Operand v, Operand u) {
-        for (var t : adjacent(v)) {
-            if (!ok(t, u)) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private boolean conservative(HashSet<Operand> adjacent, HashSet<Operand> adjacent1) {
-        HashSet<Operand> tmp = new HashSet<>(adjacent);
-        tmp.addAll(adjacent1);
-        int cnt = 0;
-        for (Operand x : tmp) {
-            if (x.degree >= SK) {
-                cnt++;
-            }
-        }
-        return cnt < SK;
     }
 
     /**
@@ -762,7 +615,7 @@ public class FPRegAllocator extends RegAllocator {
                 workListVMovSet.remove(mv);
             }
             logOut(mv + "\t: activeVMovSet, workListVMovSet -> frozenMoveSet");
-            frozenMoveSet.add(mv);
+            frozenVMovSet.add(mv);
 
             // 这个很怪, 跟书上不一样
             // 选择 move 中非 x 方结点 v
@@ -780,7 +633,7 @@ public class FPRegAllocator extends RegAllocator {
             */
 
             // 如果 v 不是传送相关的低度数结点, 则将 v 从低度数传送有关结点集 freezeWorkSet 挪到低度数传送无关结点集 simplifyWorkSet
-            if (nodeMoves(v).size() == 0 && v.degree < SK) {
+            if (nodeMoves(v).size() == 0 && v.degree < K) {
                 // nodeMoves(v) = v.vMovSet ∩ (activeVMovSet ∪ workListVMovSet)
                 freezeWorkSet.remove(v);
                 simplifyWorkSet.add(v);
@@ -794,10 +647,10 @@ public class FPRegAllocator extends RegAllocator {
         HashMap<Operand, Operand> colorMap = new HashMap<>();
         while (selectStack.size() > 0) {
             Operand toBeColored = selectStack.pop();
-            assert !toBeColored.is_F_PreColored() && !toBeColored.isAllocated();
+            assert !toBeColored.isPreColored(dataType) && !toBeColored.isAllocated();
             logOut("when try assign:\t" + toBeColored);
-            final TreeSet<Arm.Regs> okColorSet = new TreeSet<>(Arrays.asList(Arm.Regs.FPRs.values()).subList(0, SK));
-            // logOut("--- SK = \t"+SK);
+            final TreeSet<Arm.Regs> okColorSet = new TreeSet<>(Arrays.asList(Arm.Regs.FPRs.values()).subList(0, K));
+            // logOut("--- K = \t"+K);
 
             // 把待分配颜色的结点的邻接结点的颜色去除
             toBeColored.adjOpdSet.forEach(adj -> {
@@ -840,7 +693,7 @@ public class FPRegAllocator extends RegAllocator {
 
         for (Operand v : coalescedNodeSet) {
             Operand a = getAlias(v);
-            colorMap.put(v, a.is_F_PreColored() ? a : colorMap.get(a));
+            colorMap.put(v, a.isPreColored(dataType) ? a : colorMap.get(a));
         }
 
         for (Machine.Block mb : curMF.mbList) {

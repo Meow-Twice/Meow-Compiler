@@ -254,7 +254,7 @@ public class I extends MachineInst {
         }
 
         public boolean directColor() {
-            return getDst().need_I_Color() && getSrc().need_I_Color() && cond == Arm.Cond.Any && shift.shiftType == Arm.ShiftType.None;
+            return getDst().needColor(I32) && getSrc().needColor(I32) && cond == Arm.Cond.Any && shift.shiftType == Arm.ShiftType.None;
         }
 
         public Operand getSrc() {

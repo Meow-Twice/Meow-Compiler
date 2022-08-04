@@ -7,6 +7,7 @@ import java.util.ArrayList;
 
 import static lir.MachineInst.Tag.*;
 import static lir.Machine.Operand;
+import static mir.type.DataType.F32;
 import static mir.type.DataType.I32;
 
 public class V extends MachineInst {
@@ -232,7 +233,7 @@ public class V extends MachineInst {
         }
 
         public boolean directColor() {
-            return getDst().need_F_Color() && getSrc().need_F_Color() && cond == Arm.Cond.Any && shift.shiftType == Arm.ShiftType.None;
+            return getDst().needColor(F32) && getSrc().needColor(F32) && cond == Arm.Cond.Any && shift.shiftType == Arm.ShiftType.None;
         }
     }
 

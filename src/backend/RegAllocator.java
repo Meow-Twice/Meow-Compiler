@@ -8,6 +8,7 @@ import util.ILinkNode;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Objects;
+import java.util.Stack;
 
 import static lir.Arm.Regs.GPRs.r11;
 import static lir.Arm.Regs.GPRs.sp;
@@ -19,14 +20,57 @@ public class RegAllocator {
 
     protected static final boolean DEBUG_STDIN_OUT = false;
 
-    protected int RK = 12;
+    protected int K;
+    protected final int RK = 12;
     // TODO 尝试将sp直接设为Allocated或者不考虑sp add或sub指令
-    protected int SK = 32;
+    protected final int SK = 32;
     protected DataType dataType;
 
     protected int SPILL_MAX_LIVE_INTERVAL = 1;
     protected final Arm.Reg rSP = Arm.Reg.getR(sp);
     protected int MAX_DEGREE = Integer.MAX_VALUE >> 2;
+
+
+    /***
+     * 结点, 工作表, 集合和栈的数据结构.
+     * 下面的表和集合总是互不相交的, 并且每个结点斗数与一个且只属于一个集合或表
+     */
+
+    /**
+     * 欲从图中删除的结点集
+     * 初始为低度数的传送(mv)无关的结点集, 实际上在select_spill的时候会把下一轮需要挪出去的点放到这里
+     */
+    protected HashSet<Operand> simplifyWorkSet = new HashSet<>();
+
+
+    /**
+     * 低度数的传送有关的结点
+     */
+    protected HashSet<Operand> freezeWorkSet = new HashSet<>();
+
+    /**
+     * 高度数的结点
+     */
+    protected HashSet<Operand> spillWorkSet = new HashSet<>();
+
+    /**
+     * 在本轮中要被溢出的结点集合, 初始为空
+     */
+    protected HashSet<Operand> spilledNodeSet = new HashSet<>();
+
+    /**
+     * 已合并的寄存器集合. 当合并 u <- v 时, 将 v 加入到这个集合中, u 则被放回到某个工作表中
+     */
+    protected HashSet<Operand> coalescedNodeSet = new HashSet<>();
+    /**
+     * 已成功着色的结点集合
+     */
+    protected ArrayList<Operand> coloredNodeList = new ArrayList<>();
+    /**
+     * 包含从图中删除的临时寄存器的栈
+     */
+    protected Stack<Operand> selectStack = new Stack<>();
+
 
     /**
      * 图中冲突边 (u, v) 的集合, 如果(u, v) in adjSet, 则(v, u) in adjSet
@@ -75,11 +119,11 @@ public class RegAllocator {
             adjSet.add(adjPair);
             adjSet.add(new AdjPair(v, u));
             logOut("\tAddEdge: " + u + "\t,\t" + v);
-            if (!u.is_I_PreColored()) {
+            if (!u.isPreColored(dataType)) {
                 u.addAdj(v);
                 u.degree++;
             }
-            if (!v.is_I_PreColored()) {
+            if (!v.isPreColored(dataType)) {
                 v.addAdj(u);
                 v.degree++;
             }
@@ -209,5 +253,122 @@ public class RegAllocator {
                 logOut(((Machine.Block) mb).getDebugLabel() + " liveOutSet:\t" + finalMb.liveOutSet.toString());
             }
         }
+    }
+
+    protected void dealDefUse(HashSet<Operand> live, MachineInst mi, Machine.Block mb) {
+        ArrayList<Operand> defs = mi.defOpds;
+        ArrayList<Operand> uses = mi.useOpds;
+        if (defs.size() == 1) {
+            Operand def = defs.get(0);
+            // 构建冲突图
+            if (def.needColor(dataType)) {
+                live.add(def);
+                // 该mi的def与当前所有活跃寄存器以及该指令的其他def均冲突
+                for (Operand l : live) {
+                    addEdge(l, def);
+                }
+                def.loopCounter += mb.bb.getLoopDep();
+            }
+            live.remove(def);
+        } else if (defs.size() > 1) {
+            // 一个指令的不同def也会相互冲突
+            for (Operand def : defs) {
+                if (def.needColor(dataType)) {
+                    live.add(def);
+                }
+            }
+            // defs.stream().filter(Operand::needColor).forEach(live::add);
+
+            // 构建冲突图
+            for (Operand def : defs) {
+                if (def.needColor(dataType)) {
+                    // 该mi的def与当前所有活跃寄存器以及该指令的其他def均冲突
+                    for (Operand l : live) {
+                        addEdge(l, def);
+                    }
+                }
+            }
+            // defs.stream().filter(Operand::needColor).forEach(def -> live.forEach(l -> addEdge(l, def)));
+
+            for (Operand def : defs) {
+                if (def.needColor(dataType)) {
+                    live.remove(def);
+                    def.loopCounter += mb.bb.getLoopDep();
+                }
+            }
+        }
+
+        // 使用的虚拟或预着色寄存器为活跃寄存器
+        for (Operand use : uses) {
+            if (use.needColor(dataType)) {
+                live.add(use);
+                use.loopCounter += mb.bb.getLoopDep();
+            }
+        }
+    }
+
+
+    /**
+     * 获取有效冲突
+     * x.adjOpdSet \ (selectStack u coalescedNodeSet)
+     * 对于o, 除在selectStackList(冲突图中已删除的结点list), 和已合并的mov的src(dst在其他工作表中)
+     *
+     * @param x
+     * @return x.adjOpdSet \ (selectStack u coalescedNodeSet)
+     */
+    protected HashSet<Operand> adjacent(Operand x) {
+        HashSet<Operand> validConflictOpdSet = new HashSet<>(x.adjOpdSet);
+        validConflictOpdSet.removeIf(r -> selectStack.contains(r) || coalescedNodeSet.contains(r));
+        return validConflictOpdSet;
+    }
+
+
+    /**
+     * 当 move y, x 已被合并, x.alias = y, x 被放入 coalescedNodeSet 中
+     */
+    protected Operand getAlias(Operand x) {
+        assertDataType(x);
+        while (coalescedNodeSet.contains(x)) {
+            x = x.getAlias();
+        }
+        return x;
+    }
+
+    protected boolean ok(Operand t, Operand r) {
+        return t.degree < K || t.isPreColored(dataType) || adjSet.contains(new AdjPair(t, r));
+    }
+
+    protected boolean adjOk(Operand v, Operand u) {
+        for (var t : adjacent(v)) {
+            if (!ok(t, u)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    protected boolean conservative(HashSet<Operand> adjacent, HashSet<Operand> adjacent1) {
+        HashSet<Operand> tmp = new HashSet<>(adjacent);
+        tmp.addAll(adjacent1);
+        int cnt = 0;
+        for (Operand x : tmp) {
+            if (x.degree >= K) {
+                cnt++;
+            }
+        }
+        return cnt < K;
+    }
+
+    protected void turnInit(Machine.McFunction mf){
+        livenessAnalysis(mf);
+        adjSet = new HashSet<>();
+        // AdjPair.cnt = 0;
+        simplifyWorkSet = new HashSet<>();
+        freezeWorkSet = new HashSet<>();
+        spillWorkSet = new HashSet<>();
+        spilledNodeSet = new HashSet<>();
+        coloredNodeList = new ArrayList<>();
+        selectStack = new Stack<>();
+        coalescedNodeSet = new HashSet<>();
     }
 }

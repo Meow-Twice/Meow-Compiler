@@ -119,6 +119,9 @@ public class FuncInline {
     }
 
     private void transCallToFunc(Function function, Instr.Call call) {
+        if (function.getBeginBB().getBeginInstr() instanceof Instr.Phi) {
+            System.err.println("phi_in_func_begin_BB");
+        }
         CloneInfoMap.clear();
         Function inFunction = call.parentBB().getFunction();
         BasicBlock beforeCallBB = call.parentBB();

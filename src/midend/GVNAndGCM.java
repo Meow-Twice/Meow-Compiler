@@ -126,7 +126,10 @@ public class GVNAndGCM {
         if (instr instanceof Instr.Call) {
             return !((Instr.Call) instr).getFunc().isExternal && ((Instr.Call) instr).getFunc().isCanGVN();
         }
-        return instr instanceof Instr.Alu || instr instanceof Instr.GetElementPtr;
+        //fptosi sitofp fcmp待加强
+        return instr instanceof Instr.Alu ||
+                instr instanceof Instr.Icmp ||
+                instr instanceof Instr.GetElementPtr;
         //return instr instanceof Instr.Alu;
     }
 
@@ -445,7 +448,24 @@ public class GVNAndGCM {
     private boolean addInstrToGVN(Instr instr) {
         //进行替换
         boolean tag = false;
-        if (instr instanceof Instr.Call) {
+        if (instr instanceof Instr.Icmp) {
+            String hash = ((Instr.Icmp) instr).getOp().getName();
+            hash += " " + ((Instr.Icmp) instr).getRVal1().getName() + ", " + ((Instr.Icmp) instr).getRVal2().getName();
+            if (GvnMap.containsKey(hash)) {
+                instr.modifyAllUseThisToUseA(GvnMap.get(hash));
+                instr.remove();
+                //当进行替换的时候,(cmp相当于有多个Br
+                // 需要维护condCnt),
+                for (Use use = GvnMap.get(hash).getBeginUse(); use.getNext() != null; use = (Use) use.getNext()) {
+                    Instr user = use.getUser();
+                    if (user instanceof Instr.Branch) {
+                        user.setCondCount(GvnMap.get(hash).getCondCount());
+                    }
+                }
+                return true;
+            }
+            add(hash, instr);
+        } else if (instr instanceof Instr.Call) {
             String hash = ((Instr.Call) instr).getFunc().getName() + "(";
             ArrayList<Value> params = ((Instr.Call) instr).getParamList();
             for (int i = 0; i < params.size(); i++) {
@@ -496,7 +516,11 @@ public class GVNAndGCM {
     }
 
     private void removeInstrFromGVN(Instr instr) {
-        if (instr instanceof Instr.Call) {
+        if (instr instanceof Instr.Icmp) {
+            String hash = ((Instr.Icmp) instr).getOp().getName();
+            hash += " " + ((Instr.Icmp) instr).getRVal1().getName() + ", " + ((Instr.Icmp) instr).getRVal2().getName();
+            remove(hash);
+        } else if (instr instanceof Instr.Call) {
             String hash = ((Instr.Call) instr).getFunc().getName() + "(";
             ArrayList<Value> params = ((Instr.Call) instr).getParamList();
             for (int i = 0; i < params.size(); i++) {

@@ -70,9 +70,10 @@ public class GepFuse {
     private void  fuseDFS(Instr instr) {
         Geps.add((Instr.GetElementPtr) instr);
         for (Use use = instr.getBeginUse(); use.getNext() != null; use = (Use) use.getNext()) {
+            //此处user use并没有被维护
             if (use.getUser() instanceof Instr.GetElementPtr) {
                 fuseDFS(use.getUser());
-            } else {
+            } else if (use.getUser() instanceof Instr.Store || use.getUser() instanceof Instr.Load) {
                 fuse();
             }
         }

@@ -12,6 +12,7 @@ public class Value extends ILinkNode {
         func,
         bb,
         bino,
+        ashr,
         icmp,
         fcmp,
         fneg,

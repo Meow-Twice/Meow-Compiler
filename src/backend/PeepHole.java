@@ -27,8 +27,8 @@ public class PeepHole {
             boolean unDone = true;
             while (unDone) {
                 unDone = oneStage(mf);
-                if (twoStage(mf))
-                    unDone = true;
+//                if (twoStage(mf))
+//                    unDone = true;
             }
         }
     }

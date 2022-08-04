@@ -139,6 +139,9 @@ public class LoopUnRoll {
     }
 
     private void DoLoopUnRoll(Loop loop) {
+//        if (loop.getHash() == 10) {
+//            return;
+//        }
         CloneInfoMap.clear();
         Function function = loop.getHeader().getFunction();
         int times = loop.getIdcTimes();

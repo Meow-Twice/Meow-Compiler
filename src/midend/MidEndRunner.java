@@ -3,10 +3,13 @@ package midend;
 import frontend.semantic.Initial;
 import manage.Manager;
 import mir.*;
+import util.CenterControl;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+
+import static util.CenterControl._ONLY_FRONTEND;
 
 public class MidEndRunner {
 
@@ -60,9 +63,13 @@ public class MidEndRunner {
 
         ArrayGVN();
 
+        //outputLLVM();
         loopOptimize();
 
         ArrayGVN();
+
+        //outputLLVM();
+        GlobalArrayGVN();
 
         MemSetOptimize memSetOptimize = new MemSetOptimize(functions, globalValues);
         memSetOptimize.Run();
@@ -79,6 +86,8 @@ public class MidEndRunner {
         //outputLLVM();
         LoopFold();
         LoopFold();
+
+        LoopStrengthReduction();
 
 
         MathOptimize mathOptimize1 = new MathOptimize(functions);
@@ -114,6 +123,15 @@ public class MidEndRunner {
         Pass();
     }
 
+    private void GlobalArrayGVN() {
+        Pass();
+
+        GlobalArrayGVN globalArrayGVN = new GlobalArrayGVN(functions, globalValues);
+        globalArrayGVN.Run();
+
+        Pass();
+    }
+
     //暂时关闭
     private void ArrayGCM() {
         Pass();
@@ -137,7 +155,7 @@ public class MidEndRunner {
     }
 
     private void check_instr() {
-        for (Function function: functions) {
+        for (Function function : functions) {
             HashSet<Instr> instrs = new HashSet<>();
             for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
                 for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
@@ -162,6 +180,22 @@ public class MidEndRunner {
         reMakeCFGAndLoopInfo();
 
         BrOptimize();
+    }
+
+    private void LoopStrengthReduction() {
+        if (CenterControl._ONLY_FRONTEND) {
+            return;
+        }
+        //outputLLVM();
+
+        LoopStrengthReduction loopStrengthReduction = new LoopStrengthReduction(functions);
+        loopStrengthReduction.Run();
+
+        //outputLLVM();
+
+        reMakeCFGAndLoopInfo();
+
+        Pass();
     }
 
     //死代码删除 指令融合 GVN/GCM
@@ -264,7 +298,7 @@ public class MidEndRunner {
     }
 
     private void check() {
-        for (Function function: functions) {
+        for (Function function : functions) {
             for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
                 for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
                     for (Use use = instr.getBeginUse(); use.getNext() != null; use = (Use) use.getNext()) {
@@ -272,7 +306,7 @@ public class MidEndRunner {
                         assert user.getUseValueList().contains(instr);
                     }
 
-                    for (Value value: instr.getUseValueList()) {
+                    for (Value value : instr.getUseValueList()) {
                         boolean tag = false;
                         for (Use use1 = value.getBeginUse(); use1.getNext() != null; use1 = (Use) use1.getNext()) {
                             if (use1.getUser().equals(instr)) {

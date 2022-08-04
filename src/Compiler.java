@@ -15,10 +15,12 @@ import util.CenterControl;
 
 import java.io.*;
 
+import static util.CenterControl._ONLY_FRONTEND;
+
 public class Compiler {
 
     public static boolean OUTPUT_LEX = false;
-    public static boolean ONLY_FRONTEND = false;
+    // public static boolean ONLY_FRONTEND = false;
 
     private static String input(InputStream in) throws IOException {
         BufferedReader reader = new BufferedReader(new InputStreamReader(in));
@@ -56,6 +58,7 @@ public class Compiler {
             // globalValueLocalize.Run();
             Manager.MANAGER.outputLLVM();
             MidEndRunner.O2 = arg.optimize;
+            _ONLY_FRONTEND = !arg.outputAsm();
             System.err.println("mid optimization begin");
             long start = System.currentTimeMillis();
             MidEndRunner midEndRunner = new MidEndRunner(Manager.MANAGER.getFunctionList());
@@ -67,7 +70,8 @@ public class Compiler {
 
             // DeadCodeDelete deadCodeDelete = new DeadCodeDelete(Manager.MANAGER.getFunctionList());
             // deadCodeDelete.Run();
-            if (ONLY_FRONTEND) {
+
+            if (_ONLY_FRONTEND) {
                 return;
             }
 

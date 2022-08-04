@@ -191,6 +191,9 @@ public class I extends MachineInst {
             super(Tag.IMov, insertAtEnd);
             defOpds.add(dOpd);
             useOpds.add(sOpd);
+            if (shift.shiftReg != null) {
+                useOpds.add(shift.shiftReg);
+            }
             this.shift = shift;
         }
 
@@ -236,7 +239,9 @@ public class I extends MachineInst {
                 }
             } else {
                 os.print("\tmov" + cond + "\t" + getDst().toString() + ",\t" + getSrc().toString());
-                if (shift != Arm.Shift.NONE_SHIFT) {
+                if (useOpds.size() > 1) {
+                    os.println(",\t" + shift.shiftType + "\t"+useOpds.get(1));
+                } else if (shift != Arm.Shift.NONE_SHIFT) {
                     os.println(",\t" + shift.toString());
                 } else {
                     os.print("\n");

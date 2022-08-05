@@ -58,6 +58,8 @@ public class MidEndRunner {
 
         //暂定函数内联的位置
         Pass();
+        //
+        FuncGVN();
         FuncInline();
         MathOpt();
         GepFuse();
@@ -131,6 +133,13 @@ public class MidEndRunner {
 
         GlobalValueLocalize globalValueLocalize = new GlobalValueLocalize(functions, globalValues);
         globalValueLocalize.Run();
+    }
+
+    private void FuncGVN() {
+        AggressiveFuncGVN aggressiveFuncGVN = new AggressiveFuncGVN(functions);
+        aggressiveFuncGVN.Run();
+
+        Pass();
     }
 
     private void ArrayGVN() {

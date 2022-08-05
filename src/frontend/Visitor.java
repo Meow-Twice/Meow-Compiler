@@ -183,7 +183,7 @@ public class Visitor {
                     if (op.getType() == TokenType.MOD) {
                         // a % b = a - a / b;
                         Value tmp = new Alu(F32_TYPE, Alu.Op.FDIV, first, second, curBB);
-                        tmp = new Alu(I32_TYPE, Alu.Op.FMUL, tmp, second, curBB);
+                        tmp = new Alu(F32_TYPE, Alu.Op.FMUL, tmp, second, curBB);
                         first = new Alu(F32_TYPE, Alu.Op.FSUB, first, tmp, curBB);
                     } else {
                         Alu.Op aluOp = aluOpHelper(op, true);

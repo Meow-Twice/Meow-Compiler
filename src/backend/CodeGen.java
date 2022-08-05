@@ -671,11 +671,6 @@ public class CodeGen {
         Value rhs = instr.getRVal2();
         // instr不可能是Constant
         MC.Operand dVR = getVR_no_imm(instr);
-        if (lhs.isConstant()) {
-            Value tmp = lhs;
-            lhs = rhs;
-            rhs = tmp;
-        }
         if (tag == Mod) {
             MC.Operand lVR = getVR_may_imm(lhs);
             MC.Operand rVR = getVR_may_imm(rhs);
@@ -817,6 +812,21 @@ public class CodeGen {
                 // new I.Binary(tag, dVR, lVR, getImmVR(imm), curMB);
             }
         } else {
+            if (lhs.isConstant()){
+                switch (tag) {
+                    case Add -> {
+                        Value tmp = lhs;
+                        lhs = rhs;
+                        rhs = tmp;
+                    }
+                    case Sub -> {
+                        tag = Rsb;
+                        Value tmp = lhs;
+                        lhs = rhs;
+                        rhs = tmp;
+                    }
+                }
+            }
             MC.Operand lVR = getVR_may_imm(lhs);
             MC.Operand rVR = getVR_may_imm(rhs);
             if (tag == FMod) {
@@ -826,11 +836,14 @@ public class CodeGen {
                 Operand dst2 = newSVR();
                 new V.Binary(MachineInst.Tag.FMul, dst2, dst1, rVR, curMB);
                 new V.Binary(MachineInst.Tag.FSub, dVR, lVR, dst2, curMB);
-            } else if (isFBino(instr.getOp())) {
-                assert needFPU;
-                new V.Binary(tag, dVR, lVR, rVR, curMB);
             } else {
-                new I.Binary(tag, dVR, lVR, rVR, curMB);
+
+                if (isFBino(instr.getOp())) {
+                    assert needFPU;
+                    new V.Binary(tag, dVR, lVR, rVR, curMB);
+                } else {
+                    new I.Binary(tag, dVR, lVR, rVR, curMB);
+                }
             }
         }
     }

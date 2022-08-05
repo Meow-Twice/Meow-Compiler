@@ -292,8 +292,8 @@ public class V extends MachineInst {
         public String toString() {
             StringBuilder stb = new StringBuilder();
             switch (cvtType) {
-                case f2i -> stb.append("\tvcvt.s32.f32\t").append(getDst()).append(",\t").append(getSrc());
-                case i2f -> stb.append("\tvcvt.f32.s32\t").append(getDst()).append(",\t").append(getSrc());
+                case f2i -> stb.append("vcvt.s32.f32\t").append(getDst()).append(",\t").append(getSrc());
+                case i2f -> stb.append("vcvt.f32.s32\t").append(getDst()).append(",\t").append(getSrc());
                 // TODO: for debug
                 default -> {
                     throw new AssertionError("Wrong cvtType");
@@ -421,7 +421,7 @@ public class V extends MachineInst {
 
         @Override
         public String toString() {
-            return "\tvcmpe.f32\t" + getLOpd() + ",\t" + getROpd() + "\n\tvmrs\tAPSR_nzcv,\tFPSCR";
+            return "vcmpe.f32\t" + getLOpd() + ",\t" + getROpd() + "\n\tvmrs\tAPSR_nzcv,\tFPSCR";
         }
     }
 

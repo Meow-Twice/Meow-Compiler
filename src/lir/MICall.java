@@ -29,6 +29,13 @@ public class MICall extends MachineInst {
         //         }
         //         useOpds.add(Reg.getR(i));
         //     }
+
+        if (needFPU) {
+            for (int i = 0; i < 2; i++) {
+                useOpds.add(Reg.getS(i));
+                defOpds.add(Reg.getS(i));
+            }
+        }
         for (int i = r0.ordinal(); i < r0.ordinal() + rParamCnt; i++) {
             defOpds.add(Reg.getR(i));
         }

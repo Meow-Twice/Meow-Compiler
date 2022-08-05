@@ -126,8 +126,8 @@ public class Compiler {
             peepHole.run();
 
             if (arg.outputAsm()) {
-                // FileDealer.outputToStream(p.getSTB(), arg.asmStream);
-                p.output(new PrintStream(arg.asmStream));
+                FileDealer.outputToStream(p.getSTB(), arg.asmStream);
+                // p.output(new PrintStream(arg.asmStream));
             }
         } catch (Exception e) {
             e.printStackTrace();

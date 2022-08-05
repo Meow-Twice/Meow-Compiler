@@ -26,11 +26,11 @@ public class StackCtl extends MachineInst {
             if (savedRegsMf.mFunc.isExternal) {
                 // throw new AssertionError("push in external func");
                 // return "\tpush\t{r0,r1,r2,r3}";
-                return "\tpush\t{r2,r3}";
+                return "push\t{r2,r3}";
             } else {
                 StringBuilder sb = new StringBuilder();
                 if (savedRegsMf.usedCalleeSavedGPRs.size() > 0) {
-                    sb.append("\tpush\t{");
+                    sb.append("push\t{");
                     Iterator<GPRs> gprIter = savedRegsMf.usedCalleeSavedGPRs.iterator();
                     sb.append(gprIter.next());
                     while (gprIter.hasNext()) {

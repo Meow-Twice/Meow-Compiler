@@ -52,7 +52,7 @@ public class MC {
 
                 //asm for mb
                 for (Block mb : function.mbList) {
-                    os.println(mb.toString() + ":");
+                    os.println(mb.getLabel() + ":");
                     for (MachineInst inst : mb.miList) {
                         inst.output(os, function);
                     }
@@ -79,7 +79,6 @@ public class MC {
                 // os.println("\t.type\t" + val.name + ",%object");
                 os.println(val.name + ":");
 
-                //TODO for yyf:array init
                 int count = 0;
                 boolean init = false;
                 int last = 0;
@@ -359,8 +358,8 @@ public class MC {
                 if (((FPRs) reg).ordinal() < Math.min(floatParamCount, sParamCnt) || (this.mFunc.getRetType().isFloatType() && reg == s0)) {
                     return;
                 }
+                if(((FPRs) reg).ordinal() < 2) return;
                 if (usedCalleeSavedFPRs.add((FPRs) reg)) {
-                    if(((FPRs) reg).ordinal() < 2) return;
                     addRegStack(4);
                     int idx = ((FPRs) reg).ordinal();
                     if (idx % 2 == 0) {

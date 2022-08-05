@@ -176,7 +176,7 @@ public class I extends MachineInst {
         @Override
         public void output(PrintStream os, MC.McFunction mf) {
             // TODO vpush我觉得可能八字节对齐比较好, 所以vpop必须在后面, 这样不能先pop lr再vpop
-
+            os.println("\t" + this);
 
         }
 

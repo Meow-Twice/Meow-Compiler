@@ -176,6 +176,7 @@ public class RegAllocator {
                 if (mv.getFixType() == CodeGen.STACK_FIX.FLOAT_TOTAL_STACK) {
                     if (CodeGen.vLdrStrImmEncode(newOff)) {
                         V.Ldr vldr = (V.Ldr) mv.getNext().getNext();
+                        vldr.setUse(0, Arm.Reg.getRSReg(sp));
                         vldr.setOffSet(new MC.Operand(I32, newOff));
                         assert mv.getNext() instanceof I.Binary;
                         mv.getNext().remove();
@@ -329,7 +330,7 @@ public class RegAllocator {
         return x;
     }
 
-    protected boolean ok(Operand t, Operand r) {
+    /*protected boolean ok(Operand t, Operand r) {
         return t.degree < K || t.isPreColored(dataType) || adjSet.contains(new AdjPair(t, r));
     }
 
@@ -352,7 +353,7 @@ public class RegAllocator {
             }
         }
         return cnt < K;
-    }
+    }*/
 
     protected void turnInit(MC.McFunction mf) {
         livenessAnalysis(mf);
@@ -674,56 +675,55 @@ public class RegAllocator {
         } else {
             // TODO 尝试重新验证写法
             // 此时 v 已经不是预着色了
-            // if (u.is_F_PreColored()) {
-            //     /**
-            //      * v 的冲突邻接点是否均满足:
-            //      * 要么为低度数结点, 要么预着色, 要么已经与 u 邻接
-            //      */
-            //     boolean flag = true;
-            //     for (Operand adj : adjacent(v)) {
-            //         if (adj.degree >= K && !adj.is_F_PreColored() && !adjSet.contains(new AdjPair(adj, u))) {
-            //             // adjSet.contains(new AdjPair(adj, v))这个感觉可以改成 v.adjOpdSet.contains(adj)
-            //             flag = false;
-            //         }
-            //     }
-            //     if (flag) {
-            //         coalescedMoveSet.add(mv);
-            //         combine(u, v);
-            //         addWorkList(u);
-            //     } else {
-            //         activeVMovSet.add(mv);
-            //     }
-            // } else {
-            //     // union实际统计 u 和 v 的有效冲突邻接结点
-            //     HashSet<Operand> union = new HashSet<>(u.adjOpdSet);
-            //     union.removeIf(r -> selectStack.contains(r) || coalescedNodeSet.contains(r));
-            //     union.addAll(v.adjOpdSet);
-            //     // union.removeIf(r -> selectStack.contains(r) || coalescedNodeSet.contains(r));
-            //     int cnt = 0;
-            //     for (Operand x : union) {
-            //         if (!selectStack.contains(x) && !coalescedNodeSet.contains(x) && x.degree >= K) {
-            //             // 统计union中的高度数结点个数
-            //             // if (x.degree >= K) {
-            //             cnt++;
-            //         }
-            //     }
-            //     // 如果结点个数 < K 个表示未改变冲突图的可着色性
-            //     if (cnt < K) {
-            //         coalescedMoveSet.add(mv);
-            //         combine(u, v);
-            //         addWorkList(u);
-            //     } else {
-            //         activeVMovSet.add(mv);
-            //     }
-            // }
-            if ((u.isPreColored(dataType) && adjOk(v, u))
+            if (u.isPreColored(dataType)) {
+                /**
+                 * v 的冲突邻接点是否均满足:
+                 * 要么为低度数结点, 要么预着色, 要么已经与 u 邻接
+                 */
+                boolean flag = true;
+                for (Operand adj : adjacent(v)) {
+                    if (adj.degree >= K && !adj.isPreColored(dataType) && !adjSet.contains(new AdjPair(adj, u))) {
+                        // adjSet.contains(new AdjPair(adj, v))这个感觉可以改成 v.adjOpdSet.contains(adj)
+                        flag = false;
+                    }
+                }
+                if (flag) {
+                    coalescedMoveSet.add(mv);
+                    combine(u, v);
+                    addWorkList(u);
+                } else {
+                    activeMoveSet.add(mv);
+                }
+            } else {
+                // union实际统计 u 和 v 的有效冲突邻接结点
+                HashSet<Operand> union = new HashSet<>(u.adjOpdSet);
+                union.removeIf(r -> selectStack.contains(r) || coalescedNodeSet.contains(r));
+                union.addAll(v.adjOpdSet);
+                int cnt = 0;
+                for (Operand x : union) {
+                    if (!selectStack.contains(x) && !coalescedNodeSet.contains(x) && x.degree >= K) {
+                        // 统计union中的高度数结点个数
+                        // if (x.degree >= K) {
+                        cnt++;
+                    }
+                }
+                // 如果结点个数 < K 个表示未改变冲突图的可着色性
+                if (cnt < K) {
+                    coalescedMoveSet.add(mv);
+                    combine(u, v);
+                    addWorkList(u);
+                } else {
+                    activeMoveSet.add(mv);
+                }
+            }
+            /*if ((u.isPreColored(dataType) && adjOk(v, u))
                     || (!u.isPreColored(dataType) && conservative(adjacent(u), adjacent(v)))) {
                 coalescedMoveSet.add(mv);
                 combine(u, v);
                 addWorkList(u);
             } else {
                 activeMoveSet.add(mv);
-            }
+            }*/
         }
     }
 
@@ -804,7 +804,7 @@ public class RegAllocator {
             } else {
                 // 如果有可分配的颜色则从可以分配的颜色中选取一个
                 // TODO 尝试重新验证写法
-                Arm.Regs color = okColorSet.pollLast();
+                Arm.Regs color = okColorSet.pollFirst();
                 logOut("Choose " + color);
                 colorMap.put(toBeColored, Arm.Reg.getRSReg(color));
             }

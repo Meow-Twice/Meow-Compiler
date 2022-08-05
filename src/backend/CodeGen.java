@@ -483,7 +483,7 @@ public class CodeGen {
         // TODO: 如果有返回值, 则由caller保护r0或s0, 如果没有返回值则有callee保护
         ArrayList<Value> param_list = call_inst.getParamList();
         // ArrayList<Operand> paramVRList = new ArrayList<>();
-        // ArrayList<Operand> paramSVRList = new ArrayList<>();
+        ArrayList<Operand> paramSVRList = new ArrayList<>();
         int rIdx = 0;
         int sIdx = 0;
         int rParamTop = rIdx;
@@ -545,6 +545,12 @@ public class CodeGen {
                     new I.Str(data, addr, off, curMB);
                 }
                 rIdx++;
+            }
+        }if (needFPU) {
+            while (sIdx < 2) {
+                Operand tmpDst = newSVR();
+                paramSVRList.add(tmpDst);
+                new V.Mov(tmpDst, Arm.Reg.getS(sIdx++), curMB);
             }
         }
         // 栈空间移位
@@ -616,12 +622,12 @@ public class CodeGen {
                     /*// 需要把挪走的r0-rx再挪回来
                     for (int i = 0; i < paramVRList.size(); i++) {
                         new I.Mov(Arm.Reg.getR(i), paramVRList.get(i), curMB);
-                    }
+                    }*/
                     // 需要把挪走的s0-sx再挪回来
                     for (int i = 0; i < paramSVRList.size(); i++) {
                         assert needFPU;
                         new V.Mov(Arm.Reg.getS(i), paramSVRList.get(i), curMB);
-                    }*/
+                    }
     }
 
     public static boolean LdrStrImmEncode(int off) {

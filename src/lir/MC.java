@@ -20,7 +20,6 @@ import static lir.MC.Operand.Type.*;
 import static mir.type.DataType.F32;
 import static mir.type.DataType.I32;
 
-
 public class MC {
 
     public static class Program {
@@ -29,8 +28,10 @@ public class MC {
         public ArrayList<Arm.Glob> globList = CodeGen.CODEGEN.globList;
         public McFunction mainMcFunc;
         public ArrayList<I> needFixList = new ArrayList<>();
+
         private Program() {
         }
+
         public void output(PrintStream os) {
             os.println(".arch armv7ve");
             os.println(".arm");
@@ -115,8 +116,85 @@ public class MC {
             }
         }
 
-    }
 
+        public StringBuilder getSTB() {
+            StringBuilder stb = new StringBuilder();
+
+            stb.append(".arch armv7ve\n.arm\n");
+            if (needFPU) {
+                stb.append(".fpu vfpv3-d16\n");
+            }
+            stb.append(".section .text\n");
+            for (McFunction function : funcList) {
+                stb.append("\n\n.global\t").append(function.mFunc.getName()).append("\n");
+                stb.append("@ regStackSize =\t").append(function.regStack).append(" ;\n@ varStackSize =\t").append(function.varStack).append(" ;\n@ paramStackSize =\t").append(function.paramStack).append(" ;\n");
+                stb.append("@ usedCalleeSavedGPRs =\t").append(function.usedCalleeSavedGPRs).append(" ;\n@ usedCalleeSavedFPRs =\t").append(function.usedCalleeSavedFPRs).append(" ;\n");
+                stb.append(function.mFunc.getName()).append(":\n");
+                //asm for mb
+                for (Block mb : function.mbList) {
+                    stb.append(mb.getLabel()).append(":\n");
+                    for (MachineInst inst : mb.miList) {
+                        if(!inst.isComment()) stb.append("\t");
+                        stb.append(inst.getSTB()).append("\n");
+                    }
+                }
+
+            }
+
+            stb.append("\n\n");
+            // output float const
+            for (Map.Entry<String, Operand> entry : CodeGen.name2constFOpd.entrySet()) {
+                String name = entry.getKey();
+                Constant.ConstantFloat constF = entry.getValue().constF;
+                int i = constF.getIntBits();
+                stb.append(name).append(":\n");
+                stb.append("\t.word\t").append(i).append("\n");
+            }
+            stb.append(".section .data\n");
+            stb.append(".align 2\n");
+            for (Arm.Glob glob : globList) {
+                GlobalVal.GlobalValue val = glob.getGlobalValue();
+                stb.append("\n.global\t").append(val.name).append("\n");
+                stb.append(val.name).append(":\n");
+
+                int count = 0;
+                boolean init = false;
+                int last = 0;
+                for (Value value : glob.getInit().getFlattenInit()) {
+                    if (!init) {
+                        init = true;
+                        if (value.isConstantInt()) {
+                            last = ((Constant.ConstantInt) value).constIntVal;
+                        } else {
+                            last = ((Constant.ConstantFloat) value).getIntBits();
+                        }
+                    }
+                    int now = value instanceof Constant.ConstantInt ? ((Constant.ConstantInt) value).constIntVal : ((Constant.ConstantFloat) value).getIntBits();
+                    if (now == last) {
+                        count++;
+                    } else {
+                        if (count > 1) {
+                            //.zero
+                            stb.append("\t.fill\t").append(count).append(",\t4,\t").append(last);
+                        } else {
+                            stb.append("\t.word\t").append(last);
+                        }
+                        last = value instanceof Constant.ConstantInt ? ((Constant.ConstantInt) value).constIntVal : ((Constant.ConstantFloat) value).getIntBits();
+                        count = 1;
+                    }
+                    stb.append("\n");
+                }
+                if (count > 1) {
+                    //.zero
+                    stb.append("\t.fill\t").append(count).append(",\t4,\t").append(last);
+                } else {
+                    stb.append("\t.word\t").append(last);
+                }
+                stb.append("\n");
+            }
+            return stb;
+        }
+    }
     public static class McFunction extends ILinkNode {
         // ArrayList<MachineInst> instList;
         // Block tailBlock = new Block();
@@ -282,6 +360,7 @@ public class MC {
                     return;
                 }
                 if (usedCalleeSavedFPRs.add((FPRs) reg)) {
+                    if(((FPRs) reg).ordinal() < 2) return;
                     addRegStack(4);
                     int idx = ((FPRs) reg).ordinal();
                     if (idx % 2 == 0) {
@@ -312,9 +391,8 @@ public class MC {
             if (b != 0) {
                 varStack += SP_ALIGN - b;
             }
-        }
-    }
-    public static class Block extends ILinkNode {
+        }}
+    public static class Block extends ILinkNode { //
         // public static String BB_Prefix = ".L_BB_";
         public static String MB_Prefix = "._MB_";
         public BasicBlock bb;
@@ -366,11 +444,10 @@ public class MC {
             return MB_Prefix + mb_idx + (bb == null ? "" : "_" + bb.getLabel());
         }
 
-        @Override
-        public String toString() {
-            return MB_Prefix + mb_idx + (bb == null ? "" : "_" + bb.getLabel());
-        }
-
+        // @Override
+        // public String toString() {
+        //     return MB_Prefix + mb_idx + (bb == null ? "" : "_" + bb.getLabel());
+        // }
         public void setMf(McFunction mf) {
             this.mf = mf;
             mf.insertAtEnd(this);
@@ -502,6 +579,10 @@ public class MC {
             return type == Immediate && this.dataType == dataType;
         }
 
+        public boolean isImm() {
+            return type == Immediate;
+        }
+
         public enum Type {
             PreColored,
             Virtual,
@@ -517,7 +598,6 @@ public class MC {
 
         public Type type;
         DataType dataType = I32;
-
         // 目前只用于立即数
         public Operand(Type type) {
             this.type = type;
@@ -655,6 +735,16 @@ public class MC {
             return dataType == F32;
         }
 
+        @Override
+        public String toString() {
+            if (this instanceof Arm.Reg) {
+                return getReg().toString();
+            } else if (type == FConst) {
+                return constF.getAsmName();
+            } else {
+                return getPrefix() + value;
+            }
+        }
         public Operand select(Operand o) {
             return heuristicVal() < o.heuristicVal() ? this : o;
         }
@@ -669,16 +759,6 @@ public class MC {
                     && ((Operand) obj).dataType == this.dataType;
         }
 
-        @Override
-        public String toString() {
-            if (this instanceof Arm.Reg) {
-                return getReg().toString();
-            } else if (type == FConst) {
-                return constF.getAsmName();
-            } else {
-                return getPrefix() + value;
-            }
-        }
 
     }
 

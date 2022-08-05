@@ -4,7 +4,10 @@ import mir.Constant;
 
 import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Iterator;
 
+import static backend.CodeGen.needFPU;
+import static backend.CodeGen.sParamCnt;
 import static lir.MachineInst.Tag.*;
 import static lir.MC.Operand;
 import static mir.type.DataType.F32;
@@ -105,7 +108,7 @@ public class V extends MachineInst {
         }
     }
 
-    public static class Str extends V  implements MachineMemInst{
+    public static class Str extends V implements MachineMemInst {
 
         public Str(MC.Operand data, MC.Operand addr, MC.Operand offset, MC.Block insertAtEnd) {
             super(VStr, insertAtEnd);
@@ -183,8 +186,25 @@ public class V extends MachineInst {
 
         @Override
         public String toString() {
-            return tag.toString() + cond + '\t' + getData() + ",\t[" + getAddr() + ",\t" + getOffset() +
-                    (shift.shiftType == Arm.ShiftType.None ? "" : ("\t," + shift)) + "]";
+            StringBuilder stb = new StringBuilder();
+            if (getOffset() == null) {
+                stb.append("\tvstr").append(cond).append(".32\t").append(getData()).append(",\t[").append(getAddr()).append("]");
+            } else if (getOffset().type == MC.Operand.Type.Immediate) {
+                int shift = (this.shift.shiftType == Arm.ShiftType.None) ? 0 : this.shift.shift;
+                int offset = this.getOffset().value << shift;
+                if (offset != 0) {
+                    stb.append("\tvstr").append(cond).append(".32\t").append(getData()).append(",\t[").append(getAddr()).append(",\t#").append(offset).append("]");
+                } else {
+                    stb.append("\tvstr").append(cond).append(".32\t").append(getData()).append(",\t[").append(getAddr()).append("]");
+                }
+            } else {
+                if (this.shift.shiftType == Arm.ShiftType.None) {
+                    stb.append("\tvstr").append(cond).append(".32\t").append(getData()).append(",\t[").append(getAddr()).append(",\t").append(getOffset()).append("]");
+                } else {
+                    stb.append("\tvstr").append(cond).append(".32\t").append(getData()).append(",\t[").append(getAddr()).append(",\t").append(getOffset()).append(",\tLSL #").append(this.shift.shift).append("]");
+                }
+            }
+            return stb.toString();
         }
     }
 
@@ -229,7 +249,7 @@ public class V extends MachineInst {
         @Override
         public String toString() {
             assert cond == Arm.Cond.Any;
-            return "vmov\t" + getMvSuffixTypeSimply(getDst()) + "\t" + getDst() + ",\t" + getSrc();
+            return "vmov" + getMvSuffixTypeSimply(getDst()) + "\t" + getDst() + ",\t" + getSrc();
         }
 
         public boolean directColor() {
@@ -272,14 +292,14 @@ public class V extends MachineInst {
         public String toString() {
             StringBuilder stb = new StringBuilder();
             switch (cvtType) {
-                case f2i -> stb.append("\tvcvt.s32.f32\t" + getDst() + ",\t" + getSrc());
-                case i2f -> stb.append("\tvcvt.f32.s32\t" + getDst() + ",\t" + getSrc());
+                case f2i -> stb.append("\tvcvt.s32.f32\t").append(getDst()).append(",\t").append(getSrc());
+                case i2f -> stb.append("\tvcvt.f32.s32\t").append(getDst()).append(",\t").append(getSrc());
                 // TODO: for debug
                 default -> {
                     throw new AssertionError("Wrong cvtType");
                 }
             }
-            return stb + "\n";
+            return stb.toString();
         }
 
         @Override
@@ -333,7 +353,20 @@ public class V extends MachineInst {
 
         @Override
         public String toString() {
-            return tag.toString() + "\t" + getDst() + ",\t" + getLOpd() + ",\t" + getROpd();
+            StringBuilder stb = new StringBuilder();
+
+            stb.append(switch (tag) {
+                case FAdd -> "vadd.f32";
+                case FSub -> "vsub.f32";
+                case FDiv -> "vdiv.f32";
+                case FMul -> "vmul.f32";
+                default -> throw new AssertionError("Wrong FBino of " + tag);
+            });
+            stb.append("\t").append(getDst()).append(",\t").append(getLOpd()).append(",\t").append(getROpd());
+            if (shift.shiftType != Arm.ShiftType.None) {
+                stb.append(",\t").append(shift);
+            }
+            return stb.toString();
         }
     }
 
@@ -388,13 +421,15 @@ public class V extends MachineInst {
 
         @Override
         public String toString() {
-            return tag.toString() + '\t' + getLOpd() + ",\t" + getROpd();
+            return "\tvcmpe.f32\t" + getLOpd() + ",\t" + getROpd() + "\n\tvmrs\tAPSR_nzcv,\tFPSCR";
         }
     }
 
     public static class Ret extends V {
-        public Ret(Arm.Reg s0, MC.Block curMB) {
+        MC.McFunction savedRegsMf;
+        public Ret(MC.McFunction mf, Arm.Reg s0, MC.Block curMB) {
             super(VRet, curMB);
+            savedRegsMf = mf;
             useOpds.add(s0);
         }
 
@@ -406,7 +441,60 @@ public class V extends MachineInst {
 
         @Override
         public String toString() {
-            return tag.toString() + (useOpds.size() > 0 ? useOpds.get(0) : "");
+            StringBuilder sb = new StringBuilder();
+            if (savedRegsMf.mFunc.isExternal) {
+                // throw new AssertionError("pop in external func");
+                // return "\tpop\t{r0,r1,r2,r3}";
+                sb.append("pop\t{r2,r3}");
+            } else {
+                // StringBuilder sb = new StringBuilder();
+                if (savedRegsMf.usedCalleeSavedGPRs.size() > 0) {
+                    sb.append("pop\t{");
+                    Iterator<Arm.Regs.GPRs> gprIter = savedRegsMf.usedCalleeSavedGPRs.iterator();
+                    sb.append(gprIter.next());
+                    while (gprIter.hasNext()) {
+                        Arm.Regs.GPRs gpr = gprIter.next();
+                        sb.append(",").append(gpr);
+                    }
+                    sb.append("}\n");
+                }
+            }
+            if (needFPU) {
+                if (savedRegsMf.mFunc.isExternal) {
+                    sb.append(String.format("\tvpop\t{s2-s%d}", sParamCnt - 1));
+                } else {
+                    if (savedRegsMf.usedCalleeSavedFPRs.size() > 0) {
+                        int fprNum = Arm.Regs.FPRs.values().length;
+                        boolean[] fprBit = new boolean[fprNum];
+                        for (Arm.Regs.FPRs fpr : savedRegsMf.usedCalleeSavedFPRs) {
+                            fprBit[fpr.ordinal()] = true;
+                        }
+                        int end = fprNum - 1;
+                        while (end > -1) {
+                            while (end > -1 && !fprBit[end])
+                                end--;
+                            if (end == -1)
+                                break;
+                            int start = end;
+                            while (start > -1 && fprBit[start])
+                                start--;
+                            start++;
+                            if (start == end) {
+                                throw new AssertionError("illegal vpop");
+                                // sb.append(String.format("\tvpop\t{s%d}%n", end));
+                            } else if (start < end) {
+                                if (end - start > 15) {
+                                    start = end - 15;
+                                }
+                                sb.append(String.format("\tvpop\t{s%d-s%d}%n", start, end));
+                            }
+                            end = start - 1;
+                        }
+                    }
+                }
+            }
+            sb.append("\n\tbx\tlr");
+            return sb.toString();
         }
     }
 }

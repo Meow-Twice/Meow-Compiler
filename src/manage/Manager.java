@@ -161,7 +161,7 @@ public class Manager {
         outputMI(new FileOutputStream(miFilename + ".txt"));
     }
 
-    public void outputMI(OutputStream out) {
+    public static void outputMI(OutputStream out) {
         FileDealer.outputClear();
         MC.Program p = MC.Program.PROGRAM;
         for (MC.McFunction mcFunc : p.funcList) {

@@ -12,6 +12,7 @@ import manage.Manager;
 import midend.MidEndRunner;
 import midend.RemovePhi;
 import util.CenterControl;
+import util.FileDealer;
 
 import java.io.*;
 
@@ -125,7 +126,8 @@ public class Compiler {
             peepHole.run();
 
             if (arg.outputAsm()) {
-                p.output(new PrintStream(arg.asmStream));
+                FileDealer.outputToStream(p.getSTB(), arg.asmStream);
+                // p.output(new PrintStream(arg.asmStream));
             }
         } catch (Exception e) {
             e.printStackTrace();

@@ -27,8 +27,8 @@ public class PeepHole {
             boolean unDone = true;
             while (unDone) {
                 unDone = oneStage(mf);
-//                if (twoStage(mf))
-//                    unDone = true;
+               // if (twoStage(mf))
+               //     unDone = true;
             }
         }
     }
@@ -147,11 +147,6 @@ public class PeepHole {
             }
         }
         return false;
-    }
-
-    private static class LiveRange {
-        HashMap<Operand, MachineInst> lastDefMI = new HashMap<>();
-        HashMap<Operand, MachineInst> lastUseMI = new HashMap<>();
     }
 
     MachineInst[] lastGPRsDefMI = new MachineInst[GPRs.values().length];
@@ -325,7 +320,7 @@ public class PeepHole {
                             }
                         } else if (mi.isOf(IMov)) {
                             I.Mov iMov = (I.Mov) mi;
-                            if (iMov.getSrc().isPureImmWithOutGlob(I32)) {
+                            if (!iMov.getSrc().isImm()) {
                                 if (!mi.getNext().equals(mb.miList.tail)) {
                                     MachineInst nextMI = (MachineInst) mi.getNext();
                                     if (nextMI instanceof I

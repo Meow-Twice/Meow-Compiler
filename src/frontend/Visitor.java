@@ -9,6 +9,7 @@ import frontend.lexer.TokenType;
 import frontend.semantic.symbol.SymTable;
 import frontend.semantic.symbol.Symbol;
 import frontend.syntax.Ast;
+import lir.MC;
 import manage.Manager;
 import mir.*;
 import mir.Instr.*;
@@ -179,13 +180,27 @@ public class Visitor {
                 if (hasFloatType(first, second)) {
                     first = trimTo(first, F32_TYPE);
                     second = trimTo(second, F32_TYPE);
-                    Alu.Op aluOp = aluOpHelper(op, true);
-                    first = new Alu(F32_TYPE, aluOp, first, second, curBB);
+                    if (op.getType() == TokenType.MOD) {
+                        // a % b = a - a / b;
+                        Value tmp = new Alu(F32_TYPE, Alu.Op.FDIV, first, second, curBB);
+                        tmp = new Alu(I32_TYPE, Alu.Op.FMUL, tmp, second, curBB);
+                        first = new Alu(F32_TYPE, Alu.Op.FSUB, first, tmp, curBB);
+                    } else {
+                        Alu.Op aluOp = aluOpHelper(op, true);
+                        first = new Alu(F32_TYPE, aluOp, first, second, curBB);
+                    }
                 } else {
                     first = trimTo(first, I32_TYPE);
                     second = trimTo(second, I32_TYPE);
-                    Alu.Op aluOp = aluOpHelper(op);
-                    first = new Alu(I32_TYPE, aluOp, first, second, curBB);
+                    if (op.getType() == TokenType.MOD) {
+                        // a % b = a - a / b * b;
+                        Value tmp = new Alu(I32_TYPE, Alu.Op.DIV, first, second, curBB);
+                        tmp = new Alu(I32_TYPE, Alu.Op.MUL, tmp, second, curBB);
+                        first = new Alu(I32_TYPE, Alu.Op.SUB, first, tmp, curBB);
+                    } else {
+                        Alu.Op aluOp = aluOpHelper(op);
+                        first = new Alu(I32_TYPE, aluOp, first, second, curBB);
+                    }
                 }
             } else if (isCmp(op)) {
                 Value second = visitExp(nextExp);

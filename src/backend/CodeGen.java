@@ -236,13 +236,13 @@ public class CodeGen {
                 case value, func, bb -> throw new AssertionError("Damaged wrong: try gen: " + instr);
                 case bino -> genBinaryInst((Instr.Alu) instr);
                 case ashr -> {
-                   Value lhs = ((Instr.Ashr) instr).getRVal1();
-                   Value rhs = ((Instr.Ashr) instr).getRVal2();
-                   MC.Operand lVR = getVR_may_imm(lhs);
-                   MC.Operand rVR = getVR_may_imm(rhs);
-                   // instr不可能是Constant
-                   MC.Operand dVR = getVR_no_imm(instr);
-                   new I.Mov(dVR, lVR, new Arm.Shift(Arm.ShiftType.Asr, rVR), curMB);
+                    Value lhs = ((Instr.Ashr) instr).getRVal1();
+                    Value rhs = ((Instr.Ashr) instr).getRVal2();
+                    MC.Operand lVR = getVR_may_imm(lhs);
+                    MC.Operand rVR = getVR_may_imm(rhs);
+                    // instr不可能是Constant
+                    MC.Operand dVR = getVR_no_imm(instr);
+                    new I.Mov(dVR, lVR, new Arm.Shift(Arm.ShiftType.Asr, rVR), curMB);
                 }
                 case jump -> {
                     MC.Block mb = ((Instr.Jump) instr).getTarget().getMb();
@@ -299,14 +299,14 @@ public class CodeGen {
                     // mv.setNeedFix(STACK_FIX.VAR_STACK);
                     I.Binary bino = new I.Binary(MachineInst.Tag.Add, Arm.Reg.getR(sp), Arm.Reg.getR(sp), new Operand(I32, 0), curMB);
                     bino.setNeedFix(STACK_FIX.VAR_STACK);
-                    Pop(curMF);
+                    // Pop(curMF);
                     if (retDataType == I32) {
-                        new I.Ret(Arm.Reg.getR(r0), curMB);
+                        new I.Ret(curMF, Arm.Reg.getR(r0), curMB);
                     } else if (retDataType == F32) {
                         assert needFPU;
-                        new V.Ret(Arm.Reg.getS(s0), curMB);
+                        new V.Ret(curMF, Arm.Reg.getS(s0), curMB);
                     } else {
-                        new I.Ret(curMB);
+                        new I.Ret(curMF, curMB);
                     }
                 }
                 case zext -> {
@@ -546,7 +546,8 @@ public class CodeGen {
                 }
                 rIdx++;
             }
-        }if (needFPU) {
+        }
+        if (needFPU) {
             while (sIdx < 2) {
                 Operand tmpDst = newSVR();
                 paramSVRList.add(tmpDst);
@@ -623,11 +624,11 @@ public class CodeGen {
                     for (int i = 0; i < paramVRList.size(); i++) {
                         new I.Mov(Arm.Reg.getR(i), paramVRList.get(i), curMB);
                     }*/
-                    // 需要把挪走的s0-sx再挪回来
-                    for (int i = 0; i < paramSVRList.size(); i++) {
-                        assert needFPU;
-                        new V.Mov(Arm.Reg.getS(i), paramSVRList.get(i), curMB);
-                    }
+        // 需要把挪走的s0-sx再挪回来
+        for (int i = 0; i < paramSVRList.size(); i++) {
+            assert needFPU;
+            new V.Mov(Arm.Reg.getS(i), paramSVRList.get(i), curMB);
+        }
     }
 
     public static boolean LdrStrImmEncode(int off) {
@@ -670,6 +671,11 @@ public class CodeGen {
         Value rhs = instr.getRVal2();
         // instr不可能是Constant
         MC.Operand dVR = getVR_no_imm(instr);
+        if (lhs.isConstant()) {
+            Value tmp = lhs;
+            lhs = rhs;
+            rhs = tmp;
+        }
         if (tag == Mod) {
             MC.Operand lVR = getVR_may_imm(lhs);
             MC.Operand rVR = getVR_may_imm(rhs);

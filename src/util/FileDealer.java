@@ -15,7 +15,7 @@ public class FileDealer {
     private static ArrayList<String> mipsStringList = new ArrayList<>();
     private static ArrayList<String> ansTxtList = new ArrayList<>();
 
-    private FileDealer(){
+    private FileDealer() {
         // try {
         //     inputStream = new FileInputStream(inputFile);
         //     bufferedInputStream = new BufferedInputStream(inputStream);
@@ -29,7 +29,8 @@ public class FileDealer {
         //     e.printStackTrace();
         // }
     }
-    public static FileDealer getInstance(){
+
+    public static FileDealer getInstance() {
         return fileDealer;
     }
 
@@ -37,12 +38,12 @@ public class FileDealer {
     //     return inputFile;
     // }
 
-    public static BufferedInputStream getNewBufferedInputStream(InputStream in){
+    public static BufferedInputStream getNewBufferedInputStream(InputStream in) {
         bufferedInputStream = new BufferedInputStream(in);
         return bufferedInputStream;
     }
 
-    public static void tryClearOutputString(String s){
+    public static void tryClearOutputString(String s) {
         tryOutputStringList.clear();
     }
 
@@ -94,15 +95,15 @@ public class FileDealer {
     //     return bufferedInputStream;
     // }
 
-    public static void addOutputString(String s){
+    public static void addOutputString(String s) {
         outputStringList.add(s);
     }
 
-    public static void addOutputMips(String s){
+    public static void addOutputMips(String s) {
         mipsStringList.add(s);
     }
 
-    public static void addOutputTxt(String s){
+    public static void addOutputTxt(String s) {
         ansTxtList.add(s);
     }
 
@@ -135,6 +136,25 @@ public class FileDealer {
         }
     }
 
+    private static void streamOutput(OutputStream fop, StringBuilder stb) {
+        OutputStreamWriter writer;
+        writer = new OutputStreamWriter(fop, StandardCharsets.UTF_8);
+        try {
+            writer.append(stb);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        try {
+            writer.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        try {
+            fop.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 
     public static void outputMips(String str) {
         File f;

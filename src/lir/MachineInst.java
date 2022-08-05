@@ -129,6 +129,10 @@ public class MachineInst extends ILinkNode {
         return theLastUserOfDef.equals(this.getNext());
     }
 
+    public String getSTB() {
+        return this.toString();
+    }
+
     public enum Tag {
         // Binary
         Add("add"),
@@ -245,6 +249,7 @@ public class MachineInst extends ILinkNode {
 
     int hash = 0;
     static int cnt = 0;
+
     /*
     init and insert at end of the bb
     */

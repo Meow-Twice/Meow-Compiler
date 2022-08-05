@@ -695,6 +695,18 @@ public class CodeGen {
                     // TODO: 源操作数和目的操作数虚拟寄存器相同，不一定不会出 bug
                     new I.Binary(Rsb, dVR, dVR, new Operand(I32, 0), curMB); // dst = 0 - dst
                 }
+            } else if (Integer.bitCount(abs) == 2) {
+                // constant multiplier has two 1 bits => two shift-left and one add
+                // a * 10 => (a << 3) + (a << 1)
+                int hi = bitsOfInt - 1 - Integer.numberOfLeadingZeros(abs);
+                int lo = Integer.numberOfTrailingZeros(abs);
+                Operand shiftHi = newVR();
+                new I.Mov(shiftHi, srcOp, new Arm.Shift(Arm.ShiftType.Lsl, hi), curMB); // shiftHi = (a << hi)
+                new I.Binary(Add, dVR, shiftHi, srcOp, new Arm.Shift(Arm.ShiftType.Lsl, lo), curMB); // dst = shiftHi + (a << lo)
+                if (imm < 0) {
+                    // dst = -dst
+                    new I.Binary(Rsb, dVR, dVR, new Operand(I32, 0), curMB); // dst = 0 - dst
+                }
             } else {
                 new I.Binary(tag, dVR, srcOp, getImmVR(imm), curMB);
             }

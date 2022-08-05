@@ -285,6 +285,10 @@ public class MachineInst extends ILinkNode {
     }
     public interface Compare {
     }
+
+    public void setShift(Arm.Shift shift){
+        this.shift = shift;
+    }
 }
 
 

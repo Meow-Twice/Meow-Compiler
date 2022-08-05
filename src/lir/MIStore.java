@@ -61,7 +61,7 @@ public class MIStore extends MachineInst {
         return useOpds.set(1,addr);
     }
 
-    public Machine.Operand setOffst(Machine.Operand offset){
+    public Machine.Operand setOffset(Machine.Operand offset){
         return useOpds.set(2,offset);
     }
     @Override
@@ -91,6 +91,7 @@ public class MIStore extends MachineInst {
             }
         }
     }
+
 
     @Override
     public String toString() {

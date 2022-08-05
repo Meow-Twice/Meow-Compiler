@@ -103,7 +103,7 @@ public class PeepholeWithDataFlow {
                 miStore.setAddr(target);
             }
             if(miStore.getOffset().toString().equals(origin.toString())){
-                miStore.setOffst(target);
+                miStore.setOffset(target);
             }
             return true;
         }
@@ -241,7 +241,7 @@ public class PeepholeWithDataFlow {
                             //no side effect and noshift and no sp
                             inst.remove();
                             finish = false;
-                            continue;
+                            break;
                         }
 
                         //mov a,b
@@ -259,7 +259,7 @@ public class PeepholeWithDataFlow {
                                         //successfully replace---->remove
                                         inst.remove();
                                         finish = false;
-                                        continue;
+                                        break;
                                     }
 
                                 }
@@ -281,7 +281,7 @@ public class PeepholeWithDataFlow {
                                         //successfully replace---->remove
                                         inst.remove();
                                         finish = false;
-                                        continue;
+                                        break;
                                     }
 
                                 }
@@ -302,10 +302,154 @@ public class PeepholeWithDataFlow {
                                     if (replaceReg(next, miMove.getDst(), miMove.getSrc())) {
                                         inst.remove();
                                         finish = false;
-                                        continue;
+                                        break;
                                     }
                                 }
 
+                            }
+                        }
+
+
+                        if(inst instanceof MIBinary && ((MIBinary)inst).getType() == MachineInst.Tag.Mul && noShift && noCond){
+                            MIBinary mul = (MIBinary) inst;
+                            if(inst != block.getEndMI()){
+                                MachineInst next = (MachineInst) inst.getNext();
+                                if(next instanceof MIBinary && next.getType() == MachineInst.Tag.Add && next.getShift().isNone()){
+                                    if(lastUser == next && mul.getDst().toString().equals(((MIBinary) next).getLOpd().toString()) && !mul.getDst().toString().equals(((MIBinary) next).getROpd().toString()) && !((MIBinary) next).getROpd().is_I_Imm()){
+                                        //mul a,b,c
+                                        //add d,a,x
+                                        //--->
+                                        //mla d,b,c,x
+                                        new MIFma(true,false,next.getCond(),((MIBinary) next).getDst(),mul.getLOpd(),mul.getROpd(),((MIBinary) next).getROpd(),next);
+                                        inst.remove();
+                                        next.remove();
+                                        finish = false;
+                                        break;
+                                    }
+                                    else if(lastUser == next && mul.getDst().toString().equals(((MIBinary) next).getROpd().toString()) && !mul.getDst().toString().equals(((MIBinary) next).getLOpd().toString())){
+                                        //mul a,b,c
+                                        //add d,x,a
+                                        //--->
+                                        //mla d,b,c,x
+                                        new MIFma(true,false,next.getCond(),((MIBinary) next).getDst(),mul.getLOpd(),mul.getROpd(),((MIBinary) next).getLOpd(),next);
+                                        inst.remove();
+                                        next.remove();
+                                        finish = false;
+                                        break;
+                                    }
+                                }
+                                else if(next instanceof MIBinary && next.getType() == MachineInst.Tag.Sub && next.getShift().isNone()){
+                                    if(lastUser == next && mul.getDst().toString().equals(((MIBinary) next).getLOpd().toString()) && !mul.getDst().toString().equals(((MIBinary) next).getROpd().toString()) && !((MIBinary) next).getROpd().is_I_Imm()){
+                                        //mul a,b,c
+                                        //sub d,a,x
+                                        //--->
+                                        //mls d,b,c,x
+                                        new MIFma(false,false,next.getCond(),((MIBinary) next).getDst(),mul.getLOpd(),mul.getROpd(),((MIBinary) next).getROpd(),next);
+                                        inst.remove();
+                                        next.remove();
+                                        finish = false;
+                                        break;
+                                    }
+                                }
+                                else if(next instanceof MIBinary && next.getType() == MachineInst.Tag.Rsb && next.getShift().isNone()){
+                                    if(lastUser == next && mul.getDst().toString().equals(((MIBinary) next).getROpd().toString()) && !mul.getDst().toString().equals(((MIBinary) next).getLOpd().toString())){
+                                        //mul a,b,c
+                                        //rsb d,x,a
+                                        //--->
+                                        //mls d,b,c,x
+                                        new MIFma(false,false,next.getCond(),((MIBinary) next).getDst(),mul.getLOpd(),mul.getROpd(),((MIBinary) next).getLOpd(),next);
+                                        inst.remove();
+                                        next.remove();
+                                        finish = false;
+                                        break;
+                                    }
+
+                                }
+                            }
+                        }
+                        //mov a,b,shift
+                        //ldr c,[d,a]
+                        //---->
+                        //ldr c,[d,b,shift]
+                        if(inst instanceof MIMove && (inst.getNext() instanceof MILoad)){
+                            MIMove miMove = (MIMove)inst;
+                            MILoad miLoad = (MILoad) (inst.getNext());
+                            if(!miMove.getSrc().is_I_Imm() && miLoad.getOffset().toString().equals(miMove.getDst().toString()) && miLoad.getShift().isNone()
+                                &&!miMove.getDst().toString().equals(miLoad.getAddr().toString()) && !miMove.getDst().toString().equals(miLoad.getData().toString())
+                                &&lastUser == miLoad && miMove.getCond().equals(miLoad.getCond())){
+                                miLoad.setOffset(miMove.getSrc());
+                                miLoad.setShift(miMove.getShift());
+                                miMove.remove();
+                                finish = false;
+                                break;
+                            }
+                        }
+
+                        if(inst instanceof MIMove && (inst.getNext() instanceof V.Ldr)){
+                            MIMove miMove = (MIMove)inst;
+                            V.Ldr miLoad = (V.Ldr) (inst.getNext());
+                            if(!miMove.getSrc().is_I_Imm() && miLoad.getOffset()!=null && miLoad.getOffset().toString().equals(miMove.getDst().toString()) && miLoad.getShift().isNone()
+                                    &&!miMove.getDst().toString().equals(miLoad.getAddr().toString()) && !miMove.getDst().toString().equals(miLoad.getData().toString())
+                                    &&lastUser == miLoad && miMove.getCond().equals(miLoad.getCond())){
+                                miLoad.setOffset(miMove.getSrc());
+                                miLoad.setShift(miMove.getShift());
+                                miMove.remove();
+                                finish = false;
+                                break;
+                            }
+                        }
+                        //mov a,b,shift
+                        //str c,[d,a]
+                        //---->
+                        //str c,[d,b,shift]
+                        if(inst instanceof MIMove && (inst.getNext() instanceof MIStore)){
+                            MIMove miMove = (MIMove)inst;
+                            MIStore miStore = (MIStore) (inst.getNext());
+                            if(!miMove.getSrc().is_I_Imm() && miStore.getOffset().toString().equals(miMove.getDst().toString()) && miStore.getShift().isNone()
+                                    &&!miMove.getDst().toString().equals(miStore.getAddr().toString()) && !miMove.getDst().toString().equals(miStore.getData().toString())
+                                    &&lastUser == miStore && miMove.getCond().equals(miStore.getCond())){
+                                miStore.setOffset(miMove.getSrc());
+                                miStore.setShift(miMove.getShift());
+                                miMove.remove();
+                                finish = false;
+                                break;
+                            }
+                        }
+
+                        //mov a,b,shift
+                        //vstr c,[d,a]
+                        //---->
+                        //vstr c,[d,b,shift]
+                        if(inst instanceof MIMove && (inst.getNext() instanceof V.Str)){
+                            MIMove miMove = (MIMove)inst;
+                            V.Str miStore = (V.Str) (inst.getNext());
+                            if(!miMove.getSrc().is_I_Imm() && miStore.getOffset()!=null && miStore.getOffset().toString().equals(miMove.getDst().toString()) && miStore.getShift().isNone()
+                                    &&!miMove.getDst().toString().equals(miStore.getAddr().toString()) && !miMove.getDst().toString().equals(miStore.getData().toString())
+                                    &&lastUser == miStore && miMove.getCond().equals(miStore.getCond())){
+                                miStore.setOffset(miMove.getSrc());
+                                miStore.setShift(miMove.getShift());
+                                miMove.remove();
+                                finish = false;
+                                break;
+                            }
+                        }
+                        //mov a,b,shift
+                        //add c,d,a
+                        //---->
+                        //add c,d,b,shift
+                        if(inst instanceof MIMove && (inst.getNext() instanceof MIBinary) ){
+                            MIMove miMove = (MIMove)inst;
+                            MIBinary miBinary = (MIBinary) (inst.getNext());
+                            if(!miMove.getSrc().is_I_Imm() && miBinary.getType()!= MachineInst.Tag.Div && miBinary.getType()!= MachineInst.Tag.Mul) {
+                                if (miBinary.getROpd().toString().equals(miMove.getDst().toString()) && miBinary.getShift().isNone()
+                                        && !miMove.getDst().toString().equals(miBinary.getLOpd().toString()) && !miMove.getDst().toString().equals(miBinary.getDst().toString())
+                                        && lastUser == miBinary && miMove.getCond().equals(miBinary.getCond())) {
+                                    miBinary.setROpd(miMove.getSrc());
+                                    miBinary.setShift(miMove.getShift());
+                                    miMove.remove();
+                                    finish = false;
+                                    break;
+                                }
                             }
                         }
 

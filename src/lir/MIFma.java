@@ -69,6 +69,18 @@ public class MIFma extends MachineInst {
         useOpds.add(acc);
     }
 
+    public MIFma(boolean add, boolean sign,Arm.Cond cond,
+                 Machine.Operand dst, Machine.Operand lOpd, Machine.Operand rOpd, Machine.Operand acc,
+                 MachineInst insertAfter) {
+        super(insertAfter,Tag.FMA);
+        this.cond = cond;
+        this.add = add;
+        this.sign = sign;
+        defOpds.add(dst);
+        useOpds.add(lOpd);
+        useOpds.add(rOpd);
+        useOpds.add(acc);
+    }
     @Override
     public void output(PrintStream os, Machine.McFunction f) {
         transfer_output(os);

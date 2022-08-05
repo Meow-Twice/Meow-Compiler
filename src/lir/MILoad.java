@@ -55,6 +55,8 @@ public class MILoad extends MachineInst {
     public Machine.Operand setOffset(Machine.Operand offset){
         return useOpds.set(1,offset);
     }
+
+
     @Override
     public void output(PrintStream os, Machine.McFunction f) {
         transfer_output(os);

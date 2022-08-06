@@ -74,7 +74,7 @@ public class MICall extends MachineInst {
 
     @Override
     public void output(PrintStream os, McFunction f) {
-        os.println("\tblx\t" + callee.mFunc.getName());
+        os.println(this);
     }
 
     @Override

@@ -149,6 +149,18 @@ public class Arm {
         public Regs getReg() {
             return reg;
         }
+        // for debug
+        // @Override
+        // public String toString() {
+        //
+        //     return "(" + type.name() + ")" + switch (dataType) {
+        //         case I32 -> "r" + value;
+        //         case F32 -> "s" + value;
+        //         default -> {
+        //             throw new AssertionError("");
+        //         }
+        //     };
+        // }
     }
 
     public static class Glob extends MC.Operand {
@@ -254,6 +266,7 @@ public class Arm {
         Rrx("rrx");
 
         String name;
+
         ShiftType(String shift) {
             name = shift;
         }
@@ -300,14 +313,14 @@ public class Arm {
             //         default -> "";
             //     };
             // else
-                return switch (shiftType) {
-                    case Asr -> "asr #" + this.shift;
-                    case Lsl -> "lsl #" + this.shift;
-                    case Lsr -> "lsr #" + this.shift;
-                    case Ror -> "ror #" + this.shift;
-                    case Rrx -> "rrx #" + this.shift;
-                    default -> "";
-                };
+            return switch (shiftType) {
+                case Asr -> "asr #" + this.shift;
+                case Lsl -> "lsl #" + this.shift;
+                case Lsr -> "lsr #" + this.shift;
+                case Ror -> "ror #" + this.shift;
+                case Rrx -> "rrx #" + this.shift;
+                default -> "";
+            };
         }
 
         // @Override

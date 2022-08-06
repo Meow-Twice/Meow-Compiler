@@ -213,7 +213,7 @@ public class FPRegAllocator extends RegAllocator {
             for (MachineInst mi : mb.miList) {
                 if (mi.isComment()) continue;
                 if (mi.isCall()) {
-                    // TODO 这里不考虑Call
+                    // TODO 这里考虑Call
                     curMF.setUseLr();
                     continue;
                 }
@@ -225,21 +225,31 @@ public class FPRegAllocator extends RegAllocator {
                 ArrayList<Operand> uses = mi.useOpds;
                 if (defs.size() > 0) {
                     assert defs.size() == 1; // 只要有def, 除Call外均为1
-                    Operand set = colorMap.get(defs.get(0));
-                    if (set != null) {
-                        curMF.addUsedFRPs(set.reg);
-                        logOut("- Def\t" + defs.get(0) + "\tassign: " + set);
-                        defs.set(0, set);
+                    Operand def = defs.get(0);
+                    if (def.isPreColored(dataType)) {
+                        defs.set(0, Arm.Reg.getRSReg(def.getReg()));
+                    } else {
+                        Operand set = colorMap.get(defs.get(0));
+                        if (set != null) {
+                            curMF.addUsedFRPs(set.reg);
+                            logOut("- Def\t" + defs.get(0) + "\tassign: " + set);
+                            defs.set(0, set);
+                        }
                     }
                 }
 
                 for (int i = 0; i < uses.size(); i++) {
                     assert uses.get(i) != null;
-                    Operand set = colorMap.get(uses.get(i));
-                    if (set != null) {
-                        curMF.addUsedFRPs(set.reg);
-                        logOut("- Use\t" + uses.get(i) + "\tassign: " + set);
-                        mi.setUse(i, set);
+                    Operand use = uses.get(i);
+                    if (use.isPreColored(dataType)) {
+                        uses.set(i, Arm.Reg.getRSReg(use.getReg()));
+                    } else {
+                        Operand set = colorMap.get(use);
+                        if (set != null) {
+                            curMF.addUsedFRPs(set.reg);
+                            logOut("- Use\t" + uses.get(i) + "\tassign: " + set);
+                            mi.setUse(i, set);
+                        }
                     }
                 }
             }

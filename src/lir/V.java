@@ -398,8 +398,9 @@ public class V extends MachineInst {
     }
 
     public static class Cmp extends V implements MachineInst.Compare {
-        public Cmp(MC.Operand lOpd, MC.Operand rOpd, MC.Block insertAtEnd) {
+        public Cmp(Arm.Cond cond, MC.Operand lOpd, MC.Operand rOpd, MC.Block insertAtEnd) {
             super(VCmp, insertAtEnd);
+            this.cond = cond;
             useOpds.add(lOpd);
             useOpds.add(rOpd);
         }
@@ -422,6 +423,11 @@ public class V extends MachineInst {
         @Override
         public String toString() {
             return "vcmpe.f32\t" + getLOpd() + ",\t" + getROpd() + "\n\tvmrs\tAPSR_nzcv,\tFPSCR";
+        }
+
+        @Override
+        public void setCond(Arm.Cond cond) {
+            this.cond = cond;
         }
     }
 

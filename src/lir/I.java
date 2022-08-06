@@ -326,9 +326,6 @@ public class I extends MachineInst {
 
         @Override
         public String toString() {
-            if (getDst() == null) {
-                assert false;
-            }
             StringBuilder stb = new StringBuilder();
             Operand src = getSrc();
             if (src.type == Operand.Type.Immediate) {
@@ -351,7 +348,9 @@ public class I extends MachineInst {
                 }
             } else {
                 stb.append("mov").append(cond).append("\t").append(getDst().toString()).append(",\t").append(getSrc().toString());
-                if (shift != Arm.Shift.NONE_SHIFT) {
+                if (useOpds.size() > 1) {
+                    stb.append(",\t").append(shift.shiftType).append("\t").append(useOpds.get(1));
+                } else if(shift != Arm.Shift.NONE_SHIFT) {
                     stb.append(",\t").append(shift.toString());
                 }
             }
@@ -453,7 +452,7 @@ public class I extends MachineInst {
         public String toString() {
             StringBuilder stb = new StringBuilder();
 
-            stb.append("\t").append(switch (tag) {
+            stb.append(switch (tag) {
                 case Mul -> "mul";
                 case Add -> "add";
                 case Sub -> "sub";
@@ -481,8 +480,9 @@ public class I extends MachineInst {
 
     public static class Cmp extends I implements MachineInst.Compare {
 
-        public Cmp(Operand lOpd, Operand rOpd, MC.Block insertAtEnd) {
+        public Cmp(Arm.Cond cond, Operand lOpd, Operand rOpd, MC.Block insertAtEnd) {
             super(Tag.ICmp, insertAtEnd);
+            this.cond = cond;
             useOpds.add(lOpd);
             useOpds.add(rOpd);
         }
@@ -497,12 +497,17 @@ public class I extends MachineInst {
 
         @Override
         public void output(PrintStream os, MC.McFunction f) {
-            os.println("\tcmp\t" + getLOpd() + "," + getROpd());
+            os.println(this);
         }
 
         @Override
         public String toString() {
             return tag.toString() + '\t' + getLOpd() + ",\t" + getROpd();
+        }
+
+        @Override
+        public void setCond(Arm.Cond cond) {
+            this.cond = cond;
         }
     }
 

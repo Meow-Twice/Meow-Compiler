@@ -12,7 +12,7 @@ public class MIComment extends MachineInst {
 
     @Override
     public void output(PrintStream os, MC.McFunction f) {
-        os.println("@ " + content);
+        os.println(this);
     }
 
     @Override

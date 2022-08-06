@@ -266,8 +266,8 @@ public class CodeGen {
                         cond = t.ArmCond;
                     } else {
                         Operand condVR = getVR_may_imm(condValue);
-                        new I.Cmp(condVR, new Operand(I32, 0), curMB);
                         cond = Ne;
+                        new I.Cmp(cond, condVR, new Operand(I32, 0), curMB);
                     }
                     new MIBranch(cond, trueBlock, falseBlock, curMB);
                 }
@@ -884,9 +884,9 @@ public class CodeGen {
             Value rhs = icmp.getRVal2();
             Operand lVR = getVR_may_imm(lhs);
             Operand rVR = getVR_may_imm(rhs);
-            I.Cmp cmp = new I.Cmp(lVR, rVR, curMB);
             int condIdx = icmp.getOp().ordinal();
             Arm.Cond cond = Arm.Cond.values()[condIdx];
+            I.Cmp cmp = new I.Cmp(cond, lVR, rVR, curMB);
             // Icmp或Fcmp后紧接着BranchInst，而且前者的结果仅被后者使用，那么就可以不用计算结果，而是直接用bxx的指令
             if (((Instr) icmp.getNext()).isBranch()
                     && icmp.onlyOneUser()
@@ -903,7 +903,6 @@ public class CodeGen {
             Value rhs = fcmp.getRVal2();
             Operand lSVR = getVR_may_imm(lhs);
             Operand rSVR = getVR_may_imm(rhs);
-            V.Cmp vcmp = new V.Cmp(lSVR, rSVR, curMB);
             Arm.Cond cond = switch (fcmp.getOp()) {
                 case OEQ -> Eq;
                 case ONE -> Ne;
@@ -912,6 +911,7 @@ public class CodeGen {
                 case OLT -> Lt;
                 case OLE -> Le;
             };
+            V.Cmp vcmp = new V.Cmp(cond, lSVR, rSVR, curMB);
             // Icmp或Fcmp后紧接着BranchInst，而且前者的结果仅被后者使用，那么就可以不用计算结果，而是直接用bxx的指令
             if (((Instr) fcmp.getNext()).isBranch()
                     && fcmp.onlyOneUser()

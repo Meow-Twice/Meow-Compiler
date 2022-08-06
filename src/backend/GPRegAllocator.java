@@ -211,6 +211,16 @@ public class GPRegAllocator extends RegAllocator {
                 if (mi.isCall()) {
                     // TODO 这里不考虑Call
                     curMF.setUseLr();
+                    int idx = 0;
+                    ArrayList<Operand> defs = mi.defOpds;
+                    for(Operand def: mi.defOpds){
+                        defs.set(idx++, Arm.Reg.getRSReg(def.getReg()));
+                    }
+                    idx = 0;
+                    ArrayList<Operand> uses = mi.useOpds;
+                    for(Operand use: mi.useOpds){
+                        uses.set(idx++, Arm.Reg.getRSReg(use.getReg()));
+                    }
                     continue;
                 }
                 // logOut("Consider " + mi);
@@ -237,7 +247,7 @@ public class GPRegAllocator extends RegAllocator {
                     if (use.isPreColored(dataType)) {
                         uses.set(i, Arm.Reg.getRSReg(use.getReg()));
                     } else {
-                        Operand set = colorMap.get(uses.get(i));
+                        Operand set = colorMap.get(use);
                         if (set != null) {
                             curMF.addUsedGPRs(set.reg);
                             logOut("- Use\t" + uses.get(i) + "\tassign: " + set);

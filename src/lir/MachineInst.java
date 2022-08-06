@@ -65,6 +65,11 @@ public class MachineInst extends ILinkNode {
         return cond;
     }
 
+    public void setCond(Arm.Cond cond) {
+        this.cond = cond;
+    }
+
+
     public Arm.Shift getShift() {
         return shift;
     }
@@ -294,6 +299,7 @@ public class MachineInst extends ILinkNode {
     }
 
     public interface Compare {
+        void setCond(Arm.Cond cond);
     }
 
 

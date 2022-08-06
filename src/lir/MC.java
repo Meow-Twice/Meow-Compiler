@@ -133,7 +133,7 @@ public class MC {
                 for (Block mb : function.mbList) {
                     stb.append(mb.getLabel()).append(":\n");
                     for (MachineInst inst : mb.miList) {
-                        if(!inst.isComment()) stb.append("\t");
+                        if (!inst.isComment()) stb.append("\t");
                         stb.append(inst.getSTB()).append("\n");
                     }
                 }
@@ -174,26 +174,25 @@ public class MC {
                     } else {
                         if (count > 1) {
                             //.zero
-                            stb.append("\t.fill\t").append(count).append(",\t4,\t").append(last);
+                            stb.append("\t.fill\t").append(count).append(",\t4,\t").append(last).append("\n");
                         } else {
-                            stb.append("\t.word\t").append(last);
+                            stb.append("\t.word\t").append(last).append("\n");
                         }
                         last = value instanceof Constant.ConstantInt ? ((Constant.ConstantInt) value).constIntVal : ((Constant.ConstantFloat) value).getIntBits();
                         count = 1;
                     }
-                    stb.append("\n");
                 }
                 if (count > 1) {
                     //.zero
-                    stb.append("\t.fill\t").append(count).append(",\t4,\t").append(last);
+                    stb.append("\t.fill\t").append(count).append(",\t4,\t").append(last).append("\n");
                 } else {
-                    stb.append("\t.word\t").append(last);
+                    stb.append("\t.word\t").append(last).append("\n");
                 }
-                stb.append("\n");
             }
             return stb;
         }
     }
+
     public static class McFunction extends ILinkNode {
         // ArrayList<MachineInst> instList;
         // Block tailBlock = new Block();
@@ -225,6 +224,7 @@ public class MC {
             // assert tailBlock.getPrev() instanceof Instr;
             // return (Block) tailBlock.getPrev();
         }
+
         // ArrayList<Operand> params = new ArrayList<>();
         int varStack = 0;
         int paramStack = 0;
@@ -245,6 +245,7 @@ public class MC {
         public void addVarStack(int i) {
             varStack += i;
         }
+
         // 方便解释器和后端生成，因为采用把参数放到caller的sp的下面若干位置的方式
         public void addParamStack(int i) {
             paramStack += i;
@@ -282,6 +283,7 @@ public class MC {
         public int getVarStack() {
             return varStack;
         }
+
         public int getVRSize() {
             return vrCount;
         }
@@ -358,7 +360,7 @@ public class MC {
                 if (((FPRs) reg).ordinal() < Math.min(floatParamCount, sParamCnt) || (this.mFunc.getRetType().isFloatType() && reg == s0)) {
                     return;
                 }
-                if(((FPRs) reg).ordinal() < 2) return;
+                if (((FPRs) reg).ordinal() < 2) return;
                 if (usedCalleeSavedFPRs.add((FPRs) reg)) {
                     addRegStack(4);
                     int idx = ((FPRs) reg).ordinal();
@@ -390,7 +392,9 @@ public class MC {
             if (b != 0) {
                 varStack += SP_ALIGN - b;
             }
-        }}
+        }
+    }
+
     public static class Block extends ILinkNode { //
         // public static String BB_Prefix = ".L_BB_";
         public static String MB_Prefix = "._MB_";
@@ -443,10 +447,11 @@ public class MC {
             return MB_Prefix + mb_idx + (bb == null ? "" : "_" + bb.getLabel());
         }
 
-        // @Override
-        // public String toString() {
-        //     return MB_Prefix + mb_idx + (bb == null ? "" : "_" + bb.getLabel());
-        // }
+        @Override
+        public String toString() {
+            return MB_Prefix + mb_idx + (bb == null ? "" : "_" + bb.getLabel());
+        }
+
         public void setMf(McFunction mf) {
             this.mf = mf;
             mf.insertAtEnd(this);
@@ -597,6 +602,7 @@ public class MC {
 
         public Type type;
         DataType dataType = I32;
+
         // 目前只用于立即数
         public Operand(Type type) {
             this.type = type;
@@ -744,9 +750,11 @@ public class MC {
                 return getPrefix() + value;
             }
         }
+
         public Operand select(Operand o) {
             return heuristicVal() < o.heuristicVal() ? this : o;
         }
+
         @Override
         public boolean equals(Object obj) {
             if (obj == this) return true;

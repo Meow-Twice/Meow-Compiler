@@ -378,17 +378,35 @@ public class CodeGen {
                 case gep -> {
                     Instr.GetElementPtr gep = (Instr.GetElementPtr) instr;
                     Value ptrValue = gep.getPtr();
-                    // if(O2){
-                    //
+                    int offsetCount = gep.getOffsetCount();
+                    Type curBaseType = ((Type.PointerType) ptrValue.getType()).getInnerType();
+                    // if (O2) {
+                    //     assert offsetCount <= 2 && offsetCount > 0;
                     //     // %v30 = getelementptr inbounds [3 x [4 x [5 x i32]]], [3 x [4 x [5 x i32]]]* %f1, i32 %1
                     //     // %v31 = getelementptr inbounds [3 x [4 x [5 x i32]]], [3 x [4 x [5 x i32]]]* %30, i32 0, i32 %2
+                    //     Operand curAddrVR = getVR_from_ptr(ptrValue);
+                    //     if (offsetCount == 1) {
+                    //         Value curIdxValue = gep.getUseValueList().get(1);
+                    //         int offSet = 4 * ((Type.ArrayType) curBaseType).getFlattenSize();
+                    //         if (curIdxValue.isConstantInt()) {
+                    //             int curIdx = (int) ((Constant.ConstantInt) curIdxValue).getConstVal();
+                    //             if (curIdx == 0) {
+                    //                 value2opd.put(ptrValue, curAddrVR);
+                    //             } else {
+                    //                 int totalOff = offSet * curIdx;
+                    //                 if (immCanCode(totalOff)) {
+                    //                     new I.Binary(Add, getVR_no_imm(gep), curAddrVR, new Operand(I32, totalOff), curMB);
+                    //                 } else {
+                    //                     new I.Binary(Add, getVR_no_imm(gep), curAddrVR, getImmVR(totalOff), curMB);
+                    //                 }
+                    //             }
+                    //         }
+                    //     }
                     //     break;
                     // }
-                    int offsetCount = gep.getOffsetCount();
                     /**
                      * 当前的 baseType
                      */
-                    Type curBaseType = ((Type.PointerType) ptrValue.getType()).getInnerType();
                     assert !ptrValue.isConstant();
                     Operand dstVR = getVR_no_imm(gep);
                     // Machine.Operand curAddrVR = getVR_no_imm(ptrValue);

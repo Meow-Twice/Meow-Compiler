@@ -25,6 +25,11 @@ public class LoopStrengthReduction {
 
     public void Run() {
         divToShift();
+        addAndModToMulAndMod();
+    }
+
+    private void addAndModToMulAndMod() {
+        //TODO:针对除法优化进行优化
     }
 
     private void divToShift() {

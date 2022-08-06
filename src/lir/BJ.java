@@ -1,4 +1,4 @@
 package lir;
 
-public class BJ {
+public class BJ extends MachineInst{
 }

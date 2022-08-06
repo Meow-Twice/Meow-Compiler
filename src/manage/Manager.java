@@ -1,5 +1,6 @@
 package manage;
 
+import lir.MC;
 import frontend.semantic.Initial;
 import frontend.semantic.symbol.Symbol;
 import lir.*;
@@ -135,13 +136,13 @@ public class Manager {
     }
 
     public static void outputMI(boolean flag) {
-        Machine.Program p = Machine.Program.PROGRAM;
-        for (Machine.McFunction mcFunc : p.funcList) {
+        MC.Program p = MC.Program.PROGRAM;
+        for (MC.McFunction mcFunc : p.funcList) {
             System.err.println("\n");
             System.err.println(mcFunc.mFunc.getName());
-            for (Machine.Block mb : mcFunc.mbList) {
+            for (MC.Block mb : mcFunc.mbList) {
                 System.err.println("\n");
-                System.err.println(mb.getDebugLabel());
+                System.err.println(mb.getLabel());
                 for (MachineInst mi : mb.miList) {
                     // if(mi.isCall())continue;
                     // if(mi.isBranch())continue;
@@ -160,15 +161,15 @@ public class Manager {
         outputMI(new FileOutputStream(miFilename + ".txt"));
     }
 
-    public void outputMI(OutputStream out) {
+    public static void outputMI(OutputStream out) {
         FileDealer.outputClear();
-        Machine.Program p = Machine.Program.PROGRAM;
-        for (Machine.McFunction mcFunc : p.funcList) {
+        MC.Program p = MC.Program.PROGRAM;
+        for (MC.McFunction mcFunc : p.funcList) {
             FileDealer.addOutputString("\n");
             FileDealer.addOutputString(mcFunc.mFunc.getName());
-            for (Machine.Block mb : mcFunc.mbList) {
+            for (MC.Block mb : mcFunc.mbList) {
                 FileDealer.addOutputString("\n");
-                FileDealer.addOutputString(mb.getDebugLabel());
+                FileDealer.addOutputString(mb.getLabel());
                 for (MachineInst mi : mb.miList) {
                     String str = mi instanceof MIComment ? "" : "\t";
                     FileDealer.addOutputString(str + mi);

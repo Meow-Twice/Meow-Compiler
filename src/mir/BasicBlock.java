@@ -1,7 +1,7 @@
 package mir;
 
 import frontend.Visitor;
-import lir.Machine;
+import lir.MC;
 import midend.CloneInfoMap;
 import midend.OutParam;
 import mir.type.Type;
@@ -423,13 +423,13 @@ public class BasicBlock extends Value {
         return ret;
     }
 
-    private Machine.Block mb = null;
+    private MC.Block mb = null;
 
-    public void setMB(Machine.Block mb) {
+    public void setMB(MC.Block mb) {
         this.mb = mb;
     }
 
-    public Machine.Block getMb() {
+    public MC.Block getMb() {
         return mb;
     }
 

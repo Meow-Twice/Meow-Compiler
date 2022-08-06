@@ -3,7 +3,7 @@ package backend;
 import frontend.lexer.Lexer;
 import frontend.semantic.Initial;
 import lir.*;
-import lir.Machine.Operand;
+import lir.MC.Operand;
 import manage.Manager;
 import mir.*;
 import mir.type.DataType;
@@ -33,7 +33,7 @@ public class CodeGen {
     public static boolean optMulDiv = true;
 
     // 当前的Machine.McFunction
-    private static Machine.McFunction curMF;
+    private static MC.McFunction curMF;
 
     // 当前的mir.Function
     private static mir.Function curFunc;
@@ -48,14 +48,14 @@ public class CodeGen {
     public final ArrayList<Arm.Glob> globList = new ArrayList<>();
 
     // 如名
-    public HashMap<Function, Machine.McFunction> f2mf;
+    public HashMap<Function, MC.McFunction> f2mf;
 
     // 如名
-    public HashMap<BasicBlock, Machine.Block> bb2mb;
+    public HashMap<BasicBlock, MC.Block> bb2mb;
 
     // 全局变量
     private final HashMap<GlobalVal.GlobalValue, Initial> globalMap;
-    private Machine.Block curMB;
+    private MC.Block curMB;
 
     // 整数数传参可使用最大个数
     public static final int rParamCnt = 4;
@@ -79,7 +79,7 @@ public class CodeGen {
         // TODO
 
         for (Function func : fMap.values()) {
-            Machine.McFunction mcFunc = new Machine.McFunction(func);
+            MC.McFunction mcFunc = new MC.McFunction(func);
             f2mf.put(func, mcFunc);
             for (Function.Param p : func.getParams()) {
                 if (p.getType().isFloatType()) {
@@ -97,12 +97,12 @@ public class CodeGen {
             }
             curMF = f2mf.get(func);
             curMF.setUseLr();
-            Machine.Program.PROGRAM.funcList.insertAtEnd(curMF);
+            MC.Program.PROGRAM.funcList.insertAtEnd(curMF);
             curFunc = func;
             boolean isMain = false;
             if (curFunc.getName().equals("main")) {
                 isMain = true;
-                Machine.Program.PROGRAM.mainMcFunc = curMF;
+                MC.Program.PROGRAM.mainMcFunc = curMF;
             }
             curMF.clearVRCount();
             curMF.clearSVRCount();
@@ -113,7 +113,7 @@ public class CodeGen {
             BasicBlock endBB = func.getEnd();
             // 先造出来防止br找不到目标
             while (!bb.equals(endBB)) {
-                Machine.Block mb = new Machine.Block(bb);
+                MC.Block mb = new MC.Block(bb);
                 bb.setMB(mb);
                 bb2mb.put(bb, mb);
                 bb = (BasicBlock) bb.getNext();
@@ -142,12 +142,12 @@ public class CodeGen {
         }
     }
 
-    private void Push(Machine.McFunction mf) {
+    private void Push(MC.McFunction mf) {
         if (needFPU) new StackCtl.VPush(mf, curMB);
         new StackCtl.Push(mf, curMB);
     }
 
-    private void Pop(Machine.McFunction mf) {
+    private void Pop(MC.McFunction mf) {
         new StackCtl.Pop(mf, curMB);
         if (needFPU) new StackCtl.VPop(mf, curMB);
     }
@@ -220,12 +220,12 @@ public class CodeGen {
         FLOAT_TOTAL_STACK
     }
 
-    HashSet<Machine.Block> visitBBSet = new HashSet<>();
+    HashSet<MC.Block> visitBBSet = new HashSet<>();
 
     public void genBB(BasicBlock bb) {
         curMB = bb.getMb();
         visitBBSet.add(curMB);
-        curMB.setMcFunc(curMF);
+        curMB.setMf(curMF);
         // ArrayList<BasicBlock> nextBlockList = new ArrayList<>();
         Instr instr = bb.getBeginInstr();
         while (!instr.equals(bb.getEnd())) {
@@ -236,16 +236,16 @@ public class CodeGen {
                 case value, func, bb -> throw new AssertionError("Damaged wrong: try gen: " + instr);
                 case bino -> genBinaryInst((Instr.Alu) instr);
                 case ashr -> {
-                   Value lhs = ((Instr.Ashr) instr).getRVal1();
-                   Value rhs = ((Instr.Ashr) instr).getRVal2();
-                   Machine.Operand lVR = getVR_may_imm(lhs);
-                   Machine.Operand rVR = getVR_may_imm(rhs);
-                   // instr不可能是Constant
-                   Machine.Operand dVR = getVR_no_imm(instr);
-                   new I.Mov(dVR, lVR, new Arm.Shift(Arm.ShiftType.Asr, rVR), curMB);
+                    Value lhs = ((Instr.Ashr) instr).getRVal1();
+                    Value rhs = ((Instr.Ashr) instr).getRVal2();
+                    MC.Operand lVR = getVR_may_imm(lhs);
+                    MC.Operand rVR = getVR_may_imm(rhs);
+                    // instr不可能是Constant
+                    MC.Operand dVR = getVR_no_imm(instr);
+                    new I.Mov(dVR, lVR, new Arm.Shift(Arm.ShiftType.Asr, rVR), curMB);
                 }
                 case jump -> {
-                    Machine.Block mb = ((Instr.Jump) instr).getTarget().getMb();
+                    MC.Block mb = ((Instr.Jump) instr).getTarget().getMb();
                     curMB.succMBs.add(mb);
                     if (!visitBBSet.contains(mb)) nextBBList.push(mb.bb);
                     new MIJump(mb, curMB);
@@ -255,8 +255,8 @@ public class CodeGen {
                     Arm.Cond cond;
                     Instr.Branch brInst = (Instr.Branch) instr;
                     Instr condValue = (Instr) brInst.getCond();
-                    Machine.Block trueBlock = brInst.getThenTarget().getMb();
-                    Machine.Block falseBlock = brInst.getElseTarget().getMb();
+                    MC.Block trueBlock = brInst.getThenTarget().getMb();
+                    MC.Block falseBlock = brInst.getElseTarget().getMb();
                     curMB.succMBs.add(trueBlock);
                     curMB.succMBs.add(falseBlock);
                     if (!visitBBSet.contains(falseBlock)) nextBBList.push(falseBlock.bb);
@@ -266,8 +266,8 @@ public class CodeGen {
                         cond = t.ArmCond;
                     } else {
                         Operand condVR = getVR_may_imm(condValue);
-                        new I.Cmp(condVR, new Operand(I32, 0), curMB);
                         cond = Ne;
+                        new I.Cmp(cond, condVR, new Operand(I32, 0), curMB);
                     }
                     new MIBranch(cond, trueBlock, falseBlock, curMB);
                 }
@@ -299,14 +299,14 @@ public class CodeGen {
                     // mv.setNeedFix(STACK_FIX.VAR_STACK);
                     I.Binary bino = new I.Binary(MachineInst.Tag.Add, Arm.Reg.getR(sp), Arm.Reg.getR(sp), new Operand(I32, 0), curMB);
                     bino.setNeedFix(STACK_FIX.VAR_STACK);
-                    Pop(curMF);
+                    // Pop(curMF);
                     if (retDataType == I32) {
-                        new I.Ret(Arm.Reg.getR(r0), curMB);
+                        new I.Ret(curMF, Arm.Reg.getR(r0), curMB);
                     } else if (retDataType == F32) {
                         assert needFPU;
-                        new V.Ret(Arm.Reg.getS(s0), curMB);
+                        new V.Ret(curMF, Arm.Reg.getS(s0), curMB);
                     } else {
-                        new I.Ret(curMB);
+                        new I.Ret(curMF, curMB);
                     }
                 }
                 case zext -> {
@@ -430,14 +430,14 @@ public class CodeGen {
                             // curAddrVR = tmpDst;
                             if (i == offsetCount - 1) {
                                 if (totalConstOff != 0) {
-                                    Machine.Operand immVR = getImmVR(totalConstOff);
-                                    Machine.Operand dst = newVR();
+                                    MC.Operand immVR = getImmVR(totalConstOff);
+                                    MC.Operand dst = newVR();
                                     new I.Binary(MachineInst.Tag.Add, dst, curAddrVR, immVR, curMB);
                                     curAddrVR = dst;
                                 }
                                 new I.Fma(true, false, dstVR, curIdxVR, offUnitImmVR, curAddrVR, curMB);
                             } else {
-                                Machine.Operand dst = newVR();
+                                MC.Operand dst = newVR();
                                 new I.Fma(true, false, dst, curIdxVR, offUnitImmVR, curAddrVR, curMB);
                                 curAddrVR = dst;
                             }
@@ -483,7 +483,7 @@ public class CodeGen {
         // TODO: 如果有返回值, 则由caller保护r0或s0, 如果没有返回值则有callee保护
         ArrayList<Value> param_list = call_inst.getParamList();
         // ArrayList<Operand> paramVRList = new ArrayList<>();
-        // ArrayList<Operand> paramSVRList = new ArrayList<>();
+        ArrayList<Operand> paramSVRList = new ArrayList<>();
         int rIdx = 0;
         int sIdx = 0;
         int rParamTop = rIdx;
@@ -547,9 +547,16 @@ public class CodeGen {
                 rIdx++;
             }
         }
+        if (needFPU) {
+            while (sIdx < 2) {
+                Operand tmpDst = newSVR();
+                paramSVRList.add(tmpDst);
+                new V.Mov(tmpDst, Arm.Reg.getS(sIdx++), curMB);
+            }
+        }
         // 栈空间移位
         Function callFunc = call_inst.getFunc();
-        Machine.McFunction callMcFunc = f2mf.get(callFunc);
+        MC.McFunction callMcFunc = f2mf.get(callFunc);
         if (callFunc.isExternal) {
             /**
              * r0实际上依据设计不一定需要保护, 因为一定是最后ret语句才会有r0的赋值
@@ -567,7 +574,7 @@ public class CodeGen {
                                 new V.Mov(tmpDst, Arm.Reg.getS(sIdx++), curMB);
                             }
                         }*/
-            Machine.McFunction mf = f2mf.get(callFunc);
+            MC.McFunction mf = f2mf.get(callFunc);
             assert mf != null;
             // Push(mf);
             new MICall(mf, curMB);
@@ -616,12 +623,12 @@ public class CodeGen {
                     /*// 需要把挪走的r0-rx再挪回来
                     for (int i = 0; i < paramVRList.size(); i++) {
                         new I.Mov(Arm.Reg.getR(i), paramVRList.get(i), curMB);
-                    }
-                    // 需要把挪走的s0-sx再挪回来
-                    for (int i = 0; i < paramSVRList.size(); i++) {
-                        assert needFPU;
-                        new V.Mov(Arm.Reg.getS(i), paramSVRList.get(i), curMB);
                     }*/
+        // 需要把挪走的s0-sx再挪回来
+        for (int i = 0; i < paramSVRList.size(); i++) {
+            assert needFPU;
+            new V.Mov(Arm.Reg.getS(i), paramSVRList.get(i), curMB);
+        }
     }
 
     public static boolean LdrStrImmEncode(int off) {
@@ -663,13 +670,13 @@ public class CodeGen {
         Value lhs = instr.getRVal1();
         Value rhs = instr.getRVal2();
         // instr不可能是Constant
-        Machine.Operand dVR = getVR_no_imm(instr);
+        MC.Operand dVR = getVR_no_imm(instr);
         if (tag == Mod) {
-            Machine.Operand lVR = getVR_may_imm(lhs);
-            Machine.Operand rVR = getVR_may_imm(rhs);
-            Machine.Operand dst1 = newVR();
+            MC.Operand lVR = getVR_may_imm(lhs);
+            MC.Operand rVR = getVR_may_imm(rhs);
+            MC.Operand dst1 = newVR();
             new I.Binary(MachineInst.Tag.Div, dst1, lVR, rVR, curMB);
-            Machine.Operand dst2 = newVR();
+            MC.Operand dst2 = newVR();
             new I.Binary(MachineInst.Tag.Mul, dst2, dst1, rVR, curMB);
             new I.Binary(MachineInst.Tag.Sub, dVR, lVR, dst2, curMB);
         } else if (optMulDiv && tag == Mul && (lhs.isConstantInt() || rhs.isConstantInt())) {
@@ -678,7 +685,7 @@ public class CodeGen {
                 System.err.println("[MUL dst, imm, imm] should never occur @ " + instr);
                 System.exit(91);
             }
-            Machine.Operand srcOp;
+            MC.Operand srcOp;
             int imm;
             if (lhs.isConstantInt()) {
                 srcOp = getVR_may_imm(rhs);
@@ -726,7 +733,7 @@ public class CodeGen {
                 System.err.println("[DIV dst, imm, imm] should never occur @ " + instr);
                 System.exit(94);
             }
-            Machine.Operand lVR = getVR_may_imm(lhs);
+            MC.Operand lVR = getVR_may_imm(lhs);
             int imm = (int) ((Constant.ConstantInt) rhs).getConstVal();
             int abs = (imm < 0) ? (-imm) : imm;
             if (abs == 0) {
@@ -822,8 +829,23 @@ public class CodeGen {
                 // new I.Binary(tag, dVR, lVR, getImmVR(imm), curMB);
             }
         } else {
-            Machine.Operand lVR = getVR_may_imm(lhs);
-            Machine.Operand rVR = getVR_may_imm(rhs);
+            if (lhs.isConstant()){
+                switch (tag) {
+                    case Add -> {
+                        Value tmp = lhs;
+                        lhs = rhs;
+                        rhs = tmp;
+                    }
+                    case Sub -> {
+                        tag = Rsb;
+                        Value tmp = lhs;
+                        lhs = rhs;
+                        rhs = tmp;
+                    }
+                }
+            }
+            MC.Operand lVR = getVR_may_imm(lhs);
+            MC.Operand rVR = getVR_may_imm(rhs);
             if (tag == FMod) {
                 assert needFPU;
                 Operand dst1 = newSVR();
@@ -831,11 +853,14 @@ public class CodeGen {
                 Operand dst2 = newSVR();
                 new V.Binary(MachineInst.Tag.FMul, dst2, dst1, rVR, curMB);
                 new V.Binary(MachineInst.Tag.FSub, dVR, lVR, dst2, curMB);
-            } else if (isFBino(instr.getOp())) {
-                assert needFPU;
-                new V.Binary(tag, dVR, lVR, rVR, curMB);
             } else {
-                new I.Binary(tag, dVR, lVR, rVR, curMB);
+
+                if (isFBino(instr.getOp())) {
+                    assert needFPU;
+                    new V.Binary(tag, dVR, lVR, rVR, curMB);
+                } else {
+                    new I.Binary(tag, dVR, lVR, rVR, curMB);
+                }
             }
         }
     }
@@ -876,9 +901,9 @@ public class CodeGen {
             Value rhs = icmp.getRVal2();
             Operand lVR = getVR_may_imm(lhs);
             Operand rVR = getVR_may_imm(rhs);
-            I.Cmp cmp = new I.Cmp(lVR, rVR, curMB);
             int condIdx = icmp.getOp().ordinal();
             Arm.Cond cond = Arm.Cond.values()[condIdx];
+            I.Cmp cmp = new I.Cmp(cond, lVR, rVR, curMB);
             // Icmp或Fcmp后紧接着BranchInst，而且前者的结果仅被后者使用，那么就可以不用计算结果，而是直接用bxx的指令
             if (((Instr) icmp.getNext()).isBranch()
                     && icmp.onlyOneUser()
@@ -895,7 +920,6 @@ public class CodeGen {
             Value rhs = fcmp.getRVal2();
             Operand lSVR = getVR_may_imm(lhs);
             Operand rSVR = getVR_may_imm(rhs);
-            V.Cmp vcmp = new V.Cmp(lSVR, rSVR, curMB);
             Arm.Cond cond = switch (fcmp.getOp()) {
                 case OEQ -> Eq;
                 case ONE -> Ne;
@@ -904,6 +928,7 @@ public class CodeGen {
                 case OLT -> Lt;
                 case OLE -> Le;
             };
+            V.Cmp vcmp = new V.Cmp(cond, lSVR, rSVR, curMB);
             // Icmp或Fcmp后紧接着BranchInst，而且前者的结果仅被后者使用，那么就可以不用计算结果，而是直接用bxx的指令
             if (((Instr) fcmp.getNext()).isBranch()
                     && fcmp.onlyOneUser()

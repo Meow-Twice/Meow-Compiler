@@ -1,13 +1,14 @@
 package lir;
 
 import java.io.PrintStream;
+import java.util.Iterator;
 
-import static lir.Machine.Program.encode_imm;
-import static lir.Machine.Operand;
+import static backend.CodeGen.*;
+import static lir.MC.Operand;
 import static mir.type.DataType.I32;
 
 public class I extends MachineInst {
-    public I(Tag tag, Machine.Block insertAtEnd) {
+    public I(Tag tag, MC.Block insertAtEnd) {
         super(tag, insertAtEnd);
     }
 
@@ -20,13 +21,13 @@ public class I extends MachineInst {
     }
 
     public static class Ldr extends I implements MachineMemInst, ActualDefMI {
-        public Ldr(Operand data, Operand addr, Machine.Block insertAtEnd) {
+        public Ldr(Operand data, Operand addr, MC.Block insertAtEnd) {
             super(Tag.Ldr, insertAtEnd);
             defOpds.add(data);
             useOpds.add(addr);
         }
 
-        public Ldr(Operand data, Operand addr, Operand offset, Machine.Block insertAtEnd) {
+        public Ldr(Operand data, Operand addr, Operand offset, MC.Block insertAtEnd) {
             super(Tag.Ldr, insertAtEnd);
             defOpds.add(data);
             useOpds.add(addr);
@@ -40,7 +41,7 @@ public class I extends MachineInst {
             useOpds.add(offset);
         }
 
-        public Operand getDef(){
+        public Operand getDef() {
             return getData();
         }
 
@@ -63,7 +64,7 @@ public class I extends MachineInst {
         }
 
         @Override
-        public void output(PrintStream os, Machine.McFunction f) {
+        public void output(PrintStream os, MC.McFunction f) {
             os.println("\t" + this);
         }
 
@@ -95,14 +96,14 @@ public class I extends MachineInst {
             return cond;
         }
 
-        public Str(Operand data, Operand addr, Machine.Block insertAtEnd) {
+        public Str(Operand data, Operand addr, MC.Block insertAtEnd) {
             super(Tag.Str, insertAtEnd);
             useOpds.add(data);
             useOpds.add(addr);
             // useOpds.add(new Operand(I32, 0));
         }
 
-        public Str(Operand data, Operand addr, Operand offset, Machine.Block insertAtEnd) {
+        public Str(Operand data, Operand addr, Operand offset, MC.Block insertAtEnd) {
             super(Tag.Str, insertAtEnd);
             useOpds.add(data);
             useOpds.add(addr);
@@ -142,7 +143,7 @@ public class I extends MachineInst {
         }
 
         @Override
-        public void output(PrintStream os, Machine.McFunction f) {
+        public void output(PrintStream os, MC.McFunction f) {
             os.println("\t" + this);
         }
 
@@ -159,35 +160,95 @@ public class I extends MachineInst {
     }
 
     public static class Ret extends I {
-        public Ret(Arm.Reg retReg, Machine.Block insertAtEnd) {
+        MC.McFunction savedRegsMf;
+
+        public Ret(MC.McFunction mf, Arm.Reg retReg, MC.Block insertAtEnd) {
             super(Tag.IRet, insertAtEnd);
             useOpds.add(retReg);
+            savedRegsMf = mf;
         }
 
-        public Ret(Machine.Block insertAtEnd) {
+        public Ret(MC.McFunction mf, MC.Block insertAtEnd) {
             super(Tag.IRet, insertAtEnd);
+            savedRegsMf = mf;
         }
 
         @Override
-        public void output(PrintStream os, Machine.McFunction mf) {
+        public void output(PrintStream os, MC.McFunction mf) {
             // TODO vpush我觉得可能八字节对齐比较好, 所以vpop必须在后面, 这样不能先pop lr再vpop
-            os.println("\tbx\tlr");
+            os.println("\t" + this);
+
         }
 
         @Override
         public String toString() {
-            return tag.toString() + (useOpds.size() > 0 ? useOpds.get(0) : "");
+            StringBuilder sb = new StringBuilder();
+
+
+            if (savedRegsMf.mFunc.isExternal) {
+                // throw new AssertionError("pop in external func");
+                // return "\tpop\t{r0,r1,r2,r3}";
+                sb.append("pop\t{r2,r3}");
+            } else {
+                // StringBuilder sb = new StringBuilder();
+                if (savedRegsMf.usedCalleeSavedGPRs.size() > 0) {
+                    sb.append("pop\t{");
+                    Iterator<Arm.Regs.GPRs> gprIter = savedRegsMf.usedCalleeSavedGPRs.iterator();
+                    sb.append(gprIter.next());
+                    while (gprIter.hasNext()) {
+                        Arm.Regs.GPRs gpr = gprIter.next();
+                        sb.append(",").append(gpr);
+                    }
+                    sb.append("}\n");
+                }
+            }
+            if (needFPU) {
+                if (savedRegsMf.mFunc.isExternal) {
+                    sb.append(String.format("\tvpop\t{s2-s%d}", sParamCnt - 1));
+                } else {
+                    if (savedRegsMf.usedCalleeSavedFPRs.size() > 0) {
+                        int fprNum = Arm.Regs.FPRs.values().length;
+                        boolean[] fprBit = new boolean[fprNum];
+                        for (Arm.Regs.FPRs fpr : savedRegsMf.usedCalleeSavedFPRs) {
+                            fprBit[fpr.ordinal()] = true;
+                        }
+                        int end = fprNum - 1;
+                        while (end > -1) {
+                            while (end > -1 && !fprBit[end])
+                                end--;
+                            if (end == -1)
+                                break;
+                            int start = end;
+                            while (start > -1 && fprBit[start])
+                                start--;
+                            start++;
+                            if (start == end) {
+                                throw new AssertionError("illegal vpop");
+                                // sb.append(String.format("\tvpop\t{s%d}%n", end));
+                            } else if (start < end) {
+                                if (end - start > 15) {
+                                    start = end - 15;
+                                }
+                                sb.append(String.format("\tvpop\t{s%d-s%d}%n", start, end));
+                            }
+                            end = start - 1;
+                        }
+                    }
+                }
+            }
+            sb.append("\n\tbx\tlr");
+            return sb.toString();
         }
     }
 
     public static class Mov extends I implements MachineMove, ActualDefMI {
-        public Mov(Operand dOpd, Operand sOpd, Machine.Block insertAtEnd) {
+        public Mov(Operand dOpd, Operand sOpd, MC.Block insertAtEnd) {
             super(Tag.IMov, insertAtEnd);
             defOpds.add(dOpd);
             useOpds.add(sOpd);
         }
 
-        public Mov(Operand dOpd, Operand sOpd, Arm.Shift shift, Machine.Block insertAtEnd) {
+        public Mov(Operand dOpd, Operand sOpd, Arm.Shift shift, MC.Block insertAtEnd) {
             super(Tag.IMov, insertAtEnd);
             defOpds.add(dOpd);
             useOpds.add(sOpd);
@@ -209,7 +270,7 @@ public class I extends MachineInst {
             useOpds.add(sOpd);
         }
 
-        public Mov(Arm.Cond cond, Operand dOpd, Operand sOpd, Machine.Block insertAtEnd) {
+        public Mov(Arm.Cond cond, Operand dOpd, Operand sOpd, MC.Block insertAtEnd) {
             super(Tag.IMov, insertAtEnd);
             this.cond = cond;
             defOpds.add(dOpd);
@@ -217,7 +278,7 @@ public class I extends MachineInst {
         }
 
         @Override
-        public void output(PrintStream os, Machine.McFunction f) {
+        public void output(PrintStream os, MC.McFunction f) {
             Operand src = getSrc();
             if (src.type == Operand.Type.Immediate) {
                 if (src.isGlobPtr()) {
@@ -226,7 +287,7 @@ public class I extends MachineInst {
                     //os.println("\tldr" + cond + "\t" + getDst().toString() + ",=" + src.getGlob());
                 } else {
                     int imm = getSrc().value;
-                    if (encode_imm(imm)) {
+                    if (immCanCode(imm)) {
                         os.println("\tmov" + cond + "\t" + getDst().toString() + ",\t#" + imm);
                     } else {
                         int lowImm = (imm << 16) >>> 16;
@@ -240,7 +301,7 @@ public class I extends MachineInst {
             } else {
                 os.print("\tmov" + cond + "\t" + getDst().toString() + ",\t" + getSrc().toString());
                 if (useOpds.size() > 1) {
-                    os.println(",\t" + shift.shiftType + "\t"+useOpds.get(1));
+                    os.println(",\t" + shift.shiftType + "\t" + useOpds.get(1));
                 } else if (shift != Arm.Shift.NONE_SHIFT) {
                     os.println(",\t" + shift.toString());
                 } else {
@@ -254,7 +315,7 @@ public class I extends MachineInst {
         }
 
         public boolean directColor() {
-            return getDst().need_I_Color() && getSrc().need_I_Color() && cond == Arm.Cond.Any && shift.shiftType == Arm.ShiftType.None;
+            return getDst().needColor(I32) && getSrc().needColor(I32) && cond == Arm.Cond.Any && shift.shiftType == Arm.ShiftType.None;
         }
 
         public Operand getSrc() {
@@ -265,39 +326,38 @@ public class I extends MachineInst {
 
         @Override
         public String toString() {
-            if (getDst() == null) {
-                assert false;
-            }
-            StringBuilder os = new StringBuilder();
+            StringBuilder stb = new StringBuilder();
             Operand src = getSrc();
             if (src.type == Operand.Type.Immediate) {
                 if (src.isGlobPtr()) {
-                    os.append("movw" + cond + "\t" + getDst() + ",\t:lower16:" + src.getGlob());
-                    os.append("movt" + cond + "\t" + getDst() + ",\t:upper16:" + src.getGlob());
-                    //os.append("\tldr" + cond + "\t" + getDst().toString() + ",=" + src.getGlob());
+                    stb.append("movw").append(cond).append("\t").append(getDst()).append(",\t:lower16:").append(src.getGlob()).append("\n");
+                    stb.append("\tmovt").append(cond).append("\t").append(getDst()).append(",\t:upper16:").append(src.getGlob());
+                    //stb.append("\tldr" + cond + "\t" + getDst().toString() + ",=" + src.getGlob());
                 } else {
                     int imm = getSrc().value;
-                    if (encode_imm(imm)) {
-                        os.append("mov" + cond + "\t" + getDst().toString() + ",\t#" + imm);
+                    if (immCanCode(imm)) {
+                        stb.append("mov").append(cond).append("\t").append(getDst().toString()).append(",\t#").append(imm);
                     } else {
                         int lowImm = (imm << 16) >>> 16;
-                        os.append("movw" + cond + "\t" + getDst().toString() + ",\t#" + lowImm);
+                        stb.append("movw").append(cond).append("\t").append(getDst().toString()).append(",\t#").append(lowImm).append("\n");
                         int highImm = imm >>> 16;
                         if (highImm != 0) {
-                            os.append("\tmovt" + cond + "\t" + getDst().toString() + ",\t#" + highImm);
+                            stb.append("\tmovt").append(cond).append("\t").append(getDst().toString()).append(",\t#").append(highImm);
                         }
                     }
                 }
             } else {
-                os.append("mov" + cond + "\t" + getDst().toString() + ",\t" + getSrc().toString());
-                if (shift != Arm.Shift.NONE_SHIFT) {
-                    os.append(",\t" + shift.toString());
+                stb.append("mov").append(cond).append("\t").append(getDst().toString()).append(",\t").append(getSrc().toString());
+                if (useOpds.size() > 1) {
+                    stb.append(",\t").append(shift.shiftType).append("\t").append(useOpds.get(1));
+                } else if(shift != Arm.Shift.NONE_SHIFT) {
+                    stb.append(",\t").append(shift.toString());
                 }
             }
-            if (oldToString.equals("")) {
-                oldToString = os.toString();
-            }
-            return os + "{\t--\t" + oldToString + "\t--\t}";
+            // if (oldToString.equals("")) {
+            //     oldToString = stb.toString();
+            // }
+            return stb.toString()/* + "{\t--\t" + oldToString + "\t--\t}"*/;
         }
 
         public void setSrc(Operand offset_opd) {
@@ -316,7 +376,7 @@ public class I extends MachineInst {
         }
     }
 
-    public static class Binary extends I implements ActualDefMI{
+    public static class Binary extends I implements ActualDefMI {
         // Add, Sub, Rsb, Mul, Div, Mod, Lt, Le, Ge, Gt, Eq, Ne, And, Or
         // Smmul (for divide optimize)
 
@@ -327,14 +387,14 @@ public class I extends MachineInst {
             useOpds.add(rOpd);
         }
 
-        public Binary(Tag tag, Operand dOpd, Operand lOpd, Operand rOpd, Machine.Block insertAtEnd) {
+        public Binary(Tag tag, Operand dOpd, Operand lOpd, Operand rOpd, MC.Block insertAtEnd) {
             super(tag, insertAtEnd);
             defOpds.add(dOpd);
             useOpds.add(lOpd);
             useOpds.add(rOpd);
         }
 
-        public Binary(Tag tag, Machine.Operand dOpd, Machine.Operand lOpd, Machine.Operand rOpd, Arm.Shift shift, Machine.Block insertAtEnd) {
+        public Binary(Tag tag, MC.Operand dOpd, MC.Operand lOpd, MC.Operand rOpd, Arm.Shift shift, MC.Block insertAtEnd) {
             super(tag, insertAtEnd);
             defOpds.add(dOpd);
             useOpds.add(lOpd);
@@ -366,7 +426,7 @@ public class I extends MachineInst {
         }
 
         @Override
-        public void output(PrintStream os, Machine.McFunction f) {
+        public void output(PrintStream os, MC.McFunction f) {
             String tag_str = "\t" + switch (tag) {
                 case Mul -> "mul";
                 case Add -> "add";
@@ -390,7 +450,25 @@ public class I extends MachineInst {
 
         @Override
         public String toString() {
-            return tag.toString() + "\t" + getDst() + ",\t" + getLOpd() + ",\t" + getROpd();
+            StringBuilder stb = new StringBuilder();
+
+            stb.append(switch (tag) {
+                case Mul -> "mul";
+                case Add -> "add";
+                case Sub -> "sub";
+                case Rsb -> "rsb";
+                case Div -> "sdiv";
+                case And -> "and";
+                case Or -> "orr";
+                case LongMul -> "smmul";
+                default -> throw new AssertionError("Wrong Int Binary");
+            });
+
+            stb.append("\t").append(getDst()).append(",\t").append(getLOpd()).append(",\t").append(getROpd());
+            if (shift.shiftType != Arm.ShiftType.None) {
+                stb.append(",\t").append(shift);
+            }
+            return stb.toString();
         }
 
         @Override
@@ -402,8 +480,9 @@ public class I extends MachineInst {
 
     public static class Cmp extends I implements MachineInst.Compare {
 
-        public Cmp(Operand lOpd, Operand rOpd, Machine.Block insertAtEnd) {
+        public Cmp(Arm.Cond cond, Operand lOpd, Operand rOpd, MC.Block insertAtEnd) {
             super(Tag.ICmp, insertAtEnd);
+            this.cond = cond;
             useOpds.add(lOpd);
             useOpds.add(rOpd);
         }
@@ -417,13 +496,18 @@ public class I extends MachineInst {
         }
 
         @Override
-        public void output(PrintStream os, Machine.McFunction f) {
-            os.println("\tcmp\t" + getLOpd() + "," + getROpd());
+        public void output(PrintStream os, MC.McFunction f) {
+            os.println(this);
         }
 
         @Override
         public String toString() {
             return tag.toString() + '\t' + getLOpd() + ",\t" + getROpd();
+        }
+
+        @Override
+        public void setCond(Arm.Cond cond) {
+            this.cond = cond;
         }
     }
 
@@ -470,7 +554,7 @@ public class I extends MachineInst {
 
         public Fma(boolean add, boolean sign,
                    Operand dst, Operand lOpd, Operand rOpd, Operand acc,
-                   Machine.Block insertAtEnd) {
+                   MC.Block insertAtEnd) {
             //dst = acc +(-) lhs * rhs
             super(Tag.FMA, insertAtEnd);
             this.add = add;
@@ -482,7 +566,7 @@ public class I extends MachineInst {
         }
 
         @Override
-        public void output(PrintStream os, Machine.McFunction f) {
+        public void output(PrintStream os, MC.McFunction f) {
             if (sign) {
                 os.print("\tsm");
             }

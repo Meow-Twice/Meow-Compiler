@@ -1,6 +1,7 @@
 package descriptor;
 
 import backend.CodeGen;
+import lir.MC;
 import frontend.lexer.Lexer;
 import frontend.semantic.Initial;
 import lir.*;
@@ -18,6 +19,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import static lir.Arm.Regs.FPRs.s0;
 import static lir.Arm.Regs.GPRs.*;
 import static manage.Manager.ExternFunction.*;
+import static mir.type.DataType.I32;
 
 public class MIDescriptor implements Descriptor {
     private static final boolean RANDOM_MODE = true;
@@ -179,10 +181,10 @@ public class MIDescriptor implements Descriptor {
 
     public final int CPSR_N = 1 << 31;
     public final int CPSR_Z = 1 << 30;
-    private HashMap<Machine.McFunction, Stack<ArrayList<Object>>> mf2curVRListMap = new HashMap<>();
+    private HashMap<MC.McFunction, Stack<ArrayList<Object>>> mf2curVRListMap = new HashMap<>();
     private ArrayList<Object> curVRList;
-    private Machine.McFunction curMF;
-    private Machine.Block curMB;
+    private MC.McFunction curMF;
+    private MC.Block curMB;
     private MachineInst curMI;
 
     private void timeClear() {
@@ -266,7 +268,7 @@ public class MIDescriptor implements Descriptor {
     public void run() throws IOException {
         clear();
         // MI_DESCRIPTOR.getStdin();
-        Machine.Program p = Machine.Program.PROGRAM;
+        MC.Program p = MC.Program.PROGRAM;
         setToReg((MemSimulator.TOTAL_SIZE - 1) * 4, sp);
         int curOff = 0;
         for (Arm.Glob g : CodeGen.CODEGEN.globList) {
@@ -292,7 +294,7 @@ public class MIDescriptor implements Descriptor {
             }
             // System.err.println(1);
         }
-        for (Machine.McFunction mf : p.funcList) {
+        for (MC.McFunction mf : p.funcList) {
             mf2curVRListMap.put(mf, new Stack<>());
             curMF2GPRs.put(mf, new Stack<>());
             curMF2FPRs.put(mf, new Stack<>());
@@ -302,7 +304,7 @@ public class MIDescriptor implements Descriptor {
         finalOut();
     }
 
-    public void runMF(Machine.McFunction mcFunc) {
+    public void runMF(MC.McFunction mcFunc) {
         curMF = mcFunc;
         logOut("&<runMF>& now:\t" + mcFunc.mFunc.getName());
         if (mcFunc.mFunc.isExternal) {
@@ -315,7 +317,7 @@ public class MIDescriptor implements Descriptor {
         // int spVal = (int) getFromReg(sp);
         // setToReg(spVal - curMF.getStackSize(), sp);
         curVRList = new ArrayList<>(Collections.nCopies(curMF.vrList.size(), null));
-        Machine.Block mb = curMF.getBeginMB();
+        MC.Block mb = curMF.getBeginMB();
         // 不这么run会爆栈
         while (mb != null) {
             mb = runMB(mb);
@@ -355,9 +357,9 @@ public class MIDescriptor implements Descriptor {
         }
     }
 
-    private HashMap<Machine.McFunction, Stack<ArrayList<Integer>>> curMF2GPRs = new HashMap<>();
+    private HashMap<MC.McFunction, Stack<ArrayList<Integer>>> curMF2GPRs = new HashMap<>();
 
-    private HashMap<Machine.McFunction, Stack<ArrayList<Float>>> curMF2FPRs = new HashMap<>();
+    private HashMap<MC.McFunction, Stack<ArrayList<Float>>> curMF2FPRs = new HashMap<>();
 
     private void vrListStackPush() {
         Stack<ArrayList<Object>> stack = mf2curVRListMap.get(curMF);
@@ -463,13 +465,13 @@ public class MIDescriptor implements Descriptor {
         }
     }
 
-    private Machine.Block runMB(Machine.Block mb) {
+    private MC.Block runMB(MC.Block mb) {
         curMB = mb;
         logOut("");
-        logOut(mb.getDebugLabel());
+        logOut(mb.getLabel());
         boolean isBJ = false;
         boolean isRet = false;
-        Machine.Block nextMB = null;
+        MC.Block nextMB = null;
         for (MachineInst mi : mb.miList) {
             String str = mi instanceof MIComment ? "" : "\t";
             logOut(str + mi);
@@ -582,10 +584,10 @@ public class MIDescriptor implements Descriptor {
                 case FMA -> {
                     assert mi instanceof I.Fma;
                     I.Fma fma = (I.Fma) mi;
-                    Machine.Operand dst = fma.getDst();
-                    Machine.Operand acc = fma.getAcc();
-                    Machine.Operand lOpd = fma.getlOpd();
-                    Machine.Operand rOpd = fma.getrOpd();
+                    MC.Operand dst = fma.getDst();
+                    MC.Operand acc = fma.getAcc();
+                    MC.Operand lOpd = fma.getlOpd();
+                    MC.Operand rOpd = fma.getrOpd();
                     int res;
                     if (fma.isSign()) {
                         res = (int) (((long) GET_VAL_FROM_OPD(lOpd) * (long) GET_VAL_FROM_OPD(rOpd)) >> 32);
@@ -714,7 +716,7 @@ public class MIDescriptor implements Descriptor {
                 case Call -> {
                     assert mi instanceof MICall;
                     vrListStackPush();
-                    Machine.McFunction tmp = curMF;
+                    MC.McFunction tmp = curMF;
                     runMF(((MICall) mi).callee);
                     curMF = tmp;
                     logOut("<--> return to " + curMF.mFunc.getName());
@@ -791,13 +793,13 @@ public class MIDescriptor implements Descriptor {
 
     // 设为Object是为了保证int和float的兼容性
     // 可能返回int或者float或者String(glob地址)
-    private Object GET_VAL_FROM_OPD(Machine.Operand o) {
-        if (isAfterRegAlloc() && o.is_I_Virtual()) throw new AssertionError("Still has vr: " + o);
-        Object val = switch (o.getType()) {
+    private Object GET_VAL_FROM_OPD(MC.Operand o) {
+        if (isAfterRegAlloc() && o.isVirtual(I32)) throw new AssertionError("Still has vr: " + o);
+        Object val = switch (o.type) {
             case PreColored, Allocated -> getFromReg(o.getReg());
             case Virtual -> curVRList.get(o.getValue());
             case Immediate -> o.isGlobPtr() ? globName2HeapOff.get(o.getGlob()) : o.get_I_Imm();
-            default -> throw new IllegalStateException("Unexpected value: " + o.getType());
+            default -> throw new IllegalStateException("Unexpected value: " + o.type);
         };
         if (val == null) {
             if (RANDOM_MODE) {
@@ -813,8 +815,8 @@ public class MIDescriptor implements Descriptor {
     }
 
     // 设为Object是为了保证int和float的兼容性
-    private void SET_VAL_FROM_OPD(Object val, Machine.Operand o) {
-        if (isAfterRegAlloc() && o.is_I_Virtual()) throw new AssertionError("Still has vr: " + o);
+    private void SET_VAL_FROM_OPD(Object val, MC.Operand o) {
+        if (isAfterRegAlloc() && o.isVirtual(I32)) throw new AssertionError("Still has vr: " + o);
         logOut("^ set\t" + val + "\tto\t\t" + o);
         if (val == null) {
             if (RANDOM_MODE) {
@@ -824,7 +826,7 @@ public class MIDescriptor implements Descriptor {
             }
             // throw new AssertionError("fuck");
         }
-        switch (o.getType()) {
+        switch (o.type) {
             case PreColored, Allocated -> setToReg(val, o.getReg());
             case Virtual -> curVRList.set(o.getValue(), val);
             case Immediate -> throw new AssertionError("Try to save |" + val + "| to " + o);

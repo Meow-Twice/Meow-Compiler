@@ -2,14 +2,16 @@ package lir;
 
 import backend.CodeGen;
 import mir.Instr;
+import mir.type.DataType;
 import util.ILinkNode;
 
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.EnumMap;
-import java.util.Objects;
 
 import static mir.Instr.Alu.Op.*;
+import static mir.type.DataType.F32;
+import static mir.type.DataType.I32;
 
 public class MachineInst extends ILinkNode {
     public final static MachineInst emptyInst = new MachineInst();
@@ -22,15 +24,15 @@ public class MachineInst extends ILinkNode {
         return fixType != CodeGen.STACK_FIX.NO_NEED;
     }
 
-    public Machine.McFunction getCallee() {
+    public MC.McFunction getCallee() {
         return callee;
     }
 
-    public void setCallee(Machine.McFunction callee) {
+    public void setCallee(MC.McFunction callee) {
         this.callee = callee;
     }
 
-    private Machine.McFunction callee = null;
+    private MC.McFunction callee = null;
     private CodeGen.STACK_FIX fixType = CodeGen.STACK_FIX.NO_NEED;
 
     /**
@@ -39,19 +41,19 @@ public class MachineInst extends ILinkNode {
      * return之前要对sp进行加操作
      */
     public void setNeedFix(CodeGen.STACK_FIX stack_fix) {
-        Machine.Program.PROGRAM.needFixList.add((I) this);
+        MC.Program.PROGRAM.needFixList.add((I) this);
         fixType = stack_fix;
     }
 
     /**
      * 调用一个非库的函数之前需要sp偏移
      */
-    public void setNeedFix(Machine.McFunction callee, CodeGen.STACK_FIX stack_fix) {
+    public void setNeedFix(MC.McFunction callee, CodeGen.STACK_FIX stack_fix) {
         setCallee(callee);
         setNeedFix(stack_fix);
     }
 
-    public void setUse(int i, Machine.Operand set) {
+    public void setUse(int i, MC.Operand set) {
         useOpds.set(i, set);
     }
 
@@ -63,6 +65,11 @@ public class MachineInst extends ILinkNode {
         return cond;
     }
 
+    public void setCond(Arm.Cond cond) {
+        this.cond = cond;
+    }
+
+
     public Arm.Shift getShift() {
         return shift;
     }
@@ -71,7 +78,7 @@ public class MachineInst extends ILinkNode {
         return tag == Tag.Comment;
     }
 
-    public void setDef(Machine.Operand operand) {
+    public void setDef(MC.Operand operand) {
         defOpds.set(0, operand);
     }
 
@@ -125,6 +132,10 @@ public class MachineInst extends ILinkNode {
         if (theLastUserOfDef == null) return false;
         // if (this.getNext().equals(this.mb.miList.tail)) return false;
         return theLastUserOfDef.equals(this.getNext());
+    }
+
+    public String getSTB() {
+        return this.toString();
     }
 
     public enum Tag {
@@ -211,6 +222,10 @@ public class MachineInst extends ILinkNode {
         return tag == Tag.VMov;
     }
 
+    public boolean isMovOfDataType(DataType dataType) {
+        return (dataType == I32 && tag == Tag.IMov) || (dataType == F32 && tag == Tag.VMov);
+    }
+
     public boolean isCall() {
         return tag == Tag.Call;
     }
@@ -227,22 +242,23 @@ public class MachineInst extends ILinkNode {
         return tag == Tag.Branch;
     }
 
-    Machine.Block mb;
+    MC.Block mb;
 
-    public Machine.Block getMb() {
+    public MC.Block getMb() {
         return mb;
     }
 
     Tag tag;
-    public ArrayList<Machine.Operand> defOpds = new ArrayList<>();
-    public ArrayList<Machine.Operand> useOpds = new ArrayList<>();
+    public ArrayList<MC.Operand> defOpds = new ArrayList<>();
+    public ArrayList<MC.Operand> useOpds = new ArrayList<>();
 
     int hash = 0;
     static int cnt = 0;
+
     /*
     init and insert at end of the bb
     */
-    public MachineInst(Tag tag, Machine.Block mb) {
+    public MachineInst(Tag tag, MC.Block mb) {
         this.mb = mb;
         this.tag = tag;
         this.hash = cnt++;
@@ -279,19 +295,20 @@ public class MachineInst extends ILinkNode {
     public void genDefUse() {
     }
 
-    public void output(PrintStream os, Machine.McFunction f) {
+    public void output(PrintStream os, MC.McFunction f) {
     }
 
     public interface Compare {
+        void setCond(Arm.Cond cond);
     }
 
 
     public interface MachineMemInst {
-        Machine.Operand getData();
+        MC.Operand getData();
 
-        Machine.Operand getAddr();
+        MC.Operand getAddr();
 
-        Machine.Operand getOffset();
+        MC.Operand getOffset();
 
         void remove();
 
@@ -302,19 +319,21 @@ public class MachineInst extends ILinkNode {
 
     public interface MachineMove {
 
-        Machine.Operand getDst();
+        MC.Operand getDst();
 
-        Machine.Operand getSrc();
+        MC.Operand getSrc();
 
         void remove();
 
         boolean isNoCond();
+
+        boolean directColor();
     }
 
     public interface ActualDefMI {
-        Machine.Operand getDef();
+        MC.Operand getDef();
 
-        void setDef(Machine.Operand def);
+        void setDef(MC.Operand def);
     }
 
     @Override

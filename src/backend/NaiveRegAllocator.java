@@ -5,7 +5,7 @@ import mir.type.DataType;
 
 import java.util.ArrayList;
 
-import static lir.Arm.Regs.GPRs.r11;
+import static mir.type.DataType.F32;
 import static mir.type.DataType.I32;
 
 public class NaiveRegAllocator extends RegAllocator {
@@ -51,14 +51,14 @@ public class NaiveRegAllocator extends RegAllocator {
         sStackTop = sRegNum;
     }
 
-    public void AllocateRegister(Machine.Program program) {
+    public void AllocateRegister(MC.Program program) {
 
-        for (Machine.McFunction mf : program.funcList) {
+        for (MC.McFunction mf : program.funcList) {
             mf.setAllocStack();
             mf.addVarStack(4 * mf.getVRSize());
             // if (needFPU)
             mf.addVarStack(4 * mf.getSVRSize());
-            for (Machine.Block mb : mf.mbList) {
+            for (MC.Block mb : mf.mbList) {
                 for (MachineInst mi : mb.miList) {
                     if (mi.isCall()) {
                         // TODO 可以放到CodeGen里
@@ -106,39 +106,39 @@ public class NaiveRegAllocator extends RegAllocator {
                 mv.clearNeedFix();
             }*/
 
-        for (Machine.McFunction mf : program.funcList) {
+        for (MC.McFunction mf : program.funcList) {
             int iVrBase = mf.getAllocStack();
             int sVrBase = mf.getVRSize() * 4 + iVrBase;
-            for (Machine.Block mb : mf.mbList) {
+            for (MC.Block mb : mf.mbList) {
                 for (MachineInst mi : mb.miList) {
-                    ArrayList<Machine.Operand> defs = mi.defOpds;
-                    ArrayList<Machine.Operand> uses = mi.useOpds;
+                    ArrayList<MC.Operand> defs = mi.defOpds;
+                    ArrayList<MC.Operand> uses = mi.useOpds;
                     if (mi.isComment() || mi.isCall()) continue;
                     assert uses.size() < 4;
                     int useIdx = 0;
-                    for (Machine.Operand use : uses) {
-                        if (use.is_I_Virtual()) {
+                    for (MC.Operand use : uses) {
+                        if (use.isVirtual(I32)) {
                             int offset = iVrBase + 4 * use.getValue();
                             if (Math.abs(offset) < 4096) {
                                 Arm.Reg useReg = rRegPop();
-                                new I.Ldr(useReg, Arm.Reg.getR(Arm.Regs.GPRs.sp), new Machine.Operand(DataType.I32, offset), mi);
+                                new I.Ldr(useReg, Arm.Reg.getR(Arm.Regs.GPRs.sp), new MC.Operand(DataType.I32, offset), mi);
                                 mi.setUse(useIdx, useReg);
                             } else {
                                 Arm.Reg offReg = rRegPop();
-                                new I.Mov(offReg, new Machine.Operand(DataType.I32, offset), mi);
+                                new I.Mov(offReg, new MC.Operand(DataType.I32, offset), mi);
                                 Arm.Reg useReg = rRegPop();
                                 new I.Ldr(useReg, Arm.Reg.getR(Arm.Regs.GPRs.sp), offReg, mi);
                                 mi.setUse(useIdx, useReg);
                             }
-                        } else if (use.is_F_Virtual()) {
+                        } else if (use.isVirtual(F32)) {
                             int offset = sVrBase + 4 * use.getValue();
                             if (Math.abs(offset) <= 1020) {
                                 Arm.Reg useReg = sRegPop();
-                                new V.Ldr(useReg, Arm.Reg.getR(Arm.Regs.GPRs.sp), new Machine.Operand(DataType.I32, offset), mi);
+                                new V.Ldr(useReg, Arm.Reg.getR(Arm.Regs.GPRs.sp), new MC.Operand(DataType.I32, offset), mi);
                                 mi.setUse(useIdx, useReg);
                             } else {
                                 Arm.Reg offReg = rRegPop();
-                                new I.Mov(offReg, new Machine.Operand(DataType.I32, offset), mi);
+                                new I.Mov(offReg, new MC.Operand(DataType.I32, offset), mi);
                                 new I.Binary(MachineInst.Tag.Add, offReg, Arm.Reg.getR(Arm.Regs.GPRs.sp), offReg, mi);
                                 Arm.Reg useReg = sRegPop();
                                 new V.Ldr(useReg, offReg, mi);
@@ -150,29 +150,29 @@ public class NaiveRegAllocator extends RegAllocator {
                     // reset();
                     if (defs.size() > 0) {
                         assert defs.size() == 1;
-                        Machine.Operand def = defs.get(0);
-                        if (def.is_I_Virtual()) {
+                        MC.Operand def = defs.get(0);
+                        if (def.isVirtual(I32)) {
                             int offset = iVrBase + 4 * def.getValue();
                             if (Math.abs(offset) < 4096) {
                                 Arm.Reg useReg = rRegPop();
-                                new I.Str(mi, useReg, Arm.Reg.getR(Arm.Regs.GPRs.sp), new Machine.Operand(DataType.I32, offset));
+                                new I.Str(mi, useReg, Arm.Reg.getR(Arm.Regs.GPRs.sp), new MC.Operand(DataType.I32, offset));
                                 mi.setDef(useReg);
                             } else {
                                 Arm.Reg offReg = rRegPop();
-                                I.Mov mv = new I.Mov(mi, offReg, new Machine.Operand(DataType.I32, offset));
+                                I.Mov mv = new I.Mov(mi, offReg, new MC.Operand(DataType.I32, offset));
                                 Arm.Reg defReg = rRegPop();
                                 new I.Str(mv, defReg, Arm.Reg.getR(Arm.Regs.GPRs.sp), offReg);
                                 mi.setDef(defReg);
                             }
-                        } else if (def.is_F_Virtual()) {
+                        } else if (def.isVirtual(F32)) {
                             int offset = sVrBase + 4 * def.getValue();
                             if (Math.abs(offset) <= 1020) {
                                 Arm.Reg defReg = sRegPop();
-                                new V.Str(mi, defReg, rSP, new Machine.Operand(DataType.I32, offset));
+                                new V.Str(mi, defReg, rSP, new MC.Operand(DataType.I32, offset));
                                 mi.setDef(defReg);
                             } else {
                                 Arm.Reg offReg = rRegPop();
-                                I.Mov mv = new I.Mov(mi, offReg, new Machine.Operand(DataType.I32, offset));
+                                I.Mov mv = new I.Mov(mi, offReg, new MC.Operand(DataType.I32, offset));
                                 I.Binary bino = new I.Binary(mv, MachineInst.Tag.Add, offReg, Arm.Reg.getR(Arm.Regs.GPRs.sp), offReg);
                                 Arm.Reg defReg = sRegPop();
                                 new V.Str(bino, defReg, offReg);

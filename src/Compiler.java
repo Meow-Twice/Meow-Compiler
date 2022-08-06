@@ -7,11 +7,12 @@ import frontend.lexer.Token;
 import frontend.lexer.TokenList;
 import frontend.syntax.Ast;
 import frontend.syntax.Parser;
-import lir.Machine;
+import lir.MC;
 import manage.Manager;
 import midend.MidEndRunner;
 import midend.RemovePhi;
 import util.CenterControl;
+import util.FileDealer;
 
 import java.io.*;
 
@@ -83,7 +84,7 @@ public class Compiler {
             //Manager.MANAGER.outputLLVM();
             CodeGen.CODEGEN.gen();
             System.err.println("code gen end, Use Time: " + String.valueOf(((double) System.currentTimeMillis() - start) / 1000) + "s");
-            Machine.Program p = Machine.Program.PROGRAM;
+            MC.Program p = MC.Program.PROGRAM;
             // 为 MI Descriptor 设置输入输出流
             // MIDescriptor.MI_DESCRIPTOR.setInput(arg.interpretInputStream);
             // MIDescriptor.MI_DESCRIPTOR.setOutput(arg.interpretOutputStream);
@@ -121,11 +122,13 @@ public class Compiler {
             // PrintStream os = new PrintStream(output_file);
             // p.output(os);
 
+            // System.err.println(p.getSTB());
+            //
             PeepHole peepHole = new PeepHole(p);
             peepHole.run();
-
             if (arg.outputAsm()) {
-                p.output(new PrintStream(arg.asmStream));
+                FileDealer.outputToStream(p.getSTB(), arg.asmStream);
+                // p.output(new PrintStream(arg.asmStream));
             }
         } catch (Exception e) {
             e.printStackTrace();

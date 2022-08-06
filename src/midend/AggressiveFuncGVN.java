@@ -47,7 +47,7 @@ public class AggressiveFuncGVN {
             }
             for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
                 for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
-                    if (instr instanceof Instr.Call) {
+                    if (instr instanceof Instr.Alloc) {
                         callMap.put(instr, new HashSet<>());
                     }
                 }
@@ -171,6 +171,9 @@ public class AggressiveFuncGVN {
                     if (instr instanceof Instr.Call) {
                         for (Value val: ((Instr.Call) instr).getParamList()) {
                             if (val.getType().isPointerType()) {
+                                while (val instanceof Instr.GetElementPtr) {
+                                    val = ((Instr.GetElementPtr) val).getPtr();
+                                }
                                 if (!callMap.containsKey(val)) {
                                     callMap.put(val, new HashSet<>());
                                 }
@@ -259,6 +262,9 @@ public class AggressiveFuncGVN {
     }
 
     private void RPOSearch(BasicBlock bb) {
+//        if (bb.getLabel().equals("b30")) {
+//            System.err.println("30");
+//        }
         HashMap<String, Integer> tempGvnCnt = new HashMap<>();
         HashMap<String, Instr> tempGvnMap = new HashMap<>();
 //        for (String key: GvnCnt.keySet()) {
@@ -271,10 +277,25 @@ public class AggressiveFuncGVN {
         tempGvnMap.putAll(GvnMap);
 
         for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
-            if (!canGVN.contains(instr)) {
-                continue;
+            if (instr instanceof Instr.Call && ((Instr.Call) instr).getFunc().isExternal) {
+                if (((Instr.Call) instr).getFunc().getName().equals("memset")) {
+                    Value array = ((Instr.Call) instr).getParamList().get(0);
+                    while (array instanceof Instr.GetElementPtr) {
+                        array = ((Instr.GetElementPtr) array).getPtr();
+                    }
+                    assert callMap.containsKey(array);
+                    for (Instr instr1: callMap.get(array)) {
+                        removeCallFromGVN(instr1);
+                    }
+                } else {
+                    return;
+                }
             }
+
             if (instr instanceof Instr.Call && !((Instr.Call) instr).getFunc().isExternal) {
+                if (!canGVN.contains(((Instr.Call) instr).getFunc())) {
+                    continue;
+                }
                 addCallToGVN(instr);
                 Function func = ((Instr.Call) instr).getFunc();
                 for (Integer index: def.get(func)) {
@@ -284,9 +305,11 @@ public class AggressiveFuncGVN {
                     }
                 }
             } else if (instr instanceof Instr.Store) {
-                Value array = ((Instr.Store) instr).getAlloc();
-                for (Instr instr1: callMap.get(array)) {
-                    removeCallFromGVN(instr1);
+                if (!((Type.PointerType) ((Instr.Store) instr).getPointer().getType()).getInnerType().isBasicType()) {
+                    Value array = ((Instr.Store) instr).getAlloc();
+                    for (Instr instr1 : callMap.get(array)) {
+                        removeCallFromGVN(instr1);
+                    }
                 }
             }
         }

@@ -66,6 +66,8 @@ public class MidEndRunner {
         MathOpt();
         GepFuse();
 
+        outputLLVM();
+
         Pass();
 
         //outputLLVM();

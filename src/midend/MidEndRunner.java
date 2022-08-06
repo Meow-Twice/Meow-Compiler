@@ -66,7 +66,7 @@ public class MidEndRunner {
         MathOpt();
         GepFuse();
 
-        outputLLVM();
+        //outputLLVM();
 
         Pass();
 
@@ -151,10 +151,13 @@ public class MidEndRunner {
     }
 
     private void FuncGVN() {
-        AggressiveFuncGVN aggressiveFuncGVN = new AggressiveFuncGVN(functions);
+        outputLLVM();
+        AggressiveFuncGVN aggressiveFuncGVN = new AggressiveFuncGVN(functions, globalValues);
         aggressiveFuncGVN.Run();
 
+
         Pass();
+        outputLLVM();
     }
 
     private void ArrayGVN() {

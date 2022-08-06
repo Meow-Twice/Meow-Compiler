@@ -4,6 +4,8 @@ import mir.*;
 import mir.type.Type;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 
 public class GepFuse {
 
@@ -69,11 +71,30 @@ public class GepFuse {
 
     private void  fuseDFS(Instr instr) {
         Geps.add((Instr.GetElementPtr) instr);
+        HashSet<Use> uses = new HashSet<>();
         for (Use use = instr.getBeginUse(); use.getNext() != null; use = (Use) use.getNext()) {
+            uses.add(use);
+        }
+        boolean tag = false;
+        for (Use use: uses) {
+//            boolean hasUse = false;
+//            for (Value value: use.getUser().getUseValueList()) {
+//                if (value.equals(instr)) {
+//                    hasUse = true;
+//                    break;
+//                }
+//            }
+//            if (!hasUse) {
+//                continue;
+//            }
+            //此处user use并没有被维护
             if (use.getUser() instanceof Instr.GetElementPtr) {
                 fuseDFS(use.getUser());
-            } else {
-                fuse();
+            } else if (use.getUser() instanceof Instr.Store || use.getUser() instanceof Instr.Load) {
+                if (!tag) {
+                    fuse();
+                    tag = true;
+                }
             }
         }
         Geps.remove(Geps.size() - 1);

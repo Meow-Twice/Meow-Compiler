@@ -23,6 +23,9 @@ public class Function extends Value {
 
     private boolean isDeleted = false;
 
+    //读写了全局变量或者传参有数组,用于函数调用的GVN,默认为false
+    private boolean canGVN = false;
+
     public void setDeleted() {
         isDeleted = true;
     }
@@ -31,6 +34,13 @@ public class Function extends Value {
         return isDeleted;
     }
 
+    public void setCanGVN(boolean canGVN) {
+        this.canGVN = canGVN;
+    }
+
+    public boolean isCanGVN() {
+        return canGVN;
+    }
 
     public static class Param extends Value {
 
@@ -387,22 +397,24 @@ public class Function extends Value {
             BasicBlock needFixBB = (BasicBlock) CloneInfoMap.getReflectedValue(bb);
 
             //修正数据流
-//            if (!bb.equals(getBeginBB())) {
-//                ArrayList<BasicBlock> pres = new ArrayList<>();
-//                for (BasicBlock pre : bb.getPrecBBs()) {
-//                    pres.add((BasicBlock) CloneInfoMap.getReflectedValue(pre));
-//                }
-//                needFixBB.setPrecBBs(pres);
-//            }
-//
-//            if (!(bb.getEndInstr() instanceof Instr.Return)) {
-//                ArrayList<BasicBlock> succs = new ArrayList<>();
-//                for (BasicBlock succ : bb.getSuccBBs()) {
-//                    succs.add((BasicBlock) CloneInfoMap.getReflectedValue(succ));
-//                }
-//                needFixBB.setSuccBBs(succs);
-//            }
+            if (!bb.equals(getBeginBB())) {
+                ArrayList<BasicBlock> pres = new ArrayList<>();
+                for (BasicBlock pre : bb.getPrecBBs()) {
+                    pres.add((BasicBlock) CloneInfoMap.getReflectedValue(pre));
+                }
+                needFixBB.setPrecBBs(pres);
+            }
 
+            if (!(bb.getEndInstr() instanceof Instr.Return)) {
+                ArrayList<BasicBlock> succs = new ArrayList<>();
+                for (BasicBlock succ : bb.getSuccBBs()) {
+                    succs.add((BasicBlock) CloneInfoMap.getReflectedValue(succ));
+                }
+                needFixBB.setSuccBBs(succs);
+            }
+
+            ArrayList<BasicBlock> retSucc = new ArrayList<>();
+            retSucc.add(retBB);
 
             Instr instr = needFixBB.getBeginInstr();
             while (instr.getNext() != null) {
@@ -411,13 +423,16 @@ public class Function extends Value {
                     Instr jumpToRetBB = new Instr.Jump(retBB, needFixBB);
                     instr.insertBefore(jumpToRetBB);
                     retBB.addPre(needFixBB);
+                    needFixBB.modifySucs(retSucc);
                     assert retPhi != null;
                     retPhi.addOptionalValue(((Instr.Return) instr).getRetValue());
                     instr.remove();
+                    //维护前驱后继
                 } else if (instr instanceof Instr.Return) {
                     Instr jumpToRetBB = new Instr.Jump(retBB, needFixBB);
                     instr.insertBefore(jumpToRetBB);
                     retBB.addPre(needFixBB);
+                    needFixBB.modifySucs(retSucc);
                     instr.remove();
                 }
                 instr = (Instr) instr.getNext();

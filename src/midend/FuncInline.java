@@ -119,9 +119,15 @@ public class FuncInline {
     }
 
     private void transCallToFunc(Function function, Instr.Call call) {
+        if (function.getBeginBB().getBeginInstr() instanceof Instr.Phi) {
+            System.err.println("phi_in_func_begin_BB");
+        }
         CloneInfoMap.clear();
         Function inFunction = call.parentBB().getFunction();
         BasicBlock beforeCallBB = call.parentBB();
+
+        ArrayList<BasicBlock> sucs_afterCall = beforeCallBB.getSuccBBs();
+
         Instr instr = beforeCallBB.getBeginInstr();
         //原BB中需要保留的instr
         while (instr.getNext() != null) {
@@ -162,9 +168,32 @@ public class FuncInline {
         }
 
 
+        BasicBlock funcBegin = (BasicBlock) CloneInfoMap.getReflectedValue(function.getBeginBB());
+
+
+        ArrayList<BasicBlock> sucs_beforeCall = new ArrayList<>();
+        sucs_beforeCall.add(funcBegin);
+        beforeCallBB.modifySucs(sucs_beforeCall);
+
+        ArrayList<BasicBlock> pres_funcBegin = new ArrayList<>();
+        pres_funcBegin.add(beforeCallBB);
+        funcBegin.modifyPres(pres_funcBegin);
+
         Instr jumpToCallBB = new Instr.Jump((BasicBlock) CloneInfoMap.getReflectedValue(function.getBeginBB()), beforeCallBB);
         Instr jumpToAfterCallBB = new Instr.Jump(afterCallBB, retBB);
 
+        ArrayList<BasicBlock> succ_retBB = new ArrayList<>();
+        succ_retBB.add(afterCallBB);
+        retBB.modifySucs(succ_retBB);
+
+        ArrayList<BasicBlock> pres_afterCall = new ArrayList<>();
+        pres_afterCall.add(retBB);
+        afterCallBB.modifySucs(sucs_afterCall);
+        afterCallBB.modifyPres(pres_afterCall);
+
+        for (BasicBlock bb: sucs_afterCall) {
+            bb.modifyPre(beforeCallBB, afterCallBB);
+        }
     }
 
 }

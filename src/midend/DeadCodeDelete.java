@@ -33,6 +33,8 @@ public class DeadCodeDelete {
 //            removeUselessLoop();
 //        }
         removeUselessLoop();
+        //TODO:删除所有来源值都相等的PHI
+        //removeUselessPhi();
     }
 
     private void check_instr() {

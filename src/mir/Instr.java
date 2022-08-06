@@ -1257,6 +1257,15 @@ public class Instr extends Value {
 
         private BasicBlock thenTarget;
         private BasicBlock elseTarget;
+//        private boolean canLift = true;
+//
+//        public void setCanLift(boolean canLift) {
+//            this.canLift = canLift;
+//        }
+//
+//        public boolean isCanLift() {
+//            return canLift;
+//        }
 
         public Branch(Value cond, BasicBlock thenTarget, BasicBlock elseTarget, BasicBlock parent) {
             super(VoidType.getVoidType(), parent);

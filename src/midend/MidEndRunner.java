@@ -41,20 +41,27 @@ public class MidEndRunner {
         GlobalValueLocalize globalValueLocalize = new GlobalValueLocalize(functions, globalValues);
         globalValueLocalize.Run();
 
-        FuncInline funcInline = new FuncInline(functions);
-        funcInline.Run();
-
-        reMakeCFGAndLoopInfo();
-
-        GlobalValueLocalize globalValueLocalize_1 = new GlobalValueLocalize(functions, globalValues);
-        globalValueLocalize_1.Run();
+        //TODO:内联,重算数据流,控制流信息并再进行一次局部化
+        //FuncInline();
 
         Mem2Reg mem2Reg = new Mem2Reg(functions);
         mem2Reg.Run();
 
-        MathOptimize mathOptimize = new MathOptimize(functions);
-        mathOptimize.Run();
 
+        MathOpt();
+
+        Pass();
+
+        MathOpt();
+
+        GepFuse();
+
+        //暂定函数内联的位置
+        Pass();
+        //
+        FuncGVN();
+        FuncInline();
+        MathOpt();
         GepFuse();
 
         Pass();
@@ -90,8 +97,7 @@ public class MidEndRunner {
         LoopStrengthReduction();
 
 
-        MathOptimize mathOptimize1 = new MathOptimize(functions);
-        mathOptimize1.Run();
+        MathOpt();
 
 
 //        loopOptimize();
@@ -112,6 +118,28 @@ public class MidEndRunner {
         //
         // RemovePhi removePhi = new RemovePhi(functions);
         // removePhi.Run();
+    }
+
+    private void MathOpt() {
+        MathOptimize mathOptimize = new MathOptimize(functions);
+        mathOptimize.Run();
+    }
+
+    private void FuncInline() {
+        FuncInline funcInline = new FuncInline(functions);
+        funcInline.Run();
+
+        reMakeCFGAndLoopInfo();
+
+        GlobalValueLocalize globalValueLocalize = new GlobalValueLocalize(functions, globalValues);
+        globalValueLocalize.Run();
+    }
+
+    private void FuncGVN() {
+        AggressiveFuncGVN aggressiveFuncGVN = new AggressiveFuncGVN(functions);
+        aggressiveFuncGVN.Run();
+
+        Pass();
     }
 
     private void ArrayGVN() {
@@ -227,6 +255,9 @@ public class MidEndRunner {
         LoopIdcVarInfo loopIdcVarInfo = new LoopIdcVarInfo(functions);
         loopIdcVarInfo.Run();
 
+        FuncInfo funcInfo = new FuncInfo(functions);
+        funcInfo.Run();
+
     }
 
     //循环优化
@@ -247,7 +278,8 @@ public class MidEndRunner {
         //outputLLVM();
 
         reMakeCFGAndLoopInfo();
-//        outputLLVM();
+
+        outputLLVM();
 
         Pass();
 

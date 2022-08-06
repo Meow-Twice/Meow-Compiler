@@ -70,6 +70,9 @@ public class MidEndRunner {
 
         ArrayGVN();
 
+        MathOpt();
+        BrOptimize();
+
         //outputLLVM();
         loopOptimize();
 
@@ -97,6 +100,9 @@ public class MidEndRunner {
         LoopStrengthReduction();
 
 
+
+        MathOpt();
+        outputLLVM();
         MathOpt();
 
 
@@ -279,7 +285,7 @@ public class MidEndRunner {
 
         reMakeCFGAndLoopInfo();
 
-        outputLLVM();
+        //outputLLVM();
 
         Pass();
 

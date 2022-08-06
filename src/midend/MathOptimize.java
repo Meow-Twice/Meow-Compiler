@@ -3,19 +3,28 @@ package midend;
 import mir.*;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 
 public class MathOptimize {
 
     private static int adds_to_mul_boundary = 10;
 
     private ArrayList<Function> functions;
+    //private HashSet<MulPair> mulSet;
+    //%1 = mul %2, 100
+    // key ==> %1
+    // value ==> 100
+    private HashMap<Instr, Integer> mulMap = new HashMap<>();
 
     public MathOptimize(ArrayList<Function> functions) {
         this.functions = functions;
-    }
+        }
 
     public void Run() {
         continueAddToMul();
+        addZeroFold();
+        mulDivFold();
     }
 
     private void continueAddToMul() {
@@ -67,17 +76,35 @@ public class MathOptimize {
         BasicBlock bb = instr.parentBB();
         if (cnt > adds_to_mul_boundary) {
             //TODO:do trans adds -> mul
-            Instr.Alu mul = new Instr.Alu(instr.getType(), Instr.Alu.Op.MUL, base, new Constant.ConstantInt(cnt), bb);
-            instr.insertBefore(mul);
-            instr.modifyUse(mul, 0);
-            instr.modifyUse(addValue, 1);
+            if (addValue.equals(base)) {
+                cnt++;
+//                Instr.Alu mul = new Instr.Alu(instr.getType(), Instr.Alu.Op.MUL, base, new Constant.ConstantInt(cnt), bb);
+//                instr.insertBefore(mul);
+//                instr.modifyUse(mul, 0);
+//                instr.modifyUse(addValue, 1);
 
-            for (int i = 0; i < adds.size() - 1; i++) {
-                adds.get(i).remove();
+                ((Instr.Alu) instr).setOp(Instr.Alu.Op.MUL);
+                instr.modifyUse(base, 0);
+                instr.modifyUse(new Constant.ConstantInt(cnt), 1);
+                for (int i = 0; i < adds.size() - 1; i++) {
+                    adds.get(i).remove();
+                }
+
+                beginInstr.setNext(instr.getNext());
+                return;
+            } else {
+                Instr.Alu mul = new Instr.Alu(instr.getType(), Instr.Alu.Op.MUL, base, new Constant.ConstantInt(cnt), bb);
+                instr.insertBefore(mul);
+                instr.modifyUse(mul, 0);
+                instr.modifyUse(addValue, 1);
+
+                for (int i = 0; i < adds.size() - 1; i++) {
+                    adds.get(i).remove();
+                }
+
+                beginInstr.setNext(instr.getNext());
+                return;
             }
-
-            beginInstr.setNext(instr.getNext());
-            return;
         }
     }
 
@@ -111,6 +138,90 @@ public class MathOptimize {
     //只对 只有一个user的指令保证正确
     private Instr getOneUser(Instr instr) {
         return instr.getBeginUse().getUser();
+    }
+
+    private void addZeroFold() {
+        for (Function function: functions) {
+            for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
+                for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+                    if (instr instanceof Instr.Alu && ((Instr.Alu) instr).getOp().equals(Instr.Alu.Op.ADD)) {
+                        if (((Instr.Alu) instr).getRVal1() instanceof Constant.ConstantInt) {
+                            int val = (int) ((Constant.ConstantInt) ((Instr.Alu) instr).getRVal1()).getConstVal();
+                            if (val == 0) {
+                                instr.modifyAllUseThisToUseA(((Instr.Alu) instr).getRVal2());
+                                instr.remove();
+                            }
+                        } else if (((Instr.Alu) instr).getRVal2() instanceof Constant.ConstantInt) {
+                            int val = (int) ((Constant.ConstantInt) ((Instr.Alu) instr).getRVal2()).getConstVal();
+                            if (val == 0) {
+                                instr.modifyAllUseThisToUseA(((Instr.Alu) instr).getRVal1());
+                                instr.remove();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private void mulDivFold() {
+        mulMap.clear();
+        for (Function function: functions) {
+            BasicBlock bb = function.getBeginBB();
+            RPOSearch(bb);
+        }
+    }
+
+    private void RPOSearch(BasicBlock bb) {
+        HashSet<Instr> adds = new HashSet<>();
+
+        for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+            if (instr instanceof Instr.Alu) {
+                Instr.Alu.Op op = ((Instr.Alu) instr).getOp();
+                if (op.equals(Instr.Alu.Op.MUL)) {
+                    Value val1 = ((Instr.Alu) instr).getRVal1();
+                    Value val2 = ((Instr.Alu) instr).getRVal2();
+                    if (val1 instanceof Constant.ConstantInt) {
+                        int time = (int) ((Constant.ConstantInt) val1).getConstVal();
+                        adds.add(instr);
+                        mulMap.put(instr, time);
+                    } else if (val2 instanceof Constant.ConstantInt) {
+                        int time = (int) ((Constant.ConstantInt) val2).getConstVal();
+                        adds.add(instr);
+                        mulMap.put(instr, time);
+                    }
+                } else if (op.equals(Instr.Alu.Op.DIV)) {
+                    if (((Instr.Alu) instr).getRVal2() instanceof Constant.ConstantInt) {
+                        int divTime = (int) ((Constant.ConstantInt) ((Instr.Alu) instr).getRVal2()).getConstVal();
+                        if (((Instr.Alu) instr).getRVal1() instanceof Instr) {
+                            Instr val = (Instr) ((Instr.Alu) instr).getRVal1();
+                            if (mulMap.containsKey(val) && mulMap.get(val) == divTime) {
+                                assert val instanceof Instr.Alu;
+                                if (((Instr.Alu) val).getRVal1() instanceof Constant.ConstantInt) {
+                                    instr.modifyAllUseThisToUseA(((Instr.Alu) val).getRVal2());
+                                    instr.remove();
+                                } else if (((Instr.Alu) val).getRVal2() instanceof Constant.ConstantInt) {
+                                    instr.modifyAllUseThisToUseA(((Instr.Alu) val).getRVal1());
+                                    instr.remove();
+                                } else {
+                                    assert false;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        for (BasicBlock next: bb.getIdoms()) {
+            RPOSearch(next);
+        }
+
+        for (Instr instr: adds) {
+            mulMap.remove(instr);
+        }
+
+
     }
 
 

@@ -22,6 +22,7 @@ import static lir.Arm.Cond.Ne;
 import static lir.Arm.Regs.FPRs.*;
 import static lir.Arm.Regs.GPRs.*;
 import static lir.MachineInst.Tag.*;
+import static midend.MidEndRunner.O2;
 import static mir.type.DataType.F32;
 import static mir.type.DataType.I32;
 
@@ -377,6 +378,12 @@ public class CodeGen {
                 case gep -> {
                     Instr.GetElementPtr gep = (Instr.GetElementPtr) instr;
                     Value ptrValue = gep.getPtr();
+                    // if(O2){
+                    //
+                    //     // %v30 = getelementptr inbounds [3 x [4 x [5 x i32]]], [3 x [4 x [5 x i32]]]* %f1, i32 %1
+                    //     // %v31 = getelementptr inbounds [3 x [4 x [5 x i32]]], [3 x [4 x [5 x i32]]]* %30, i32 0, i32 %2
+                    //     break;
+                    // }
                     int offsetCount = gep.getOffsetCount();
                     /**
                      * 当前的 baseType
@@ -443,7 +450,6 @@ public class CodeGen {
                             }
                         }
                     }
-
                 }
                 case bitcast -> {
                     Instr.Bitcast bitcast = (Instr.Bitcast) instr;
@@ -459,7 +465,7 @@ public class CodeGen {
                 case pcopy -> {
                 }
                 case move -> {
-                    Operand source = getVR_may_imm(((Instr.Move) instr).getSrc());
+                    Operand source = getOp_may_imm(((Instr.Move) instr).getSrc());
                     Operand target = getVR_no_imm(((Instr.Move) instr).getDst());
                     if (source.isF32() || target.isF32()) {
                         assert needFPU;
@@ -829,7 +835,7 @@ public class CodeGen {
                 // new I.Binary(tag, dVR, lVR, getImmVR(imm), curMB);
             }
         } else {
-            if (lhs.isConstant()){
+            if (lhs.isConstant()) {
                 switch (tag) {
                     case Add -> {
                         Value tmp = lhs;
@@ -845,7 +851,7 @@ public class CodeGen {
                 }
             }
             MC.Operand lVR = getVR_may_imm(lhs);
-            MC.Operand rVR = getVR_may_imm(rhs);
+            MC.Operand rVR = getOp_may_imm(rhs);
             if (tag == FMod) {
                 assert needFPU;
                 Operand dst1 = newSVR();
@@ -1059,10 +1065,11 @@ public class CodeGen {
      */
     public Operand getOp_may_imm(Value value) {
         if (value instanceof Constant.ConstantInt || value instanceof Constant.ConstantBool) {
-            return new Operand(I32, (int) ((Constant) value).getConstVal());
-        } else {
-            return getVR_may_imm(value);
+            int imm = (int) ((Constant) value).getConstVal();
+            if (immCanCode(imm))
+                return new Operand(I32, (int) ((Constant) value).getConstVal());
         }
+        return getVR_may_imm(value);
     }
 
     /**

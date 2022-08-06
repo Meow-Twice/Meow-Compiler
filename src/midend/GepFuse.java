@@ -90,7 +90,9 @@ public class GepFuse {
             //此处user use并没有被维护
             if (use.getUser() instanceof Instr.GetElementPtr) {
                 fuseDFS(use.getUser());
-            } else if (use.getUser() instanceof Instr.Store || use.getUser() instanceof Instr.Load) {
+            } else if (use.getUser() instanceof Instr.Store ||
+                    use.getUser() instanceof Instr.Load ||
+                    use.getUser() instanceof Instr.Call) {
                 if (!tag) {
                     fuse();
                     tag = true;
@@ -104,24 +106,35 @@ public class GepFuse {
         if (Geps.size() == 1) {
             return;
         }
-        Instr.GetElementPtr gep_0 = Geps.get(0);
+        int begin_index = Geps.size() - 1;
+        while (begin_index > 0) {
+            if (Geps.get(begin_index).getPtr().equals(Geps.get(begin_index - 1))) {
+                begin_index--;
+            } else {
+                break;
+            }
+        }
+        Instr.GetElementPtr gep_0 = Geps.get(begin_index);
         Instr.GetElementPtr gep_end = Geps.get(Geps.size() - 1);
         int dim = ((Type.ArrayType) ((Type.PointerType) Geps.get(0).getPtr().getType()).getInnerType()).getDimSize();
         int sum = 0;
-        for (Instr.GetElementPtr gep: Geps) {
+        for (int i = begin_index; i < Geps.size(); i++) {
             //TODO:在过程中发现偏移相等了
 //            if (sum == dim) {
 //                return;
 //            }
+            Instr.GetElementPtr gep = Geps.get(i);
             sum += gep.getIdxList().size() - 1;
         }
         assert sum <= dim;
         if (sum < dim) {
             return;
         }
+
+
         ArrayList<Value> retIndexs = new ArrayList<>();
         retIndexs.addAll(gep_0.getIdxList());
-        for (int i = 1; i < Geps.size(); i++) {
+        for (int i = begin_index + 1; i < Geps.size(); i++) {
             Instr.GetElementPtr gep = Geps.get(i);
 
             int num = retIndexs.size();

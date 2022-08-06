@@ -27,6 +27,9 @@ public class FuncInfo {
         }
         for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
             for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+                if (instr instanceof Instr.Call) {
+                    return false;
+                }
                 for (Value value: instr.getUseValueList()) {
                     if (value instanceof GlobalVal.GlobalValue) {
                         return false;

@@ -380,24 +380,68 @@ public class CodeGen {
                     Value ptrValue = gep.getPtr();
                     int offsetCount = gep.getOffsetCount();
                     Type curBaseType = ((Type.PointerType) ptrValue.getType()).getInnerType();
+                    Operand curAddrVR = getVR_from_ptr(ptrValue);
                     // if (O2) {
                     //     assert offsetCount <= 2 && offsetCount > 0;
                     //     // %v30 = getelementptr inbounds [3 x [4 x [5 x i32]]], [3 x [4 x [5 x i32]]]* %f1, i32 %1
                     //     // %v31 = getelementptr inbounds [3 x [4 x [5 x i32]]], [3 x [4 x [5 x i32]]]* %30, i32 0, i32 %2
-                    //     Operand curAddrVR = getVR_from_ptr(ptrValue);
                     //     if (offsetCount == 1) {
                     //         Value curIdxValue = gep.getUseValueList().get(1);
-                    //         int offSet = 4 * ((Type.ArrayType) curBaseType).getFlattenSize();
+                    //         int offSet = 4 * (curBaseType.isBasicType() ? 1 : ((Type.ArrayType) curBaseType).getFlattenSize());
                     //         if (curIdxValue.isConstantInt()) {
                     //             int curIdx = (int) ((Constant.ConstantInt) curIdxValue).getConstVal();
                     //             if (curIdx == 0) {
-                    //                 value2opd.put(ptrValue, curAddrVR);
+                    //                 value2opd.put(gep, curAddrVR);
                     //             } else {
                     //                 int totalOff = offSet * curIdx;
                     //                 if (immCanCode(totalOff)) {
                     //                     new I.Binary(Add, getVR_no_imm(gep), curAddrVR, new Operand(I32, totalOff), curMB);
                     //                 } else {
                     //                     new I.Binary(Add, getVR_no_imm(gep), curAddrVR, getImmVR(totalOff), curMB);
+                    //                 }
+                    //             }
+                    //         } else {
+                    //             new I.Binary(Add, getVR_no_imm(gep), curAddrVR, getVR_no_imm(curIdxValue), new Arm.Shift(Arm.ShiftType.Lsl, 2), curMB);
+                    //         }
+                    //     } else {
+                    //         Value firstIdx = gep.getUseValueList().get(1);
+                    //         assert firstIdx.isConstantInt() && (0 == (int) ((Constant.ConstantInt) firstIdx).getConstVal());
+                    //         Value secondIdx = gep.getUseValueList().get(1);
+                    //         Type innerType = ((Type.ArrayType) curBaseType).getBaseType();
+                    //         if (innerType.isBasicType()) {
+                    //             if (secondIdx.isConstantInt()) {
+                    //                 int secondIdxNum = (int) ((Constant.ConstantInt) secondIdx).getConstVal();
+                    //                 int totalOff = 4 * secondIdxNum;
+                    //                 if (immCanCode(totalOff)) {
+                    //                     new I.Binary(Add, getVR_no_imm(gep), curAddrVR, new Operand(I32, totalOff), curMB);
+                    //                 } else {
+                    //                     new I.Binary(Add, getVR_no_imm(gep), curAddrVR, getImmVR(secondIdxNum), new Arm.Shift(Arm.ShiftType.Lsl, 2), curMB);
+                    //                 }
+                    //             } else {
+                    //                 new I.Binary(Add, getVR_no_imm(gep), curAddrVR, getVR_no_imm(secondIdx), new Arm.Shift(Arm.ShiftType.Lsl, 2), curMB);
+                    //             }
+                    //         } else {
+                    //             // dst = curAddrVR + 4 * (int) baseSize * (may imm) secondIdx;
+                    //             // baseOffSet = 4 * baseSize
+                    //             int baseSize = ((Type.ArrayType) innerType).getFlattenSize();
+                    //             int baseOffSet = 4 * baseSize;
+                    //             if (secondIdx.isConstantInt()) {
+                    //                 int secondIdxNum = (int) ((Constant.ConstantInt) secondIdx).getConstVal();
+                    //                 int totalOffSet = baseOffSet * secondIdxNum;
+                    //                 if ((totalOffSet & (totalOffSet - 1)) == 0) {
+                    //                     assert immCanCode(totalOffSet);
+                    //                     if (!immCanCode(totalOffSet)) System.exit(187);
+                    //                     new I.Binary(Add, getVR_no_imm(gep), curAddrVR, new Operand(I32, totalOffSet), curMB);
+                    //                 } else if ((baseOffSet & (baseOffSet - 1)) == 0) {
+                    //                     new I.Binary(Add, getVR_no_imm(gep), curAddrVR, getImmVR(secondIdxNum), new Arm.Shift(Arm.ShiftType.Lsl, Integer.numberOfTrailingZeros(baseOffSet)), curMB);
+                    //                 } else {
+                    //                     new I.Binary(Add, getVR_no_imm(gep), curAddrVR, getImmVR(totalOffSet), curMB);
+                    //                 }
+                    //             } else {
+                    //                 if ((baseOffSet & (baseOffSet - 1)) == 0) {
+                    //                     new I.Binary(Add, getVR_no_imm(gep), curAddrVR, getVR_no_imm(secondIdx), new Arm.Shift(Arm.ShiftType.Lsl, Integer.numberOfTrailingZeros(baseOffSet)), curMB);
+                    //                 } else {
+                    //                     new I.Fma(true, false, getVR_no_imm(gep), getVR_no_imm(secondIdx), getImmVR(baseOffSet), curAddrVR, curMB);
                     //                 }
                     //             }
                     //         }
@@ -410,7 +454,7 @@ public class CodeGen {
                     assert !ptrValue.isConstant();
                     Operand dstVR = getVR_no_imm(gep);
                     // Machine.Operand curAddrVR = getVR_no_imm(ptrValue);
-                    Operand curAddrVR = getVR_from_ptr(ptrValue);
+                    // Operand curAddrVR = getVR_from_ptr(ptrValue);
                     // Operand curAddrVR = newVR();
                     // new I.Mov(curAddrVR, basePtrVR, curMB);
                     int totalConstOff = 0;

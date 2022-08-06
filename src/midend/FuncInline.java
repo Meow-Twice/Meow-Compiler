@@ -41,6 +41,7 @@ public class FuncInline {
             }
             function.setDeleted();
         }
+        //System.err.println("fun_inline_end");
     }
 
     private void GetFuncCanInline() {

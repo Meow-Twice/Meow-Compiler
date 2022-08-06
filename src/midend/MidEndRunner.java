@@ -44,8 +44,9 @@ public class MidEndRunner {
         //TODO:内联,重算数据流,控制流信息并再进行一次局部化
         //FuncInline();
 
-        Mem2Reg mem2Reg = new Mem2Reg(functions);
-        mem2Reg.Run();
+        Mem2Reg();
+
+        //outputLLVM();
 
 
         MathOpt();
@@ -61,6 +62,7 @@ public class MidEndRunner {
         //
         FuncGVN();
         FuncInline();
+        Mem2Reg();
         MathOpt();
         GepFuse();
 
@@ -69,6 +71,9 @@ public class MidEndRunner {
         //outputLLVM();
 
         ArrayGVN();
+
+        MathOpt();
+        BrOptimize();
 
         //outputLLVM();
         loopOptimize();
@@ -97,6 +102,9 @@ public class MidEndRunner {
         LoopStrengthReduction();
 
 
+
+        MathOpt();
+        //outputLLVM();
         MathOpt();
 
 
@@ -118,6 +126,11 @@ public class MidEndRunner {
         //
         // RemovePhi removePhi = new RemovePhi(functions);
         // removePhi.Run();
+    }
+
+    private void Mem2Reg() {
+        Mem2Reg mem2Reg = new Mem2Reg(functions);
+        mem2Reg.Run();
     }
 
     private void MathOpt() {
@@ -279,7 +292,7 @@ public class MidEndRunner {
 
         reMakeCFGAndLoopInfo();
 
-        outputLLVM();
+        //outputLLVM();
 
         Pass();
 

@@ -704,6 +704,18 @@ public class CodeGen {
                     // TODO: 源操作数和目的操作数虚拟寄存器相同，不一定不会出 bug
                     new I.Binary(Rsb, dVR, dVR, new Operand(I32, 0), curMB); // dst = 0 - dst
                 }
+            } else if (Integer.bitCount(abs) == 2) {
+                // constant multiplier has two 1 bits => two shift-left and one add
+                // a * 10 => (a << 3) + (a << 1)
+                int hi = bitsOfInt - 1 - Integer.numberOfLeadingZeros(abs);
+                int lo = Integer.numberOfTrailingZeros(abs);
+                Operand shiftHi = newVR();
+                new I.Mov(shiftHi, srcOp, new Arm.Shift(Arm.ShiftType.Lsl, hi), curMB); // shiftHi = (a << hi)
+                new I.Binary(Add, dVR, shiftHi, srcOp, new Arm.Shift(Arm.ShiftType.Lsl, lo), curMB); // dst = shiftHi + (a << lo)
+                if (imm < 0) {
+                    // dst = -dst
+                    new I.Binary(Rsb, dVR, dVR, new Operand(I32, 0), curMB); // dst = 0 - dst
+                }
             } else {
                 new I.Binary(tag, dVR, srcOp, getImmVR(imm), curMB);
             }
@@ -736,6 +748,10 @@ public class CodeGen {
                 new I.Binary(Add, tmp, lVR, sgn, new Arm.Shift(Arm.ShiftType.Lsr, bitsOfInt - sh), curMB);
                 // quo = tmp >>> sh
                 new I.Mov(dVR, tmp, new Arm.Shift(Arm.ShiftType.Asr, sh), curMB);
+                // 除数为负，结果取反
+                if (imm < 0) {
+                    new I.Binary(Rsb, dVR, dVR, new Operand(I32, 0), curMB);
+                }
             } else {
                 /*
                  * Reference: https://github.com/ridiculousfish/libdivide
@@ -785,6 +801,7 @@ public class CodeGen {
                     }
                 }
                 // {magic, more} got
+                System.err.printf("divopt: magic = %d, more = %d\n", magic, more);
                 int sh = more & s32ShiftMask;
                 int mask = (1 << sh), sign = ((more & (0x80)) != 0) ? -1 : 0, isPower2 = (magic == 0) ? 1 : 0;
                 // libdivide_s32_branchfree_do => process in runtime, use hardware instruction

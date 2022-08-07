@@ -1,7 +1,7 @@
 package lir;
 
 import lir.Arm.Reg;
-import lir.Machine.McFunction;
+import lir.MC.McFunction;
 
 import java.io.PrintStream;
 
@@ -13,7 +13,7 @@ import static lir.Arm.Regs.GPRs.*;
 public class MICall extends MachineInst {
     public McFunction callee;
 
-    public MICall(McFunction callee, Machine.Block insertAtEnd) {
+    public MICall(McFunction callee, MC.Block insertAtEnd) {
         super(Tag.Call, insertAtEnd);
         this.callee = callee;
         genDefUse();
@@ -29,6 +29,13 @@ public class MICall extends MachineInst {
         //         }
         //         useOpds.add(Reg.getR(i));
         //     }
+
+        if (needFPU) {
+            for (int i = 0; i < 2; i++) {
+                useOpds.add(Reg.getS(i));
+                defOpds.add(Reg.getS(i));
+            }
+        }
         for (int i = r0.ordinal(); i < r0.ordinal() + rParamCnt; i++) {
             defOpds.add(Reg.getR(i));
         }
@@ -67,7 +74,7 @@ public class MICall extends MachineInst {
 
     @Override
     public void output(PrintStream os, McFunction f) {
-        os.println("\tblx\t" + callee.mFunc.getName());
+        os.println(this);
     }
 
     @Override

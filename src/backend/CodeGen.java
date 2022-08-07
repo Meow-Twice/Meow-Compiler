@@ -3,19 +3,26 @@ package backend;
 import frontend.lexer.Lexer;
 import frontend.semantic.Initial;
 import lir.*;
-import lir.Machine.Operand;
+import lir.MC.Operand;
 import manage.Manager;
 import mir.*;
 import mir.type.DataType;
 import mir.type.Type;
 
+import java.math.BigInteger;
 import java.util.*;
 
 import static lir.Arm.Cond.*;
+import static lir.Arm.Cond.Eq;
+import static lir.Arm.Cond.Ge;
+import static lir.Arm.Cond.Gt;
+import static lir.Arm.Cond.Le;
+import static lir.Arm.Cond.Lt;
+import static lir.Arm.Cond.Ne;
 import static lir.Arm.Regs.FPRs.*;
 import static lir.Arm.Regs.GPRs.*;
-import static lir.MachineInst.Tag.FMod;
-import static lir.MachineInst.Tag.Mod;
+import static lir.MachineInst.Tag.*;
+import static midend.MidEndRunner.O2;
 import static mir.type.DataType.F32;
 import static mir.type.DataType.I32;
 
@@ -24,11 +31,10 @@ public class CodeGen {
     public static final CodeGen CODEGEN = new CodeGen();
     public static boolean _DEBUG_OUTPUT_MIR_INTO_COMMENT = true;
     public static boolean needFPU = false;
-    // public static boolean isNeedFPU = false;
-    boolean _DEBUG_MUL_DIV = false;
+    public static boolean optMulDiv = true;
 
     // 当前的Machine.McFunction
-    private static Machine.McFunction curMF;
+    private static MC.McFunction curMF;
 
     // 当前的mir.Function
     private static mir.Function curFunc;
@@ -43,14 +49,14 @@ public class CodeGen {
     public final ArrayList<Arm.Glob> globList = new ArrayList<>();
 
     // 如名
-    public HashMap<Function, Machine.McFunction> f2mf;
+    public HashMap<Function, MC.McFunction> f2mf;
 
     // 如名
-    public HashMap<BasicBlock, Machine.Block> bb2mb;
+    public HashMap<BasicBlock, MC.Block> bb2mb;
 
     // 全局变量
     private final HashMap<GlobalVal.GlobalValue, Initial> globalMap;
-    private Machine.Block curMB;
+    private MC.Block curMB;
 
     // 整数数传参可使用最大个数
     public static final int rParamCnt = 4;
@@ -74,7 +80,7 @@ public class CodeGen {
         // TODO
 
         for (Function func : fMap.values()) {
-            Machine.McFunction mcFunc = new Machine.McFunction(func);
+            MC.McFunction mcFunc = new MC.McFunction(func);
             f2mf.put(func, mcFunc);
             for (Function.Param p : func.getParams()) {
                 if (p.getType().isFloatType()) {
@@ -92,12 +98,12 @@ public class CodeGen {
             }
             curMF = f2mf.get(func);
             curMF.setUseLr();
-            Machine.Program.PROGRAM.funcList.insertAtEnd(curMF);
+            MC.Program.PROGRAM.funcList.insertAtEnd(curMF);
             curFunc = func;
             boolean isMain = false;
             if (curFunc.getName().equals("main")) {
                 isMain = true;
-                Machine.Program.PROGRAM.mainMcFunc = curMF;
+                MC.Program.PROGRAM.mainMcFunc = curMF;
             }
             curMF.clearVRCount();
             curMF.clearSVRCount();
@@ -108,7 +114,7 @@ public class CodeGen {
             BasicBlock endBB = func.getEnd();
             // 先造出来防止br找不到目标
             while (!bb.equals(endBB)) {
-                Machine.Block mb = new Machine.Block(bb);
+                MC.Block mb = new MC.Block(bb);
                 bb.setMB(mb);
                 bb2mb.put(bb, mb);
                 bb = (BasicBlock) bb.getNext();
@@ -137,12 +143,12 @@ public class CodeGen {
         }
     }
 
-    private void Push(Machine.McFunction mf) {
+    private void Push(MC.McFunction mf) {
         if (needFPU) new StackCtl.VPush(mf, curMB);
         new StackCtl.Push(mf, curMB);
     }
 
-    private void Pop(Machine.McFunction mf) {
+    private void Pop(MC.McFunction mf) {
         new StackCtl.Pop(mf, curMB);
         if (needFPU) new StackCtl.VPop(mf, curMB);
     }
@@ -215,12 +221,12 @@ public class CodeGen {
         FLOAT_TOTAL_STACK
     }
 
-    HashSet<Machine.Block> visitBBSet = new HashSet<>();
+    HashSet<MC.Block> visitBBSet = new HashSet<>();
 
     public void genBB(BasicBlock bb) {
         curMB = bb.getMb();
         visitBBSet.add(curMB);
-        curMB.setMcFunc(curMF);
+        curMB.setMf(curMF);
         // ArrayList<BasicBlock> nextBlockList = new ArrayList<>();
         Instr instr = bb.getBeginInstr();
         while (!instr.equals(bb.getEnd())) {
@@ -231,16 +237,16 @@ public class CodeGen {
                 case value, func, bb -> throw new AssertionError("Damaged wrong: try gen: " + instr);
                 case bino -> genBinaryInst((Instr.Alu) instr);
                 case ashr -> {
-                   Value lhs = ((Instr.Ashr) instr).getRVal1();
-                   Value rhs = ((Instr.Ashr) instr).getRVal2();
-                   Machine.Operand lVR = getVR_may_imm(lhs);
-                   Machine.Operand rVR = getVR_may_imm(rhs);
-                   // instr不可能是Constant
-                   Machine.Operand dVR = getVR_no_imm(instr);
-                   new I.Mov(dVR, lVR, new Arm.Shift(Arm.ShiftType.Asr, rVR), curMB);
+                    Value lhs = ((Instr.Ashr) instr).getRVal1();
+                    Value rhs = ((Instr.Ashr) instr).getRVal2();
+                    MC.Operand lVR = getVR_may_imm(lhs);
+                    MC.Operand rVR = getVR_may_imm(rhs);
+                    // instr不可能是Constant
+                    MC.Operand dVR = getVR_no_imm(instr);
+                    new I.Mov(dVR, lVR, new Arm.Shift(Arm.ShiftType.Asr, rVR), curMB);
                 }
                 case jump -> {
-                    Machine.Block mb = ((Instr.Jump) instr).getTarget().getMb();
+                    MC.Block mb = ((Instr.Jump) instr).getTarget().getMb();
                     curMB.succMBs.add(mb);
                     if (!visitBBSet.contains(mb)) nextBBList.push(mb.bb);
                     new MIJump(mb, curMB);
@@ -250,8 +256,8 @@ public class CodeGen {
                     Arm.Cond cond;
                     Instr.Branch brInst = (Instr.Branch) instr;
                     Instr condValue = (Instr) brInst.getCond();
-                    Machine.Block trueBlock = brInst.getThenTarget().getMb();
-                    Machine.Block falseBlock = brInst.getElseTarget().getMb();
+                    MC.Block trueBlock = brInst.getThenTarget().getMb();
+                    MC.Block falseBlock = brInst.getElseTarget().getMb();
                     curMB.succMBs.add(trueBlock);
                     curMB.succMBs.add(falseBlock);
                     if (!visitBBSet.contains(falseBlock)) nextBBList.push(falseBlock.bb);
@@ -261,8 +267,8 @@ public class CodeGen {
                         cond = t.ArmCond;
                     } else {
                         Operand condVR = getVR_may_imm(condValue);
-                        new I.Cmp(condVR, new Operand(I32, 0), curMB);
-                        cond = Arm.Cond.Ne;
+                        cond = Ne;
+                        new I.Cmp(cond, condVR, new Operand(I32, 0), curMB);
                     }
                     new MIBranch(cond, trueBlock, falseBlock, curMB);
                 }
@@ -294,14 +300,14 @@ public class CodeGen {
                     // mv.setNeedFix(STACK_FIX.VAR_STACK);
                     I.Binary bino = new I.Binary(MachineInst.Tag.Add, Arm.Reg.getR(sp), Arm.Reg.getR(sp), new Operand(I32, 0), curMB);
                     bino.setNeedFix(STACK_FIX.VAR_STACK);
-                    Pop(curMF);
+                    // Pop(curMF);
                     if (retDataType == I32) {
-                        new I.Ret(Arm.Reg.getR(r0), curMB);
+                        new I.Ret(curMF, Arm.Reg.getR(r0), curMB);
                     } else if (retDataType == F32) {
                         assert needFPU;
-                        new V.Ret(Arm.Reg.getS(s0), curMB);
+                        new V.Ret(curMF, Arm.Reg.getS(s0), curMB);
                     } else {
-                        new I.Ret(curMB);
+                        new I.Ret(curMF, curMB);
                     }
                 }
                 case zext -> {
@@ -373,14 +379,83 @@ public class CodeGen {
                     Instr.GetElementPtr gep = (Instr.GetElementPtr) instr;
                     Value ptrValue = gep.getPtr();
                     int offsetCount = gep.getOffsetCount();
+                    Type curBaseType = ((Type.PointerType) ptrValue.getType()).getInnerType();
+                    Operand curAddrVR = getVR_from_ptr(ptrValue);
+                    if (O2) {
+                        assert offsetCount <= 2 && offsetCount > 0;
+                        // %v30 = getelementptr inbounds [3 x [4 x [5 x i32]]], [3 x [4 x [5 x i32]]]* %f1, i32 %1
+                        // %v31 = getelementptr inbounds [3 x [4 x [5 x i32]]], [3 x [4 x [5 x i32]]]* %30, i32 0, i32 %2
+                        if (offsetCount == 1) {
+                            Value curIdxValue = gep.getUseValueList().get(1);
+                            int offSet = 4 * (curBaseType.isBasicType() ? 1 : ((Type.ArrayType) curBaseType).getFlattenSize());
+                            if (curIdxValue.isConstantInt()) {
+                                int curIdx = (int) ((Constant.ConstantInt) curIdxValue).getConstVal();
+                                if (curIdx == 0) {
+                                    new I.Mov(getVR_no_imm(gep), curAddrVR, curMB);
+                                    // value2opd.put(gep, curAddrVR);
+                                } else {
+                                    int totalOff = offSet * curIdx;
+                                    if (immCanCode(totalOff)) {
+                                        new I.Binary(Add, getVR_no_imm(gep), curAddrVR, new Operand(I32, totalOff), curMB);
+                                    } else {
+                                        new I.Binary(Add, getVR_no_imm(gep), curAddrVR, getImmVR(totalOff), curMB);
+                                    }
+                                }
+                            } else {
+                                new I.Binary(Add, getVR_no_imm(gep), curAddrVR, getVR_no_imm(curIdxValue), new Arm.Shift(Arm.ShiftType.Lsl, 2), curMB);
+                            }
+                        } else {
+                            Value firstIdx = gep.getUseValueList().get(1);
+                            assert firstIdx.isConstantInt() && (0 == (int) ((Constant.ConstantInt) firstIdx).getConstVal());
+                            Value secondIdx = gep.getUseValueList().get(2);
+                            Type innerType = ((Type.ArrayType) curBaseType).getBaseType();
+                            if (innerType.isBasicType()) {
+                                if (secondIdx.isConstantInt()) {
+                                    int secondIdxNum = (int) ((Constant.ConstantInt) secondIdx).getConstVal();
+                                    int totalOff = 4 * secondIdxNum;
+                                    if (immCanCode(totalOff)) {
+                                        new I.Binary(Add, getVR_no_imm(gep), curAddrVR, new Operand(I32, totalOff), curMB);
+                                    } else {
+                                        new I.Binary(Add, getVR_no_imm(gep), curAddrVR, getImmVR(secondIdxNum), new Arm.Shift(Arm.ShiftType.Lsl, 2), curMB);
+                                    }
+                                } else {
+                                    new I.Binary(Add, getVR_no_imm(gep), curAddrVR, getVR_no_imm(secondIdx), new Arm.Shift(Arm.ShiftType.Lsl, 2), curMB);
+                                }
+                            } else {
+                                // dst = curAddrVR + 4 * (int) baseSize * (may imm) secondIdx;
+                                // baseOffSet = 4 * baseSize
+                                int baseSize = ((Type.ArrayType) innerType).getFlattenSize();
+                                int baseOffSet = 4 * baseSize;
+                                if (secondIdx.isConstantInt()) {
+                                    int secondIdxNum = (int) ((Constant.ConstantInt) secondIdx).getConstVal();
+                                    int totalOffSet = baseOffSet * secondIdxNum;
+                                    if ((totalOffSet & (totalOffSet - 1)) == 0) {
+                                        assert immCanCode(totalOffSet);
+                                        if (!immCanCode(totalOffSet)) System.exit(187);
+                                        new I.Binary(Add, getVR_no_imm(gep), curAddrVR, new Operand(I32, totalOffSet), curMB);
+                                    } else if ((baseOffSet & (baseOffSet - 1)) == 0) {
+                                        new I.Binary(Add, getVR_no_imm(gep), curAddrVR, getImmVR(secondIdxNum), new Arm.Shift(Arm.ShiftType.Lsl, Integer.numberOfTrailingZeros(baseOffSet)), curMB);
+                                    } else {
+                                        new I.Binary(Add, getVR_no_imm(gep), curAddrVR, getImmVR(totalOffSet), curMB);
+                                    }
+                                } else {
+                                    if ((baseOffSet & (baseOffSet - 1)) == 0) {
+                                        new I.Binary(Add, getVR_no_imm(gep), curAddrVR, getVR_no_imm(secondIdx), new Arm.Shift(Arm.ShiftType.Lsl, Integer.numberOfTrailingZeros(baseOffSet)), curMB);
+                                    } else {
+                                        new I.Fma(true, false, getVR_no_imm(gep), getVR_no_imm(secondIdx), getImmVR(baseOffSet), curAddrVR, curMB);
+                                    }
+                                }
+                            }
+                        }
+                        break;
+                    }
                     /**
                      * 当前的 baseType
                      */
-                    Type curBaseType = ((Type.PointerType) ptrValue.getType()).getInnerType();
                     assert !ptrValue.isConstant();
                     Operand dstVR = getVR_no_imm(gep);
                     // Machine.Operand curAddrVR = getVR_no_imm(ptrValue);
-                    Operand curAddrVR = getVR_from_ptr(ptrValue);
+                    // Operand curAddrVR = getVR_from_ptr(ptrValue);
                     // Operand curAddrVR = newVR();
                     // new I.Mov(curAddrVR, basePtrVR, curMB);
                     int totalConstOff = 0;
@@ -425,20 +500,19 @@ public class CodeGen {
                             // curAddrVR = tmpDst;
                             if (i == offsetCount - 1) {
                                 if (totalConstOff != 0) {
-                                    Machine.Operand immVR = getImmVR(totalConstOff);
-                                    Machine.Operand dst = newVR();
+                                    MC.Operand immVR = getImmVR(totalConstOff);
+                                    MC.Operand dst = newVR();
                                     new I.Binary(MachineInst.Tag.Add, dst, curAddrVR, immVR, curMB);
                                     curAddrVR = dst;
                                 }
                                 new I.Fma(true, false, dstVR, curIdxVR, offUnitImmVR, curAddrVR, curMB);
                             } else {
-                                Machine.Operand dst = newVR();
+                                MC.Operand dst = newVR();
                                 new I.Fma(true, false, dst, curIdxVR, offUnitImmVR, curAddrVR, curMB);
                                 curAddrVR = dst;
                             }
                         }
                     }
-
                 }
                 case bitcast -> {
                     Instr.Bitcast bitcast = (Instr.Bitcast) instr;
@@ -454,7 +528,7 @@ public class CodeGen {
                 case pcopy -> {
                 }
                 case move -> {
-                    Operand source = getVR_may_imm(((Instr.Move) instr).getSrc());
+                    Operand source = getOp_may_imm(((Instr.Move) instr).getSrc());
                     Operand target = getVR_no_imm(((Instr.Move) instr).getDst());
                     if (source.isF32() || target.isF32()) {
                         assert needFPU;
@@ -478,7 +552,7 @@ public class CodeGen {
         // TODO: 如果有返回值, 则由caller保护r0或s0, 如果没有返回值则有callee保护
         ArrayList<Value> param_list = call_inst.getParamList();
         // ArrayList<Operand> paramVRList = new ArrayList<>();
-        // ArrayList<Operand> paramSVRList = new ArrayList<>();
+        ArrayList<Operand> paramSVRList = new ArrayList<>();
         int rIdx = 0;
         int sIdx = 0;
         int rParamTop = rIdx;
@@ -542,9 +616,16 @@ public class CodeGen {
                 rIdx++;
             }
         }
+        if (needFPU) {
+            while (sIdx < 2) {
+                Operand tmpDst = newSVR();
+                paramSVRList.add(tmpDst);
+                new V.Mov(tmpDst, Arm.Reg.getS(sIdx++), curMB);
+            }
+        }
         // 栈空间移位
         Function callFunc = call_inst.getFunc();
-        Machine.McFunction callMcFunc = f2mf.get(callFunc);
+        MC.McFunction callMcFunc = f2mf.get(callFunc);
         if (callFunc.isExternal) {
             /**
              * r0实际上依据设计不一定需要保护, 因为一定是最后ret语句才会有r0的赋值
@@ -562,7 +643,7 @@ public class CodeGen {
                                 new V.Mov(tmpDst, Arm.Reg.getS(sIdx++), curMB);
                             }
                         }*/
-            Machine.McFunction mf = f2mf.get(callFunc);
+            MC.McFunction mf = f2mf.get(callFunc);
             assert mf != null;
             // Push(mf);
             new MICall(mf, curMB);
@@ -611,12 +692,12 @@ public class CodeGen {
                     /*// 需要把挪走的r0-rx再挪回来
                     for (int i = 0; i < paramVRList.size(); i++) {
                         new I.Mov(Arm.Reg.getR(i), paramVRList.get(i), curMB);
-                    }
-                    // 需要把挪走的s0-sx再挪回来
-                    for (int i = 0; i < paramSVRList.size(); i++) {
-                        assert needFPU;
-                        new V.Mov(Arm.Reg.getS(i), paramSVRList.get(i), curMB);
                     }*/
+        // 需要把挪走的s0-sx再挪回来
+        for (int i = 0; i < paramSVRList.size(); i++) {
+            assert needFPU;
+            new V.Mov(Arm.Reg.getS(i), paramSVRList.get(i), curMB);
+        }
     }
 
     public static boolean LdrStrImmEncode(int off) {
@@ -653,41 +734,203 @@ public class CodeGen {
     }
 
     private void genBinaryInst(Instr.Alu instr) {
+        final int bitsOfInt = 32;
         MachineInst.Tag tag = MachineInst.Tag.map.get(instr.getOp());
         Value lhs = instr.getRVal1();
         Value rhs = instr.getRVal2();
+        // instr不可能是Constant
+        MC.Operand dVR = getVR_no_imm(instr);
         if (tag == Mod) {
-            Machine.Operand q = getVR_no_imm(instr);
-            Machine.Operand a = getVR_may_imm(lhs);
-            Machine.Operand b = getVR_may_imm(rhs);
-            Machine.Operand dst1 = newVR();
-            new I.Binary(MachineInst.Tag.Div, dst1, a, b, curMB);
-            Machine.Operand dst2 = newVR();
-            new I.Binary(MachineInst.Tag.Mul, dst2, dst1, b, curMB);
-            new I.Binary(MachineInst.Tag.Sub, q, a, dst2, curMB);
-        } else if (tag == FMod) {
-            assert needFPU;
-            Operand q = getVR_no_imm(instr);
-            Operand a = getVR_may_imm(lhs);
-            Operand b = getVR_may_imm(rhs);
-            Operand dst1 = newSVR();
-            new V.Binary(MachineInst.Tag.FDiv, dst1, a, b, curMB);
-            Operand dst2 = newSVR();
-            new V.Binary(MachineInst.Tag.FMul, dst2, dst1, b, curMB);
-            new V.Binary(MachineInst.Tag.FSub, q, a, dst2, curMB);
-        } else if (isFBino(instr.getOp())) {
-            assert needFPU;
-            Operand lVR = getVR_may_imm(lhs);
-            Operand rVR = getVR_may_imm(rhs);
-            // instr不可能是Constant
-            Operand dVR = getVR_no_imm(instr);
-            new V.Binary(tag, dVR, lVR, rVR, curMB);
+            MC.Operand lVR = getVR_may_imm(lhs);
+            MC.Operand rVR = getVR_may_imm(rhs);
+            MC.Operand dst1 = newVR();
+            new I.Binary(MachineInst.Tag.Div, dst1, lVR, rVR, curMB);
+            MC.Operand dst2 = newVR();
+            new I.Binary(MachineInst.Tag.Mul, dst2, dst1, rVR, curMB);
+            new I.Binary(MachineInst.Tag.Sub, dVR, lVR, dst2, curMB);
+        } else if (optMulDiv && tag == Mul && (lhs.isConstantInt() || rhs.isConstantInt())) {
+            // 不考虑双立即数: r*i, i*r, r*r
+            if (lhs.isConstantInt() && rhs.isConstantInt()) {
+                System.err.println("[MUL dst, imm, imm] should never occur @ " + instr);
+                System.exit(91);
+            }
+            MC.Operand srcOp;
+            int imm;
+            if (lhs.isConstantInt()) {
+                srcOp = getVR_may_imm(rhs);
+                imm = (int) ((Constant.ConstantInt) lhs).getConstVal();
+            } else {
+                srcOp = getVR_may_imm(lhs);
+                imm = (int) ((Constant.ConstantInt) rhs).getConstVal();
+            }
+            int abs = (imm < 0) ? (-imm) : imm;
+            if (abs == 0) {
+                new I.Mov(dVR, new Operand(I32, 0), curMB); // dst = 0
+            } else if ((abs & (abs - 1)) == 0) {
+                // imm 是 2 的幂
+                int sh = bitsOfInt - 1 - Integer.numberOfLeadingZeros(abs);
+                // dst = src << sh
+                if (sh > 0) {
+                    new I.Mov(dVR, srcOp, new Arm.Shift(Arm.ShiftType.Lsl, sh), curMB);
+                } else {
+                    new I.Mov(dVR, srcOp, curMB);
+                }
+                if (imm < 0) {
+                    // dst = -dst
+                    // TODO: 源操作数和目的操作数虚拟寄存器相同，不一定不会出 bug
+                    new I.Binary(Rsb, dVR, dVR, new Operand(I32, 0), curMB); // dst = 0 - dst
+                }
+            } else if (Integer.bitCount(abs) == 2) {
+                // constant multiplier has two 1 bits => two shift-left and one add
+                // a * 10 => (a << 3) + (a << 1)
+                int hi = bitsOfInt - 1 - Integer.numberOfLeadingZeros(abs);
+                int lo = Integer.numberOfTrailingZeros(abs);
+                Operand shiftHi = newVR();
+                new I.Mov(shiftHi, srcOp, new Arm.Shift(Arm.ShiftType.Lsl, hi), curMB); // shiftHi = (a << hi)
+                new I.Binary(Add, dVR, shiftHi, srcOp, new Arm.Shift(Arm.ShiftType.Lsl, lo), curMB); // dst = shiftHi + (a << lo)
+                if (imm < 0) {
+                    // dst = -dst
+                    new I.Binary(Rsb, dVR, dVR, new Operand(I32, 0), curMB); // dst = 0 - dst
+                }
+            } else {
+                new I.Binary(tag, dVR, srcOp, getImmVR(imm), curMB);
+            }
+        } else if (optMulDiv && tag == Div && rhs.isConstantInt()) {
+            // 不允许双立即数, 只能是 r/i
+            // TODO: ayame 的 divMap 机制目前未实现
+            if (lhs.isConstantInt()) {
+                System.err.println("[DIV dst, imm, imm] should never occur @ " + instr);
+                System.exit(94);
+            }
+            MC.Operand lVR = getVR_may_imm(lhs);
+            int imm = (int) ((Constant.ConstantInt) rhs).getConstVal();
+            int abs = (imm < 0) ? (-imm) : imm;
+            if (abs == 0) {
+                System.exit(94);
+            } else if (imm == 1) {
+                new I.Mov(dVR, lVR, curMB);
+            } else if (imm == -1) {
+                new I.Binary(Rsb, dVR, lVR, new Operand(I32, 0), curMB);
+            } else if ((abs & (abs - 1)) == 0) {
+                // 除以 2 的幂
+                // src < 0 且不整除，则 (lhs >> sh) + 1 == (lhs / div)，需要修正
+                int sh = bitsOfInt - 1 - Integer.numberOfLeadingZeros(abs);
+                // sgn = (lhs >>> 31), (lhs < 0 ? -1 : 0)
+                Operand sgn = newVR();
+                new I.Mov(sgn, lVR, new Arm.Shift(Arm.ShiftType.Asr, bitsOfInt - 1), curMB);
+                // 修正负数右移和除法的偏差
+                // tmp = lhs + (sgn >> (32 - sh))
+                Operand tmp = newVR();
+                new I.Binary(Add, tmp, lVR, sgn, new Arm.Shift(Arm.ShiftType.Lsr, bitsOfInt - sh), curMB);
+                // quo = tmp >>> sh
+                new I.Mov(dVR, tmp, new Arm.Shift(Arm.ShiftType.Asr, sh), curMB);
+                // 除数为负，结果取反
+                if (imm < 0) {
+                    new I.Binary(Rsb, dVR, dVR, new Operand(I32, 0), curMB);
+                }
+            } else {
+                /*
+                 * Reference: https://github.com/ridiculousfish/libdivide
+                 *   - struct libdivide_s32_branchfree_t
+                 *   - libdivide_s32_branchfree_gen
+                 *   - libdivide_internal_s32_gen
+                 *   - libdivide_s32_branchfree_do
+                 *
+                 * In SysY, we only consider signed-32bit division
+                 *
+                 * Use branch-free version to avoid generating new basic blocks
+                 */
+                int magic, more; // struct libdivide_s32_t {int magic; uint8_t more;}
+                int log2d = bitsOfInt - 1 - Integer.numberOfLeadingZeros(abs);
+                // libdivide_s32_branchfree_gen => process in compiler
+                // libdivide_internal_s32_gen(d, 1) => {magic, more}
+                final int negativeDivisor = 128;
+                final int addMarker = 64;
+                final int s32ShiftMask = 31;
+                // masks for type cast
+                final long uint32Mask = 0xFFFFFFFFL;
+                final int uint8Mask = 0xFF;
+                if ((abs & (abs - 1)) == 0) {
+                    magic = 0;
+                    more = (imm < 0 ? (log2d | negativeDivisor) : log2d) & uint8Mask; // more is uint8_t
+                } else {
+                    assert log2d >= 1;
+                    int rem, proposed;
+                    // proposed = libdivide_64_div_32_to_32((uint32_t)1 << (log2d - 1), 0, abs, &rem);
+                    // q = libdivide_64_div_32_to_32(u1, u0, v, &r)
+                    // n = {u1, u0}, u1 = ((uint32_t)1 << (log2d - 1))
+                    BigInteger n = BigInteger.valueOf((1 << (log2d - 1)) & uint32Mask).shiftLeft(bitsOfInt).or(BigInteger.valueOf(0));
+                    BigInteger[] div = n.divideAndRemainder(BigInteger.valueOf(abs));
+                    proposed = div[0].intValueExact();
+                    rem = div[1].intValueExact();
+                    proposed += proposed;
+                    int twiceRem = rem + rem;
+                    // twice_rem, absD, rem in libdivide is uint32, so the compare below should also base on uint32
+                    if ((twiceRem & uint32Mask) >= (abs & uint32Mask) || (twiceRem & uint32Mask) < (rem & uint32Mask)) {
+                        proposed += 1;
+                    }
+                    more = (log2d | addMarker) & uint8Mask;
+                    proposed += 1;
+                    magic = proposed;
+                    if (imm < 0) {
+                        more |= negativeDivisor;
+                    }
+                }
+                // {magic, more} got
+                System.err.printf("divopt: magic = %d, more = %d\n", magic, more);
+                int sh = more & s32ShiftMask;
+                int mask = (1 << sh), sign = ((more & (0x80)) != 0) ? -1 : 0, isPower2 = (magic == 0) ? 1 : 0;
+                // libdivide_s32_branchfree_do => process in runtime, use hardware instruction
+                // TODO: 不开 O2 => int-divide-optimization 寄存器分配爆内存; 开 O2 => 73_int_io 过不了
+                Operand q = newVR(); // quotient
+                new I.Binary(LongMul, q, lVR, getImmVR(magic), curMB); // q = mulhi(dividend, magic)
+                new I.Binary(Add, q, q, lVR, curMB); // q += dividend
+                // q += (q >>> 31) & (((uint32_t)1 << shift) - is_power_of_2)
+                Operand q1 = newVR();
+                new I.Binary(And, q1, getImmVR(mask - isPower2), q, new Arm.Shift(Arm.ShiftType.Asr, 31), curMB);
+                new I.Binary(Add, q, q, q1, curMB);
+                // q = q >>> shift
+                new I.Mov(q, q, new Arm.Shift(Arm.ShiftType.Asr, sh), curMB);
+                if (sign < 0) {
+                    new I.Binary(Rsb, q, q, new Operand(I32, 0), curMB);
+                }
+                new I.Mov(dVR, q, curMB); // store result
+                // new I.Binary(tag, dVR, lVR, getImmVR(imm), curMB);
+            }
         } else {
-            Machine.Operand lVR = getVR_may_imm(lhs);
-            Machine.Operand rVR = getVR_may_imm(rhs);
-            // instr不可能是Constant
-            Machine.Operand dVR = getVR_no_imm(instr);
-            new I.Binary(tag, dVR, lVR, rVR, curMB);
+            if (lhs.isConstant()) {
+                switch (tag) {
+                    case Add -> {
+                        Value tmp = lhs;
+                        lhs = rhs;
+                        rhs = tmp;
+                    }
+                    case Sub -> {
+                        tag = Rsb;
+                        Value tmp = lhs;
+                        lhs = rhs;
+                        rhs = tmp;
+                    }
+                }
+            }
+            MC.Operand lVR = getVR_may_imm(lhs);
+            MC.Operand rVR = getOp_may_imm(rhs);
+            if (tag == FMod) {
+                assert needFPU;
+                Operand dst1 = newSVR();
+                new V.Binary(MachineInst.Tag.FDiv, dst1, lVR, rVR, curMB);
+                Operand dst2 = newSVR();
+                new V.Binary(MachineInst.Tag.FMul, dst2, dst1, rVR, curMB);
+                new V.Binary(MachineInst.Tag.FSub, dVR, lVR, dst2, curMB);
+            } else {
+
+                if (isFBino(instr.getOp())) {
+                    assert needFPU;
+                    new V.Binary(tag, dVR, lVR, rVR, curMB);
+                } else {
+                    new I.Binary(tag, dVR, lVR, rVR, curMB);
+                }
+            }
         }
     }
 
@@ -727,9 +970,9 @@ public class CodeGen {
             Value rhs = icmp.getRVal2();
             Operand lVR = getVR_may_imm(lhs);
             Operand rVR = getVR_may_imm(rhs);
-            I.Cmp cmp = new I.Cmp(lVR, rVR, curMB);
             int condIdx = icmp.getOp().ordinal();
             Arm.Cond cond = Arm.Cond.values()[condIdx];
+            I.Cmp cmp = new I.Cmp(cond, lVR, rVR, curMB);
             // Icmp或Fcmp后紧接着BranchInst，而且前者的结果仅被后者使用，那么就可以不用计算结果，而是直接用bxx的指令
             if (((Instr) icmp.getNext()).isBranch()
                     && icmp.onlyOneUser()
@@ -746,7 +989,6 @@ public class CodeGen {
             Value rhs = fcmp.getRVal2();
             Operand lSVR = getVR_may_imm(lhs);
             Operand rSVR = getVR_may_imm(rhs);
-            V.Cmp vcmp = new V.Cmp(lSVR, rSVR, curMB);
             Arm.Cond cond = switch (fcmp.getOp()) {
                 case OEQ -> Eq;
                 case ONE -> Ne;
@@ -755,6 +997,7 @@ public class CodeGen {
                 case OLT -> Lt;
                 case OLE -> Le;
             };
+            V.Cmp vcmp = new V.Cmp(cond, lSVR, rSVR, curMB);
             // Icmp或Fcmp后紧接着BranchInst，而且前者的结果仅被后者使用，那么就可以不用计算结果，而是直接用bxx的指令
             if (((Instr) fcmp.getNext()).isBranch()
                     && fcmp.onlyOneUser()
@@ -878,6 +1121,18 @@ public class CodeGen {
         new I.Mov(labelAddr, glob, curMB);
         new V.Ldr(dst, labelAddr, curMB);
         return dst;
+    }
+
+    /**
+     * 可能是立即数的 Operand 获取
+     */
+    public Operand getOp_may_imm(Value value) {
+        if (value instanceof Constant.ConstantInt || value instanceof Constant.ConstantBool) {
+            int imm = (int) ((Constant) value).getConstVal();
+            if (immCanCode(imm))
+                return new Operand(I32, (int) ((Constant) value).getConstVal());
+        }
+        return getVR_may_imm(value);
     }
 
     /**

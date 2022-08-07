@@ -3,10 +3,8 @@ package lir;
 import frontend.semantic.Initial;
 import mir.GlobalVal;
 import mir.type.DataType;
-import mir.type.Type.*;
-import mir.type.Type;
 
-import static lir.Machine.Operand.Type.*;
+import static lir.MC.Operand.Type.*;
 import static mir.type.DataType.F32;
 import static mir.type.DataType.I32;
 
@@ -53,10 +51,10 @@ public class Arm {
     /**
      * 只供预着色使用
      */
-    public static class Reg extends Machine.Operand {
+    public static class Reg extends MC.Operand {
         // DataType dataType;
-        Regs.FPRs fpr;
-        Regs.GPRs gpr;
+        public Regs.FPRs fpr;
+        public Regs.GPRs gpr;
 
 
         public Reg(DataType dataType, Regs.FPRs fpr) {
@@ -136,7 +134,7 @@ public class Arm {
             return fprPool;
         }
 
-        public static Machine.Operand getRSReg(Regs color) {
+        public static MC.Operand getRSReg(Regs color) {
             if (color instanceof Regs.GPRs) {
                 return allocGprPool[((Regs.GPRs) color).ordinal()];
             } else if (color instanceof Regs.FPRs) {
@@ -151,9 +149,21 @@ public class Arm {
         public Regs getReg() {
             return reg;
         }
+        // for debug
+        // @Override
+        // public String toString() {
+        //
+        //     return "(" + type.name() + ")" + switch (dataType) {
+        //         case I32 -> "r" + value;
+        //         case F32 -> "s" + value;
+        //         default -> {
+        //             throw new AssertionError("");
+        //         }
+        //     };
+        // }
     }
 
-    public static class Glob extends Machine.Operand {
+    public static class Glob extends MC.Operand {
         public String name;
         public GlobalVal.GlobalValue globalValue;
         public Initial init;
@@ -256,6 +266,7 @@ public class Arm {
         Rrx("rrx");
 
         String name;
+
         ShiftType(String shift) {
             name = shift;
         }
@@ -270,7 +281,7 @@ public class Arm {
         public static final Shift NONE_SHIFT = new Shift();
         public ShiftType shiftType;
         public int shift;
-        public Machine.Operand shiftReg = null;
+        public MC.Operand shiftReg = null;
 
         Shift() {
             shift = 0;
@@ -282,7 +293,7 @@ public class Arm {
             this.shift = shift;
         }
 
-        public Shift(ShiftType shiftType, Machine.Operand shift) {
+        public Shift(ShiftType shiftType, MC.Operand shift) {
             this.shiftType = shiftType;
             this.shiftReg = shift;
         }
@@ -302,14 +313,14 @@ public class Arm {
             //         default -> "";
             //     };
             // else
-                return switch (shiftType) {
-                    case Asr -> "asr #" + this.shift;
-                    case Lsl -> "lsl #" + this.shift;
-                    case Lsr -> "lsr #" + this.shift;
-                    case Ror -> "ror #" + this.shift;
-                    case Rrx -> "rrx #" + this.shift;
-                    default -> "";
-                };
+            return switch (shiftType) {
+                case Asr -> "asr #" + this.shift;
+                case Lsl -> "lsl #" + this.shift;
+                case Lsr -> "lsr #" + this.shift;
+                case Ror -> "ror #" + this.shift;
+                case Rrx -> "rrx #" + this.shift;
+                default -> "";
+            };
         }
 
         // @Override
@@ -319,6 +330,10 @@ public class Arm {
 
         public boolean hasShift() {
             return shiftType != ShiftType.None;
+        }
+
+        public boolean noShift() {
+            return shiftType == ShiftType.None;
         }
     }
 }

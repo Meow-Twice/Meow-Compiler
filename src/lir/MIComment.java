@@ -5,14 +5,14 @@ import java.io.PrintStream;
 public class MIComment extends MachineInst {
     String content;
 
-    public MIComment(String content, Machine.Block insertAtEnd) {
+    public MIComment(String content, MC.Block insertAtEnd) {
         super(Tag.Comment, insertAtEnd);
         this.content = content;
     }
 
     @Override
-    public void output(PrintStream os, Machine.McFunction f) {
-        os.println("@ " + content);
+    public void output(PrintStream os, MC.McFunction f) {
+        os.println(this);
     }
 
     @Override

@@ -1,42 +1,46 @@
 package backend;
 
 import lir.*;
-import lir.Machine.Operand;
+import lir.MC.Operand;
+import lir.Arm.Regs.*;
 import util.ILinkNode;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 
+import static backend.CodeGen.needFPU;
+import static lir.Arm.Regs.GPRs.cspr;
+import static lir.Arm.Regs.GPRs.sp;
 import static lir.MachineInst.MachineMemInst;
 import static lir.MachineInst.MachineMove;
 import static lir.MachineInst.Tag.*;
 import static mir.type.DataType.I32;
 
 public class PeepHole {
-    final Machine.Program p;
+    final MC.Program p;
 
-    public PeepHole(Machine.Program p) {
+    public PeepHole(MC.Program p) {
         this.p = p;
     }
 
     public void run() {
-        for (Machine.McFunction mf : p.funcList) {
+        for (MC.McFunction mf : p.funcList) {
             boolean unDone = true;
             while (unDone) {
                 unDone = oneStage(mf);
-//                if (twoStage(mf))
-//                    unDone = true;
+                if (twoStage(mf))
+                    unDone = true;
             }
         }
     }
 
-    Machine.Block curMB = null;
+    MC.Block curMB = null;
 
     // 注意不能用unDone当条件来判断是否remove之类, 可能是上一次结果的残留
-    public boolean oneStage(Machine.McFunction mf) {
+    public boolean oneStage(MC.McFunction mf) {
         boolean unDone = false;
-        for (Machine.Block mb : mf.mbList) {
+        for (MC.Block mb : mf.mbList) {
             curMB = mb;
             for (ILinkNode i = mb.miList.getBegin(); !i.equals(mb.miList.tail); i = i.getNext()) {
                 MachineInst mi = (MachineInst) i;
@@ -147,75 +151,112 @@ public class PeepHole {
         return false;
     }
 
-    private static class LiveRange {
-        HashMap<Operand, MachineInst> lastDefMI = new HashMap<>();
-        HashMap<Operand, MachineInst> lastUseMI = new HashMap<>();
+    MachineInst[] lastGPRsDefMI = new MachineInst[GPRs.values().length];
+    MachineInst[] lastFPRsDefMI = new MachineInst[FPRs.values().length];
+
+    private MachineInst getLastDefiner(Operand opd) {
+        if (!(opd instanceof Arm.Reg)) return null;
+        if (needFPU && opd.isF32()) {
+            return lastFPRsDefMI[opd.getValue()];
+        }
+        return lastGPRsDefMI[opd.getValue()];
     }
 
-    private boolean twoStage(Machine.McFunction mf) {
+    private void putLastDefiner(Operand opd, MachineInst mi) {
+        if (!(opd instanceof Arm.Reg)) return;
+        if (needFPU && opd.isF32()) lastFPRsDefMI[opd.getValue()] = mi;
+        else lastGPRsDefMI[opd.getValue()] = mi;
+    }
+
+
+    private boolean twoStage(MC.McFunction mf) {
         boolean unDone = false;
-        for (Machine.Block mb : mf.mbList) {
+        for (MC.Block mb : mf.mbList) {
             curMB = mb;
-            mb.succMBs = new ArrayList<>();
+            // TODO MergeBlock的时候自己修吧
+            // mb.succMBs = new ArrayList<>();
             mb.liveUseSet = new HashSet<>();
             mb.liveDefSet = new HashSet<>();
             for (MachineInst mi : mb.miList) {
-                for (Operand use : mi.useOpds) {
-                    if (!mb.liveDefSet.contains(use)) mb.liveUseSet.add(use);
-                }
-                for (Operand def : mi.defOpds) {
-                    if (!mb.liveUseSet.contains(def)) mb.liveDefSet.add(def);
-                }
-                if (mi.isBranch()) {
-                    mb.succMBs.add(((MIBranch) mi).getTrueTargetBlock());
-                    mb.succMBs.add(((MIBranch) mi).getFalseTargetBlock());
-                } else if (mi.isJump()) {
-                    mb.succMBs.add(((MIJump) mi).getTarget());
-                }
+                for (Operand use : mi.useOpds)
+                    if (use instanceof Arm.Reg && !mb.liveDefSet.contains(use)) mb.liveUseSet.add(use);
+                for (Operand def : mi.defOpds)
+                    if (def instanceof Arm.Reg && !mb.liveUseSet.contains(def)) mb.liveDefSet.add(def);
+
+                // TODO MergeBlock的时候自己修吧
+                // if (mi.isBranch()) {
+                //     mb.succMBs.add(((MIBranch) mi).getTrueTargetBlock());
+                //     mb.succMBs.add(((MIBranch) mi).getFalseTargetBlock());
+                // } else if (mi.isJump()) {
+                //     mb.succMBs.add(((MIJump) mi).getTarget());
+                // }
             }
             mb.liveInSet = new HashSet<>(mb.liveUseSet);
             mb.liveOutSet = new HashSet<>();
         }
         RegAllocator.liveInOutAnalysis(mf);
 
-        HashMap<Operand, MachineInst> lastDefMI = new HashMap<>();
-        HashMap<MachineInst, MachineInst> lastUseMI = new HashMap<>();
-        for (Machine.Block mb : mf.mbList) {
+        // HashMap<Operand, MachineInst> lastDefMI = new HashMap<>();
+        // HashMap<MachineInst, MachineInst> defMI2lastUserMI = new HashMap<>();
+        for (MC.Block mb : mf.mbList) {
+            // System.err.println(mb.getLabel());
+            // System.err.println("liveIn:\t" + mb.liveInSet);
+            // System.err.println("liveOut:\t" + mb.liveOutSet);
+            lastGPRsDefMI = new MachineInst[GPRs.values().length];
+            lastFPRsDefMI = new MachineInst[FPRs.values().length];
             for (MachineInst mi : mb.miList) {
+                mi.theLastUserOfDef = null; // to be removed
+                ArrayList<Operand> uses = mi.useOpds;
+                ArrayList<Operand> defs = mi.defOpds;
+                if (mi.isOf(ICmp, VCmp)) {
+                    defs.add(Arm.Reg.getRSReg(cspr));
+
+                }
+                if (mi.isCall()) {
+                    defs.add(Arm.Reg.getRSReg(cspr));
+                    uses.add(Arm.Reg.getRSReg(sp));
+                }
+                if (!mi.isNoCond()) {
+                    uses.add(Arm.Reg.getRSReg(cspr));
+                }
                 for (Operand use : mi.useOpds) {
-                    if (lastDefMI.containsKey(use)) {
-                        lastUseMI.put(lastDefMI.get(use), mi);
+                    if (!(use instanceof Arm.Reg)) continue;
+                    // TODO r15
+                    MachineInst lastDefMI = getLastDefiner(use);
+                    if (lastDefMI != null) {
+                        lastDefMI.theLastUserOfDef = mi;
+                        // defMI2lastUserMI.put(lastDefMI, mi);
                     }
                 }
                 for (Operand def : mi.defOpds) {
-                    lastDefMI.put(def, mi);
+                    if (!(def instanceof Arm.Reg)) continue;
+                    // TODO r15
+                    putLastDefiner(def, mi);
                 }
-                if (mi.sideEff()) {
-                    lastUseMI.put(mi, mi);
-                } else {
-                    lastUseMI.put(mi, null);
-                }
+                if (mi.sideEff()) mi.theLastUserOfDef = mi;
+                else mi.theLastUserOfDef = null;
             }
 
             for (MachineInst mi : mb.miList) {
-                MachineInst lastUser = lastUseMI.get(mi);
+                // MachineInst lastUser = defMI2lastUserMI.get(mi);
                 boolean isLastDefMI = true;
                 boolean defRegInLiveOut = false;
                 boolean defNoSp = true;
                 for (Operand def : mi.defOpds) {
-                    if (!lastDefMI.get(def).equals(mi)) isLastDefMI = false;
+                    if (!mi.equals(getLastDefiner(def))) isLastDefMI = false;
                     if (mb.liveOutSet.contains(def)) defRegInLiveOut = true;
-                    if (Arm.Reg.getRSReg(Arm.Regs.GPRs.sp).equals(def)) defNoSp = false;
+                    if (Arm.Reg.getRSReg(sp).equals(def)) defNoSp = false;
                 }
                 if (!(isLastDefMI && defRegInLiveOut) && mi.isNoCond()) {
-                    if (lastUser == null && !mi.getShift().hasShift() && defNoSp) {
+                    if (mi instanceof StackCtl) continue;
+                    if (mi.theLastUserOfDef == null && !mi.getShift().hasShift() && defNoSp) {
                         mi.remove();
                         unDone = true;
                         continue;
                     }
 
                     if (mi.isIMov()) {
-                        if (!CodeGen.immCanCode(((I.Mov) mi).getSrc().get_I_Imm())) {
+                        if (!CodeGen.immCanCode(((I.Mov) mi).getSrc().getValue())) {
                             continue;
                         }
                     }
@@ -234,16 +275,15 @@ public class PeepHole {
                         // str b [c, #x+i]
                         if (mi.isOf(Add, Sub)) {
                             I.Binary binary = (I.Binary) mi;
-                            if (binary.getROpd().isImm(I32)) {
+                            if (binary.getROpd().isPureImmWithOutGlob(I32)) {
                                 int imm = binary.getROpd().getValue();
                                 if (!mi.getNext().equals(mb.miList.tail)
-                                        && lastUser != null
-                                        && !lastUser.equals(mi.getNext())) {
+                                        && mi.lastUserIsNext()) {
                                     MachineInst nextInst = (MachineInst) mi.getNext();
                                     if (nextInst.isOf(Ldr)) {
                                         I.Ldr ldr = (I.Ldr) nextInst;
                                         if (ldr.getAddr().equals(binary.getDst())
-                                                && ldr.getOffset().isImm(I32)) {
+                                                && ldr.getOffset().isPureImmWithOutGlob(I32)) {
                                             assert !ldr.getShift().hasShift();
                                             if (mi.isOf(Add)) {
                                                 imm += ldr.getOffset().get_I_Imm();
@@ -262,7 +302,7 @@ public class PeepHole {
                                     } else if (nextInst.isOf(Str)) {
                                         I.Str str = (I.Str) nextInst;
                                         if (str.getAddr().equals(binary.getDst())
-                                                && str.getOffset().isImm(I32)) {
+                                                && str.getOffset().isPureImmWithOutGlob(I32)) {
                                             assert !str.getShift().hasShift();
                                             if (mi.isOf(Add)) {
                                                 imm += str.getOffset().get_I_Imm();
@@ -281,8 +321,7 @@ public class PeepHole {
                                     } else if (nextInst.isIMov()) {
                                         // 怀疑已经被fixStack的时候消除了
                                         if (!mi.getNext().equals(mb.miList.tail)
-                                                // && lastUser != null
-                                                && !lastUser.equals(mi.getNext())) {
+                                                && mi.lastUserIsNext()) {
                                             I.Mov iMov = (I.Mov) nextInst;
                                             MachineInst secondNextMI = (MachineInst) mi.getNext();
                                             if (secondNextMI.isOf(Str)) {
@@ -290,7 +329,7 @@ public class PeepHole {
                                                 if (iMov.getDst().equals(str.getData())
                                                         && binary.getDst().equals(str.getAddr())
                                                         && !str.getData().equals(binary.getLOpd())
-                                                        && str.getOffset().isImm(I32)) {
+                                                        && str.getOffset().isPureImmWithOutGlob(I32)) {
                                                     assert !str.getShift().hasShift();
                                                     if (CodeGen.LdrStrImmEncode(imm)) {
                                                         unDone = true;
@@ -304,12 +343,50 @@ public class PeepHole {
                                     }
                                 }
                             }
+                        } else if (mi.isOf(IMov)) {
+                            I.Mov iMov = (I.Mov) mi;
+                            if (!iMov.getSrc().isImm()) {
+                                if (!mi.getNext().equals(mb.miList.tail)) {
+                                    MachineInst nextMI = (MachineInst) mi.getNext();
+                                    if (nextMI instanceof I
+                                            && mi.lastUserIsNext()
+                                            && !nextMI.isOf(Call, IRet, VRet)) {
+                                        for (int i = 0; i < nextMI.useOpds.size(); i++) {
+                                            if (nextMI.useOpds.get(i).equals(iMov.getDst())) {
+                                                nextMI.useOpds.set(i, iMov.getSrc());
+                                                unDone = true;
+                                            }
+                                        }
+                                        mi.remove();
+                                    }
+                                }
+                            }
+                        } else if (mi instanceof MachineInst.ActualDefMI) {
+                            if (!mi.getNext().equals(mb.miList.tail)) {
+                                MachineInst nextMI = (MachineInst) mi.getNext();
+                                if (nextMI instanceof I
+                                        && mi.lastUserIsNext()
+                                        && isSimpleIMov(nextMI)) {
+                                    Operand def = ((MachineInst.ActualDefMI) mi).getDef();
+                                    I.Mov iMov = (I.Mov) nextMI;
+                                    if (def.equals(iMov.getSrc())) {
+                                        mi.setDef(iMov.getDst());
+                                        iMov.remove();
+                                        unDone = true;
+                                    }
+                                }
+                            }
                         }
+                    } else {
+
                     }
                 }
-
             }
         }
         return unDone;
+    }
+
+    private boolean isSimpleIMov(MachineInst mi) {
+        return mi.isIMov() && mi.noShift();
     }
 }

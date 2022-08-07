@@ -61,6 +61,7 @@ public class MidEndRunner {
         Pass();
         //
         FuncGVN();
+        FuncGCM();
         FuncInline();
         Mem2Reg();
         MathOpt();
@@ -151,10 +152,19 @@ public class MidEndRunner {
     }
 
     private void FuncGVN() {
-        outputLLVM();
+        //outputLLVM();
         AggressiveFuncGVN aggressiveFuncGVN = new AggressiveFuncGVN(functions, globalValues);
         aggressiveFuncGVN.Run();
 
+
+        Pass();
+        //outputLLVM();
+    }
+
+    private void FuncGCM() {
+        outputLLVM();
+        AggressiveFuncGCM aggressiveFuncGCM = new AggressiveFuncGCM(functions);
+        aggressiveFuncGCM.Run();
 
         Pass();
         outputLLVM();

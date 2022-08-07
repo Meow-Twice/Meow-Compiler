@@ -122,6 +122,8 @@ public class MidEndRunner {
         loopInVarCodeLift.Run();
         //outputLLVM();
 
+
+        removePhiUseSame();
         GepSplit();
 
         System.err.println("O2 End");
@@ -162,12 +164,12 @@ public class MidEndRunner {
     }
 
     private void FuncGCM() {
-        outputLLVM();
+        //outputLLVM();
         AggressiveFuncGCM aggressiveFuncGCM = new AggressiveFuncGCM(functions);
         aggressiveFuncGCM.Run();
 
         Pass();
-        outputLLVM();
+        //outputLLVM();
     }
 
     private void ArrayGVN() {
@@ -355,6 +357,30 @@ public class MidEndRunner {
         } catch (Exception e) {
 
         }
+    }
+
+    private void removePhiUseSame() {
+        for (Function function: functions) {
+            for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
+                for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+                    if (instr instanceof Instr.Phi) {
+                        boolean canRemove = true;
+                        Value base = instr.getUseValueList().get(0);
+                        for (Value value: instr.getUseValueList()) {
+                            if (!base.equals(value)) {
+                                canRemove = false;
+                                break;
+                            }
+                        }
+                        if (canRemove) {
+                            instr.modifyAllUseThisToUseA(base);
+                            instr.remove();
+                        }
+                    }
+                }
+            }
+        }
+
     }
 
     private void check() {

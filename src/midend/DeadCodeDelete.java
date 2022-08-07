@@ -37,6 +37,8 @@ public class DeadCodeDelete {
         //removeUselessPhi();
     }
 
+
+
     private void check_instr() {
         for (Function function: functions) {
             HashSet<Instr> instrs = new HashSet<>();

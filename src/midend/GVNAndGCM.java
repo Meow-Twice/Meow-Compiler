@@ -98,6 +98,18 @@ public class GVNAndGCM {
 
                 alu.modifyAllUseThisToUseA(value);
                 alu.remove();
+            } else if (alu instanceof Instr.FPtosi && ((Instr.FPtosi) alu).getRVal1() instanceof Constant.ConstantFloat) {
+                float val = (float) ((Constant.ConstantFloat) ((Instr.FPtosi) alu).getRVal1()).getConstVal();
+                int ret = (int) val;
+
+                alu.modifyAllUseThisToUseA(new Constant.ConstantInt(ret));
+                alu.remove();
+            } else if (alu instanceof Instr.SItofp && ((Instr.SItofp) alu).getRVal1() instanceof Constant.ConstantInt) {
+                int val = (int) ((Constant.ConstantInt) ((Instr.SItofp) alu).getRVal1()).getConstVal();
+                float ret = (float) val;
+
+                alu.modifyAllUseThisToUseA(new Constant.ConstantFloat(ret));
+                alu.remove();
             }
             alu = (Instr) alu.getNext();
         }
@@ -500,7 +512,8 @@ public class GVNAndGCM {
                 instr.remove();
                 return true;
             }
-            if (((Instr.Alu) instr).getOp().equals(Instr.Alu.Op.ADD) || ((Instr.Alu) instr).getOp().equals(Instr.Alu.Op.MUL)) {
+            if (((Instr.Alu) instr).getOp().equals(Instr.Alu.Op.ADD) || ((Instr.Alu) instr).getOp().equals(Instr.Alu.Op.MUL) ||
+                    ((Instr.Alu) instr).getOp().equals(Instr.Alu.Op.FADD) || ((Instr.Alu) instr).getOp().equals(Instr.Alu.Op.FMUL)) {
                 String str = instr.getUseValueList().get(0).getName() + ((Instr.Alu) instr).getOp().getName() + instr.getUseValueList().get(1).getName();
                 add(str, instr);
                 if (!instr.getUseValueList().get(0).getName().equals(instr.getUseValueList().get(1).getName())) {
@@ -539,7 +552,8 @@ public class GVNAndGCM {
             }
             remove(hash);
         } else if (instr instanceof Instr.Alu) {
-            if (((Instr.Alu) instr).getOp().equals(Instr.Alu.Op.ADD) || ((Instr.Alu) instr).getOp().equals(Instr.Alu.Op.MUL)) {
+            if (((Instr.Alu) instr).getOp().equals(Instr.Alu.Op.ADD) || ((Instr.Alu) instr).getOp().equals(Instr.Alu.Op.MUL) ||
+                    ((Instr.Alu) instr).getOp().equals(Instr.Alu.Op.FADD) || ((Instr.Alu) instr).getOp().equals(Instr.Alu.Op.FMUL)) {
                 String str = instr.getUseValueList().get(0).getName() + ((Instr.Alu) instr).getOp().getName() + instr.getUseValueList().get(1).getName();
                 remove(str);
                 if (!instr.getUseValueList().get(0).getName().equals(instr.getUseValueList().get(1).getName())) {

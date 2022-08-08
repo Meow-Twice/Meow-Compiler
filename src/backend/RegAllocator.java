@@ -4,6 +4,7 @@ import lir.*;
 import lir.MC.Operand;
 import lir.MachineInst.MachineMove;
 import mir.type.DataType;
+import util.CenterControl;
 import util.ILinkNode;
 
 import java.util.*;
@@ -16,11 +17,10 @@ import static mir.type.DataType.I32;
 public class RegAllocator {
     protected MC.McFunction curMF;
     public static final int SP_ALIGN = 2 * 4;
-
-    protected static final boolean DEBUG_STDIN_OUT = false;
+    protected static final boolean DEBUG_STDIN_OUT = true;
 
     protected int K;
-    protected final int RK = 5;
+    protected final int RK = 12;
     // TODO 尝试将sp直接设为Allocated或者不考虑sp add或sub指令
     protected final int SK = 32;
     protected DataType dataType;
@@ -174,7 +174,7 @@ public class RegAllocator {
                 // add add, sp, a
                 // vldr.32 data, [add]
                 if (mv.getFixType() == CodeGen.STACK_FIX.FLOAT_TOTAL_STACK) {
-                    if (CodeGen.vLdrStrImmEncode(newOff)) {
+                    if (CenterControl._FixStackWithPeepHole && CodeGen.vLdrStrImmEncode(newOff) && mv.getNext() instanceof I.Ldr) {
                         V.Ldr vldr = (V.Ldr) mv.getNext().getNext();
                         vldr.setUse(0, Arm.Reg.getRSReg(sp));
                         vldr.setOffSet(new MC.Operand(I32, newOff));
@@ -182,7 +182,7 @@ public class RegAllocator {
                         mv.getNext().remove();
                         mv.clearNeedFix();
                         mv.remove();
-                    } else if (CodeGen.immCanCode(newOff)) {
+                    } else if (CenterControl._FixStackWithPeepHole && CodeGen.immCanCode(newOff) && mv.getNext() instanceof I.Binary) {
                         assert mv.getNext() instanceof I.Binary;
                         I.Binary binary = (I.Binary) mv.getNext();
                         mv.clearNeedFix();
@@ -195,7 +195,7 @@ public class RegAllocator {
                 } else if (mv.getFixType() == CodeGen.STACK_FIX.INT_TOTAL_STACK) {
                     // mov dst, offImm
                     // ldr opd, [sp, dst]
-                    if (CodeGen.LdrStrImmEncode(newOff)) {
+                    if (CenterControl._FixStackWithPeepHole && CodeGen.LdrStrImmEncode(newOff) && mv.getNext() instanceof I.Ldr) {
                         I.Ldr ldr = (I.Ldr) mv.getNext();
                         ldr.setOffSet(new MC.Operand(I32, newOff));
                         mv.clearNeedFix();
@@ -427,6 +427,7 @@ public class RegAllocator {
             }
         }
     }
+
     protected void regAllocIteration() {
         logOut("spillWorkSet:\t" + spillWorkSet.toString());
         logOut("freezeWorkSet:\t" + freezeWorkSet.toString());

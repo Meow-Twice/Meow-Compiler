@@ -127,13 +127,13 @@ public class FPRegAllocator extends RegAllocator {
                         } else {
                             srcMI.setUse(idx, curMF.sVrList.get(vrIdx));
                         }
-                        if (firstUse == null && lastDef == null) {
+                        if (firstUse == null && (CenterControl._cutLiveNessShortest || lastDef == null)) {
                             // 基本块内如果没有def过这个虚拟寄存器, 并且是第一次用的话就将firstUse设为这个
                             firstUse = srcMI;
                         }
                     }
                 }
-                if (checkCount++ > SPILL_MAX_LIVE_INTERVAL) {
+                if (CenterControl._cutLiveNessShortest || checkCount++ > SPILL_MAX_LIVE_INTERVAL) {
                     checkpoint();
                 }
             }
@@ -149,7 +149,7 @@ public class FPRegAllocator extends RegAllocator {
             if (firstUse != null) {
                 // Operand offset = offImm;
                 V.Ldr mi;
-                if (CodeGen.vLdrStrImmEncode(offImm.get_I_Imm())) {
+                if (offImm.getValue() < 1024) {
                     new V.Ldr(curMF.getSVR(vrIdx), rSP, offImm, firstUse);
                 } else {
                     if (CodeGen.immCanCode(offImm.get_I_Imm())) {
@@ -169,7 +169,7 @@ public class FPRegAllocator extends RegAllocator {
             if (lastDef != null) {
                 // MachineInst insertAfter = lastDef;
                 // Operand offset = offImm;
-                if (CodeGen.vLdrStrImmEncode(offImm.get_I_Imm())) {
+                if (offImm.getValue() < 1024) {
                     new V.Str(lastDef, curMF.getSVR(vrIdx), rSP, offImm);
                 } else {
                     if (CodeGen.immCanCode(offImm.get_I_Imm())) {

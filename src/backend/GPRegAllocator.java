@@ -2,6 +2,7 @@ package backend;
 
 import lir.*;
 import lir.MC.Operand;
+import util.CenterControl;
 
 import java.util.*;
 
@@ -132,13 +133,13 @@ public class GPRegAllocator extends RegAllocator {
                         } else {
                             srcMI.setUse(idx, curMF.vrList.get(vrIdx));
                         }
-                        if (firstUse == null && lastDef == null) {
+                        if (firstUse == null && (CenterControl._cutLiveNessShortest || lastDef == null)) {
                             // 基本块内如果没有def过这个虚拟寄存器, 并且是第一次用的话就将firstUse设为这个
                             firstUse = srcMI;
                         }
                     }
                 }
-                if (checkCount++ > SPILL_MAX_LIVE_INTERVAL) {
+                if (CenterControl._cutLiveNessShortest || checkCount++ > SPILL_MAX_LIVE_INTERVAL) {
                     checkpoint();
                 }
             }
@@ -153,7 +154,7 @@ public class GPRegAllocator extends RegAllocator {
         if (toStack) {
             if (firstUse != null) {
                 Operand offset = offImm;
-                if (offImm.get_I_Imm() >= (1 << 12)) {
+                if (offImm.getValue() >= 4096) {
                     Operand dst = curMF.newVR();
                     I.Mov mi = new I.Mov(dst, offImm, firstUse);
                     logOut(String.format("+++++++%d Checkpoint insert {\t%s\t} before use:\t{\t%s\t}", dealSpillTimes, mi, firstUse));
@@ -166,7 +167,7 @@ public class GPRegAllocator extends RegAllocator {
             if (lastDef != null) {
                 MachineInst insertAfter = lastDef;
                 Operand offset = offImm;
-                if (offImm.get_I_Imm() >= (1 << 12)) {
+                if (offImm.getValue() >= 4096) {
                     Operand dst = curMF.newVR();
                     insertAfter = new I.Mov(lastDef, dst, offImm);
                     logOut(String.format("+++++++%d Checkpoint insert {\t%s\t} after def:\t{\t%s\t}", dealSpillTimes, insertAfter, lastDef));
@@ -183,7 +184,7 @@ public class GPRegAllocator extends RegAllocator {
 
     @Override
     protected TreeSet<Arm.Regs> getOkColorSet() {
-        TreeSet<Arm.Regs> res =  new TreeSet<>(Arrays.asList(GPRs.values()).subList(0, K));
+        TreeSet<Arm.Regs> res = new TreeSet<>(Arrays.asList(GPRs.values()).subList(0, K));
         res.remove(r12);
         return res;
     }
@@ -213,12 +214,12 @@ public class GPRegAllocator extends RegAllocator {
                     curMF.setUseLr();
                     int idx = 0;
                     ArrayList<Operand> defs = mi.defOpds;
-                    for(Operand def: mi.defOpds){
+                    for (Operand def : mi.defOpds) {
                         defs.set(idx++, Arm.Reg.getRSReg(def.getReg()));
                     }
                     idx = 0;
                     ArrayList<Operand> uses = mi.useOpds;
-                    for(Operand use: mi.useOpds){
+                    for (Operand use : mi.useOpds) {
                         uses.set(idx++, Arm.Reg.getRSReg(use.getReg()));
                     }
                     continue;

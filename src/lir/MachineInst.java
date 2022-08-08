@@ -138,7 +138,7 @@ public class MachineInst extends ILinkNode {
         return this.toString();
     }
 
-    public boolean isNotLast() {
+    public boolean isNotTail() {
         return !getNext().equals(mb.miList.tail);
     }
 

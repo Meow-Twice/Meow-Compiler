@@ -277,7 +277,7 @@ public class PeepHole {
                             I.Binary binary = (I.Binary) mi;
                             if (binary.getROpd().isPureImmWithOutGlob(I32)) {
                                 int imm = binary.getROpd().getValue();
-                                if (mi.isNotLast()) {
+                                if (mi.isNotTail()) {
                                     MachineInst nextInst = (MachineInst) mi.getNext();
                                     if (mi.lastUserIsNext()) {
                                         if (nextInst.isOf(Ldr)) {
@@ -323,7 +323,7 @@ public class PeepHole {
                                         // TODO 这个原来会跳过, 现在慎用
                                         // 怀疑已经被fixStack的时候消除了
                                         MachineInst secondNextMI = (MachineInst) mi.getNext();
-                                        if (mi.isNotLast()
+                                        if (mi.isNotTail()
                                                 && mi.theLastUserOfDef != null
                                                 && mi.theLastUserOfDef.equals(secondNextMI)) {
                                             I.Mov iMov = (I.Mov) nextInst;
@@ -349,7 +349,7 @@ public class PeepHole {
                         } else if (mi.isOf(IMov)) {
                             I.Mov iMov = (I.Mov) mi;
                             if (!iMov.getSrc().isImm()) {
-                                if (mi.isNotLast()) {
+                                if (mi.isNotTail()) {
                                     MachineInst nextMI = (MachineInst) mi.getNext();
                                     if (nextMI instanceof I
                                             && mi.lastUserIsNext()
@@ -369,7 +369,7 @@ public class PeepHole {
                             // move b a (to be remove)
                             // =>
                             // anything (replace dst)
-                            if (mi.isNotLast()) {
+                            if (mi.isNotTail()) {
                                 MachineInst nextMI = (MachineInst) mi.getNext();
                                 if (nextMI instanceof I
                                         && mi.lastUserIsNext()
@@ -387,7 +387,7 @@ public class PeepHole {
                     } else {
                         if (mi.isOf(Add)) {
                             I.Binary addMI = (I.Binary) mi;
-                            if (mi.isNotLast() && !(addMI.getROpd().isImm() && vLdrStrImmEncode(addMI.getROpd().getValue()))) {
+                            if (mi.isNotTail() && !(addMI.getROpd().isImm() && vLdrStrImmEncode(addMI.getROpd().getValue()))) {
                                 MachineInst nextMI = (MachineInst) mi.getNext();
                                 switch (nextMI.getTag()) {
                                     case Ldr, Str -> {
@@ -419,9 +419,10 @@ public class PeepHole {
                                         // add a, d, c, shift
                                         // move d y
                                         // str d [d, c shift]
-                                        if (nextMI.isNotLast()) {
+                                        if (nextMI.isNotTail()) {
                                             MachineInst secondNextMI = (MachineInst) nextMI.getNext();
-                                            if (mi.theLastUserOfDef != null
+                                            if (secondNextMI.isNotTail()
+                                                    && mi.theLastUserOfDef != null
                                                     && mi.theLastUserOfDef.equals(secondNextMI)
                                                     && secondNextMI.isOf(Str)) {
                                                 I.Str str = (I.Str) secondNextMI;

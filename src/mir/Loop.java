@@ -59,6 +59,71 @@ public class Loop {
     private Value calcPhi;
     private int aluOtherIndex;
 
+    private boolean isAddAndModLoop = false;
+    private Value modPhi;
+    private Value addIS;
+    private Value remIS;
+    private int init;
+    private int base;
+    private int mod;
+    private int addConstIndex;
+
+
+
+    public void clearAddAndModLoopInfo() {
+        this.isAddAndModLoop = false;
+        this.modPhi = null;
+        this.addIS = null;
+        this.remIS = null;
+        this.init = 0;
+        this.base = 0;
+        this.mod = 0;
+        this.addConstIndex = 0;
+    }
+
+    public void setAddAndModLoopInfo(Value modPhi, Value addIS, Value remIS, int init, int base, int mod, int addConstIndex) {
+        this.isAddAndModLoop = true;
+        this.modPhi = modPhi;
+        this.addIS = addIS;
+        this.remIS = remIS;
+        this.init = init;
+        this.base = base;
+        this.mod = mod;
+        this.addConstIndex = addConstIndex;
+    }
+
+    public boolean isAddAndModLoop() {
+        return isAddAndModLoop;
+    }
+
+    public Value getModPhi() {
+        return modPhi;
+    }
+
+    public Value getAddIS() {
+        return addIS;
+    }
+
+    public Value getRemIS() {
+        return remIS;
+    }
+
+    public int getInit() {
+        return init;
+    }
+
+    public int getBase() {
+        return base;
+    }
+
+    public int getMod() {
+        return mod;
+    }
+
+    public int getAddConstIndex() {
+        return addConstIndex;
+    }
+
     public void clearCalcLoopInfo() {
         isCalcLoop = false;
         this.aluPhiEnterValue = null;

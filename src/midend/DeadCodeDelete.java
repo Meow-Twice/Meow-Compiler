@@ -380,7 +380,7 @@ public class DeadCodeDelete {
             return;
         }
         for (Value value: instr.getUseValueList()) {
-            if (value instanceof Instr) {
+            if (value instanceof Instr && value.onlyOneUser()) {
                 deleteInstr((Instr) value, true);
             }
         }

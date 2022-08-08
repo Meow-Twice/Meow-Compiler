@@ -1,11 +1,13 @@
 package midend;
 
 import frontend.Visitor;
+import lir.I;
 import lir.V;
 import mir.*;
 import mir.type.Type;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 
 public class LoopStrengthReduction {
 
@@ -26,10 +28,6 @@ public class LoopStrengthReduction {
     public void Run() {
         divToShift();
         addAndModToMulAndMod();
-    }
-
-    private void addAndModToMulAndMod() {
-        //TODO:针对除法优化进行优化
     }
 
     private void divToShift() {
@@ -174,5 +172,212 @@ public class LoopStrengthReduction {
 //
 //    }
 
+    private void addAndModToMulAndMod() {
+        //TODO: ret += const; ret %= mod; i++;
+        for (Function function: functions) {
+            for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
+                if (bb.isLoopHeader()) {
+                    addAndModLoopInit(bb.getLoop());
+                }
+            }
+        }
+        for (Function function: functions) {
+            for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
+                if (bb.isLoopHeader() && bb.getLoop().isAddAndModLoop()) {
+                    addAndModToMulAndModForLoop(bb.getLoop());
+                }
+            }
+        }
+    }
+
+    private void addAndModLoopInit(Loop loop) {
+        loop.clearAddAndModLoopInfo();
+        if (!loop.isSimpleLoop() || !loop.isIdcSet()) {
+            return;
+        }
+        if (loop.hasChildLoop()) {
+            return;
+        }
+        //只有head和latch的简单循环
+        for (BasicBlock bb: loop.getNowLevelBB()) {
+            if (!bb.isLoopHeader() && !bb.isLoopLatch()) {
+                return;
+            }
+        }
+        if (!loop.getHeader().isLoopExiting()) {
+            return;
+        }
+        BasicBlock latch = null;
+        for (BasicBlock bb: loop.getLatchs()) {
+            latch = bb;
+        }
+        BasicBlock head = loop.getHeader();
+        HashSet<Instr> idcInstrs = new HashSet<>();
+        Instr.Alu add = null;
+        Instr.Alu rem = null;
+        Instr.Phi phi = null;
+        int add_cnt = 0, phi_cnt = 0, rem_cnt = 0;
+        idcInstrs.add((Instr) loop.getIdcPHI());
+        idcInstrs.add((Instr) loop.getIdcCmp());
+        idcInstrs.add((Instr) loop.getIdcAlu());
+        idcInstrs.add(head.getEndInstr());
+        idcInstrs.add(latch.getEndInstr());
+        for (Instr idcInstr: idcInstrs) {
+            if (useOutLoop(idcInstr, loop)) {
+                return;
+            }
+        }
+        for (BasicBlock bb: loop.getNowLevelBB()) {
+            for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+                if (!idcInstrs.contains(instr)) {
+                    if (instr instanceof Instr.Alu) {
+                        if (((Instr.Alu) instr).getOp().equals(Instr.Alu.Op.ADD)) {
+                            add = (Instr.Alu) instr;
+                            add_cnt++;
+                        } else if (((Instr.Alu) instr).getOp().equals(Instr.Alu.Op.REM)) {
+                            rem = (Instr.Alu) instr;
+                            rem_cnt++;
+                        } else {
+                            return;
+                        }
+                    } else if (instr instanceof Instr.Phi) {
+                        phi = (Instr.Phi) instr;
+                        phi_cnt++;
+                    } else {
+                        return;
+                    }
+                }
+            }
+        }
+        if (add_cnt != 1 || rem_cnt != 1 || phi_cnt != 1) {
+            return;
+        }
+        if (useOutLoop(add, loop) || useOutLoop(rem, loop) || !useOutLoop(phi, loop)) {
+            return;
+        }
+        if (!(rem.getRVal2() instanceof Constant.ConstantInt) || !rem.getRVal1().equals(add)) {
+            return;
+        }
+        int latchIndex = head.getPrecBBs().indexOf(latch);
+        int enteringIndex = 1 - latchIndex;
+        if (!phi.getUseValueList().get(latchIndex).equals(rem)) {
+            return;
+        }
+        if (!add.getUseValueList().contains(phi)) {
+            return;
+        }
+        int addConstIndex = 1 - add.getUseValueList().indexOf(phi);
+        //TODO:待强化,使用的只要是同一个值就可以?
+        //      且当前没有考虑float!!!
+        if (!(add.getUseValueList().get(addConstIndex) instanceof Constant.ConstantInt)) {
+            return;
+        }
+        //此限制是否必须,计算值的初始值为常数
+        if (!(phi.getUseValueList().get(enteringIndex) instanceof Constant.ConstantInt)) {
+            return;
+        }
+        int base = (int) ((Constant.ConstantInt) add.getUseValueList().get(addConstIndex)).getConstVal();
+        int mod = (int) ((Constant.ConstantInt) rem.getRVal2()).getConstVal();
+        int init = (int) ((Constant.ConstantInt) phi.getUseValueList().get(enteringIndex)).getConstVal();
+        loop.setAddAndModLoopInfo(phi, add, rem, init, base ,mod, addConstIndex);
+//        Value aluPhiEnterValue = phi.getUseValueList().get(enteringIndex);
+//        loop.setCalcLoopInfo(aluPhiEnterValue, alu, phi, addConstIndex);
+    }
+
+    private boolean useOutLoop(Instr instr, Loop loop) {
+        for (Use use = instr.getBeginUse(); use.getNext() != null; use = (Use) use.getNext()) {
+            Instr user = use.getUser();
+            if (!user.parentBB().getLoop().equals(loop)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void addAndModToMulAndModForLoop(Loop loop) {
+        if (!(loop.getIdcInit() instanceof Constant.ConstantInt) || !(loop.getIdcStep() instanceof Constant.ConstantInt)) {
+            return;
+        }
+        if (!((Instr.Alu) loop.getIdcAlu()).getOp().equals(Instr.Alu.Op.ADD)) {
+            return;
+        }
+        //get index
+        BasicBlock loopLatch = null;
+        for (BasicBlock bb: loop.getLatchs()) {
+            loopLatch = bb;
+        }
+        int index = 1 - loop.getHeader().getPrecBBs().indexOf(loopLatch);
+        int i_init = (int) ((Constant.ConstantInt) loop.getIdcInit()).getConstVal();
+        int i_step = (int) ((Constant.ConstantInt) loop.getIdcStep()).getConstVal();
+        Value i_end = loop.getIdcEnd();
+
+        Loop preLoop = new Loop(loop.getParentLoop());
+        Function func = loop.getHeader().getFunction();
+
+
+        int base = loop.getBase();
+        int mod = loop.getMod();
+        int ans_init = loop.getInit();
+
+        int time_init = (mod - ans_init) / base + 1;
+        BasicBlock entering = null;
+        for (BasicBlock bb: loop.getEnterings()) {
+            entering = bb;
+        }
+        BasicBlock head = new BasicBlock(func, preLoop);
+        BasicBlock latch = new BasicBlock(func, preLoop);
+        BasicBlock exit = new BasicBlock(func, preLoop);
+        head.setLoopHeader();
+        preLoop.addBB(head);
+        preLoop.addBB(latch);
+        preLoop.setHeader(head);
+
+        //entering
+        entering.modifyBrAToB(loop.getHeader(), head);
+        entering.modifySuc(loop.getHeader(), head);
+
+        //head
+        Instr.Phi i_phi = new Instr.Phi(Type.BasicType.getI32Type(), new ArrayList<>(), head);
+        Instr.Phi time_phi = new Instr.Phi(Type.BasicType.getI32Type(), new ArrayList<>(), head);
+        Instr.Phi ans_phi = new Instr.Phi(Type.BasicType.getI32Type(), new ArrayList<>(), head);
+        Instr.Alu head_add = new Instr.Alu(Type.BasicType.getI32Type(), Instr.Alu.Op.ADD, i_phi, time_phi, head);
+        Instr.Icmp icmp = new Instr.Icmp(((Instr.Icmp) loop.getIdcCmp()).getOp(), head_add, i_end, head);
+        Instr.Branch head_br = new Instr.Branch(icmp, latch, exit, head);
+
+        head.addPre(entering);
+        head.addPre(latch);
+        head.addSuc(latch);
+        head.addSuc(exit);
+
+        //latch
+        Instr.Alu latch_mul = new Instr.Alu(Type.BasicType.getI32Type(), Instr.Alu.Op.MUL, new Constant.ConstantInt(base), time_phi, latch);
+        Instr.Alu latch_add_1 = new Instr.Alu(Type.BasicType.getI32Type(), Instr.Alu.Op.ADD, ans_phi, latch_mul, latch);
+        Instr.Alu latch_rem = new Instr.Alu(Type.BasicType.getI32Type(), Instr.Alu.Op.REM, latch_add_1, new Constant.ConstantInt(mod), latch);
+        Instr.Alu latch_sub = new Instr.Alu(Type.BasicType.getI32Type(), Instr.Alu.Op.SUB, new Constant.ConstantInt(mod), latch_rem, latch);
+        Instr.Alu latch_div = new Instr.Alu(Type.BasicType.getI32Type(), Instr.Alu.Op.DIV, latch_sub, new Constant.ConstantInt(15), latch);
+        Instr.Alu latch_add_2 = new Instr.Alu(Type.BasicType.getI32Type(), Instr.Alu.Op.ADD, latch_div, new Constant.ConstantInt(1), latch);
+        Instr.Jump latch_jump = new Instr.Jump(head, latch);
+
+        //exit
+        Instr.Jump exit_jump = new Instr.Jump(loop.getHeader(), exit);
+        exit.addPre(head);
+        exit.addSuc(loop.getHeader());
+
+        //head-phi
+        i_phi.addOptionalValue(new Constant.ConstantInt(i_init));
+        i_phi.addOptionalValue(head_add);
+        ans_phi.addOptionalValue(new Constant.ConstantInt(ans_init));
+        ans_phi.addOptionalValue(latch_rem);
+        time_phi.addOptionalValue(new Constant.ConstantInt(time_init));
+        time_phi.addOptionalValue(latch_add_2);
+
+        //next-loop-head
+        loop.getHeader().modifyPre(entering, exit);
+
+
+        ((Instr) loop.getIdcPHI()).modifyUse(i_phi, index);
+        ((Instr) loop.getModPhi()).modifyUse(ans_phi, index);
+
+    }
 
 }

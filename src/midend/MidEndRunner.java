@@ -102,6 +102,7 @@ public class MidEndRunner {
         LoopFold();
         LoopFold();
 
+        outputLLVM();
         LoopStrengthReduction();
 
 
@@ -124,6 +125,7 @@ public class MidEndRunner {
 
 
         removePhiUseSame();
+        Rem2DivMulSub();
         GepSplit();
 
         System.err.println("O2 End");
@@ -131,6 +133,13 @@ public class MidEndRunner {
         //
         // RemovePhi removePhi = new RemovePhi(functions);
         // removePhi.Run();
+    }
+
+    private void Rem2DivMulSub() {
+        Rem2DivMulSub rem2DivMulSub = new Rem2DivMulSub(functions);
+        rem2DivMulSub.Run();
+
+        Pass();
     }
 
     private void Mem2Reg() {
@@ -267,8 +276,12 @@ public class MidEndRunner {
         ConstFold constFold_1 = new ConstFold(functions, globalValues);
         constFold_1.Run();
 
+        //outputLLVM();
+
         DeadCodeDelete deadCodeDelete_2 = new DeadCodeDelete(functions, globalValues);
         deadCodeDelete_2.Run();
+
+        //outputLLVM();
 
         GVNAndGCM gvnAndGCM = new GVNAndGCM(functions);
         gvnAndGCM.Run();

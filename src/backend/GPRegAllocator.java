@@ -185,7 +185,7 @@ public class GPRegAllocator extends RegAllocator {
 
     @Override
     protected TreeSet<Arm.Regs> getOkColorSet() {
-        TreeSet<Arm.Regs> res = new TreeSet<>(Arrays.asList(GPRs.values()).subList(0, K + 1));
+        TreeSet<Arm.Regs> res = new TreeSet<>(Arrays.asList(GPRs.values()).subList(0, K == 14 ? K + 1 : K));
         res.remove(sp);
         return res;
     }

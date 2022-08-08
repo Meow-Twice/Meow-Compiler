@@ -361,7 +361,7 @@ public class CodeGen {
                         assert needFPU;
                         new V.Ldr(data, addrOpd, curMB);
                     } else {
-                        new I.Ldr(data, addrOpd, curMB);
+                        new I.Ldr(data, addrOpd, new Operand(I32, 0), curMB);
                     }
                 }
                 case store -> {
@@ -395,7 +395,7 @@ public class CodeGen {
                                     // value2opd.put(gep, curAddrVR);
                                 } else {
                                     int totalOff = offSet * curIdx;
-                                    if (immCanCode(totalOff)) {
+                                    if (AddSubImmEncode(totalOff)) {
                                         new I.Binary(Add, getVR_no_imm(gep), curAddrVR, new Operand(I32, totalOff), curMB);
                                     } else {
                                         new I.Binary(Add, getVR_no_imm(gep), curAddrVR, getImmVR(totalOff), curMB);
@@ -413,7 +413,7 @@ public class CodeGen {
                                 if (secondIdx.isConstantInt()) {
                                     int secondIdxNum = (int) ((Constant.ConstantInt) secondIdx).getConstVal();
                                     int totalOff = 4 * secondIdxNum;
-                                    if (immCanCode(totalOff)) {
+                                    if (AddSubImmEncode(totalOff)) {
                                         new I.Binary(Add, getVR_no_imm(gep), curAddrVR, new Operand(I32, totalOff), curMB);
                                     } else {
                                         new I.Binary(Add, getVR_no_imm(gep), curAddrVR, getImmVR(secondIdxNum), new Arm.Shift(Arm.ShiftType.Lsl, 2), curMB);
@@ -430,7 +430,7 @@ public class CodeGen {
                                     int secondIdxNum = (int) ((Constant.ConstantInt) secondIdx).getConstVal();
                                     int totalOffSet = baseOffSet * secondIdxNum;
                                     if ((totalOffSet & (totalOffSet - 1)) == 0) {
-                                        assert immCanCode(totalOffSet);
+                                        assert AddSubImmEncode(totalOffSet);
                                         if (!immCanCode(totalOffSet)) System.exit(187);
                                         new I.Binary(Add, getVR_no_imm(gep), curAddrVR, new Operand(I32, totalOffSet), curMB);
                                     } else if ((baseOffSet & (baseOffSet - 1)) == 0) {
@@ -476,7 +476,7 @@ public class CodeGen {
                                     // new I.Mov(dstVR, curAddrVR, curMB);
                                 } else {
                                     Operand imm;
-                                    if (immCanCode(totalConstOff)) {
+                                    if (AddSubImmEncode(totalConstOff)) {
                                         imm = new Operand(I32, totalConstOff);
                                     } else {
                                         imm = getImmVR(totalConstOff);
@@ -708,6 +708,10 @@ public class CodeGen {
         return off <= 1020 && off >= -1020;
     }
 
+    public static boolean AddSubImmEncode(int off){
+        return immCanCode(off);
+    }
+
     public void genGlobal() {
         for (Map.Entry<GlobalVal.GlobalValue, Initial> entry : globalMap.entrySet()) {
             GlobalVal.GlobalValue globalValue = entry.getKey();
@@ -914,6 +918,7 @@ public class CodeGen {
                 }
             }
             MC.Operand lVR = getVR_may_imm(lhs);
+            // TODO 如果加法右侧和mov右侧确实不同则此处需要修改
             MC.Operand rVR = getOp_may_imm(rhs);
             if (tag == FMod) {
                 assert needFPU;

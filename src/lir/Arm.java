@@ -237,20 +237,6 @@ public class Arm {
         }
     }
 
-    public enum OppositeCond {
-        // TODO: 保证Arm.Cond与Icmp.Op, Fcmp.Op的顺序相同!!!!!!!!
-        Ne("ne"),
-        Eq("eq"),
-        Lt("lt"),
-        Le("le"),
-        Gt("gt"),
-        Ge("ge"),
-        Any("!Any");
-
-        OppositeCond(String cond) {
-        }
-    }
-
     public enum ShiftType {
         // no shifting
         None(""),
@@ -265,11 +251,12 @@ public class Arm {
         // rotate right one bit with extend
         Rrx("rrx");
 
-        String name;
-
         ShiftType(String shift) {
             name = shift;
         }
+
+        String name;
+
 
         @Override
         public String toString() {
@@ -277,33 +264,47 @@ public class Arm {
         }
     }
 
-    public static class Shift {
-        public static final Shift NONE_SHIFT = new Shift();
-        public ShiftType shiftType;
-        public int shift;
-        public MC.Operand shiftReg = null;
+    public enum OppositeCond {
+        // TODO: 保证Arm.Cond与Icmp.Op, Fcmp.Op的顺序相同!!!!!!!!
+        Ne("ne"),
+        Eq("eq"),
+        Lt("lt"),
+        Le("le"),
+        Gt("gt"),
+        Ge("ge"),
+        Any("!Any");
 
+        OppositeCond(String cond) {
+        }
+    }
+
+    public static class Shift {
         Shift() {
-            shift = 0;
+            shiftOpd = new MC.Operand(I32, 0);
             shiftType = ShiftType.None;
         }
 
-        public Shift(ShiftType shiftType, int shift) {
+        public ShiftType shiftType;
+        public static final Shift NONE_SHIFT = new Shift();
+
+        public MC.Operand shiftOpd;
+        // public MC.Operand shiftReg = null;
+        public Shift(ShiftType shiftType, MC.Operand shiftOpd) {
             this.shiftType = shiftType;
-            this.shift = shift;
+            // this.shiftReg = shiftOpd;
+            this.shiftOpd = shiftOpd;
         }
 
-        public Shift(ShiftType shiftType, MC.Operand shift) {
+        public Shift(ShiftType shiftType, int shiftOpd) {
             this.shiftType = shiftType;
-            this.shiftReg = shift;
+            this.shiftOpd = new MC.Operand(I32, shiftOpd);
         }
 
-        public int getShift() {
-            return shift;
+        public MC.Operand getShiftOpd() {
+            return shiftOpd;
         }
 
-        public String toString() {
-            // if (shiftReg != null)
+        public String toString() {            // if (shiftReg != null)
             //     return switch (shiftType) {
             //         case Asr -> "asr #" + this.shiftReg;
             //         case Lsl -> "lsl #" + this.shiftReg;
@@ -314,18 +315,18 @@ public class Arm {
             //     };
             // else
             return switch (shiftType) {
-                case Asr -> "asr #" + this.shift;
-                case Lsl -> "lsl #" + this.shift;
-                case Lsr -> "lsr #" + this.shift;
-                case Ror -> "ror #" + this.shift;
-                case Rrx -> "rrx #" + this.shift;
+                case Asr -> "asr " + this.shiftOpd;
+                case Lsl -> "lsl " + this.shiftOpd;
+                case Lsr -> "lsr " + this.shiftOpd;
+                case Ror -> "ror " + this.shiftOpd;
+                case Rrx -> "rrx " + this.shiftOpd;
                 default -> "";
             };
         }
 
         // @Override
         public boolean equals(Shift oth) {
-            return shift == oth.shift && shiftType == oth.shiftType;
+            return shiftType == oth.shiftType && shiftOpd.equals(oth.shiftOpd);
         }
 
         public boolean hasShift() {

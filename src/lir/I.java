@@ -21,11 +21,12 @@ public class I extends MachineInst {
     }
 
     public static class Ldr extends I implements MachineMemInst, ActualDefMI {
-        public Ldr(Operand data, Operand addr, MC.Block insertAtEnd) {
-            super(Tag.Ldr, insertAtEnd);
-            defOpds.add(data);
-            useOpds.add(addr);
-        }
+        // public Ldr(Operand data, Operand addr, MC.Block insertAtEnd) {
+        //     super(Tag.Ldr, insertAtEnd);
+        //     defOpds.add(data);
+        //     useOpds.add(addr);
+        //     useOpds.add(new Operand(I32, 0));
+        // }
 
         public Ldr(Operand data, Operand addr, Operand offset, MC.Block insertAtEnd) {
             super(Tag.Ldr, insertAtEnd);
@@ -54,7 +55,7 @@ public class I extends MachineInst {
         }
 
         public Operand getOffset() {
-            if (useOpds.size() < 2) return new Operand(I32, 0);
+            assert useOpds.size() >= 2;
             return useOpds.get(1);
         }
 
@@ -252,8 +253,8 @@ public class I extends MachineInst {
             super(Tag.IMov, insertAtEnd);
             defOpds.add(dOpd);
             useOpds.add(sOpd);
-            if (shift.shiftReg != null) {
-                useOpds.add(shift.shiftReg);
+            if (shift.getShiftOpd().needRegOf(I32)) {
+                useOpds.add(shift.getShiftOpd());
             }
             this.shift = shift;
         }

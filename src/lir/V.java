@@ -90,6 +90,11 @@ public class V extends MachineInst {
             return useOpds.get(1);
         }
 
+        @Override
+        public void setAddr(Operand lOpd) {
+            useOpds.set(0, lOpd);
+        }
+
         public void setOffSet(Operand offSet) {
             if (useOpds.size() < 2) useOpds.add(offSet);
             useOpds.set(1, offSet);
@@ -164,11 +169,22 @@ public class V extends MachineInst {
         }
 
         @Override
+        public void setAddr(Operand lOpd) {
+
+        }
+
+        @Override
+        public void setOffSet(Operand rOpd) {
+            if (useOpds.size() < 3) useOpds.add(rOpd);
+            else useOpds.set(2, rOpd);
+        }
+
+        @Override
         public void output(PrintStream os, MC.McFunction f) {
             if (getOffset() == null) {
                 os.println("\tvstr" + cond + ".32\t" + getData() + ",\t[" + getAddr() + "]");
             } else if (getOffset().type == MC.Operand.Type.Immediate) {
-                int shift = (this.shift.shiftType == Arm.ShiftType.None) ? 0 : this.shift.shift;
+                int shift = (this.shift.shiftType == Arm.ShiftType.None) ? 0 : this.shift.shiftOpd.getValue();
                 int offset = this.getOffset().value << shift;
                 if (offset != 0) {
                     os.println("\tvstr" + cond + ".32\t" + getData() + ",\t[" + getAddr() + ",\t#" + offset + "]");
@@ -179,7 +195,7 @@ public class V extends MachineInst {
                 if (this.shift.shiftType == Arm.ShiftType.None) {
                     os.println("\tvstr" + cond + ".32\t" + getData() + ",\t[" + getAddr() + ",\t" + getOffset() + "]");
                 } else {
-                    os.println("\tvstr" + cond + ".32\t" + getData() + ",\t[" + getAddr() + ",\t" + getOffset() + ",\tLSL #" + this.shift.shift + "]");
+                    os.println("\tvstr" + cond + ".32\t" + getData() + ",\t[" + getAddr() + ",\t" + getOffset() + ",\tLSL #" + this.shift.shiftOpd + "]");
                 }
             }
         }
@@ -190,7 +206,7 @@ public class V extends MachineInst {
             if (getOffset() == null) {
                 stb.append("\tvstr").append(cond).append(".32\t").append(getData()).append(",\t[").append(getAddr()).append("]");
             } else if (getOffset().type == MC.Operand.Type.Immediate) {
-                int shift = (this.shift.shiftType == Arm.ShiftType.None) ? 0 : this.shift.shift;
+                int shift = (this.shift.shiftType == Arm.ShiftType.None) ? 0 : this.shift.shiftOpd.getValue();
                 int offset = this.getOffset().value << shift;
                 if (offset != 0) {
                     stb.append("\tvstr").append(cond).append(".32\t").append(getData()).append(",\t[").append(getAddr()).append(",\t#").append(offset).append("]");
@@ -201,7 +217,7 @@ public class V extends MachineInst {
                 if (this.shift.shiftType == Arm.ShiftType.None) {
                     stb.append("\tvstr").append(cond).append(".32\t").append(getData()).append(",\t[").append(getAddr()).append(",\t").append(getOffset()).append("]");
                 } else {
-                    stb.append("\tvstr").append(cond).append(".32\t").append(getData()).append(",\t[").append(getAddr()).append(",\t").append(getOffset()).append(",\tLSL #").append(this.shift.shift).append("]");
+                    stb.append("\tvstr").append(cond).append(".32\t").append(getData()).append(",\t[").append(getAddr()).append(",\t").append(getOffset()).append(",\tLSL #").append(this.shift.shiftOpd).append("]");
                 }
             }
             return stb.toString();

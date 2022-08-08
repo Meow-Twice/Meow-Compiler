@@ -8,6 +8,7 @@ import java.util.*;
 
 import static lir.Arm.Regs.GPRs;
 import static lir.Arm.Regs.GPRs.r12;
+import static lir.Arm.Regs.GPRs.sp;
 import static mir.type.DataType.I32;
 
 public class GPRegAllocator extends RegAllocator {
@@ -184,8 +185,8 @@ public class GPRegAllocator extends RegAllocator {
 
     @Override
     protected TreeSet<Arm.Regs> getOkColorSet() {
-        TreeSet<Arm.Regs> res = new TreeSet<>(Arrays.asList(GPRs.values()).subList(0, K));
-        res.remove(r12);
+        TreeSet<Arm.Regs> res = new TreeSet<>(Arrays.asList(GPRs.values()).subList(0, K + 1));
+        res.remove(sp);
         return res;
     }
 

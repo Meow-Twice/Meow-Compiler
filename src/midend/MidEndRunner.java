@@ -102,7 +102,7 @@ public class MidEndRunner {
         LoopFold();
         LoopFold();
 
-        outputLLVM();
+        //outputLLVM();
         LoopStrengthReduction();
 
 
@@ -258,11 +258,13 @@ public class MidEndRunner {
         LoopStrengthReduction loopStrengthReduction = new LoopStrengthReduction(functions);
         loopStrengthReduction.Run();
 
-        //outputLLVM();
+
 
         reMakeCFGAndLoopInfo();
 
+        //outputLLVM();
         Pass();
+        //outputLLVM();
     }
 
     //死代码删除 指令融合 GVN/GCM

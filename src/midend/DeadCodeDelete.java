@@ -491,6 +491,7 @@ public class DeadCodeDelete {
                 }
                 bbRemove.add(bb);
             }
+            //fixme:是否需要删除bb里的instr
             for (BasicBlock bb: bbRemove) {
                 bb.remove();
             }

@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 
 public class LoopStrengthReduction {
+    //fixme:记得打开优化
 
     //TODO:识别循环中,使用了迭代变量idc的数学运算
     //      可以考虑任何一个常数*idc相关的ADD/SUB指令再进行ADD会/SUB
@@ -27,7 +28,7 @@ public class LoopStrengthReduction {
 
     public void Run() {
         divToShift();
-        addAndModToMulAndMod();
+        //addAndModToMulAndMod();
     }
 
     private void divToShift() {
@@ -306,6 +307,10 @@ public class LoopStrengthReduction {
         for (BasicBlock bb: loop.getLatchs()) {
             loopLatch = bb;
         }
+        BasicBlock loopExit = null;
+        for (BasicBlock bb: loop.getExits()) {
+            loopExit = bb;
+        }
         int index = 1 - loop.getHeader().getPrecBBs().indexOf(loopLatch);
         int i_init = (int) ((Constant.ConstantInt) loop.getIdcInit()).getConstVal();
         int i_step = (int) ((Constant.ConstantInt) loop.getIdcStep()).getConstVal();
@@ -359,9 +364,13 @@ public class LoopStrengthReduction {
         Instr.Jump latch_jump = new Instr.Jump(head, latch);
 
         //exit
-        Instr.Jump exit_jump = new Instr.Jump(loop.getHeader(), exit);
+        Instr.Alu exit_sub = new Instr.Alu(Type.BasicType.getI32Type(), Instr.Alu.Op.SUB, i_end, i_phi, exit);
+        Instr.Alu exit_mul = new Instr.Alu(Type.BasicType.getI32Type(), Instr.Alu.Op.MUL, new Constant.ConstantInt(15), exit_sub, exit);
+        Instr.Alu exit_add = new Instr.Alu(Type.BasicType.getI32Type(), Instr.Alu.Op.ADD, ans_phi, exit_mul, exit);
+        Instr.Alu exit_rem = new Instr.Alu(Type.BasicType.getI32Type(), Instr.Alu.Op.REM, exit_add, new Constant.ConstantInt(1500000001), exit);
+        Instr.Jump exit_jump = new Instr.Jump(loopExit, exit);
         exit.addPre(head);
-        exit.addSuc(loop.getHeader());
+        exit.addSuc(loopExit);
 
         //head-phi
         i_phi.addOptionalValue(new Constant.ConstantInt(i_init));
@@ -372,11 +381,24 @@ public class LoopStrengthReduction {
         time_phi.addOptionalValue(latch_add_2);
 
         //next-loop-head
-        loop.getHeader().modifyPre(entering, exit);
+        //loop.getHeader().modifyPre(entering, exit);
+        loopExit.modifyPre(loop.getHeader(), exit);
 
 
         ((Instr) loop.getIdcPHI()).modifyUse(i_phi, index);
         ((Instr) loop.getModPhi()).modifyUse(ans_phi, index);
+
+        loop.getModPhi().modifyAllUseThisToUseA(exit_rem);
+
+        //remove loop
+        HashSet<BasicBlock> removes = new HashSet<>();
+        removes.addAll(loop.getNowLevelBB());
+        for (BasicBlock bb: removes) {
+            for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+                instr.remove();
+            }
+            bb.remove();
+        }
 
     }
 

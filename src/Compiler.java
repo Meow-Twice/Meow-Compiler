@@ -64,7 +64,7 @@ public class Compiler {
             if (_ONLY_FRONTEND) {
                 return;
             }
-            MidEndRunner.O2 = arg.optimize;
+            MidEndRunner.O2 = false;
             _ONLY_FRONTEND = !arg.outputAsm();
             System.err.println("mid optimization begin");
             long start = System.currentTimeMillis();
@@ -124,8 +124,8 @@ public class Compiler {
 
             // System.err.println(p.getSTB());
             //
-            PeepHole peepHole = new PeepHole(p);
-            peepHole.run();
+            // PeepHole peepHole = new PeepHole(p);
+            // peepHole.run();
             if (arg.outputAsm()) {
                 FileDealer.outputToStream(p.getSTB(), arg.asmStream);
                 // p.output(new PrintStream(arg.asmStream));

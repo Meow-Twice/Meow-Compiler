@@ -20,7 +20,7 @@ public class RegAllocator {
     protected static final boolean DEBUG_STDIN_OUT = false;
 
     protected int K;
-    protected final int RK = 12;
+    protected final int RK = 5;
     // TODO 尝试将sp直接设为Allocated或者不考虑sp add或sub指令
     protected final int SK = 32;
     protected DataType dataType;

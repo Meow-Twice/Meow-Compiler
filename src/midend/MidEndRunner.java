@@ -33,6 +33,7 @@ public class MidEndRunner {
             Pass();
             BrOptimize();
             BrOptimize();
+            MathOpt();
             return;
         }
 

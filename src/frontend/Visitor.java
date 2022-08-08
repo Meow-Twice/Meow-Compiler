@@ -783,14 +783,14 @@ public class Visitor {
                             }
                             BasicType basicType = ((ArrayType) pointeeType).getBaseEleType();
                             Value ptr = new GetElementPtr(basicType, pointer, dimList, curBB);
-                            if (!(initValueList.get(0) == CONST_0 && afterMemset)) {
+                            if (!(initValueList.get(0).equals(CONST_0) && afterMemset)) {
                                 dimList = new ArrayList<>();
                                 dimList.add(CONST_0);
-                                new Store(initValueList.get(0), ptr, curBB);
+                                new Store(trimTo(initValueList.get(0), basicType), ptr, curBB);
                             }
                             for (int i = 1; i < initValueList.size(); i++) {
                                 Value initVal = initValueList.get(i);
-                                if (initVal == CONST_0 && afterMemset) {
+                                if (initVal.equals(CONST_0) && afterMemset) {
                                     continue;
                                 }
                                 dimList = new ArrayList<>();

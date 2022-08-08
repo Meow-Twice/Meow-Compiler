@@ -69,6 +69,10 @@ public class AggressiveFuncGCM {
                 for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
                     if (isPinned(instr)) {
                         pinnedInstrMap.get(function).add(instr);
+                    } else {
+                        if (instr.isNoUse()) {
+                            instr.remove();
+                        }
                     }
                 }
             }
@@ -100,8 +104,7 @@ public class AggressiveFuncGCM {
                     scheduleEarly(instr);
                 } else if (pinnedInstr.contains(instr)) {
                     for (Value value: instr.getUseValueList()) {
-                        if (value instanceof Constant || value instanceof BasicBlock ||
-                                value instanceof GlobalVal || value instanceof Function || value instanceof Function.Param) {
+                        if (!(value instanceof Instr)) {
                             continue;
                         }
                         assert value instanceof Instr;
@@ -185,6 +188,9 @@ public class AggressiveFuncGCM {
         // use the latest and earliest blocks to pick final positing
         // now latest is lca
         BasicBlock best = lca;
+        if (lca == null) {
+            System.err.println("err_GCM");
+        }
         while (!lca.equals(instr.getEarliestBB())) {
             if (lca.getLoopDep() < best.getLoopDep()) {
                 best = lca;

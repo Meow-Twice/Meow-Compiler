@@ -1,6 +1,7 @@
 package midend;
 
 import frontend.semantic.Initial;
+import frontend.syntax.Ast;
 import mir.*;
 import mir.type.Type;
 
@@ -20,6 +21,7 @@ public class DeadCodeDelete {
     }
 
     public void Run(){
+        removeUselessRet();
         noUserCodeDelete();
         deadCodeElimination();
         if (MidEndRunner.O2) {
@@ -37,6 +39,45 @@ public class DeadCodeDelete {
         //removeUselessPhi();
     }
 
+
+    private void removeUselessRet() {
+        for (Function function: functions) {
+            if (function.hasRet() && retCanRemove(function)) {
+                for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
+                    for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+                        if (instr instanceof Instr.Return) {
+                            if (function.getRetType().isInt32Type()) {
+                                instr.modifyUse(new Constant.ConstantInt(0), 0);
+                            } else if (function.getRetType().isFloatType()) {
+                                instr.modifyUse(new Constant.ConstantFloat(0), 0);
+                            } else {
+                                assert false;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private boolean retCanRemove(Function function) {
+        if (function.getName().equals("main")) {
+            return false;
+        }
+        for (Use use = function.getBeginUse(); use.getNext() != null; use = (Use) use.getNext()) {
+            Instr call = use.getUser();
+//            if (call.getBeginUse().getNext() != null) {
+//                return false;
+//            }
+            for (Use callUse = call.getBeginUse(); callUse.getNext() != null; callUse = (Use) callUse.getNext()) {
+                Instr instr = callUse.getUser();
+                if (!(instr instanceof Instr.Return && instr.parentBB().getFunction().equals(function))) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
 
 
     private void check_instr() {

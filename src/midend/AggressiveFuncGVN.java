@@ -150,12 +150,19 @@ public class AggressiveFuncGVN {
                                 int thisFuncIndex = function.getParams().indexOf(val);
                                 int callFuncIndex = ((Instr.Call) instr).getParamList().indexOf(val);
 
-                                if (use.get(callFunc).contains(callFuncIndex)) {
+                                //fixme:has-bug
+                                if (callFunc.isExternal) {
                                     use.get(function).add(thisFuncIndex);
+                                } else {
+                                    if (use.get(callFunc).contains(callFuncIndex)) {
+                                        use.get(function).add(thisFuncIndex);
+                                    }
+                                    if (def.get(callFunc).contains(callFuncIndex)) {
+                                        def.get(function).add(thisFuncIndex);
+                                    }
                                 }
-                                if (def.get(callFunc).contains(callFuncIndex)) {
-                                    def.get(function).add(thisFuncIndex);
-                                }
+
+
                             }
                         }
                     }
@@ -303,6 +310,10 @@ public class AggressiveFuncGVN {
                 Function func = ((Instr.Call) instr).getFunc();
                 for (Integer index: def.get(func)) {
                     Value array = ((Instr.Call) instr).getParamList().get(index);
+                    while (array instanceof Instr.GetElementPtr) {
+                        array = ((Instr.GetElementPtr) array).getPtr();
+                    }
+                    assert callMap.containsKey(array);
                     for (Instr instr1: callMap.get(array)) {
                         removeCallFromGVN(instr1);
                     }

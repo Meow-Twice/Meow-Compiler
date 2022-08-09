@@ -9,8 +9,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 
-import static util.CenterControl._ONLY_FRONTEND;
-
 public class MidEndRunner {
 
     //TODO:另一种实现方法 functions定为static 提供init方法
@@ -79,7 +77,7 @@ public class MidEndRunner {
         BrOptimize();
 
         //outputLLVM();
-        //loopOptimize();
+        loopOptimize();
 
         ArrayGVN();
 

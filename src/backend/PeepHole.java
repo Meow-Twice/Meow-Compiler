@@ -247,9 +247,18 @@ public class PeepHole {
                     if (mb.liveOutSet.contains(def)) defRegInLiveOut = true;
                     if (Arm.Reg.getRSReg(sp).equals(def)) defNoSp = false;
                 }
+                if (mb.getLabel().equals("._MB_5_b24"))
+                    System.err.println(mb.liveOutSet);
                 if (!(isLastDefMI && defRegInLiveOut) && mi.isNoCond()) {
                     if (mi instanceof StackCtl) continue;
+                    // if (mb.getLabel().equals("._MB_5_b24")) {
+                    //     int a = 0;
+                    // }
                     if (mi.theLastUserOfDef == null && mi.noShift() && defNoSp) {
+                        // System.err.println("!- " + mi + mi.theLastUserOfDef);
+                        // System.err.println(getLastDefiner(mi.defOpds.get(0)));
+                        // System.err.println(defRegInLiveOut);
+                        // System.err.println(defNoSp);
                         mi.remove();
                         unDone = true;
                         continue;
@@ -372,7 +381,9 @@ public class PeepHole {
                                     // fixme
                                     sub2.remove();
                                     iMov.theLastUserOfDef = sub2.theLastUserOfDef;
-                                    lastGPRsDefMI[iMov.getDst().getValue()] = iMov;
+                                    if (lastGPRsDefMI[iMov.getDst().getValue()].equals(sub2)) {
+                                        lastGPRsDefMI[iMov.getDst().getValue()] = iMov;
+                                    }
                                 }
                             }
                         } else if (mi.isOf(IMov)) {
@@ -468,7 +479,9 @@ public class PeepHole {
                                     if (fma != null) {
                                         unDone = true;
                                         fma.theLastUserOfDef = addOrSub.theLastUserOfDef;
-                                        lastGPRsDefMI[asDst.getValue()] = fma;
+                                        if(lastGPRsDefMI[asDst.getValue()].equals(addOrSub)){
+                                            lastGPRsDefMI[asDst.getValue()] = fma;
+                                        }
                                         mul.remove();
                                         // fixme
                                         addOrSub.remove();
@@ -590,7 +603,7 @@ public class PeepHole {
                                     // =>
                                     // mov c b shift
                                     I.Mov nextMov = (I.Mov) nextMI;
-                                    if(nextMov.getSrc().equals(iMov.getDst())){
+                                    if (nextMov.getSrc().equals(iMov.getDst())) {
                                         unDone = true;
                                         nextMov.setSrc(iMov.getSrc());
                                         nextMov.setShift(iMov.getShift());

@@ -122,7 +122,7 @@ public class Compiler {
             // PrintStream os = new PrintStream(output_file);
             // p.output(os);
 
-            System.err.println(p.getSTB());
+            // System.err.println(p.getSTB());
             //
             PeepHole peepHole = new PeepHole(p);
             peepHole.run();

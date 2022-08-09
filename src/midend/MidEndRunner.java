@@ -59,8 +59,8 @@ public class MidEndRunner {
         //暂定函数内联的位置
         Pass();
         //
-//        FuncGVN();
-//        FuncGCM();
+        FuncGVN();
+        FuncGCM();
         FuncInline();
         Mem2Reg();
         MathOpt();
@@ -98,11 +98,11 @@ public class MidEndRunner {
         BrOptimize();
 
         //outputLLVM();
-//        LoopFold();
-//        LoopFold();
+        LoopFold();
+        LoopFold();
 
         //outputLLVM();
-        //LoopStrengthReduction();
+        LoopStrengthReduction();
 
 
 
@@ -118,8 +118,8 @@ public class MidEndRunner {
 
         //outputLLVM();
         //ArrayGCM();
-//        LoopInVarCodeLift loopInVarCodeLift = new LoopInVarCodeLift(functions);
-//        loopInVarCodeLift.Run();
+        LoopInVarCodeLift loopInVarCodeLift = new LoopInVarCodeLift(functions);
+        loopInVarCodeLift.Run();
         //outputLLVM();
 
 

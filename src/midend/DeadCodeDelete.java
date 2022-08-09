@@ -25,7 +25,7 @@ public class DeadCodeDelete {
         noUserCodeDelete();
         deadCodeElimination();
         if (MidEndRunner.O2) {
-//            strongDCE();
+            strongDCE();
         }
         removeUselessGlobalVal();
         removeUselessLocalArray();

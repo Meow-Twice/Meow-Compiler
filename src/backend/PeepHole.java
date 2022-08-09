@@ -6,10 +6,10 @@ import lir.Arm.Regs.*;
 import util.ILinkNode;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Objects;
 
-import static backend.CodeGen.needFPU;
+import static backend.CodeGen.*;
 import static lir.Arm.Regs.GPRs.cspr;
 import static lir.Arm.Regs.GPRs.sp;
 import static lir.MachineInst.MachineMemInst;
@@ -249,19 +249,24 @@ public class PeepHole {
                 }
                 if (!(isLastDefMI && defRegInLiveOut) && mi.isNoCond()) {
                     if (mi instanceof StackCtl) continue;
-                    if (mi.theLastUserOfDef == null && !mi.getShift().hasShift() && defNoSp) {
+                    if (mi.theLastUserOfDef == null && mi.noShift() && defNoSp) {
                         mi.remove();
                         unDone = true;
                         continue;
                     }
+
+                    if (!mi.isNotLastInst()) continue;
+                    MachineInst nextMI = (MachineInst) mi.getNext();
 
                     if (mi.isIMov()) {
                         if (!CodeGen.immCanCode(((I.Mov) mi).getSrc().getValue())) {
                             continue;
                         }
                     }
+                    // TODO sub x, a, a
+                    // TODO reluctantStr ldr - mla - ldr - str
 
-                    if (!mi.getShift().hasShift()) {
+                    if (mi.noShift()) {
                         // add/sub a c #i
                         // ldr b [a, #x]
                         // =>
@@ -277,11 +282,10 @@ public class PeepHole {
                             I.Binary binary = (I.Binary) mi;
                             if (binary.getROpd().isPureImmWithOutGlob(I32)) {
                                 int imm = binary.getROpd().getValue();
-                                if (!mi.getNext().equals(mb.miList.tail)
-                                        && mi.lastUserIsNext()) {
-                                    MachineInst nextInst = (MachineInst) mi.getNext();
-                                    if (nextInst.isOf(Ldr)) {
-                                        I.Ldr ldr = (I.Ldr) nextInst;
+                                // MachineInst nextMI = (MachineInst) mi.getNext();
+                                if (mi.lastUserIsNext()) {
+                                    if (nextMI.isOf(Ldr)) {
+                                        I.Ldr ldr = (I.Ldr) nextMI;
                                         if (ldr.getAddr().equals(binary.getDst())
                                                 && ldr.getOffset().isPureImmWithOutGlob(I32)) {
                                             assert !ldr.getShift().hasShift();
@@ -299,8 +303,8 @@ public class PeepHole {
                                                 binary.remove();
                                             }
                                         }
-                                    } else if (nextInst.isOf(Str)) {
-                                        I.Str str = (I.Str) nextInst;
+                                    } else if (nextMI.isOf(Str)) {
+                                        I.Str str = (I.Str) nextMI;
                                         if (str.getAddr().equals(binary.getDst())
                                                 && str.getOffset().isPureImmWithOutGlob(I32)) {
                                             assert !str.getShift().hasShift();
@@ -318,55 +322,117 @@ public class PeepHole {
                                                 binary.remove();
                                             }
                                         }
-                                    } else if (nextInst.isIMov()) {
-                                        // 怀疑已经被fixStack的时候消除了
-                                        if (!mi.getNext().equals(mb.miList.tail)
-                                                && mi.lastUserIsNext()) {
-                                            I.Mov iMov = (I.Mov) nextInst;
-                                            MachineInst secondNextMI = (MachineInst) mi.getNext();
-                                            if (secondNextMI.isOf(Str)) {
-                                                I.Str str = (I.Str) secondNextMI;
-                                                if (iMov.getDst().equals(str.getData())
-                                                        && binary.getDst().equals(str.getAddr())
-                                                        && !str.getData().equals(binary.getLOpd())
-                                                        && str.getOffset().isPureImmWithOutGlob(I32)) {
-                                                    assert !str.getShift().hasShift();
-                                                    if (CodeGen.LdrStrImmEncode(imm)) {
-                                                        unDone = true;
-                                                        str.setAddr(binary.getLOpd());
-                                                        str.setOffSet(new Operand(I32, imm));
-                                                        binary.remove();
-                                                    }
+                                    }
+                                } else if (nextMI.isIMov()) {
+                                    // TODO 这个原来会跳过, 现在慎用
+                                    // 怀疑已经被fixStack的时候消除了
+                                    MachineInst secondNextMI = (MachineInst) mi.getNext();
+                                    if (mi.theLastUserOfDef != null
+                                            && mi.theLastUserOfDef.equals(secondNextMI)) {
+                                        I.Mov iMov = (I.Mov) nextMI;
+                                        if (secondNextMI.isOf(Str)) {
+                                            I.Str str = (I.Str) secondNextMI;
+                                            if (iMov.getDst().equals(str.getData())
+                                                    && binary.getDst().equals(str.getAddr())
+                                                    && !str.getData().equals(binary.getLOpd())
+                                                    && str.getOffset().isPureImmWithOutGlob(I32)) {
+                                                assert !str.getShift().hasShift();
+                                                if (CodeGen.LdrStrImmEncode(imm)) {
+                                                    unDone = true;
+                                                    str.setAddr(binary.getLOpd());
+                                                    str.setOffSet(new Operand(I32, imm));
+                                                    binary.remove();
                                                 }
                                             }
                                         }
                                     }
                                 }
+                            } else if (mi.isOf(Sub) && nextMI.isOf(Sub)
+                                    && mi.lastUserIsNext()
+                                    && nextMI.getCond() == mi.getCond()
+                                    && nextMI.noShift()) {
+                                // sub a, b, a
+                                // sub b, b, a
+                                // a2 = b - a1
+                                // b = b - a2 = b - (b - a1) = a1
+                                I.Binary sub1 = binary;
+                                I.Binary sub2 = (I.Binary) nextMI;
+                                HashSet<Operand> aSet = new HashSet<>();
+                                aSet.add(sub1.getDst());
+                                aSet.add(sub1.getROpd());
+                                aSet.add(sub2.getROpd());
+                                HashSet<Operand> bSet = new HashSet<>();
+                                bSet.add(sub1.getLOpd());
+                                bSet.add(sub2.getDst());
+                                bSet.add(sub2.getLOpd());
+                                if (aSet.size() + bSet.size() <= 2) {
+                                    unDone = true;
+                                    I.Mov iMov = new I.Mov(sub2.getDst(), sub1.getDst(), sub2);
+                                    sub1.remove();
+                                    // fixme
+                                    sub2.remove();
+                                    iMov.theLastUserOfDef = sub2.theLastUserOfDef;
+                                    lastGPRsDefMI[iMov.getDst().getValue()] = iMov;
+                                }
                             }
                         } else if (mi.isOf(IMov)) {
                             I.Mov iMov = (I.Mov) mi;
-                            if (!iMov.getSrc().isImm()) {
-                                if (!mi.getNext().equals(mb.miList.tail)) {
-                                    MachineInst nextMI = (MachineInst) mi.getNext();
-                                    if (nextMI instanceof I
-                                            && mi.lastUserIsNext()
-                                            && !nextMI.isOf(Call, IRet, VRet)) {
-                                        for (int i = 0; i < nextMI.useOpds.size(); i++) {
-                                            if (nextMI.useOpds.get(i).equals(iMov.getDst())) {
-                                                nextMI.useOpds.set(i, iMov.getSrc());
-                                                unDone = true;
-                                            }
-                                        }
-                                        mi.remove();
+                            // MachineInst nextMI = (MachineInst) mi.getNext();
+                            if (!iMov.getSrc().isImm()
+                                    && nextMI instanceof I
+                                    && mi.lastUserIsNext()
+                                    && !nextMI.isOf(Call, IRet, VRet)) {
+                                // mov a, b
+                                // anything
+                                // =>
+                                // anything (replaced)
+                                boolean isDeleted = false;
+                                for (int i = 0; i < nextMI.useOpds.size(); i++) {
+                                    if (nextMI.useOpds.get(i).equals(iMov.getDst())) {
+                                        nextMI.useOpds.set(i, iMov.getSrc());
+                                        isDeleted = true;
                                     }
+                                }
+                                if (isDeleted) {
+                                    unDone = true;
+                                    mi.remove();
+                                }
+                            } else if (iMov.getSrc().isPureImmWithOutGlob(I32)) {
+                                int imm = iMov.getSrc().getValue();
+                                if (nextMI.isOf(ICmp) && mi.lastUserIsNext() && nextMI.noShift()) {
+                                    // mov a imm
+                                    // cmp b a
+                                    // =>
+                                    // cmp b imm
+                                    // TODO cmp a b
+                                    I.Cmp icmp = (I.Cmp) nextMI;
+                                    Operand dst = iMov.getDst();
+                                    if (dst.equals(icmp.getROpd()) && !dst.equals(icmp.getROpd())) {
+                                        if (immCanCode(imm)) {
+                                            icmp.setROpd(iMov.getSrc());
+                                            unDone = true;
+                                            iMov.remove();
+                                        } else if (immCanCode(-imm)) {
+                                            icmp.setROpd(new Operand(I32, -imm));
+                                            icmp.cmn = true;
+                                            unDone = true;
+                                            iMov.remove();
+                                        }
+                                    }
+                                } else {
+                                    // TODO
+                                    //  mov Rd, #imm
+                                    //  inst use Rd
                                 }
                             }
                         } else if (mi instanceof MachineInst.ActualDefMI) {
-                            if (!mi.getNext().equals(mb.miList.tail)) {
-                                MachineInst nextMI = (MachineInst) mi.getNext();
-                                if (nextMI instanceof I
-                                        && mi.lastUserIsNext()
-                                        && isSimpleIMov(nextMI)) {
+                            if (mi.lastUserIsNext()) {
+                                // MachineInst nextMI = (MachineInst) mi.getNext();
+                                if (isSimpleIMov(nextMI)) {
+                                    // anything (dst is a)
+                                    // move b a (to be remove)
+                                    // =>
+                                    // anything (replace dst)
                                     Operand def = ((MachineInst.ActualDefMI) mi).getDef();
                                     I.Mov iMov = (I.Mov) nextMI;
                                     if (def.equals(iMov.getSrc())) {
@@ -374,12 +440,154 @@ public class PeepHole {
                                         iMov.remove();
                                         unDone = true;
                                     }
+                                } else if (mi.isOf(Mul)
+                                        && nextMI.isOf(Add, Sub)
+                                        && mi.getCond().equals(nextMI.getCond())/*noCond*/) {
+                                    // mul mulDst, mulLOpd, mulROpd
+                                    // add/sub asDst, asLOpd, asROpd
+                                    // =>
+                                    // mla/mls asDst, mulLOpd, mulROpd, (asLOpd / asROpd) <=> mulDst
+                                    I.Binary mul = ((I.Binary) mi);
+                                    I.Binary addOrSub = (I.Binary) nextMI;
+                                    Operand mulDst = mul.getDst();
+                                    Operand mulLOpd = mul.getLOpd();
+                                    Operand mulROpd = mul.getROpd();
+                                    Operand asDst = addOrSub.getDst();
+                                    Operand asLOpd = addOrSub.getLOpd();
+                                    Operand asROpd = addOrSub.getROpd();
+                                    boolean flag1 = mulDst.equals(asLOpd);
+                                    boolean flag2 = mulDst.equals(asROpd);
+                                    I.Fma fma = null;
+                                    if (flag1 && !flag2 && !asROpd.isImm()) {
+                                        fma = new I.Fma(addOrSub, nextMI.isOf(Add), false,
+                                                asDst, mulLOpd, mulROpd, asROpd);
+                                    } else if (flag2 && !flag1/* && !asLOpd.isImm()*/) {
+                                        fma = new I.Fma(addOrSub, nextMI.isOf(Add), false,
+                                                asDst, mulLOpd, mulROpd, asLOpd);
+                                    }
+                                    if (fma != null) {
+                                        unDone = true;
+                                        fma.theLastUserOfDef = addOrSub.theLastUserOfDef;
+                                        lastGPRsDefMI[asDst.getValue()] = fma;
+                                        mul.remove();
+                                        // fixme
+                                        addOrSub.remove();
+                                    }
                                 }
                             }
                         }
                     } else {
+                        if (mi.isOf(Add)) {
+                            I.Binary addMI = (I.Binary) mi;
+                            if (!(addMI.getROpd().isImm() && LdrStrImmEncode(addMI.getROpd().getValue()))) {
+                                // MachineInst nextMI = (MachineInst) mi.getNext();
+                                switch (nextMI.getTag()) {
+                                    case Ldr, Str -> {
+                                        // add a, b, c, shift
+                                        // ldr/str x, [a, #0]
+                                        // =>
+                                        // ldr/str x, [b, c, shift]
+                                        if (mi.lastUserIsNext()) {
+                                            MachineMemInst mem = (MachineMemInst) nextMI;
+                                            if (addMI.getDst().equals(mem.getAddr())
+                                                    && mem.getOffset().equals(Operand.I_ZERO)
+                                                    && mem.isNoCond()) {
+                                                unDone = true;
+                                                mem.setAddr(addMI.getLOpd());
+                                                mem.setOffSet(addMI.getROpd());
+                                                mem.setShift(addMI.getShift());
+                                                addMI.remove();
+                                            }
+                                        }
+                                    }
+                                    case IMov -> {
+                                        // add a, b, c, shift
+                                        // move d y
+                                        // str d [a, #0]
+                                        // =>
+                                        // move d y
+                                        // str d [b, c shift]
+                                        // ----------------------------------
+                                        // this situation should be avoided:
+                                        // add a, d, c, shift
+                                        // move d y
+                                        // str d [d, c shift]
+                                        if (nextMI.isNotLastInst() && nextMI.isNoCond()) {
+                                            MachineInst secondNextMI = (MachineInst) nextMI.getNext();
+                                            if (secondNextMI.isNotLastInst() && secondNextMI.isNoCond()
+                                                    && mi.theLastUserOfDef != null
+                                                    && mi.theLastUserOfDef.equals(secondNextMI)
+                                                    && secondNextMI.isOf(Str)) {
+                                                I.Str str = (I.Str) secondNextMI;
+                                                I.Mov mov = (I.Mov) nextMI;
+                                                if (mov.getDst().equals(str.getData())
+                                                        && str.getAddr().equals(addMI.getDst())
+                                                        && !str.getData().equals(addMI.getLOpd())
+                                                        && !str.getData().equals(addMI.getROpd())
+                                                        && str.getOffset().equals(Operand.I_ZERO)) {
+                                                    str.setAddr(addMI.getLOpd());
+                                                    str.setOffSet(addMI.getROpd());
+                                                    str.setShift(addMI.getShift());
+                                                    addMI.remove();
+                                                    unDone = true;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        } else if (mi.isOf(IMov)
+                                && mi.lastUserIsNext()
+                                && nextMI.getCond() == mi.getCond()
+                                && nextMI.noShift()) {
+                            // mov a b shift
+                            // instr c a
+                            // =>
+                            // instr c b shift
+                            I.Mov iMov = (I.Mov) mi;
+                            switch (nextMI.getTag()) {
+                                case Add, Sub -> {
+                                    // mov a b shift
+                                    // add c d a
+                                    // =>
+                                    // add c d b shift
+                                    I.Binary binary = (I.Binary) nextMI;
+                                    Operand lOpd = binary.getLOpd();
+                                    Operand rOpd = binary.getROpd();
+                                    if (rOpd.equals(iMov.getDst()) && !lOpd.equals(iMov.getDst())) {
+                                        assert !rOpd.isImm();
+                                        binary.setROpd(iMov.getDst());
+                                        binary.setShift(iMov.getShift());
+                                        unDone = true;
+                                        iMov.remove();
+                                    }
+                                }
+                                case Ldr, Str -> {
+                                    // mov a b shift
+                                    // ldr c, [d a]
+                                    // =>
+                                    // ldr c, [d b shift]
 
+                                    // mov a b shift
+                                    // str c, [d a]
+                                    // =>
+                                    // str c, [d b shift]
+
+                                    MachineMemInst memLdrStr = (MachineMemInst) nextMI;
+                                    if (memLdrStr.getOffset().equals(iMov.getDst())
+                                            && memLdrStr.getShift().noShift()
+                                            && !memLdrStr.getAddr().equals(iMov.getDst())
+                                            && ((nextMI.isOf(Ldr) || memLdrStr.getData().equals(iMov.getDst())))) {
+                                        unDone = true;
+                                        memLdrStr.setOffSet(iMov.getDst());
+                                        memLdrStr.setShift(iMov.getShift());
+                                        iMov.remove();
+                                    }
+                                }
+                            }
+                        }
                     }
+
                 }
             }
         }
@@ -387,6 +595,6 @@ public class PeepHole {
     }
 
     private boolean isSimpleIMov(MachineInst mi) {
-        return mi.isIMov() && mi.noShift();
+        return mi.isIMov() && mi.noShiftAndCond();
     }
 }

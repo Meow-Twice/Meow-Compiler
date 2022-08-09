@@ -10,6 +10,7 @@ import util.ILinkNode;
 import util.Ilist;
 
 import java.io.PrintStream;
+import java.text.SimpleDateFormat;
 import java.util.*;
 
 import static backend.CodeGen.*;
@@ -29,10 +30,14 @@ public class MC {
         public McFunction mainMcFunc;
         public ArrayList<I> needFixList = new ArrayList<>();
 
+        public static final boolean NO_CACHE = true;
         private Program() {
         }
 
         public void output(PrintStream os) {
+            if (NO_CACHE) {
+                os.println("@ generated at " + new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date()) + "\n");
+            }
             os.println(".arch armv7ve");
             os.println(".arm");
             if (needFPU) {
@@ -118,7 +123,9 @@ public class MC {
 
         public StringBuilder getSTB() {
             StringBuilder stb = new StringBuilder();
-
+            if (NO_CACHE) {
+                stb.append("@ generated at ").append(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date())).append("\n");
+            }
             stb.append(".arch armv7ve\n.arm\n");
             if (needFPU) {
                 stb.append(".fpu vfpv3-d16\n");

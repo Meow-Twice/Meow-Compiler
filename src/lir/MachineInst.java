@@ -138,6 +138,18 @@ public class MachineInst extends ILinkNode {
         return this.toString();
     }
 
+    public boolean isNotLastInst() {
+        return !getNext().equals(mb.miList.tail);
+    }
+
+    public void setShift(Arm.Shift shift) {
+        this.shift = new Arm.Shift(shift.shiftType, shift.getShiftOpd());
+    }
+
+    public boolean noShiftAndCond() {
+        return shift.noShift() && cond == Arm.Cond.Any;
+    }
+
     public enum Tag {
         // Binary
         Add("add"),
@@ -315,6 +327,14 @@ public class MachineInst extends ILinkNode {
         boolean isNoCond();
 
         Arm.Shift getShift();
+
+        void setAddr(MC.Operand lOpd);
+
+        void setOffSet(MC.Operand rOpd);
+
+        void setShift(Arm.Shift shift);
+
+        Arm.Cond getCond();
     }
 
     public interface MachineMove {

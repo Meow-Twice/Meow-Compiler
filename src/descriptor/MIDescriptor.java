@@ -615,14 +615,14 @@ public class MIDescriptor implements Descriptor {
                         SET_VAL_FROM_OPD(val, mv.getDst());
                     }
                     else if(mv.getShift().shiftType == Arm.ShiftType.Lsl){
-                        int result = (int)val<<(mv.getShift().shift);
+                        int result = (int)val<<(mv.getShift().shiftOpd.getValue());
                         SET_VAL_FROM_OPD(result,mv.getDst());
                     }
                     else if(mv.getShift().shiftType == Arm.ShiftType.Asr){
-                        SET_VAL_FROM_OPD((int)val>>(mv.getShift().shift),mv.getDst());
+                        SET_VAL_FROM_OPD((int)val>>(mv.getShift().shiftOpd.getValue()),mv.getDst());
                     }
                     else{
-                        SET_VAL_FROM_OPD((int)val>>>(mv.getShift().shift),mv.getDst());
+                        SET_VAL_FROM_OPD((int)val>>>(mv.getShift().shiftOpd.getValue()),mv.getDst());
                     }
                 }
                 case Branch -> {
@@ -655,7 +655,7 @@ public class MIDescriptor implements Descriptor {
                     Object tmp = GET_VAL_FROM_OPD(load.getOffset());
                     assert tmp instanceof Integer;
                     int offset = (int) tmp;
-                    offset = offset << load.getShift().getShift();
+                    offset = offset << load.getShift().getShiftOpd().getValue();
                     tmp = GET_VAL_FROM_OPD(load.getAddr());
                     assert tmp instanceof Integer;
                     // if (tmp instanceof Integer) {
@@ -673,7 +673,7 @@ public class MIDescriptor implements Descriptor {
                     Object tmp = GET_VAL_FROM_OPD(store.getOffset());
                     assert tmp instanceof Integer;
                     int offset = (int) tmp;
-                    offset = offset << store.getShift().getShift();
+                    offset = offset << store.getShift().getShiftOpd().getValue();
                     tmp = GET_VAL_FROM_OPD(store.getAddr());
                     assert tmp instanceof Integer;
                     // if (tmp instanceof Integer) {

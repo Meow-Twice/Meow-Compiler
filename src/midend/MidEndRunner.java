@@ -103,6 +103,7 @@ public class MidEndRunner {
         LoopFold();
         LoopFold();
 
+        //outputLLVM();
         LoopStrengthReduction();
 
 
@@ -123,6 +124,9 @@ public class MidEndRunner {
         loopInVarCodeLift.Run();
         //outputLLVM();
 
+
+        removePhiUseSame();
+        Rem2DivMulSub();
         GepSplit();
 
         System.err.println("O2 End");
@@ -130,6 +134,13 @@ public class MidEndRunner {
         //
         // RemovePhi removePhi = new RemovePhi(functions);
         // removePhi.Run();
+    }
+
+    private void Rem2DivMulSub() {
+        Rem2DivMulSub rem2DivMulSub = new Rem2DivMulSub(functions);
+        rem2DivMulSub.Run();
+
+        Pass();
     }
 
     private void Mem2Reg() {
@@ -163,12 +174,12 @@ public class MidEndRunner {
     }
 
     private void FuncGCM() {
-        outputLLVM();
+        //outputLLVM();
         AggressiveFuncGCM aggressiveFuncGCM = new AggressiveFuncGCM(functions);
         aggressiveFuncGCM.Run();
 
         Pass();
-        outputLLVM();
+        //outputLLVM();
     }
 
     private void ArrayGVN() {
@@ -248,11 +259,13 @@ public class MidEndRunner {
         LoopStrengthReduction loopStrengthReduction = new LoopStrengthReduction(functions);
         loopStrengthReduction.Run();
 
-        //outputLLVM();
+
 
         reMakeCFGAndLoopInfo();
 
+        //outputLLVM();
         Pass();
+        //outputLLVM();
     }
 
     //死代码删除 指令融合 GVN/GCM
@@ -266,8 +279,12 @@ public class MidEndRunner {
         ConstFold constFold_1 = new ConstFold(functions, globalValues);
         constFold_1.Run();
 
+        //outputLLVM();
+
         DeadCodeDelete deadCodeDelete_2 = new DeadCodeDelete(functions, globalValues);
         deadCodeDelete_2.Run();
+
+        //outputLLVM();
 
         GVNAndGCM gvnAndGCM = new GVNAndGCM(functions);
         gvnAndGCM.Run();
@@ -356,6 +373,30 @@ public class MidEndRunner {
         } catch (Exception e) {
 
         }
+    }
+
+    private void removePhiUseSame() {
+        for (Function function: functions) {
+            for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
+                for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+                    if (instr instanceof Instr.Phi) {
+                        boolean canRemove = true;
+                        Value base = instr.getUseValueList().get(0);
+                        for (Value value: instr.getUseValueList()) {
+                            if (!base.equals(value)) {
+                                canRemove = false;
+                                break;
+                            }
+                        }
+                        if (canRemove) {
+                            instr.modifyAllUseThisToUseA(base);
+                            instr.remove();
+                        }
+                    }
+                }
+            }
+        }
+
     }
 
     private void check() {

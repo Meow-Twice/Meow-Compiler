@@ -1066,7 +1066,7 @@ public class Instr extends Value {
 
         //TODO:assign to 刘传, xry已改
         //private final ArrayList<Value> optionalValues;
-        private boolean isLCSSA;
+        private boolean isLCSSA = false;
 
         public Phi(Type type, ArrayList<Value> optionalValues, BasicBlock parent) {
             // Phi一定插在基本块的开始, Alloc之前

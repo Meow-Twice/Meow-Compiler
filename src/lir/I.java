@@ -92,10 +92,6 @@ public class I extends MachineInst {
 
 
     public static class Str extends I implements MachineMemInst {
-        @Override
-        public Arm.Cond getCond() {
-            return cond;
-        }
 
         public Str(Operand data, Operand addr, MC.Block insertAtEnd) {
             super(Tag.Str, insertAtEnd);
@@ -351,7 +347,7 @@ public class I extends MachineInst {
                 stb.append("mov").append(cond).append("\t").append(getDst().toString()).append(",\t").append(getSrc().toString());
                 if (useOpds.size() > 1) {
                     stb.append(",\t").append(shift.shiftType).append("\t").append(useOpds.get(1));
-                } else if(shift != Arm.Shift.NONE_SHIFT) {
+                } else if (shift != Arm.Shift.NONE_SHIFT) {
                     stb.append(",\t").append(shift.toString());
                 }
             }
@@ -481,6 +477,8 @@ public class I extends MachineInst {
 
     public static class Cmp extends I implements MachineInst.Compare {
 
+        public boolean cmn = false;
+
         public Cmp(Arm.Cond cond, Operand lOpd, Operand rOpd, MC.Block insertAtEnd) {
             super(Tag.ICmp, insertAtEnd);
             this.cond = cond;
@@ -503,12 +501,16 @@ public class I extends MachineInst {
 
         @Override
         public String toString() {
-            return tag.toString() + '\t' + getLOpd() + ",\t" + getROpd();
+            return (cmn ? "cmn" : tag.toString()) + '\t' + getLOpd() + ",\t" + getROpd();
         }
 
         @Override
         public void setCond(Arm.Cond cond) {
             this.cond = cond;
+        }
+
+        public void setROpd(Operand src) {
+            useOpds.set(1, src);
         }
     }
 
@@ -558,6 +560,18 @@ public class I extends MachineInst {
                    MC.Block insertAtEnd) {
             //dst = acc +(-) lhs * rhs
             super(Tag.FMA, insertAtEnd);
+            this.add = add;
+            this.sign = sign;
+            defOpds.add(dst);
+            useOpds.add(lOpd);
+            useOpds.add(rOpd);
+            useOpds.add(acc);
+        }
+
+        public Fma(MachineInst insertAfter, boolean add, boolean sign,
+                   Operand dst, Operand lOpd, Operand rOpd, Operand acc) {
+            //dst = acc +(-) lhs * rhs
+            super(insertAfter, Tag.FMA);
             this.add = add;
             this.sign = sign;
             defOpds.add(dst);

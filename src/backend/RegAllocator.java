@@ -17,7 +17,7 @@ import static mir.type.DataType.I32;
 public class RegAllocator {
     protected MC.McFunction curMF;
     public static final int SP_ALIGN = 2 * 4;
-    protected static final boolean DEBUG_STDIN_OUT = true;
+    protected static final boolean DEBUG_STDIN_OUT = false;
 
     protected int K;
     protected final int RK = 14;

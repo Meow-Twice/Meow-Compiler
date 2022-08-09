@@ -254,6 +254,7 @@ public class RegAllocator {
     protected void dealDefUse(HashSet<Operand> live, MachineInst mi, MC.Block mb) {
         ArrayList<Operand> defs = mi.defOpds;
         ArrayList<Operand> uses = mi.useOpds;
+        int loopDepth =  100 * (mb.bb.getLoopDep() + 1);
         if (defs.size() == 1) {
             Operand def = defs.get(0);
             // 构建冲突图
@@ -263,7 +264,7 @@ public class RegAllocator {
                 for (Operand l : live) {
                     addEdge(l, def);
                 }
-                def.loopCounter += mb.bb.getLoopDep();
+                def.loopCounter += loopDepth;
             }
             live.remove(def);
         } else if (defs.size() > 1) {
@@ -289,7 +290,7 @@ public class RegAllocator {
             for (Operand def : defs) {
                 if (def.needColor(dataType)) {
                     live.remove(def);
-                    def.loopCounter += mb.bb.getLoopDep();
+                    def.loopCounter += loopDepth;
                 }
             }
         }
@@ -298,7 +299,7 @@ public class RegAllocator {
         for (Operand use : uses) {
             if (use.needColor(dataType)) {
                 live.add(use);
-                use.loopCounter += mb.bb.getLoopDep();
+                use.loopCounter += loopDepth;
             }
         }
     }
@@ -435,7 +436,12 @@ public class RegAllocator {
 
         while (simplifyWorkSet.size() + workListMoveSet.size() + freezeWorkSet.size() + spillWorkSet.size() > 0) {
             // TODO 尝试验证if - else if结构的可靠性和性能
-            if (simplifyWorkSet.size() > 0) {
+
+            if (workListMoveSet.size() > 0) {
+                logOut("-- coalesce");
+                logOut("workListMoveSet:\t" + workListMoveSet);
+                coalesce();
+            } else if (simplifyWorkSet.size() > 0) {
                 logOut("-- simplify");
                 logOut(simplifyWorkSet.toString());
                 // 从度数低的结点集中随机选择一个从图中删除放到 selectStack 里
@@ -451,12 +457,7 @@ public class RegAllocator {
                     }
                 }
                 // adjacent(x).forEach(this::decrementDegree);
-            }
-            if (workListMoveSet.size() > 0) {
-                logOut("-- coalesce");
-                logOut("workListMoveSet:\t" + workListMoveSet);
-                coalesce();
-            }
+            }else
             if (freezeWorkSet.size() > 0) {
                 logOut("freeze");
                 /**
@@ -467,7 +468,7 @@ public class RegAllocator {
                 simplifyWorkSet.add(x);
                 logOut(x + "\t" + "freezeWorkSet -> simplifyWorkSet");
                 freezeMoves(x);
-            }
+            }else
             if (spillWorkSet.size() > 0) {
                 logOut("selectSpill");
                 /**

@@ -1,11 +1,9 @@
 package midend;
 
-import mir.BasicBlock;
-import mir.Function;
-import mir.Loop;
-import mir.Value;
+import mir.*;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 
 public class LoopFuse {
@@ -63,6 +61,40 @@ public class LoopFuse {
             return;
         }
 
+        if (preLoop.getNowLevelBB().size() > 2 || sucLoop.getNowLevelBB().size() > 2) {
+            return;
+        }
+
+        BasicBlock preLatch = null, sucLatch = null, preHead = preLoop.getHeader(), sucHead = sucLoop.getHeader();
+        HashSet<Instr> preIdcInstrs = new HashSet<>(), sucIdcInstrs = new HashSet<>();
+        for (Instr instr = preHead.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+
+        }
+        for (Instr instr = sucHead.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+
+        }
+        HashSet<Value> preLoad = new HashSet<>(), preStore = new HashSet<>();
+        HashSet<Value> sucLoad = new HashSet<>(), sucStore = new HashSet<>();
+        HashSet<Instr> preLatchInstrs = new HashSet<>();
+        HashSet<Instr> sucLatchInstrs = new HashSet<>();
+        HashMap<Value, Value> map = new HashMap<>();
+        for (BasicBlock bb: preLoop.getLatchs()) {
+            preLatch = bb;
+        }
+        for (BasicBlock bb: sucLoop.getLatchs()) {
+            sucLatch = bb;
+        }
+        for (Instr instr = preLatch.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+            preLatchInstrs.add(instr);
+        }
+        for (Instr instr = sucLatch.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+            sucLatchInstrs.add(instr);
+        }
+
+    }
+
+    private boolean hasReflectInstr(HashMap<Value, Value> map, Instr instr, HashSet<Instr> instrs) {
+        return false;
     }
 
 }

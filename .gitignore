@@ -2,6 +2,10 @@
 out
 *.iml
 *.MF
+*.c
+*.cpp
+*.h
+*.hpp
 *.sy
 *.ll
 *.txt
@@ -11,5 +15,12 @@ out
 *.in
 *.out
 *.err
+*.sh
+*.py
+*.ipynb
 /src/test
 /src/timeTest
+*.zip
+*.tar.*
+*.rar
+*.7z

@@ -796,6 +796,15 @@ public class CodeGen {
                     // dst = -dst
                     new I.Binary(Rsb, dVR, dVR, new Operand(I32, 0), curMB); // dst = 0 - dst
                 }
+            } else if (((abs + 1) & (abs)) == 0) {  // (abs + 1) is power of 2
+                // a * (2^sh - 1) => (a << sh) - a => rsb dst, src, src, lsl #sh
+                int sh = bitsOfInt - 1 - Integer.numberOfLeadingZeros(abs + 1);
+                assert sh > 0;
+                new I.Binary(Rsb, dVR, srcOp, srcOp, new Arm.Shift(Arm.ShiftType.Lsl, sh), curMB);
+                if (imm < 0) {
+                    // dst = -dst
+                    new I.Binary(Rsb, dVR, dVR, new Operand(I32, 0), curMB); // dst = 0 - dst
+                }
             } else {
                 new I.Binary(tag, dVR, srcOp, getImmVR(imm), curMB);
             }

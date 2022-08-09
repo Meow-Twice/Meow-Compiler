@@ -584,6 +584,19 @@ public class PeepHole {
                                         iMov.remove();
                                     }
                                 }
+                                case IMov -> {
+                                    // mov a b shift
+                                    // mov c a
+                                    // =>
+                                    // mov c b shift
+                                    I.Mov nextMov = (I.Mov) nextMI;
+                                    if(nextMov.getSrc().equals(iMov.getDst())){
+                                        unDone = true;
+                                        nextMov.setSrc(iMov.getSrc());
+                                        nextMov.setShift(iMov.getShift());
+                                        iMov.remove();
+                                    }
+                                }
                             }
                         }
                     }

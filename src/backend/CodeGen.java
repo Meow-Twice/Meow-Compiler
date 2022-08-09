@@ -5,6 +5,7 @@ import frontend.semantic.Initial;
 import lir.*;
 import lir.MC.Operand;
 import manage.Manager;
+import midend.MidEndRunner;
 import mir.*;
 import mir.type.DataType;
 import mir.type.Type;
@@ -29,7 +30,7 @@ import static mir.type.DataType.I32;
 public class CodeGen {
 
     public static final CodeGen CODEGEN = new CodeGen();
-    public static boolean _DEBUG_OUTPUT_MIR_INTO_COMMENT = true;
+    public static boolean _DEBUG_OUTPUT_MIR_INTO_COMMENT;
     public static boolean needFPU = false;
     public static boolean optMulDiv = true;
 
@@ -71,6 +72,8 @@ public class CodeGen {
         value2opd = new HashMap<>();
         f2mf = new HashMap<>();
         bb2mb = new HashMap<>();
+        _DEBUG_OUTPUT_MIR_INTO_COMMENT = !MidEndRunner.O2;
+        // _DEBUG_OUTPUT_MIR_INTO_COMMENT = false;
     }
 
     public void gen() {

@@ -1,18 +1,18 @@
 package descriptor;
 
 import backend.CodeGen;
-import lir.MC;
 import frontend.lexer.Lexer;
 import frontend.semantic.Initial;
 import lir.*;
-import mir.Constant;
 import mir.Function;
 import mir.GlobalVal;
-import mir.Value;
 import mir.type.Type;
 import util.FileDealer;
 
-import java.io.*;
+import java.io.BufferedInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.*;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -278,17 +278,17 @@ public class MIDescriptor implements Descriptor {
             assert glob.getType().isPointerType();
             Type type = ((Type.PointerType) glob.getType()).getInnerType();
             if (type.isBasicType()) {
-                logOut(glob.name + ":" + "[" + curOff + "]" + init.getFlattenInit().get(0));
-                setMemValWithOffSet(((Constant) init.getFlattenInit().get(0)).getConstVal(), curOff);
+                // logOut(glob.name + ":" + "[" + curOff + "]" + init.getFlattenInit().get(0));
+                // setMemValWithOffSet(((Constant) init.getFlattenInit().get(0)).getConstVal(), curOff);
                 curOff += 4;
             } else {
                 assert type.isArrType();
                 int idx = 0;
-                for (Value v : init.getFlattenInit()) {
-                    logOut(glob.name + "[" + idx++ + "]" + ":" + "[" + curOff + "]" + ((Constant) v).getConstVal());
-                    setMemValWithOffSet(((Constant) v).getConstVal(), curOff);
-                    curOff += 4;
-                }
+//                for (Value v : init.getFlattenInit()) {
+//                    logOut(glob.name + "[" + idx++ + "]" + ":" + "[" + curOff + "]" + ((Constant) v).getConstVal());
+//                    setMemValWithOffSet(((Constant) v).getConstVal(), curOff);
+//                    curOff += 4;
+//                }
                 assert true;
                 // curOff += 4 * ((Type.ArrayType) type).getFlattenSize();
             }

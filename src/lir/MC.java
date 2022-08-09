@@ -156,6 +156,15 @@ public class MC {
                 stb.append(name).append(":\n");
                 stb.append("\t.word\t").append(i).append("\n");
             }
+
+            // TODO: 全局全零数组放到 .bss 段
+            ArrayList<Arm.Glob> globData = new ArrayList<>();
+            ArrayList<Arm.Glob> globBss = new ArrayList<>();
+            // TODO: getFlattenInit 的返回值返回若干段分块形式
+            // InitEntry 数据结构, 能体现分块且能够方便地合并
+            // 用 ILinkNode 作为基类，每个 Node 存储一个值和连续出现的次数
+
+
             stb.append(".section .data\n");
             stb.append(".align 2\n");
             for (Arm.Glob glob : globList) {

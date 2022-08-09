@@ -435,11 +435,6 @@ public class RegAllocator {
 
         while (simplifyWorkSet.size() + workListMoveSet.size() + freezeWorkSet.size() + spillWorkSet.size() > 0) {
             // TODO 尝试验证if - else if结构的可靠性和性能
-            if (workListMoveSet.size() > 0) {
-                logOut("-- coalesce");
-                logOut("workListMoveSet:\t" + workListMoveSet);
-                coalesce();
-            }else
             if (simplifyWorkSet.size() > 0) {
                 logOut("-- simplify");
                 logOut(simplifyWorkSet.toString());
@@ -456,7 +451,12 @@ public class RegAllocator {
                     }
                 }
                 // adjacent(x).forEach(this::decrementDegree);
-            }else
+            }
+            if (workListMoveSet.size() > 0) {
+                logOut("-- coalesce");
+                logOut("workListMoveSet:\t" + workListMoveSet);
+                coalesce();
+            }
             if (freezeWorkSet.size() > 0) {
                 logOut("freeze");
                 /**
@@ -467,7 +467,7 @@ public class RegAllocator {
                 simplifyWorkSet.add(x);
                 logOut(x + "\t" + "freezeWorkSet -> simplifyWorkSet");
                 freezeMoves(x);
-            }else
+            }
             if (spillWorkSet.size() > 0) {
                 logOut("selectSpill");
                 /**

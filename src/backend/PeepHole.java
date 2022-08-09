@@ -556,7 +556,7 @@ public class PeepHole {
                                     Operand rOpd = binary.getROpd();
                                     if (rOpd.equals(iMov.getDst()) && !lOpd.equals(iMov.getDst())) {
                                         assert !rOpd.isImm();
-                                        binary.setROpd(iMov.getDst());
+                                        binary.setROpd(iMov.getSrc());
                                         binary.setShift(iMov.getShift());
                                         unDone = true;
                                         iMov.remove();

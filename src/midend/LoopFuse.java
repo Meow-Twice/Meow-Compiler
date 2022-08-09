@@ -1,5 +1,6 @@
 package midend;
 
+import mir.BasicBlock;
 import mir.Function;
 import mir.Loop;
 import mir.Value;
@@ -10,57 +11,58 @@ import java.util.HashSet;
 public class LoopFuse {
 
     private ArrayList<Function> functions;
+    private HashSet<Loop> loops = new HashSet<>();
+    private HashSet<Loop> removes = new HashSet<>();
 
     public LoopFuse(ArrayList<Function> functions) {
         this.functions = functions;
     }
 
     public void Run() {
+        init();
+        loopFuse();
+    }
+
+    private void init() {
         for (Function function: functions) {
-            loopFuseForFunc(function);
+            for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
+                if (bb.isLoopHeader()) {
+                    loops.add(bb.getLoop());
+                }
+            }
         }
     }
 
-    private void loopFuseForFunc(Function function) {
-        Loop loop = function.getBeginBB().getLoop();
-        solve(loop);
-    }
-
-    private void solve(Loop loop) {
-        fuseChildrenLoopInLoop(loop);
-        for (Loop next: loop.getChildrenLoops()) {
-            solve(next);
+    private void loopFuse() {
+        for (Loop loop: loops) {
+            tryFuseLoop(loop);
         }
     }
 
-    private void fuseChildrenLoopInLoop(Loop loop) {
-        HashSet<Loop> ret = new HashSet<>();
-        for (Loop temp: loop.getChildrenLoops()) {
-            mergeInto(temp, ret);
-        }
-    }
-
-    private void mergeInto(Loop loop, HashSet<Loop> loops) {
-        if (!loop.isIdcSet()) {
-            loops.add(loop);
+    private void tryFuseLoop(Loop preLoop) {
+        if (!preLoop.isSimpleLoop() || !preLoop.isIdcSet()) {
             return;
         }
-        for (Loop temp: loops) {
-            if (!temp.isIdcSet()) {
-                continue;
-            }
-            if (tryMergeAtoB(loop, temp)) {
-                return;
-            }
+        BasicBlock preExit = null;
+        for (BasicBlock bb: preLoop.getExits()) {
+            preExit = bb;
         }
-        loops.add(loop);
-    }
+        if (preExit.getSuccBBs().size() != 1) {
+            return;
+        }
+        if (!preExit.getSuccBBs().get(0).isLoopHeader()) {
+            return;
+        }
+        Loop sucLoop = preExit.getSuccBBs().get(0).getLoop();
+        if (!sucLoop.isSimpleLoop() || !sucLoop.isIdcSet()) {
+            return;
+        }
+        if (!preLoop.getIdcInit().equals(sucLoop.getIdcInit()) ||
+                !preLoop.getIdcStep().equals(sucLoop.getIdcStep()) ||
+                !preLoop.getIdcEnd().equals(sucLoop.getIdcEnd())) {
+            return;
+        }
 
-    //成功merge则返回true
-    private boolean tryMergeAtoB(Loop A, Loop B) {
-        Value idcInitA = A.getIdcInit();
-
-        return true;
     }
 
 }

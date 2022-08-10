@@ -5,10 +5,7 @@ import mir.type.Type;
 import util.ILinkNode;
 import util.Ilist;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.util.*;
 
 import static mir.Constant.ConstantInt.CONST_0;
 
@@ -65,7 +62,13 @@ public abstract class Initial {
 
         @Override
         public Flatten flatten() {
-            return null;
+            Flatten flat = new Flatten();
+            for (Initial init : inits) {
+                Flatten flat1 = init.flatten();
+                flat.concat(flat1);
+                flat.mergeAll();
+            }
+            return flat;
         }
     }
 
@@ -95,9 +98,10 @@ public abstract class Initial {
 
         @Override
         public Flatten flatten() {
-            return null;
+            Flatten flat = new Flatten();
+            flat.insertAtEnd(new Flatten.Entry(value, 1));
+            return flat;
         }
-
     }
 
     // 初值为0的初始化
@@ -129,7 +133,16 @@ public abstract class Initial {
 
         @Override
         public Flatten flatten() {
-            return null;
+            int size;
+            if (getType().isArrType()) {
+                size = ((Type.ArrayType) getType()).getFlattenSize();
+            } else {
+                assert getType().isBasicType();
+                size = 1;
+            }
+            Flatten flat = new Flatten();
+            flat.insertAtEnd(new Flatten.Entry(CONST_0, size));
+            return flat;
         }
     }
 
@@ -160,9 +173,10 @@ public abstract class Initial {
 
         @Override
         public Flatten flatten() {
-            return null;
+            Flatten flat = new Flatten();
+            flat.insertAtEnd(new Flatten.Entry(result, 1));
+            return flat;
         }
-
     }
 
     public Initial(final Type type) {
@@ -211,7 +225,7 @@ public abstract class Initial {
         // 判断一段初始化是否全零
         public boolean isZero() {
             for (Entry e : this) {
-                if (e.value.equals(CONST_0)) {
+                if (!e.value.equals(CONST_0)) {
                     return false;
                 }
             }
@@ -234,9 +248,12 @@ public abstract class Initial {
 
         // 前后两段的拼接
         public void concat(Flatten that) {
-            that.getBegin().setPrev(this.getEnd());
+            if (that.head.getNext() == that.tail) {
+                return;
+            }
+            that.head.getNext().setPrev(this.getEnd());
             that.getEnd().setNext(this.tail);
-            this.getEnd().setNext(that.getBegin());
+            this.tail.getPrev().setNext(that.getBegin());
             this.tail.setPrev(that.getEnd());
             size += that.size;
         }
@@ -283,7 +300,7 @@ public abstract class Initial {
             int index = 0;
             LinkedHashMap<Integer, Value> nonZeros = new LinkedHashMap<>(); // 遍历顺序是插入顺序
             for (Entry e : this) {
-                if (e.value.equals(CONST_0)) {
+                if (!e.value.equals(CONST_0)) {
                     // 连续 count 个值都要手动赋值
                     for (int k = 0; k < e.count; k++) {
                         nonZeros.put(index, e.value);
@@ -294,6 +311,14 @@ public abstract class Initial {
                 }
             }
             return nonZeros;
+        }
+
+        public Set<Value> valueSet() {
+            Set<Value> set = new HashSet<>();
+            for (Entry e : this) {
+                set.add(e.value);
+            }
+            return set;
         }
     }
 }

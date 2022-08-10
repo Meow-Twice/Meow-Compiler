@@ -1,21 +1,21 @@
 package frontend;
 
-import frontend.semantic.Evaluate;
-import frontend.semantic.Initial;
-import frontend.syntax.Ast.*;
 import exception.SemanticException;
 import frontend.lexer.Token;
 import frontend.lexer.TokenType;
+import frontend.semantic.Evaluate;
+import frontend.semantic.Initial;
 import frontend.semantic.symbol.SymTable;
 import frontend.semantic.symbol.Symbol;
 import frontend.syntax.Ast;
-import lir.MC;
+import frontend.syntax.Ast.*;
 import manage.Manager;
 import mir.*;
 import mir.Instr.*;
 import mir.type.Type;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static mir.Constant.ConstantFloat.CONST_0F;
 import static mir.Constant.ConstantInt.CONST_0;
@@ -765,10 +765,41 @@ public class Visitor {
                         Value v = trimTo(((Initial.ValueInit) init).getValue(), (BasicType) pointeeType);
                         new Store(v, pointer, curBB);
                     } else if (init instanceof Initial.ArrayInit) {
+                        Initial.Flatten flattenInit = init.flatten();
+                        Set<Value> valueSet = flattenInit.valueSet();
+                        boolean allZero = flattenInit.isZero();
+                        if (allZero) {
+                            initZeroHelper(pointer, pointeeType);
+                        } else {
+                            boolean afterMemset = false;
+                            if (flattenInit.sizeInWords() / 5 > valueSet.size() / 3) {
+                                initZeroHelper(pointer, pointeeType);
+                                afterMemset = true;
+                            }
+                            ArrayList<Value> dimList = new ArrayList<>();
+                            for (int i = 0; i <= ((ArrayType) pointeeType).getDimSize(); i++) {
+                                dimList.add(CONST_0);
+                            }
+                            BasicType basicType = ((ArrayType) pointeeType).getBaseEleType();
+                            Value ptr = new GetElementPtr(basicType, pointer, dimList, curBB);
+                            if (!(flattenInit.getBegin().value.equals(CONST_0) && afterMemset)) {
+                                new Store(trimTo(flattenInit.getBegin().value, basicType), ptr, curBB);
+                            }
+                            Map<Integer, Value> nonZeros = flattenInit.listNonZeros();
+                            for (Map.Entry<Integer, Value> entry : nonZeros.entrySet().stream().filter(e -> !e.getKey().equals(0)).collect(Collectors.toSet())) {
+                                dimList = new ArrayList<>();
+                                dimList.add(Constant.ConstantInt.getConstInt(entry.getKey()));
+                                Value p = new GetElementPtr(basicType, ptr, dimList, curBB);
+                                new Store(trimTo(entry.getValue(), basicType), p, curBB);
+                            }
+                        }
+
+
+                        /*
                         ArrayList<Value> initValueList = init.getFlattenInit();
                         HashSet<Value> checkSet = new HashSet<>(initValueList);
                         assert checkSet.size() > 0;
-                        boolean allZero = false;
+                        // boolean allZero = false;
                         if (checkSet.size() == 1) {
                             if (checkSet.iterator().next().equals(CONST_0)) {
                                 initZeroHelper(pointer, pointeeType);
@@ -788,8 +819,6 @@ public class Visitor {
                             BasicType basicType = ((ArrayType) pointeeType).getBaseEleType();
                             Value ptr = new GetElementPtr(basicType, pointer, dimList, curBB);
                             if (!(initValueList.get(0).equals(CONST_0) && afterMemset)) {
-                                dimList = new ArrayList<>();
-                                dimList.add(CONST_0);
                                 new Store(trimTo(initValueList.get(0), basicType), ptr, curBB);
                             }
                             for (int i = 1; i < initValueList.size(); i++) {
@@ -803,6 +832,7 @@ public class Visitor {
                                 new Store(trimTo(initValueList.get(i), basicType), p, curBB);
                             }
                         }
+                        // */
                     }
                 }
             }

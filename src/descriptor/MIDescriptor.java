@@ -265,6 +265,9 @@ public class MIDescriptor implements Descriptor {
     }
 
 
+    /**
+     * getFlattenInit 不能用了，所以这个 run 函数现在是错的
+     */
     public void run() throws IOException {
         clear();
         // MI_DESCRIPTOR.getStdin();

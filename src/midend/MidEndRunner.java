@@ -122,6 +122,8 @@ public class MidEndRunner {
         loopInVarCodeLift.Run();
         //outputLLVM();
 
+        outputLLVM();
+
 
         removePhiUseSame();
         Rem2DivMulSub();

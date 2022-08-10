@@ -5,6 +5,7 @@ import frontend.semantic.Initial;
 import lir.*;
 import lir.MC.Operand;
 import manage.Manager;
+import midend.MidEndRunner;
 import mir.*;
 import mir.type.DataType;
 import mir.type.Type;
@@ -29,7 +30,7 @@ import static mir.type.DataType.I32;
 public class CodeGen {
 
     public static final CodeGen CODEGEN = new CodeGen();
-    public static boolean _DEBUG_OUTPUT_MIR_INTO_COMMENT = true;
+    public static boolean _DEBUG_OUTPUT_MIR_INTO_COMMENT;
     public static boolean needFPU = false;
     public static boolean optMulDiv = true;
 
@@ -71,6 +72,8 @@ public class CodeGen {
         value2opd = new HashMap<>();
         f2mf = new HashMap<>();
         bb2mb = new HashMap<>();
+        // _DEBUG_OUTPUT_MIR_INTO_COMMENT = !MidEndRunner.O2;
+        _DEBUG_OUTPUT_MIR_INTO_COMMENT = false;
     }
 
     public void gen() {
@@ -395,14 +398,15 @@ public class CodeGen {
                                     // value2opd.put(gep, curAddrVR);
                                 } else {
                                     int totalOff = offSet * curIdx;
-                                    if (AddSubImmEncode(totalOff)) {
+                                    if (immCanCode(totalOff)) {
                                         new I.Binary(Add, getVR_no_imm(gep), curAddrVR, new Operand(I32, totalOff), curMB);
                                     } else {
-                                        new I.Binary(Add, getVR_no_imm(gep), curAddrVR, getImmVR(totalOff), curMB);
+                                        singleTotalOff(gep, curAddrVR, totalOff);
                                     }
                                 }
                             } else {
-                                new I.Binary(Add, getVR_no_imm(gep), curAddrVR, getVR_no_imm(curIdxValue), new Arm.Shift(Arm.ShiftType.Lsl, 2), curMB);
+                                new I.Binary(Add, getVR_no_imm(gep), curAddrVR, getVR_no_imm(curIdxValue),
+                                        new Arm.Shift(Arm.ShiftType.Lsl, 2), curMB);
                             }
                         } else {
                             Value firstIdx = gep.getUseValueList().get(1);
@@ -413,10 +417,15 @@ public class CodeGen {
                                 if (secondIdx.isConstantInt()) {
                                     int secondIdxNum = (int) ((Constant.ConstantInt) secondIdx).getConstVal();
                                     int totalOff = 4 * secondIdxNum;
-                                    if (AddSubImmEncode(totalOff)) {
+                                    if (immCanCode(totalOff)) {
                                         new I.Binary(Add, getVR_no_imm(gep), curAddrVR, new Operand(I32, totalOff), curMB);
                                     } else {
-                                        new I.Binary(Add, getVR_no_imm(gep), curAddrVR, getImmVR(secondIdxNum), new Arm.Shift(Arm.ShiftType.Lsl, 2), curMB);
+                                        int i = 0;
+                                        while ((secondIdxNum % 2) == 0) {
+                                            i++;
+                                            secondIdxNum = secondIdxNum / 2;
+                                        }
+                                        new I.Binary(Add, getVR_no_imm(gep), curAddrVR, getImmVR(secondIdxNum), new Arm.Shift(Arm.ShiftType.Lsl, i + 2), curMB);
                                     }
                                 } else {
                                     new I.Binary(Add, getVR_no_imm(gep), curAddrVR, getVR_no_imm(secondIdx), new Arm.Shift(Arm.ShiftType.Lsl, 2), curMB);
@@ -426,17 +435,22 @@ public class CodeGen {
                                 // baseOffSet = 4 * baseSize
                                 int baseSize = ((Type.ArrayType) innerType).getFlattenSize();
                                 int baseOffSet = 4 * baseSize;
+                                boolean baseIs2Power = (baseSize & (baseSize - 1)) == 0;
                                 if (secondIdx.isConstantInt()) {
+                                    // offset 是常数
                                     int secondIdxNum = (int) ((Constant.ConstantInt) secondIdx).getConstVal();
-                                    int totalOffSet = baseOffSet * secondIdxNum;
-                                    if ((totalOffSet & (totalOffSet - 1)) == 0) {
-                                        assert AddSubImmEncode(totalOffSet);
-                                        if (!immCanCode(totalOffSet)) System.exit(187);
+                                    int totalOffSet = 4 * baseSize * secondIdxNum;
+                                    if (immCanCode(totalOffSet)) {
                                         new I.Binary(Add, getVR_no_imm(gep), curAddrVR, new Operand(I32, totalOffSet), curMB);
-                                    } else if ((baseOffSet & (baseOffSet - 1)) == 0) {
-                                        new I.Binary(Add, getVR_no_imm(gep), curAddrVR, getImmVR(secondIdxNum), new Arm.Shift(Arm.ShiftType.Lsl, Integer.numberOfTrailingZeros(baseOffSet)), curMB);
                                     } else {
-                                        new I.Binary(Add, getVR_no_imm(gep), curAddrVR, getImmVR(totalOffSet), curMB);
+                                        boolean secondIdxIs2Power = (secondIdxNum & (secondIdxNum - 1)) == 0;
+                                        if (baseIs2Power) {
+                                            genGepAdd(gep, curAddrVR, baseOffSet, secondIdxNum);
+                                        } else if (secondIdxIs2Power) {
+                                            genGepAdd(gep, curAddrVR, secondIdxNum, baseOffSet);
+                                        } else {
+                                            singleTotalOff(gep, curAddrVR, totalOffSet);
+                                        }
                                     }
                                 } else {
                                     if ((baseOffSet & (baseOffSet - 1)) == 0) {
@@ -476,7 +490,7 @@ public class CodeGen {
                                     // new I.Mov(dstVR, curAddrVR, curMB);
                                 } else {
                                     Operand imm;
-                                    if (AddSubImmEncode(totalConstOff)) {
+                                    if (immCanCode(totalConstOff)) {
                                         imm = new Operand(I32, totalConstOff);
                                     } else {
                                         imm = getImmVR(totalConstOff);
@@ -544,6 +558,26 @@ public class CodeGen {
         // for (Machine.Block mb : nextBlockList) {
         //     genBB(mb.bb);
         // }
+    }
+
+    private void singleTotalOff(Instr.GetElementPtr gep, Operand curAddrVR, int totalOff) {
+        int i = 0;
+        while ((totalOff % 2) == 0) {
+            i++;
+            totalOff = totalOff / 2;
+        }
+        new I.Binary(Add, getVR_no_imm(gep), curAddrVR, getImmVR(totalOff),
+                new Arm.Shift(Arm.ShiftType.Lsl, i), curMB);
+    }
+
+    private void genGepAdd(Instr.GetElementPtr gep, Operand curAddrVR, int offBase1, int offBase2) {
+        int i = 0;
+        while ((offBase2 % 2) == 0) {
+            i++;
+            offBase2 = offBase2 / 2;
+        }
+        new I.Binary(Add, getVR_no_imm(gep), curAddrVR, getImmVR(offBase2),
+                new Arm.Shift(Arm.ShiftType.Lsl, Integer.numberOfTrailingZeros(offBase1) + i), curMB);
     }
 
     private void dealCall(Instr.Call call_inst) {
@@ -708,7 +742,7 @@ public class CodeGen {
         return off <= 1020 && off >= -1020;
     }
 
-    public static boolean AddSubImmEncode(int off){
+    public static boolean AddSubImmEncode(int off) {
         return immCanCode(off);
     }
 

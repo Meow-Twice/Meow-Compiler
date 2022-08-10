@@ -1,66 +1,100 @@
 package midend;
 
-import mir.Function;
-import mir.Loop;
-import mir.Value;
+import mir.*;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 
 public class LoopFuse {
 
     private ArrayList<Function> functions;
+    private HashSet<Loop> loops = new HashSet<>();
+    private HashSet<Loop> removes = new HashSet<>();
 
     public LoopFuse(ArrayList<Function> functions) {
         this.functions = functions;
     }
 
     public void Run() {
+        init();
+        loopFuse();
+    }
+
+    private void init() {
         for (Function function: functions) {
-            loopFuseForFunc(function);
+            for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
+                if (bb.isLoopHeader()) {
+                    loops.add(bb.getLoop());
+                }
+            }
         }
     }
 
-    private void loopFuseForFunc(Function function) {
-        Loop loop = function.getBeginBB().getLoop();
-        solve(loop);
-    }
-
-    private void solve(Loop loop) {
-        fuseChildrenLoopInLoop(loop);
-        for (Loop next: loop.getChildrenLoops()) {
-            solve(next);
+    private void loopFuse() {
+        for (Loop loop: loops) {
+            tryFuseLoop(loop);
         }
     }
 
-    private void fuseChildrenLoopInLoop(Loop loop) {
-        HashSet<Loop> ret = new HashSet<>();
-        for (Loop temp: loop.getChildrenLoops()) {
-            mergeInto(temp, ret);
-        }
-    }
-
-    private void mergeInto(Loop loop, HashSet<Loop> loops) {
-        if (!loop.isIdcSet()) {
-            loops.add(loop);
+    private void tryFuseLoop(Loop preLoop) {
+        if (!preLoop.isSimpleLoop() || !preLoop.isIdcSet()) {
             return;
         }
-        for (Loop temp: loops) {
-            if (!temp.isIdcSet()) {
-                continue;
-            }
-            if (tryMergeAtoB(loop, temp)) {
-                return;
-            }
+        BasicBlock preExit = null;
+        for (BasicBlock bb: preLoop.getExits()) {
+            preExit = bb;
         }
-        loops.add(loop);
+        if (preExit.getSuccBBs().size() != 1) {
+            return;
+        }
+        if (!preExit.getSuccBBs().get(0).isLoopHeader()) {
+            return;
+        }
+        Loop sucLoop = preExit.getSuccBBs().get(0).getLoop();
+        if (!sucLoop.isSimpleLoop() || !sucLoop.isIdcSet()) {
+            return;
+        }
+        if (!preLoop.getIdcInit().equals(sucLoop.getIdcInit()) ||
+                !preLoop.getIdcStep().equals(sucLoop.getIdcStep()) ||
+                !preLoop.getIdcEnd().equals(sucLoop.getIdcEnd())) {
+            return;
+        }
+
+        if (preLoop.getNowLevelBB().size() > 2 || sucLoop.getNowLevelBB().size() > 2) {
+            return;
+        }
+
+        BasicBlock preLatch = null, sucLatch = null, preHead = preLoop.getHeader(), sucHead = sucLoop.getHeader();
+        HashSet<Instr> preIdcInstrs = new HashSet<>(), sucIdcInstrs = new HashSet<>();
+        for (Instr instr = preHead.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+
+        }
+        for (Instr instr = sucHead.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+
+        }
+        HashSet<Value> preLoad = new HashSet<>(), preStore = new HashSet<>();
+        HashSet<Value> sucLoad = new HashSet<>(), sucStore = new HashSet<>();
+        HashSet<Instr> preLatchInstrs = new HashSet<>();
+        HashSet<Instr> sucLatchInstrs = new HashSet<>();
+        HashMap<Value, Value> map = new HashMap<>();
+        for (BasicBlock bb: preLoop.getLatchs()) {
+            preLatch = bb;
+        }
+        for (BasicBlock bb: sucLoop.getLatchs()) {
+            sucLatch = bb;
+        }
+        for (Instr instr = preLatch.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+            preLatchInstrs.add(instr);
+        }
+        for (Instr instr = sucLatch.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+            sucLatchInstrs.add(instr);
+        }
+
     }
 
-    //成功merge则返回true
-    private boolean tryMergeAtoB(Loop A, Loop B) {
-        Value idcInitA = A.getIdcInit();
-
-        return true;
+    private boolean hasReflectInstr(HashMap<Value, Value> map, Instr instr, HashSet<Instr> instrs) {
+        return false;
     }
 
 }

@@ -122,7 +122,7 @@ public class MidEndRunner {
         loopInVarCodeLift.Run();
         //outputLLVM();
 
-        //outputLLVM();
+        outputLLVM();
 
 
         removePhiUseSame();

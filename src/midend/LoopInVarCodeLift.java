@@ -8,6 +8,7 @@ import java.util.HashSet;
 
 public class LoopInVarCodeLift {
 
+    //TODO:load外提 -- spmv
     private ArrayList<Function> functions;
     private HashMap<Instr.Alloc, HashSet<Instr>> defs = new HashMap<>();
     private HashMap<Instr.Alloc, HashSet<Instr>> users = new HashMap<>();

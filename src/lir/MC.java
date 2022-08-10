@@ -31,6 +31,7 @@ public class MC {
         public ArrayList<I> needFixList = new ArrayList<>();
 
         public static final boolean NO_CACHE = true;
+
         private Program() {
         }
 
@@ -249,6 +250,16 @@ public class MC {
             this.mFunc = function;
         }
 
+        public String name;
+
+        public McFunction(String name) {
+            this.name = name;
+        }
+
+
+        public McFunction() {
+        }
+
         public void addVarStack(int i) {
             varStack += i;
         }
@@ -450,13 +461,20 @@ public class MC {
             mb_idx = globIndex++;
         }
 
+        public Block(String label, McFunction insertAtEnd) {
+            this.bb = null;
+            MB_Prefix = label;
+            mf = insertAtEnd;
+            mf.insertAtEnd(this);
+        }
+
         public String getLabel() {
-            return MB_Prefix + mb_idx + (bb == null ? "" : "_" + bb.getLabel());
+            return MB_Prefix + (bb == null ? "" : mb_idx + "_" + bb.getLabel());
         }
 
         @Override
         public String toString() {
-            return MB_Prefix + mb_idx + (bb == null ? "" : "_" + bb.getLabel());
+            return MB_Prefix + (bb == null ? "" : mb_idx + "_" + bb.getLabel());
         }
 
         public void setMf(McFunction mf) {

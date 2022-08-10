@@ -127,6 +127,10 @@ public class Compiler {
 
             PeepHole peepHole = new PeepHole(p);
             peepHole.run();
+            if(CenterControl._OPEN_PARALLEL){
+                Parallel parallel = new Parallel(p);
+                parallel.gen();
+            }
             if (arg.outputAsm()) {
                 FileDealer.outputToStream(p.getSTB(), arg.asmStream);
                 // p.output(new PrintStream(arg.asmStream));

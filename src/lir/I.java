@@ -170,6 +170,10 @@ public class I extends MachineInst {
             savedRegsMf = mf;
         }
 
+        public Ret(MC.Block insertAtEnd){
+            super(Tag.IRet, insertAtEnd);
+        }
+
         @Override
         public void output(PrintStream os, MC.McFunction mf) {
             // TODO vpush我觉得可能八字节对齐比较好, 所以vpop必须在后面, 这样不能先pop lr再vpop
@@ -179,6 +183,10 @@ public class I extends MachineInst {
 
         @Override
         public String toString() {
+            if(savedRegsMf == null){
+                return "bx\tlr";
+            }
+
             StringBuilder sb = new StringBuilder();
 
 
@@ -617,4 +625,10 @@ public class I extends MachineInst {
         }
     }
 
+    public static class Swi {
+        @Override
+        public String toString() {
+            return "swi\t#0";
+        }
+    }
 }

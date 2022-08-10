@@ -26,12 +26,12 @@ public class MidEndRunner {
         if (!O2) {
             Mem2Reg mem2Reg = new Mem2Reg(functions);
             mem2Reg.Run();
-            reMakeCFGAndLoopInfo();
-            Pass();
-            Pass();
-            BrOptimize();
-            BrOptimize();
-            MathOpt();
+            // reMakeCFGAndLoopInfo();
+            // Pass();
+            // Pass();
+            // BrOptimize();
+            // BrOptimize();
+            // MathOpt();
             return;
         }
 

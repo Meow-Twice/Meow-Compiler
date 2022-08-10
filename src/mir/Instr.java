@@ -346,6 +346,9 @@ public class Instr extends Value {
         }
 
         public Value getRVal1() {
+            if(useValueList.size() < 1){
+                int z =0 ;
+            }
             return useValueList.get(0);
         }
 

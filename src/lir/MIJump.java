@@ -19,6 +19,13 @@ public class MIJump extends MachineInst {
         this.target = target;
         this.cond = cond;
     }
+
+    public MIJump(Arm.Cond cond, MC.Block target, MC.Block insertAtEnd) {
+        super(Tag.Jump, insertAtEnd);
+        this.target = target;
+        this.cond = cond;
+    }
+
     @Override
     public void output(PrintStream os, MC.McFunction f) {
         os.println("\t" + this);

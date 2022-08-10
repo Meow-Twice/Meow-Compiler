@@ -785,8 +785,13 @@ public class Visitor {
                             if (!(flattenInit.getBegin().value.equals(CONST_0) && afterMemset)) {
                                 new Store(trimTo(flattenInit.getBegin().value, basicType), ptr, curBB);
                             }
-                            Map<Integer, Value> nonZeros = flattenInit.listNonZeros();
-                            for (Map.Entry<Integer, Value> entry : nonZeros.entrySet().stream().filter(e -> !e.getKey().equals(0)).collect(Collectors.toSet())) {
+                            Map<Integer, Value> stores = flattenInit.listNonZeros();
+                            if (!afterMemset) {
+                                for (int i = 1; i < flattenInit.sizeInWords(); i++) {
+                                    stores.putIfAbsent(i, CONST_0);
+                                }
+                            }
+                            for (Map.Entry<Integer, Value> entry : stores.entrySet().stream().filter(e -> !e.getKey().equals(0)).collect(Collectors.toSet())) {
                                 dimList = new ArrayList<>();
                                 dimList.add(Constant.ConstantInt.getConstInt(entry.getKey()));
                                 Value p = new GetElementPtr(basicType, ptr, dimList, curBB);

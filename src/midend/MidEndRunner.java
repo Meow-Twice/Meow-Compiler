@@ -122,12 +122,14 @@ public class MidEndRunner {
         loopInVarCodeLift.Run();
         //outputLLVM();
 
-        outputLLVM();
+        //outputLLVM();
 
 
         removePhiUseSame();
         Rem2DivMulSub();
         GepSplit();
+
+        //outputLLVM();
 
         System.err.println("O2 End");
         //check();

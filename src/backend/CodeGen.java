@@ -394,8 +394,8 @@ public class CodeGen {
                             if (curIdxValue.isConstantInt()) {
                                 int curIdx = (int) ((Constant.ConstantInt) curIdxValue).getConstVal();
                                 if (curIdx == 0) {
-                                    // new I.Mov(getVR_no_imm(gep), curAddrVR, curMB);
-                                    value2opd.put(gep, curAddrVR);
+                                    new I.Mov(getVR_no_imm(gep), curAddrVR, curMB);
+                                    // value2opd.put(gep, curAddrVR);
                                 } else {
                                     int totalOff = offSet * curIdx;
                                     if (immCanCode(totalOff)) {

@@ -798,46 +798,6 @@ public class Visitor {
                                 new Store(trimTo(entry.getValue(), basicType), p, curBB);
                             }
                         }
-
-
-                        /*
-                        ArrayList<Value> initValueList = init.getFlattenInit();
-                        HashSet<Value> checkSet = new HashSet<>(initValueList);
-                        assert checkSet.size() > 0;
-                        // boolean allZero = false;
-                        if (checkSet.size() == 1) {
-                            if (checkSet.iterator().next().equals(CONST_0)) {
-                                initZeroHelper(pointer, pointeeType);
-                                allZero = true;
-                            }
-                        }
-                        if (!allZero) {
-                            boolean afterMemset = false;
-                            if (initValueList.size() / 5 > checkSet.size() / 3) {
-                                initZeroHelper(pointer, pointeeType);
-                                afterMemset = true;
-                            }
-                            ArrayList<Value> dimList = new ArrayList<>();
-                            for (int i = 0; i <= ((ArrayType) pointeeType).getDimSize(); i++) {
-                                dimList.add(CONST_0);
-                            }
-                            BasicType basicType = ((ArrayType) pointeeType).getBaseEleType();
-                            Value ptr = new GetElementPtr(basicType, pointer, dimList, curBB);
-                            if (!(initValueList.get(0).equals(CONST_0) && afterMemset)) {
-                                new Store(trimTo(initValueList.get(0), basicType), ptr, curBB);
-                            }
-                            for (int i = 1; i < initValueList.size(); i++) {
-                                Value initVal = initValueList.get(i);
-                                if (initVal.equals(CONST_0) && afterMemset) {
-                                    continue;
-                                }
-                                dimList = new ArrayList<>();
-                                dimList.add(Constant.ConstantInt.getConstInt(i));
-                                Value p = new GetElementPtr(basicType, ptr, dimList, curBB);
-                                new Store(trimTo(initValueList.get(i), basicType), p, curBB);
-                            }
-                        }
-                        // */
                     }
                 }
             }

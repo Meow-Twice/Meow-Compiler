@@ -17,8 +17,6 @@ import static mir.Constant.ConstantInt.CONST_0;
 public abstract class Initial {
     private final Type type; // LLVM IR 的初始值是含有类型信息的
 
-    public abstract ArrayList<Value> getFlattenInit();
-
     public abstract Flatten flatten();
 
     @Override
@@ -51,16 +49,6 @@ public abstract class Initial {
         }
 
         @Override
-        public ArrayList<Value> getFlattenInit() {
-            ArrayList<Value> result = new ArrayList<>();
-            for (Initial init : inits) {
-                ArrayList<Value> list1 = init.getFlattenInit();
-                result.addAll(list1);
-            }
-            return result;
-        }
-
-        @Override
         public Flatten flatten() {
             Flatten flat = new Flatten();
             for (Initial init : inits) {
@@ -81,26 +69,19 @@ public abstract class Initial {
         }
 
         @Override
+        public Flatten flatten() {
+            Flatten flat = new Flatten();
+            flat.insertAtEnd(new Flatten.Entry(value, 1));
+            return flat;
+        }
+
+        @Override
         public String toString() {
             return getType() + " " + value;
         }
 
         public Value getValue() {
             return this.value;
-        }
-
-        @Override
-        public ArrayList<Value> getFlattenInit() {
-            ArrayList<Value> result = new ArrayList<>();
-            result.add(value);
-            return result;
-        }
-
-        @Override
-        public Flatten flatten() {
-            Flatten flat = new Flatten();
-            flat.insertAtEnd(new Flatten.Entry(value, 1));
-            return flat;
         }
     }
 
@@ -109,26 +90,6 @@ public abstract class Initial {
 
         public ZeroInit(Type type) {
             super(type);
-        }
-
-        @Override
-        public String toString() {
-            return getType() + " zeroinitializer";
-        }
-
-        @Override
-        public ArrayList<Value> getFlattenInit() {
-            int size;
-            if (getType().isArrType()) {
-                size = ((Type.ArrayType) getType()).getFlattenSize();
-            } else {
-                assert getType().isBasicType();
-                size = 1;
-            }
-            return new ArrayList<>(Collections.nCopies(size, CONST_0));
-            // ArrayList<Value> result = new ArrayList<>();
-            // result.add(new Constant.ConstantInt(0));
-            // return result;
         }
 
         @Override
@@ -144,6 +105,11 @@ public abstract class Initial {
             flat.insertAtEnd(new Flatten.Entry(CONST_0, size));
             return flat;
         }
+
+        @Override
+        public String toString() {
+            return getType() + " zeroinitializer";
+        }
     }
 
     // 用于编译期不可求值的初始化
@@ -156,6 +122,13 @@ public abstract class Initial {
         }
 
         @Override
+        public Flatten flatten() {
+            Flatten flat = new Flatten();
+            flat.insertAtEnd(new Flatten.Entry(result, 1));
+            return flat;
+        }
+
+        @Override
         public String toString() {
             throw new AssertionError("non-evaluable initializer should never be output");
         }
@@ -164,19 +137,6 @@ public abstract class Initial {
             return this.result;
         }
 
-        @Override
-        public ArrayList<Value> getFlattenInit() {
-            ArrayList<Value> result = new ArrayList<>();
-            result.add(this.result);
-            return result;
-        }
-
-        @Override
-        public Flatten flatten() {
-            Flatten flat = new Flatten();
-            flat.insertAtEnd(new Flatten.Entry(result, 1));
-            return flat;
-        }
     }
 
     public Initial(final Type type) {

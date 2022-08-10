@@ -124,6 +124,7 @@ public class Compiler {
 
             // System.err.println(p.getSTB());
             //
+
             PeepHole peepHole = new PeepHole(p);
             peepHole.run();
             if (arg.outputAsm()) {

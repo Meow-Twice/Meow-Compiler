@@ -1,9 +1,6 @@
 package midend;
 
-import mir.BasicBlock;
-import mir.Function;
-import mir.Instr;
-import mir.Value;
+import mir.*;
 import mir.type.Type;
 
 import java.util.ArrayList;
@@ -45,6 +42,12 @@ public class Rem2DivMulSub {
         for (Instr.Alu rem: rems) {
             Value A = rem.getRVal1();
             Value B = rem.getRVal2();
+            if (B instanceof Constant.ConstantInt) {
+                int val = (int) ((Constant.ConstantInt) B).getConstVal();
+                if (val > 0 && ((int) Math.pow(2, ((int) (Math.log(val) / Math.log(2))))) == val) {
+                    continue;
+                }
+            }
             Instr div = new Instr.Alu(Type.BasicType.getI32Type(), Instr.Alu.Op.DIV, A, B, rem.parentBB());
             rem.insertBefore(div);
             Instr mul = new Instr.Alu(Type.BasicType.getI32Type(), Instr.Alu.Op.MUL, div, B, rem.parentBB());

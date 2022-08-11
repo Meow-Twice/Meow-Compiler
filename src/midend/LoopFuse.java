@@ -91,6 +91,18 @@ public class LoopFuse {
             return;
         }
 
+
+        for (Instr instr: preIdcInstrs) {
+            if (useOutLoop(instr, preLoop)) {
+                return;
+            }
+        }
+        for (Instr instr: sucIdcInstrs) {
+            if (useOutLoop(instr, sucLoop)) {
+                return;
+            }
+        }
+
         map.put(preLoop.getIdcPHI(), sucLoop.getIdcPHI());
         map.put(preLoop.getIdcAlu(), sucLoop.getIdcAlu());
         map.put(preLoop.getIdcCmp(), sucLoop.getIdcCmp());
@@ -119,6 +131,13 @@ public class LoopFuse {
             sucLatchInstrs.add(instr);
         }
 
+        //TODO:检查指令对应,判断读写数组
+        for (Instr instr: preLatchInstrs) {
+
+        }
+        for (Instr instr: sucLatchInstrs) {
+
+        }
     }
 
     private boolean hasReflectInstr(HashMap<Value, Value> map, Instr instr, HashSet<Instr> instrs) {
@@ -182,6 +201,16 @@ public class LoopFuse {
             return value;
         }
         return map.get(value);
+    }
+
+    private boolean useOutLoop(Instr instr, Loop loop) {
+        for (Use use = instr.getBeginUse(); use.getNext() != null; use = (Use) use.getNext()) {
+            Instr user = use.getUser();
+            if (!user.parentBB().getLoop().equals(loop)) {
+                return true;
+            }
+        }
+        return false;
     }
 
 }

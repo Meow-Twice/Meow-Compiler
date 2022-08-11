@@ -1,15 +1,14 @@
 package lir;
 
 import backend.CodeGen;
+import frontend.semantic.Initial;
 import mir.BasicBlock;
 import mir.Constant;
 import mir.GlobalVal;
-import mir.Value;
 import mir.type.DataType;
 import util.ILinkNode;
 import util.Ilist;
 
-import java.io.PrintStream;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
@@ -35,93 +34,6 @@ public class MC {
         private Program() {
         }
 
-        public void output(PrintStream os) {
-            if (NO_CACHE) {
-                os.println("@ generated at " + new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date()) + "\n");
-            }
-            os.println(".arch armv7ve");
-            os.println(".arm");
-            if (needFPU) {
-                os.println(".fpu vfpv3-d16");
-            }
-            os.println(".section .text");
-            for (McFunction function : funcList) {
-                os.println();
-                os.println(".global\t" + function.mFunc.getName());
-                os.println("\t.type\t" + function.mFunc.getName() + ",%function");
-                os.println("@ regStackSize =\t" + function.regStack + " ;\n@ varStackSize =\t" + function.varStack + " ;\n@ paramStackSize =\t" + function.paramStack + " ;");
-
-                os.println("@ usedCalleeSavedGPRs =\t" + function.usedCalleeSavedGPRs + " ;\n@ usedCalleeSavedFPRs =\t" + function.usedCalleeSavedFPRs + " ;\n");
-
-                os.println(function.mFunc.getName() + ":");
-
-
-                //asm for mb
-                for (Block mb : function.mbList) {
-                    os.println(mb.getLabel() + ":");
-                    for (MachineInst inst : mb.miList) {
-                        inst.output(os, function);
-                    }
-                }
-
-            }
-
-            os.println();
-            os.println();
-            // output float const
-            for (Map.Entry<String, Operand> entry : CodeGen.name2constFOpd.entrySet()) {
-                String name = entry.getKey();
-                Constant.ConstantFloat constF = entry.getValue().constF;
-                int i = constF.getIntBits();
-                os.println(name + ":");
-                os.println("\t.word\t" + i);
-            }
-            os.println(".section .data");
-            os.println(".align 2");
-            for (Arm.Glob glob : globList) {
-                GlobalVal.GlobalValue val = glob.getGlobalValue();
-                os.println();
-                os.println(".global\t" + val.name);
-                // os.println("\t.type\t" + val.name + ",%object");
-                os.println(val.name + ":");
-
-                int count = 0;
-                boolean init = false;
-                int last = 0;
-
-                for (Value value : glob.getInit().getFlattenInit()) {
-                    if (!init) {
-                        init = true;
-                        if (value.isConstantInt()) {
-                            last = ((Constant.ConstantInt) value).constIntVal;
-                        } else {
-                            last = ((Constant.ConstantFloat) value).getIntBits();
-                        }
-                    }
-                    int now = value instanceof Constant.ConstantInt ? ((Constant.ConstantInt) value).constIntVal : ((Constant.ConstantFloat) value).getIntBits();
-                    if (now == last) {
-                        count++;
-                    } else {
-                        if (count > 1) {
-                            //.zero
-                            os.println("\t.fill\t" + count + ",\t4,\t" + last);
-                        } else {
-                            os.println("\t.word\t" + last);
-                        }
-                        last = value instanceof Constant.ConstantInt ? ((Constant.ConstantInt) value).constIntVal : ((Constant.ConstantFloat) value).getIntBits();
-                        count = 1;
-                    }
-                }
-                if (count > 1) {
-                    //.zero
-                    os.println("\t.fill\t" + count + ",\t4,\t" + last);
-                } else {
-                    os.println("\t.word\t" + last);
-                }
-            }
-        }
-
-
         public StringBuilder getSTB() {
             StringBuilder stb = new StringBuilder();
             if (NO_CACHE) {
@@ -145,7 +57,6 @@ public class MC {
                         stb.append(inst.getSTB()).append("\n");
                     }
                 }
-
             }
 
             stb.append("\n\n");
@@ -157,45 +68,23 @@ public class MC {
                 stb.append(name).append(":\n");
                 stb.append("\t.word\t").append(i).append("\n");
             }
+
+            // TODO: 全局全零数组放到 .bss 段
+            ArrayList<Arm.Glob> globData = new ArrayList<>();
+            ArrayList<Arm.Glob> globBss = new ArrayList<>();
+            // TODO: getFlattenInit 的返回值返回若干段分块形式
+            // InitEntry 数据结构, 能体现分块且能够方便地合并
+            // 用 ILinkNode 作为基类，每个 Node 存储一个值和连续出现的次数
+
+
             stb.append(".section .data\n");
             stb.append(".align 2\n");
             for (Arm.Glob glob : globList) {
                 GlobalVal.GlobalValue val = glob.getGlobalValue();
                 stb.append("\n.global\t").append(val.name).append("\n");
                 stb.append(val.name).append(":\n");
-
-                int count = 0;
-                boolean init = false;
-                int last = 0;
-                for (Value value : glob.getInit().getFlattenInit()) {
-                    if (!init) {
-                        init = true;
-                        if (value.isConstantInt()) {
-                            last = ((Constant.ConstantInt) value).constIntVal;
-                        } else {
-                            last = ((Constant.ConstantFloat) value).getIntBits();
-                        }
-                    }
-                    int now = value instanceof Constant.ConstantInt ? ((Constant.ConstantInt) value).constIntVal : ((Constant.ConstantFloat) value).getIntBits();
-                    if (now == last) {
-                        count++;
-                    } else {
-                        if (count > 1) {
-                            //.zero
-                            stb.append("\t.fill\t").append(count).append(",\t4,\t").append(last).append("\n");
-                        } else {
-                            stb.append("\t.word\t").append(last).append("\n");
-                        }
-                        last = value instanceof Constant.ConstantInt ? ((Constant.ConstantInt) value).constIntVal : ((Constant.ConstantFloat) value).getIntBits();
-                        count = 1;
-                    }
-                }
-                if (count > 1) {
-                    //.zero
-                    stb.append("\t.fill\t").append(count).append(",\t4,\t").append(last).append("\n");
-                } else {
-                    stb.append("\t.word\t").append(last).append("\n");
-                }
+                Initial.Flatten flatten = glob.init.flatten();
+                stb.append(flatten.toString());
             }
             return stb;
         }

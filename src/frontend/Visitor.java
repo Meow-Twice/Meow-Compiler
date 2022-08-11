@@ -15,6 +15,7 @@ import mir.Instr.*;
 import mir.type.Type;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static mir.Constant.ConstantFloat.CONST_0F;
 import static mir.Constant.ConstantInt.CONST_0;
@@ -776,19 +777,14 @@ public class Visitor {
                         Value v = trimTo(((Initial.ValueInit) init).getValue(), (BasicType) pointeeType);
                         new Store(v, pointer, curBB);
                     } else if (init instanceof Initial.ArrayInit) {
-                        ArrayList<Value> initValueList = init.getFlattenInit();
-                        HashSet<Value> checkSet = new HashSet<>(initValueList);
-                        assert checkSet.size() > 0;
-                        boolean allZero = false;
-                        if (checkSet.size() == 1) {
-                            if (checkSet.iterator().next().equals(CONST_0)) {
-                                initZeroHelper(pointer, pointeeType);
-                                allZero = true;
-                            }
-                        }
-                        if (!allZero) {
+                        Initial.Flatten flattenInit = init.flatten();
+                        Set<Value> valueSet = flattenInit.valueSet();
+                        boolean allZero = flattenInit.isZero();
+                        if (allZero) {
+                            initZeroHelper(pointer, pointeeType);
+                        } else {
                             boolean afterMemset = false;
-                            if (initValueList.size() / 5 > checkSet.size() / 3) {
+                            if (flattenInit.sizeInWords() / 5 > valueSet.size() / 3) {
                                 initZeroHelper(pointer, pointeeType);
                                 afterMemset = true;
                             }
@@ -798,20 +794,20 @@ public class Visitor {
                             }
                             BasicType basicType = ((ArrayType) pointeeType).getBaseEleType();
                             Value ptr = new GetElementPtr(basicType, pointer, dimList, curBB);
-                            if (!(initValueList.get(0).equals(CONST_0) && afterMemset)) {
-                                dimList = new ArrayList<>();
-                                dimList.add(CONST_0);
-                                new Store(trimTo(initValueList.get(0), basicType), ptr, curBB);
+                            if (!(flattenInit.getBegin().value.equals(CONST_0) && afterMemset)) {
+                                new Store(trimTo(flattenInit.getBegin().value, basicType), ptr, curBB);
                             }
-                            for (int i = 1; i < initValueList.size(); i++) {
-                                Value initVal = initValueList.get(i);
-                                if (initVal.equals(CONST_0) && afterMemset) {
-                                    continue;
+                            Map<Integer, Value> stores = flattenInit.listNonZeros();
+                            if (!afterMemset) {
+                                for (int i = 1; i < flattenInit.sizeInWords(); i++) {
+                                    stores.putIfAbsent(i, CONST_0);
                                 }
+                            }
+                            for (Map.Entry<Integer, Value> entry : stores.entrySet().stream().filter(e -> !e.getKey().equals(0)).collect(Collectors.toSet())) {
                                 dimList = new ArrayList<>();
-                                dimList.add(Constant.ConstantInt.getConstInt(i));
+                                dimList.add(Constant.ConstantInt.getConstInt(entry.getKey()));
                                 Value p = new GetElementPtr(basicType, ptr, dimList, curBB);
-                                new Store(trimTo(initValueList.get(i), basicType), p, curBB);
+                                new Store(trimTo(entry.getValue(), basicType), p, curBB);
                             }
                         }
                     }

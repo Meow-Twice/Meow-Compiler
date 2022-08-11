@@ -258,7 +258,14 @@ public class CodeGen {
                 case branch -> {
                     Arm.Cond cond;
                     Instr.Branch brInst = (Instr.Branch) instr;
-                    Instr condValue = (Instr) brInst.getCond();
+                    // if(brInst.getCond() instanceof Constant.ConstantBool){
+                    //     Operand condVR = getVR_may_imm(brInst.getCond());
+                    //     cond = Ne;
+                    //     new I.Cmp(cond, condVR, new Operand(I32, 0), curMB);
+                    //
+                    //     break;
+                    // }
+                    Value condValue = brInst.getCond();
                     MC.Block trueBlock = brInst.getThenTarget().getMb();
                     MC.Block falseBlock = brInst.getElseTarget().getMb();
                     curMB.succMBs.add(trueBlock);
@@ -1008,7 +1015,7 @@ public class CodeGen {
     /**
      * 条件相关
      */
-    private HashMap<Instr, CMPAndArmCond> cmpInst2MICmpMap = new HashMap<>();
+    private HashMap<Value, CMPAndArmCond> cmpInst2MICmpMap = new HashMap<>();
 
     /**
      * 条件相关

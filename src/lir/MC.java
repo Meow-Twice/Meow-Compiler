@@ -6,17 +6,23 @@ import mir.BasicBlock;
 import mir.Constant;
 import mir.GlobalVal;
 import mir.type.DataType;
+import util.CenterControl;
 import util.ILinkNode;
 import util.Ilist;
 
-import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.TreeSet;
 
 import static backend.CodeGen.*;
 import static backend.RegAllocator.SP_ALIGN;
+import static lir.Arm.Reg.getRSReg;
 import static lir.Arm.Regs.FPRs.s0;
 import static lir.Arm.Regs.GPRs.*;
 import static lir.MC.Operand.Type.*;
+import static lir.MachineInst.Tag.Add;
+import static mir.Constant.ConstantInt.CONST_0;
 import static mir.type.DataType.F32;
 import static mir.type.DataType.I32;
 
@@ -29,20 +35,59 @@ public class MC {
         public McFunction mainMcFunc;
         public ArrayList<I> needFixList = new ArrayList<>();
 
-        public static final boolean NO_CACHE = true;
-
         private Program() {
+        }
+
+        /**
+         * 对 .bss 段的全局变量中非零元素用指令进行初始化
+         *
+         * @return 用于初始化的 Machine Block ，插入到 main 函数开始处
+         */
+        public Block bssInit() {
+            Block initMB = new Block("._init_bss_0", mainMcFunc);
+            for (Arm.Glob glob : globList) {
+                // 对每个变量初始化
+                // 用 movw 和 movt 指令获取基地址
+                MC.Operand rBase = getRSReg(r3), rOffset = getRSReg(r2), rData = getRSReg(r1);
+                new I.Mov(rBase, glob, initMB);  // r4: 基地址
+                Initial.Flatten flatten = glob.init.flatten();
+                int offset = 0;
+                for (Initial.Flatten.Entry entry : flatten) {
+                    assert entry.value instanceof Constant.ConstantInt;
+                    if (!entry.value.equals(CONST_0)) {
+                        // 计算位移
+                        new I.Mov(rOffset, new Operand(I32, offset), initMB); // mov 偏移量
+                        new I.Binary(Add, rOffset, rBase, rOffset, new Arm.Shift(Arm.ShiftType.Lsl, 2), initMB); // add + lsl 偏移地址
+                        // 写入数据
+                        new I.Mov(rData, new Operand(I32, (int) ((Constant.ConstantInt) entry.value).getConstVal()), initMB); // mov 写入值
+                        new I.Str(rData, rOffset, initMB);
+                    }
+                    // 偏移累加
+                    offset += entry.count;
+                }
+            }
+            return initMB;
         }
 
         public StringBuilder getSTB() {
             StringBuilder stb = new StringBuilder();
-            if (NO_CACHE) {
-                stb.append("@ generated at ").append(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date())).append("\n");
-            }
+            stb.append("@ ").append(CenterControl._TAG).append("\n");
             stb.append(".arch armv7ve\n.arm\n");
             if (needFPU) {
                 stb.append(".fpu vfpv3-d16\n");
             }
+
+            // 遍历全局数组的初始化，生成一个专门用来初始化的 MB 在 main 的开头
+            // 在没有测好之前，暂时用 stderr 输出
+            if (CenterControl._GLOBAL_BSS) {
+                Block initMB = bssInit();
+                System.err.println(initMB.getLabel() + ":");
+                for (MachineInst inst : initMB.miList) {
+                    if (!inst.isComment()) System.err.print("\t");
+                    System.err.println(inst.getSTB());
+                }
+            }
+
             stb.append(".section .text\n");
             for (McFunction function : funcList) {
                 stb.append("\n\n.global\t").append(function.mFunc.getName()).append("\n");
@@ -69,23 +114,28 @@ public class MC {
                 stb.append("\t.word\t").append(i).append("\n");
             }
 
-            // TODO: 全局全零数组放到 .bss 段
-            ArrayList<Arm.Glob> globData = new ArrayList<>();
-            ArrayList<Arm.Glob> globBss = new ArrayList<>();
-            // TODO: getFlattenInit 的返回值返回若干段分块形式
-            // InitEntry 数据结构, 能体现分块且能够方便地合并
-            // 用 ILinkNode 作为基类，每个 Node 存储一个值和连续出现的次数
-
-
-            stb.append(".section .data\n");
-            stb.append(".align 2\n");
-            for (Arm.Glob glob : globList) {
-                GlobalVal.GlobalValue val = glob.getGlobalValue();
-                stb.append("\n.global\t").append(val.name).append("\n");
-                stb.append(val.name).append(":\n");
-                Initial.Flatten flatten = glob.init.flatten();
-                stb.append(flatten.toString());
+            if (CenterControl._GLOBAL_BSS) {
+                stb.append(".section .bss\n");
+                stb.append(".align 16\n");
+                for (Arm.Glob glob : globList) {
+                    GlobalVal.GlobalValue val = glob.getGlobalValue();
+                    stb.append("\n.global\t").append(val.name).append("\n");
+                    stb.append(val.name).append(":\n");
+                    Initial.Flatten flatten = glob.init.flatten();
+                    stb.append(".zero ").append(flatten.sizeInBytes()).append("\n");
+                }
+            } else {
+                stb.append(".section .data\n");
+                stb.append(".align 2\n");
+                for (Arm.Glob glob : globList) {
+                    GlobalVal.GlobalValue val = glob.getGlobalValue();
+                    stb.append("\n.global\t").append(val.name).append("\n");
+                    stb.append(val.name).append(":\n");
+                    Initial.Flatten flatten = glob.init.flatten();
+                    stb.append(flatten.toString());
+                }
             }
+
             return stb;
         }
     }

@@ -1,15 +1,14 @@
 package frontend;
 
-import frontend.semantic.Evaluate;
-import frontend.semantic.Initial;
-import frontend.syntax.Ast.*;
 import exception.SemanticException;
 import frontend.lexer.Token;
 import frontend.lexer.TokenType;
+import frontend.semantic.Evaluate;
+import frontend.semantic.Initial;
 import frontend.semantic.symbol.SymTable;
 import frontend.semantic.symbol.Symbol;
 import frontend.syntax.Ast;
-import lir.MC;
+import frontend.syntax.Ast.*;
 import manage.Manager;
 import mir.*;
 import mir.Instr.*;
@@ -482,6 +481,11 @@ public class Visitor {
             new Branch(first, trueBlock, nextBlock, curBB);
             curBB = nextBlock;
             dealCondCount();
+            if (iterOp.hasNext()) {
+                flag = true;
+                falseBlock = new BasicBlock(curFunc, curLoop);
+                nextBlock = falseBlock;
+            }
             first = visitCondLAnd(nextExp, falseBlock);
             assert first.getType().isInt1Type();
         }

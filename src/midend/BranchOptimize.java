@@ -16,6 +16,11 @@ public class BranchOptimize {
     }
 
     public void Run() {
+        if (!MidEndRunner.O2) {
+            RemoveUselessPHI();
+            ModifyConstBranch();
+        }
+
         RemoveUselessPHI();
         RemoveUselessJump();
         remakeCFG();

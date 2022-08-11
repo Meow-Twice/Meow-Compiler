@@ -82,6 +82,10 @@ public class Value extends ILinkNode {
         return prefix + name;
     }
 
+    public String getNameWithOutPrefix() {
+        return name;
+    }
+
     public Type getType() {
         return type;
     }

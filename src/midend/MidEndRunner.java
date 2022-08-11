@@ -1,5 +1,6 @@
 package midend;
 
+import backend.PeepHole;
 import frontend.semantic.Initial;
 import manage.Manager;
 import mir.*;
@@ -126,13 +127,14 @@ public class MidEndRunner {
 
         //outputLLVM();
         //ArrayGCM();
-        LoopInVarCodeLift loopInVarCodeLift = new LoopInVarCodeLift(functions, globalValues);
-        loopInVarCodeLift.Run();
+        LoopInVarCodeLift();
         //outputLLVM();
 
         outputLLVM();
+        LoopFuse();
 
 
+        ArrayLift();
         removePhiUseSame();
         Rem2DivMulSub();
         GepSplit();
@@ -144,6 +146,35 @@ public class MidEndRunner {
         //
         // RemovePhi removePhi = new RemovePhi(functions);
         // removePhi.Run();
+    }
+
+    private void ArrayLift() {
+        ArrayLift arrayLift = new ArrayLift(functions, globalValues);
+        arrayLift.Run();
+    }
+
+    private void LoopInVarCodeLift() {
+        LoopInVarCodeLift loopInVarCodeLift = new LoopInVarCodeLift(functions, globalValues);
+        loopInVarCodeLift.Run();
+
+        Pass();
+    }
+
+    private void LoopFuse() {
+        LoopFuse loopFuse = new LoopFuse(functions);
+        loopFuse.Run();
+
+        GlobalArrayGVN();
+
+        ArrayGVN();
+
+        RemoveUselessStore removeUselessStore = new RemoveUselessStore(functions);
+        removeUselessStore.Run();
+
+        MidPeepHole midPeepHole = new MidPeepHole(functions);
+        midPeepHole.Run();
+
+        Pass();
     }
 
     private void Rem2DivMulSub() {

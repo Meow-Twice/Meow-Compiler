@@ -462,6 +462,7 @@ public class Visitor {
         BinaryExp lOrExp = (BinaryExp) exp;
         boolean flag = false;
         BasicBlock nextBlock = falseBlock;
+        BasicBlock prevFalseBlock = falseBlock;
         if (!((BinaryExp) exp).getFollows().isEmpty()) {
             nextBlock = new BasicBlock(curFunc, curLoop); // 实为trueBlock的前驱
             flag = true;
@@ -485,6 +486,8 @@ public class Visitor {
                 flag = true;
                 falseBlock = new BasicBlock(curFunc, curLoop);
                 nextBlock = falseBlock;
+            } else {
+                falseBlock = prevFalseBlock;
             }
             first = visitCondLAnd(nextExp, falseBlock);
             assert first.getType().isInt1Type();

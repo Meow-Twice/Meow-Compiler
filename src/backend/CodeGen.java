@@ -47,7 +47,7 @@ public class CodeGen {
     // Value到Operand的Map
     public HashMap<Value, Operand> value2opd;
     public HashMap<GlobalVal.GlobalValue, Arm.Glob> globPtr2globOpd = new HashMap<>();
-    public final ArrayList<Arm.Glob> globList = new ArrayList<>();
+    // public final ArrayList<Arm.Glob> globList = new ArrayList<>();
 
     // 如名
     public HashMap<Function, MC.McFunction> f2mf;
@@ -775,7 +775,7 @@ public class CodeGen {
             // } else {
             //     glob = new Arm.Glob(globalValue, F32);
             // }
-            globList.add(glob);
+            MC.Program.PROGRAM.globList.add(glob);
             globPtr2globOpd.put(globalValue, glob);
         }
     }

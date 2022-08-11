@@ -170,7 +170,7 @@ public class I extends MachineInst {
             savedRegsMf = mf;
         }
 
-        public Ret(MC.Block insertAtEnd){
+        public Ret(MC.Block insertAtEnd) {
             super(Tag.IRet, insertAtEnd);
         }
 
@@ -183,7 +183,7 @@ public class I extends MachineInst {
 
         @Override
         public String toString() {
-            if(savedRegsMf == null){
+            if (savedRegsMf == null) {
                 return "bx\tlr";
             }
 
@@ -344,10 +344,10 @@ public class I extends MachineInst {
                         stb.append("mov").append(cond).append("\t").append(getDst().toString()).append(",\t#").append(imm);
                     } else {
                         int lowImm = (imm << 16) >>> 16;
-                        stb.append("movw").append(cond).append("\t").append(getDst().toString()).append(",\t#").append(lowImm).append("\n");
+                        stb.append("movw").append(cond).append("\t").append(getDst().toString()).append(",\t#").append(lowImm);
                         int highImm = imm >>> 16;
                         if (highImm != 0) {
-                            stb.append("\tmovt").append(cond).append("\t").append(getDst().toString()).append(",\t#").append(highImm);
+                            stb.append("\n\tmovt").append(cond).append("\t").append(getDst().toString()).append(",\t#").append(highImm);
                         }
                     }
                 }
@@ -625,10 +625,27 @@ public class I extends MachineInst {
         }
     }
 
-    public static class Swi {
+    public static class Swi extends I{
+
+        public Swi(MC.Block insertAtEnd) {
+            super(Tag.Swi, insertAtEnd);
+        }
+
         @Override
         public String toString() {
             return "swi\t#0";
+        }
+    }
+
+
+    public static class Wait extends I{
+        public Wait(MC.Block insertAtEnd) {
+            super(Tag.Wait, insertAtEnd);
+        }
+
+        @Override
+        public String toString() {
+            return "bl\twait";
         }
     }
 }

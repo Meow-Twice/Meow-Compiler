@@ -7,5 +7,5 @@ public class CenterControl {
     public static final boolean _cutLiveNessShortest = false;
     public static final boolean _FixStackWithPeepHole = true;
     public static final boolean _AGGRESSIVE_ADD_MOD_OPT = false;
-    public static final boolean _OPEN_PARALLEL = false;
+    public static final boolean _OPEN_PARALLEL = true;
 }

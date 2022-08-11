@@ -195,6 +195,8 @@ public class MachineInst extends ILinkNode {
         Pop("pop"),
         VPush("vpush"),
         VPop("vpop"),
+        Swi("swi"),
+        Wait("wait"),
         Comment("@"),   // for printing comments
         Empty("!?");
 

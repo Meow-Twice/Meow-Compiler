@@ -47,7 +47,7 @@ public class CodeGen {
     // Value到Operand的Map
     public HashMap<Value, Operand> value2opd;
     public HashMap<GlobalVal.GlobalValue, Arm.Glob> globPtr2globOpd = new HashMap<>();
-    public final ArrayList<Arm.Glob> globList = new ArrayList<>();
+    // public final ArrayList<Arm.Glob> globList = new ArrayList<>();
 
     // 如名
     public HashMap<Function, MC.McFunction> f2mf;
@@ -258,13 +258,19 @@ public class CodeGen {
                 case branch -> {
                     Arm.Cond cond;
                     Instr.Branch brInst = (Instr.Branch) instr;
-                    // if(brInst.getCond() instanceof Constant.ConstantBool){
-                    //     Operand condVR = getVR_may_imm(brInst.getCond());
-                    //     cond = Ne;
-                    //     new I.Cmp(cond, condVR, new Operand(I32, 0), curMB);
-                    //
-                    //     break;
-                    // }
+                    MC.Block mb;
+                    if (brInst.getCond() instanceof Constant.ConstantBool) {
+                        Constant.ConstantBool bool = (Constant.ConstantBool) brInst.getCond();
+                        if ((int) bool.getConstVal() == 0) {
+                            mb = brInst.getElseTarget().getMb();
+                        } else {
+                            mb = brInst.getThenTarget().getMb();
+                        }
+                        curMB.succMBs.add(mb);
+                        if (!visitBBSet.contains(mb)) nextBBList.push(mb.bb);
+                        new MIJump(mb, curMB);
+                        break;
+                    }
                     Value condValue = brInst.getCond();
                     MC.Block trueBlock = brInst.getThenTarget().getMb();
                     MC.Block falseBlock = brInst.getElseTarget().getMb();
@@ -769,7 +775,7 @@ public class CodeGen {
             // } else {
             //     glob = new Arm.Glob(globalValue, F32);
             // }
-            globList.add(glob);
+            MC.Program.PROGRAM.globList.add(glob);
             globPtr2globOpd.put(globalValue, glob);
         }
     }

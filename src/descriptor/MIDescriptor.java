@@ -270,7 +270,7 @@ public class MIDescriptor implements Descriptor {
         MC.Program p = MC.Program.PROGRAM;
         setToReg((MemSimulator.TOTAL_SIZE - 1) * 4, sp);
         int curOff = 0;
-        for (Arm.Glob g : CodeGen.CODEGEN.globList) {
+        for (Arm.Glob g : p.globList) {
             GlobalVal.GlobalValue glob = g.getGlobalValue();
             Initial init = g.getInit();
             globName2HeapOff.put(glob.name, curOff);

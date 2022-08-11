@@ -57,22 +57,36 @@ public class LoopFuse {
             return;
         }
         if (!preLoop.getIdcInit().equals(sucLoop.getIdcInit()) ||
-                !preLoop.getIdcStep().equals(sucLoop.getIdcStep()) ||
                 !preLoop.getIdcEnd().equals(sucLoop.getIdcEnd())) {
             return;
+        }
+        if (!preLoop.getIdcStep().equals(sucLoop.getIdcStep())) {
+            Value preStep = preLoop.getIdcStep();
+            Value sucStep = sucLoop.getIdcStep();
+            if (preStep instanceof Constant.ConstantInt && sucStep instanceof Constant.ConstantInt) {
+                int preStepVal = (int) ((Constant.ConstantInt) preStep).getConstVal();
+                int sucStepVal = (int) ((Constant.ConstantInt) sucStep).getConstVal();
+                if (preStepVal != sucStepVal) {
+                    return;
+                }
+            } else {
+                return;
+            }
         }
 
         if (preLoop.getNowLevelBB().size() > 2 || sucLoop.getNowLevelBB().size() > 2) {
             return;
         }
+        if (preLoop.getEnterings().size() != 1 || sucLoop.getEnterings().size() != 1) {
+            return;
+        }
 
-        BasicBlock preLatch = null, sucLatch = null, preHead = preLoop.getHeader(), sucHead = sucLoop.getHeader();
-        for (BasicBlock bb: preLoop.getLatchs()) {
-            preLatch = bb;
-        }
-        for (BasicBlock bb: sucLoop.getLatchs()) {
-            sucLatch = bb;
-        }
+        BasicBlock preLatch =  preLoop.getLatchs().iterator().next(),
+                sucLatch = sucLoop.getLatchs().iterator().next(),
+                preHead = preLoop.getHeader(), sucHead = sucLoop.getHeader(),
+                preEntering = preLoop.getEnterings().iterator().next(),
+                sucEntering = sucLoop.getEnterings().iterator().next();
+
         HashSet<Instr> preIdcInstrs = new HashSet<>(), sucIdcInstrs = new HashSet<>();
         HashMap<Value, Value> map = new HashMap<>();
         preIdcInstrs.add((Instr) preLoop.getIdcPHI());
@@ -88,6 +102,9 @@ public class LoopFuse {
         sucIdcInstrs.add(sucLatch.getEndInstr());
 
         if (!((Instr.Icmp) preLoop.getIdcCmp()).getOp().equals(((Instr.Icmp) sucLoop.getIdcCmp()).getOp())) {
+            return;
+        }
+        if (!preLatch.getEndInstr().getPrev().equals(preLoop.getIdcAlu())) {
             return;
         }
 
@@ -121,9 +138,9 @@ public class LoopFuse {
             }
         }
         HashSet<Value> preLoad = new HashSet<>(), preStore = new HashSet<>();
-        HashSet<Instr> preLoadGep = new HashSet<>(), preStoreGep = new HashSet<>();
+        HashMap<Value, Instr> preLoadGep = new HashMap<>(), preStoreGep = new HashMap<>();
         HashSet<Value> sucLoad = new HashSet<>(), sucStore = new HashSet<>();
-        HashSet<Instr> sucLoadGep = new HashSet<>(), sucStoreGep = new HashSet<>();
+        HashMap<Value, Instr> sucLoadGep = new HashMap<>(), sucStoreGep = new HashMap<>();
         HashSet<Instr> preLatchInstrs = new HashSet<>();
         HashSet<Instr> sucLatchInstrs = new HashSet<>();
         for (Instr instr = preLatch.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
@@ -141,7 +158,9 @@ public class LoopFuse {
             if (useOutLoop(instr, preLoop)) {
                 return;
             }
-            if (instr instanceof Instr.Load) {
+            if (instr instanceof Instr.Jump) {
+                //nothing
+            } else if (instr instanceof Instr.Load) {
                 Value array = ((Instr.Load) instr).getPointer();
                 while (array instanceof Instr.GetElementPtr) {
                     array = ((Instr.GetElementPtr) array).getPtr();
@@ -167,11 +186,21 @@ public class LoopFuse {
                     return;
                 }
             } else if (instr instanceof Instr.GetElementPtr) {
+                Value array = ((Instr.GetElementPtr) instr).getPtr();
+                while (array instanceof Instr.GetElementPtr) {
+                    array = ((Instr.GetElementPtr) array).getPtr();
+                }
                 for (Use use = instr.getBeginUse(); use.getNext() != null; use = (Use) use.getNext()) {
                     if (use.getUser() instanceof Instr.Load) {
-                        preLoadGep.add(instr);
+                        if (preLoadGep.containsKey(array)) {
+                            return;
+                        }
+                        preLoadGep.put(array, instr);
                     } else if (use.getUser() instanceof Instr.Store) {
-                        preStoreGep.add(instr);
+                        if (preStoreGep.containsKey(array)) {
+                            return;
+                        }
+                        preStoreGep.put(array, instr);
                     } else {
                         return;
                     }
@@ -184,7 +213,9 @@ public class LoopFuse {
             if (useOutLoop(instr, sucLoop)) {
                 return;
             }
-            if (instr instanceof Instr.Load) {
+            if (instr instanceof Instr.Jump) {
+                //nothing
+            } else if (instr instanceof Instr.Load) {
                 Value array = ((Instr.Load) instr).getPointer();
                 while (array instanceof Instr.GetElementPtr) {
                     array = ((Instr.GetElementPtr) array).getPtr();
@@ -203,31 +234,141 @@ public class LoopFuse {
             } else if (instr instanceof Instr.Alu) {
                 Value val1 = ((Instr.Alu) instr).getRVal1();
                 Value val2 = ((Instr.Alu) instr).getRVal2();
-                if (val1 instanceof Instr && !((Instr) val1).parentBB().equals(sucLatch)) {
+                if (val1 instanceof Instr &&
+                        ((Instr) val1).parentBB().getLoop().equals(preLoop)) {
                     return;
                 }
-                if (val2 instanceof Instr && !((Instr) val2).parentBB().equals(sucLatch)) {
+                if (val2 instanceof Instr &&
+                        ((Instr) val2).parentBB().getLoop().equals(preLoop)) {
                     return;
                 }
             } else if (instr instanceof Instr.GetElementPtr) {
-
+                Value array = ((Instr.GetElementPtr) instr).getPtr();
+                while (array instanceof Instr.GetElementPtr) {
+                    array = ((Instr.GetElementPtr) array).getPtr();
+                }
+                for (Use use = instr.getBeginUse(); use.getNext() != null; use = (Use) use.getNext()) {
+                    if (use.getUser() instanceof Instr.Load) {
+                        if (sucLoadGep.containsKey(array)) {
+                            return;
+                        }
+                        sucLoadGep.put(array, instr);
+                    } else if (use.getUser() instanceof Instr.Store) {
+                        if (sucStoreGep.containsKey(array)) {
+                            return;
+                        }
+                        sucStoreGep.put(array, instr);
+                    } else {
+                        return;
+                    }
+                }
             } else {
                 return;
             }
         }
 
-        if (preStore.size() != 1 || sucStore.size() != 1 || preStore.containsAll(sucStore)) {
+        //!preLoad.equals(sucLoad)这个条件并不需要?
+        if (preStore.size() != 1 || sucStore.size() != 1 || !preStore.equals(sucStore)) {
             return;
         }
         Value preStoreArray = preStore.iterator().next();
         Value sucStoreArray = sucStore.iterator().next();
+        Value preStoreIndex = preStoreGep.get(preStoreArray);
+        Value sucStoreIndex = sucStoreGep.get(sucStoreArray);
+
+        //fixme:仔细考虑并不是一个数组的时候
+        if (!preStoreArray.equals(sucStoreArray)) {
+            return;
+        }
+
+        if (preLoadGep.containsKey(preStoreArray) && !preStoreIndex.equals(preLoadGep.get(preStoreArray))) {
+            return;
+        }
+
+        if (sucLoadGep.containsKey(sucStoreArray) && !sucStoreIndex.equals(sucLoadGep.get(sucStoreArray))) {
+            return;
+        }
+        boolean change = true;
+        while (change) {
+            change = false;
+            int size = map.size();
+            for (Instr instr: preLatchInstrs) {
+                hasReflectInstr(map, instr, sucLatchInstrs);
+            }
+            if (map.size() > size) {
+                change = true;
+            }
+        }
+
+
+
+        //sucEntering 没有对preStoreArray 的读写
+        for (Instr instr = sucEntering.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+            if (instr instanceof Instr.Load) {
+                Value array = ((Instr.Load) instr).getPointer();
+                while (array instanceof Instr.GetElementPtr) {
+                    array = ((Instr.GetElementPtr) array).getPtr();
+                }
+                if (array.equals(preStoreArray)) {
+                    return;
+                }
+            } else if (instr instanceof Instr.Store) {
+                Value array = ((Instr.Store) instr).getPointer();
+                while (array instanceof Instr.GetElementPtr) {
+                    array = ((Instr.GetElementPtr) array).getPtr();
+                }
+                if (array.equals(preStoreArray)) {
+                    return;
+                }
+            }
+        }
+
 
         if (sucLoad.contains(preStoreArray)) {
+            if (!getReflectValue(preStoreIndex, map).equals(sucLoadGep.get(preStoreArray))) {
+                return;
+            }
+        }
 
+        ArrayList<Instr> temp = new ArrayList<>();
+        for (Instr instr = sucEntering.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+            if (!(instr instanceof Instr.Branch) && !(instr instanceof Instr.Jump)) {
+                temp.add(instr);
+            }
+        }
+        for (int i = 0; i < temp.size(); i++) {
+            Instr instr = temp.get(i);
+            instr.delFromNowBB();
+            preEntering.getEndInstr().insertBefore(instr);
+            instr.setBb(preEntering);
+        }
+        temp.clear();
+        for (Instr instr = sucLatch.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+            if (!(instr instanceof Instr.Branch) && !(instr instanceof Instr.Jump) && !instr.equals(sucLoop.getIdcAlu())) {
+                temp.add(instr);
+            }
+        }
+        for (int i = 0; i < temp.size(); i++) {
+            Instr instr = temp.get(i);
+            instr.delFromNowBB();
+            preLatch.getEndInstr().getPrev().insertBefore(instr);
+            instr.setBb(preLatch);
+
+            for (int index = 0; index < instr.getUseValueList().size(); index++) {
+                Value value = instr.getUseValueList().get(index);
+                if (value.equals(sucLoop.getIdcPHI())) {
+                    instr.modifyUse(preLoop.getIdcPHI(), index);
+                }
+            }
         }
     }
 
     private boolean hasReflectInstr(HashMap<Value, Value> map, Instr instr, HashSet<Instr> instrs) {
+        for (Instr instr1: instrs) {
+            if (check(instr, instr1, map)) {
+                return true;
+            }
+        }
         return false;
     }
 

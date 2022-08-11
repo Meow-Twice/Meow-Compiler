@@ -22,9 +22,16 @@ public class GlobalVal extends Value {
         public GlobalValue(Type pointeeType, Ast.Def def, Initial initial) {
             super(new Type.PointerType(pointeeType));
             prefix = GLOBAL_PREFIX;
-            name = def.ident.getContent();
+            name = "g_" + def.ident.getContent();
             // name = GLOBAL_NAME_PREFIX + GLOBAL_COUNT++;
             this.def = def;
+            this.initial = initial;
+        }
+
+        public GlobalValue(Type pointeeType, String name, Initial initial) {
+            super(new Type.PointerType(pointeeType));
+            prefix = GLOBAL_PREFIX;
+            this.name = name;
             this.initial = initial;
         }
 

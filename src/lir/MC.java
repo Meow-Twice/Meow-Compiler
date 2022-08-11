@@ -31,7 +31,7 @@ public class MC {
     public static class Program {
         public static final Program PROGRAM = new Program();
         public Ilist<McFunction> funcList = new Ilist<>();
-        public ArrayList<Arm.Glob> globList = CodeGen.CODEGEN.globList;
+        public final ArrayList<Arm.Glob> globList = new ArrayList<>();
         public McFunction mainMcFunc;
         public ArrayList<I> needFixList = new ArrayList<>();
 
@@ -90,10 +90,10 @@ public class MC {
 
             stb.append(".section .text\n");
             for (McFunction function : funcList) {
-                stb.append("\n\n.global\t").append(function.mFunc.getName()).append("\n");
+                stb.append("\n\n.global\t").append(function.getName()).append("\n");
                 stb.append("@ regStackSize =\t").append(function.regStack).append(" ;\n@ varStackSize =\t").append(function.varStack).append(" ;\n@ paramStackSize =\t").append(function.paramStack).append(" ;\n");
                 stb.append("@ usedCalleeSavedGPRs =\t").append(function.usedCalleeSavedGPRs).append(" ;\n@ usedCalleeSavedFPRs =\t").append(function.usedCalleeSavedFPRs).append(" ;\n");
-                stb.append(function.mFunc.getName()).append(":\n");
+                stb.append(function.getName()).append(":\n");
                 //asm for mb
                 for (Block mb : function.mbList) {
                     stb.append(mb.getLabel()).append(":\n");
@@ -118,9 +118,8 @@ public class MC {
                 stb.append(".section .bss\n");
                 stb.append(".align 16\n");
                 for (Arm.Glob glob : globList) {
-                    GlobalVal.GlobalValue val = glob.getGlobalValue();
-                    stb.append("\n.global\t").append(val.name).append("\n");
-                    stb.append(val.name).append(":\n");
+                    stb.append("\n.global\t").append(glob.getGlob()).append("\n");
+                    stb.append(glob.getGlob()).append(":\n");
                     Initial.Flatten flatten = glob.init.flatten();
                     stb.append(".zero ").append(flatten.sizeInBytes()).append("\n");
                 }
@@ -128,11 +127,14 @@ public class MC {
                 stb.append(".section .data\n");
                 stb.append(".align 2\n");
                 for (Arm.Glob glob : globList) {
-                    GlobalVal.GlobalValue val = glob.getGlobalValue();
-                    stb.append("\n.global\t").append(val.name).append("\n");
-                    stb.append(val.name).append(":\n");
-                    Initial.Flatten flatten = glob.init.flatten();
-                    stb.append(flatten.toString());
+                    stb.append("\n.global\t").append(glob.getGlob()).append("\n");
+                    stb.append(glob.getGlob()).append(":\n");
+                    if (glob.init != null) {
+                        Initial.Flatten flatten = glob.init.flatten();
+                        stb.append(flatten.toString());
+                    } else {
+                        stb.append("\t.word\t0\n");
+                    }
                 }
             }
 
@@ -195,8 +197,9 @@ public class MC {
             this.name = name;
         }
 
-
-        public McFunction() {
+        public String getName() {
+            if (mFunc != null) return mFunc.getName();
+            return name;
         }
 
         public void addVarStack(int i) {
@@ -361,6 +364,7 @@ public class MC {
         public Ilist<MachineInst> miList = new Ilist<>();
         static int globIndex = 0;
         int mb_idx;
+        String label;
         public ArrayList<Block> succMBs = new ArrayList<>();
         public HashSet<Operand> liveUseSet = new HashSet<>();
         public HashSet<Operand> liveDefSet = new HashSet<>();
@@ -402,18 +406,18 @@ public class MC {
 
         public Block(String label, McFunction insertAtEnd) {
             this.bb = null;
-            MB_Prefix = label;
+            this.label = label;
             mf = insertAtEnd;
             mf.insertAtEnd(this);
         }
 
         public String getLabel() {
-            return MB_Prefix + (bb == null ? "" : mb_idx + "_" + bb.getLabel());
+            return (bb == null ? label : MB_Prefix + mb_idx + "_" + bb.getLabel());
         }
 
         @Override
         public String toString() {
-            return MB_Prefix + (bb == null ? "" : mb_idx + "_" + bb.getLabel());
+            return (bb == null ? label : MB_Prefix + mb_idx + "_" + bb.getLabel());
         }
 
         public void setMf(McFunction mf) {
@@ -424,6 +428,7 @@ public class MC {
 
     public static class Operand {
         public static final Operand I_ZERO = new Operand(I32, 0);
+        public static final Operand I_ONE = new Operand(I32, 1);
         public int loopCounter = 0;
 
         private String prefix;

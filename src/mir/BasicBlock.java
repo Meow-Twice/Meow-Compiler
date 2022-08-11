@@ -103,6 +103,10 @@ public class BasicBlock extends Value {
         return isExit;
     }
 
+    public void setNotHead() {
+        isLoopHeader = false;
+    }
+
     public void setNotLatch() {
         isLoopLatch = false;
     }

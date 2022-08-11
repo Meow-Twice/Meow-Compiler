@@ -26,11 +26,19 @@ public class MidEndRunner {
         if (!O2) {
             Mem2Reg mem2Reg = new Mem2Reg(functions);
             mem2Reg.Run();
-            reMakeCFGAndLoopInfo();
+            //reMakeCFGAndLoopInfo();
+            LoopInfo loopInfo = new LoopInfo(functions);
+            loopInfo.Run();
+
+            LoopIdcVarInfo loopIdcVarInfo = new LoopIdcVarInfo(functions);
+            loopIdcVarInfo.Run();
+
+            FuncInfo funcInfo = new FuncInfo(functions);
+            funcInfo.Run();
             Pass();
             Pass();
-            BrOptimize();
-            BrOptimize();
+//            BrOptimize();
+//            BrOptimize();
             MathOpt();
             return;
         }
@@ -118,7 +126,7 @@ public class MidEndRunner {
 
         //outputLLVM();
         //ArrayGCM();
-        LoopInVarCodeLift loopInVarCodeLift = new LoopInVarCodeLift(functions);
+        LoopInVarCodeLift loopInVarCodeLift = new LoopInVarCodeLift(functions, globalValues);
         loopInVarCodeLift.Run();
         //outputLLVM();
 
@@ -128,6 +136,8 @@ public class MidEndRunner {
         removePhiUseSame();
         Rem2DivMulSub();
         GepSplit();
+
+        //outputLLVM();
 
         System.err.println("O2 End");
         //check();

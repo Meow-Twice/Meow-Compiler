@@ -58,9 +58,7 @@ public class Compiler {
             // GlobalValueLocalize globalValueLocalize = new GlobalValueLocalize(funcManager.globals);
             // globalValueLocalize.Run();
             Manager.MANAGER.outputLLVM();
-            if (_ONLY_FRONTEND) {
-                return;
-            }
+
             MidEndRunner.O2 = arg.optimize;
             _ONLY_FRONTEND = !arg.outputAsm();
             System.err.println("mid optimization begin");
@@ -74,6 +72,10 @@ public class Compiler {
 
             if (arg.outputLLVM()) {
                 Manager.MANAGER.outputLLVM(arg.llvmStream);
+            }
+
+            if (_ONLY_FRONTEND) {
+                return;
             }
 
             RemovePhi removePhi = new RemovePhi(midEndRunner.functions);

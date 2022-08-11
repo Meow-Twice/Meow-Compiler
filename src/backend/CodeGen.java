@@ -5,7 +5,6 @@ import frontend.semantic.Initial;
 import lir.*;
 import lir.MC.Operand;
 import manage.Manager;
-import midend.MidEndRunner;
 import mir.*;
 import mir.type.DataType;
 import mir.type.Type;
@@ -13,15 +12,16 @@ import mir.type.Type;
 import java.math.BigInteger;
 import java.util.*;
 
-import static lir.Arm.Cond.*;
 import static lir.Arm.Cond.Eq;
 import static lir.Arm.Cond.Ge;
 import static lir.Arm.Cond.Gt;
 import static lir.Arm.Cond.Le;
 import static lir.Arm.Cond.Lt;
 import static lir.Arm.Cond.Ne;
-import static lir.Arm.Regs.FPRs.*;
-import static lir.Arm.Regs.GPRs.*;
+import static lir.Arm.Cond.*;
+import static lir.Arm.Regs.FPRs.s0;
+import static lir.Arm.Regs.GPRs.r0;
+import static lir.Arm.Regs.GPRs.sp;
 import static lir.MachineInst.Tag.*;
 import static midend.MidEndRunner.O2;
 import static mir.type.DataType.F32;
@@ -789,65 +789,70 @@ public class CodeGen {
         } else if (optMulDiv && tag == Mul && (lhs.isConstantInt() || rhs.isConstantInt())) {
             // 不考虑双立即数: r*i, i*r, r*r
             if (lhs.isConstantInt() && rhs.isConstantInt()) {
-                System.err.println("[MUL dst, imm, imm] should never occur @ " + instr);
-                System.exit(91);
-            }
-            MC.Operand srcOp;
-            int imm;
-            if (lhs.isConstantInt()) {
-                srcOp = getVR_may_imm(rhs);
-                imm = (int) ((Constant.ConstantInt) lhs).getConstVal();
+                // 双立即数情况，转成 move
+                int vlhs = ((Constant.ConstantInt) lhs).constIntVal;
+                int vrhs = ((Constant.ConstantInt) rhs).constIntVal;
+                new I.Mov(dVR, new Operand(I32, vlhs * vrhs), curMB);
             } else {
-                srcOp = getVR_may_imm(lhs);
-                imm = (int) ((Constant.ConstantInt) rhs).getConstVal();
-            }
-            int abs = (imm < 0) ? (-imm) : imm;
-            if (abs == 0) {
-                new I.Mov(dVR, new Operand(I32, 0), curMB); // dst = 0
-            } else if ((abs & (abs - 1)) == 0) {
-                // imm 是 2 的幂
-                int sh = bitsOfInt - 1 - Integer.numberOfLeadingZeros(abs);
-                // dst = src << sh
-                if (sh > 0) {
-                    new I.Mov(dVR, srcOp, new Arm.Shift(Arm.ShiftType.Lsl, sh), curMB);
+                MC.Operand srcOp;
+                int imm;
+                if (lhs.isConstantInt()) {
+                    srcOp = getVR_may_imm(rhs);
+                    imm = (int) ((Constant.ConstantInt) lhs).getConstVal();
                 } else {
-                    new I.Mov(dVR, srcOp, curMB);
+                    srcOp = getVR_may_imm(lhs);
+                    imm = (int) ((Constant.ConstantInt) rhs).getConstVal();
                 }
-                if (imm < 0) {
-                    // dst = -dst
-                    // TODO: 源操作数和目的操作数虚拟寄存器相同，不一定不会出 bug
-                    new I.Binary(Rsb, dVR, dVR, new Operand(I32, 0), curMB); // dst = 0 - dst
+                int abs = (imm < 0) ? (-imm) : imm;
+                if (abs == 0) {
+                    new I.Mov(dVR, new Operand(I32, 0), curMB); // dst = 0
+                } else if ((abs & (abs - 1)) == 0) {
+                    // imm 是 2 的幂
+                    int sh = bitsOfInt - 1 - Integer.numberOfLeadingZeros(abs);
+                    // dst = src << sh
+                    if (sh > 0) {
+                        new I.Mov(dVR, srcOp, new Arm.Shift(Arm.ShiftType.Lsl, sh), curMB);
+                    } else {
+                        new I.Mov(dVR, srcOp, curMB);
+                    }
+                    if (imm < 0) {
+                        // dst = -dst
+                        // TODO: 源操作数和目的操作数虚拟寄存器相同，不一定不会出 bug
+                        new I.Binary(Rsb, dVR, dVR, new Operand(I32, 0), curMB); // dst = 0 - dst
+                    }
+                } else if (Integer.bitCount(abs) == 2) {
+                    // constant multiplier has two 1 bits => two shift-left and one add
+                    // a * 10 => (a << 3) + (a << 1)
+                    int hi = bitsOfInt - 1 - Integer.numberOfLeadingZeros(abs);
+                    int lo = Integer.numberOfTrailingZeros(abs);
+                    Operand shiftHi = newVR();
+                    new I.Mov(shiftHi, srcOp, new Arm.Shift(Arm.ShiftType.Lsl, hi), curMB); // shiftHi = (a << hi)
+                    new I.Binary(Add, dVR, shiftHi, srcOp, new Arm.Shift(Arm.ShiftType.Lsl, lo), curMB); // dst = shiftHi + (a << lo)
+                    if (imm < 0) {
+                        // dst = -dst
+                        new I.Binary(Rsb, dVR, dVR, new Operand(I32, 0), curMB); // dst = 0 - dst
+                    }
+                } else if (((abs + 1) & (abs)) == 0) {  // (abs + 1) is power of 2
+                    // a * (2^sh - 1) => (a << sh) - a => rsb dst, src, src, lsl #sh
+                    int sh = bitsOfInt - 1 - Integer.numberOfLeadingZeros(abs + 1);
+                    assert sh > 0;
+                    new I.Binary(Rsb, dVR, srcOp, srcOp, new Arm.Shift(Arm.ShiftType.Lsl, sh), curMB);
+                    if (imm < 0) {
+                        // dst = -dst
+                        new I.Binary(Rsb, dVR, dVR, new Operand(I32, 0), curMB); // dst = 0 - dst
+                    }
+                } else {
+                    new I.Binary(tag, dVR, srcOp, getImmVR(imm), curMB);
                 }
-            } else if (Integer.bitCount(abs) == 2) {
-                // constant multiplier has two 1 bits => two shift-left and one add
-                // a * 10 => (a << 3) + (a << 1)
-                int hi = bitsOfInt - 1 - Integer.numberOfLeadingZeros(abs);
-                int lo = Integer.numberOfTrailingZeros(abs);
-                Operand shiftHi = newVR();
-                new I.Mov(shiftHi, srcOp, new Arm.Shift(Arm.ShiftType.Lsl, hi), curMB); // shiftHi = (a << hi)
-                new I.Binary(Add, dVR, shiftHi, srcOp, new Arm.Shift(Arm.ShiftType.Lsl, lo), curMB); // dst = shiftHi + (a << lo)
-                if (imm < 0) {
-                    // dst = -dst
-                    new I.Binary(Rsb, dVR, dVR, new Operand(I32, 0), curMB); // dst = 0 - dst
-                }
-            } else if (((abs + 1) & (abs)) == 0) {  // (abs + 1) is power of 2
-                // a * (2^sh - 1) => (a << sh) - a => rsb dst, src, src, lsl #sh
-                int sh = bitsOfInt - 1 - Integer.numberOfLeadingZeros(abs + 1);
-                assert sh > 0;
-                new I.Binary(Rsb, dVR, srcOp, srcOp, new Arm.Shift(Arm.ShiftType.Lsl, sh), curMB);
-                if (imm < 0) {
-                    // dst = -dst
-                    new I.Binary(Rsb, dVR, dVR, new Operand(I32, 0), curMB); // dst = 0 - dst
-                }
-            } else {
-                new I.Binary(tag, dVR, srcOp, getImmVR(imm), curMB);
             }
         } else if (optMulDiv && tag == Div && rhs.isConstantInt()) {
             // 不允许双立即数, 只能是 r/i
             // TODO: ayame 的 divMap 机制目前未实现
             if (lhs.isConstantInt()) {
-                System.err.println("[DIV dst, imm, imm] should never occur @ " + instr);
-                System.exit(94);
+                // 双立即数情况，转成 move
+                int vlhs = ((Constant.ConstantInt) lhs).constIntVal;
+                int vrhs = ((Constant.ConstantInt) rhs).constIntVal;
+                new I.Mov(dVR, new Operand(I32, vlhs / vrhs), curMB);
             }
             MC.Operand lVR = getVR_may_imm(lhs);
             int imm = (int) ((Constant.ConstantInt) rhs).getConstVal();

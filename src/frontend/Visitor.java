@@ -730,7 +730,11 @@ public class Visitor {
                 // if (!(astInit instanceof InitArray)) {
                 //     throw new SemanticException("Array variable not init by a list");
                 // }
-                init = visitInitArray((InitArray) astInit, (ArrayType) pointeeType, constant, eval);
+                if (((InitArray) astInit).init.size() == 0) {
+                    init = new Initial.ZeroInit(pointeeType);
+                } else {
+                    init = visitInitArray((InitArray) astInit, (ArrayType) pointeeType, constant, eval);
+                }
             }
         }
         // 如果是全局变量且没有初始化，则初始化为零

@@ -776,7 +776,10 @@ public class Visitor {
                     } else if (init instanceof Initial.ValueInit) {
                         Value v = trimTo(((Initial.ValueInit) init).getValue(), (BasicType) pointeeType);
                         new Store(v, pointer, curBB);
-                    } else if (init instanceof Initial.ArrayInit) {
+                    } else if (init instanceof Initial.ZeroInit) {
+                        initZeroHelper(pointer, pointeeType);
+                    } else {
+                        // assert init instanceof Initial.ArrayInit;
                         Initial.Flatten flattenInit = init.flatten();
                         Set<Value> valueSet = flattenInit.valueSet();
                         boolean allZero = flattenInit.isZero();

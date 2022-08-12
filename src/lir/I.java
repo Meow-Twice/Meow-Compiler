@@ -93,6 +93,21 @@ public class I extends MachineInst {
 
     public static class Str extends I implements MachineMemInst {
 
+        public Str(MachineInst insertAfter, Operand data, Operand addr) {
+            super(insertAfter, Tag.Str);
+            useOpds.add(data);
+            useOpds.add(addr);
+            // useOpds.add(new Operand(I32, 0));
+        }
+
+        public Str(MachineInst insertAfter, Operand data, Operand addr, Operand offset, Arm.Shift lsl) {
+            super(insertAfter, Tag.Str);
+            useOpds.add(data);
+            useOpds.add(addr);
+            useOpds.add(offset);
+            if(lsl.shiftOpd.needRegOf(I32)) useOpds.add(lsl.shiftOpd);
+        }
+
         public Str(Operand data, Operand addr, MC.Block insertAtEnd) {
             super(Tag.Str, insertAtEnd);
             useOpds.add(data);
@@ -392,6 +407,15 @@ public class I extends MachineInst {
             useOpds.add(rOpd);
         }
 
+        public Binary(MachineInst insertAfter, Tag tag, Operand dOpd, Operand lOpd, Operand rOpd, Arm.Shift shift) {
+            super(insertAfter, tag);
+            defOpds.add(dOpd);
+            useOpds.add(lOpd);
+            useOpds.add(rOpd);
+            this.shift = shift;
+            if (!shift.shiftOpd.needRegOf(I32)) useOpds.add(shift.shiftOpd);
+        }
+
         public Binary(Tag tag, Operand dOpd, Operand lOpd, Operand rOpd, MC.Block insertAtEnd) {
             super(tag, insertAtEnd);
             defOpds.add(dOpd);
@@ -405,6 +429,7 @@ public class I extends MachineInst {
             useOpds.add(lOpd);
             useOpds.add(rOpd);
             this.shift = shift;
+            if (!shift.shiftOpd.needRegOf(I32)) useOpds.add(shift.shiftOpd);
         }
 
         public Binary(Tag tag, Operand dstAddr, Arm.Reg rSP, Operand offset, MachineInst firstUse) {
@@ -625,7 +650,7 @@ public class I extends MachineInst {
         }
     }
 
-    public static class Swi extends I{
+    public static class Swi extends I {
 
         public Swi(MC.Block insertAtEnd) {
             super(Tag.Swi, insertAtEnd);
@@ -638,7 +663,7 @@ public class I extends MachineInst {
     }
 
 
-    public static class Wait extends I{
+    public static class Wait extends I {
         public Wait(MC.Block insertAtEnd) {
             super(Tag.Wait, insertAtEnd);
         }

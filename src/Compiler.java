@@ -81,6 +81,7 @@ public class Compiler {
             RemovePhi removePhi = new RemovePhi(midEndRunner.functions);
             removePhi.Run();
 
+            CenterControl.AlreadyBackend = true;
             System.err.println("code gen begin");
             start = System.currentTimeMillis();
             //Manager.MANAGER.outputLLVM();
@@ -126,10 +127,12 @@ public class Compiler {
 
             // System.err.println(p.getSTB());
             //
+            if (CenterControl._GLOBAL_BSS)
+                MC.Program.PROGRAM.bssInit();
 
-            PeepHole peepHole = new PeepHole(p);
-            peepHole.run();
-            if(CenterControl._OPEN_PARALLEL){
+            // PeepHole peepHole = new PeepHole(p);
+            // peepHole.run();
+            if (CenterControl._OPEN_PARALLEL) {
                 Parallel parallel = new Parallel(p);
                 parallel.gen();
             }

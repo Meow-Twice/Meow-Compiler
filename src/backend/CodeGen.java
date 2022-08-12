@@ -8,6 +8,7 @@ import manage.Manager;
 import mir.*;
 import mir.type.DataType;
 import mir.type.Type;
+import util.CenterControl;
 
 import java.math.BigInteger;
 import java.util.*;
@@ -19,11 +20,12 @@ import static lir.Arm.Cond.Le;
 import static lir.Arm.Cond.Lt;
 import static lir.Arm.Cond.Ne;
 import static lir.Arm.Cond.*;
+import static lir.Arm.Reg.getRSReg;
 import static lir.Arm.Regs.FPRs.s0;
-import static lir.Arm.Regs.GPRs.r0;
-import static lir.Arm.Regs.GPRs.sp;
+import static lir.Arm.Regs.GPRs.*;
 import static lir.MachineInst.Tag.*;
 import static midend.MidEndRunner.O2;
+import static mir.Constant.ConstantInt.CONST_0;
 import static mir.type.DataType.F32;
 import static mir.type.DataType.I32;
 
@@ -58,6 +60,7 @@ public class CodeGen {
     // 全局变量
     private final HashMap<GlobalVal.GlobalValue, Initial> globalMap;
     private MC.Block curMB;
+    public MC.Block init_bss;
 
     // 整数数传参可使用最大个数
     public static final int rParamCnt = 4;
@@ -107,6 +110,7 @@ public class CodeGen {
             if (curFunc.getName().equals("main")) {
                 isMain = true;
                 MC.Program.PROGRAM.mainMcFunc = curMF;
+                curMF.isMain = true;
             }
             curMF.clearVRCount();
             curMF.clearSVRCount();
@@ -134,6 +138,9 @@ public class CodeGen {
             bino.setNeedFix(STACK_FIX.VAR_STACK);
             if (!isMain) {
                 dealParam();
+            // } else {
+            //     if (CenterControl._GLOBAL_BSS)
+            //         MC.Program.specialMI = bino;
             }
             // 改写为循环加运行速度
             nextBBList = new LinkedList<>();
@@ -148,7 +155,8 @@ public class CodeGen {
 
     private void Push(MC.McFunction mf) {
         if (needFPU) new StackCtl.VPush(mf, curMB);
-        new StackCtl.Push(mf, curMB);
+        MachineInst tmp = new StackCtl.Push(mf, curMB);
+        if(curMF.isMain && CenterControl._GLOBAL_BSS) MC.Program.specialMI = tmp;
     }
 
     private void Pop(MC.McFunction mf) {

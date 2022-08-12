@@ -34,6 +34,7 @@ public class MC {
         public final ArrayList<Arm.Glob> globList = new ArrayList<>();
         public McFunction mainMcFunc;
         public ArrayList<I> needFixList = new ArrayList<>();
+        public static MachineInst specialMI;
 
         private Program() {
         }
@@ -43,30 +44,33 @@ public class MC {
          *
          * @return 用于初始化的 Machine Block ，插入到 main 函数开始处
          */
-        public Block bssInit() {
-            Block initMB = new Block("._init_bss_0", mainMcFunc);
-            for (Arm.Glob glob : globList) {
+        public void bssInit() {
+            assert specialMI != null;
+            for (Arm.Glob glob : MC.Program.PROGRAM.globList) {
                 // 对每个变量初始化
                 // 用 movw 和 movt 指令获取基地址
                 MC.Operand rBase = getRSReg(r3), rOffset = getRSReg(r2), rData = getRSReg(r1);
-                new I.Mov(rBase, glob, initMB);  // r4: 基地址
+                specialMI = new I.Mov(specialMI, rBase, glob);  // r3: 基地址
                 Initial.Flatten flatten = glob.init.flatten();
                 int offset = 0;
                 for (Initial.Flatten.Entry entry : flatten) {
-                    assert entry.value instanceof Constant.ConstantInt;
-                    if (!entry.value.equals(CONST_0)) {
-                        // 计算位移
-                        new I.Mov(rOffset, new Operand(I32, offset), initMB); // mov 偏移量
-                        new I.Binary(Add, rOffset, rBase, rOffset, new Arm.Shift(Arm.ShiftType.Lsl, 2), initMB); // add + lsl 偏移地址
-                        // 写入数据
-                        new I.Mov(rData, new Operand(I32, (int) ((Constant.ConstantInt) entry.value).getConstVal()), initMB); // mov 写入值
-                        new I.Str(rData, rOffset, initMB);
+                    // assert entry.value instanceof Constant.ConstantInt;
+                    int end = offset + entry.count;
+                    while (offset < end) {
+                        if (!entry.value.equals(CONST_0)) {
+                            if (LdrStrImmEncode(offset * 4)) {
+                                specialMI = new I.Mov(specialMI, rData, new Operand(I32, (int) ((Constant) entry.value).getConstVal())); // mov 写入值
+                                specialMI = new I.Str(specialMI, rData, rBase, new Operand(I32, offset * 4));
+                            } else {
+                                specialMI = new I.Mov(specialMI, rData, new Operand(I32, (int) ((Constant) entry.value).getConstVal())); // mov 写入值
+                                specialMI = new I.Mov(specialMI, rOffset, new Operand(I32, offset)); // mov 写入值
+                                specialMI = new I.Str(specialMI, rData, rBase, rOffset, new Arm.Shift(Arm.ShiftType.Lsl, 2));
+                            }
+                        }
+                        offset++;
                     }
-                    // 偏移累加
-                    offset += entry.count;
                 }
             }
-            return initMB;
         }
 
         public StringBuilder getSTB() {
@@ -79,14 +83,14 @@ public class MC {
 
             // 遍历全局数组的初始化，生成一个专门用来初始化的 MB 在 main 的开头
             // 在没有测好之前，暂时用 stderr 输出
-            if (CenterControl._GLOBAL_BSS) {
-                Block initMB = bssInit();
-                System.err.println(initMB.getLabel() + ":");
-                for (MachineInst inst : initMB.miList) {
-                    if (!inst.isComment()) System.err.print("\t");
-                    System.err.println(inst.getSTB());
-                }
-            }
+            // if (CenterControl._GLOBAL_BSS) {
+            //     Block initMB = bssInit();
+            //     System.err.println(initMB.getLabel() + ":");
+            //     for (MachineInst inst : initMB.miList) {
+            //         if (!inst.isComment()) System.err.print("\t");
+            //         System.err.println(inst.getSTB());
+            //     }
+            // }
 
             stb.append(".section .text\n");
             for (McFunction function : funcList) {
@@ -149,6 +153,7 @@ public class MC {
         public Ilist<Block> mbList = new Ilist<>();
         public int floatParamCount = 0;
         public int intParamCount = 0;
+        public boolean isMain = false;
         private int vrCount = 0;
         private int sVrCount = 0;
 

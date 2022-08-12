@@ -110,8 +110,12 @@ public class MidEndRunner {
         LoopFold();
         LoopFold();
 
+
+        MathOpt();
+        Pass();
         //outputLLVM();
         LoopStrengthReduction();
+
 
 
 
@@ -130,13 +134,14 @@ public class MidEndRunner {
         LoopInVarCodeLift();
         //outputLLVM();
 
-        outputLLVM();
+        //outputLLVM();
         LoopFuse();
 
 
         ArrayLift();
         removePhiUseSame();
         Rem2DivMulSub();
+        //LoopStrengthReduction();
         GepSplit();
 
         //outputLLVM();
@@ -300,7 +305,7 @@ public class MidEndRunner {
         LoopStrengthReduction loopStrengthReduction = new LoopStrengthReduction(functions);
         loopStrengthReduction.Run();
 
-
+        //outputLLVM();
 
         reMakeCFGAndLoopInfo();
 

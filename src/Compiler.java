@@ -130,8 +130,8 @@ public class Compiler {
             if (CenterControl._GLOBAL_BSS)
                 MC.Program.PROGRAM.bssInit();
 
-            // PeepHole peepHole = new PeepHole(p);
-            // peepHole.run();
+            PeepHole peepHole = new PeepHole(p);
+            peepHole.run();
             if (CenterControl._OPEN_PARALLEL) {
                 Parallel parallel = new Parallel(p);
                 parallel.gen();

@@ -27,17 +27,17 @@ public class MidEndRunner {
         if (!O2) {
             Mem2Reg mem2Reg = new Mem2Reg(functions);
             mem2Reg.Run();
-            //reMakeCFGAndLoopInfo();
-            // LoopInfo loopInfo = new LoopInfo(functions);
-            // loopInfo.Run();
-            //
-            // LoopIdcVarInfo loopIdcVarInfo = new LoopIdcVarInfo(functions);
-            // loopIdcVarInfo.Run();
-            //
-            // FuncInfo funcInfo = new FuncInfo(functions);
-            // funcInfo.Run();
-            // Pass();
-            // Pass();
+            reMakeCFGAndLoopInfo();
+            LoopInfo loopInfo = new LoopInfo(functions);
+            loopInfo.Run();
+
+            LoopIdcVarInfo loopIdcVarInfo = new LoopIdcVarInfo(functions);
+            loopIdcVarInfo.Run();
+
+            FuncInfo funcInfo = new FuncInfo(functions);
+            funcInfo.Run();
+            Pass();
+            Pass();
 //            BrOptimize();
 //            BrOptimize();
             MathOpt();

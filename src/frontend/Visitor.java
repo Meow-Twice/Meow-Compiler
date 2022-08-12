@@ -398,8 +398,8 @@ public class Visitor {
     }
 
     private void visitAssign(Assign assign) throws SemanticException {
-        Value left = visitLVal(assign.left, true);
         Value right = visitExp(assign.right);
+        Value left = visitLVal(assign.left, true);
         assert left.getType() instanceof PointerType; // 分析出来的左值一定是指针类型
         Type innerType = ((PointerType) left.getType()).getInnerType();
         assert innerType instanceof BasicType;

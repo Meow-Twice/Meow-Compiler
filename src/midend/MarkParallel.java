@@ -44,8 +44,9 @@ public class MarkParallel {
     }
 
     private void markLoop(Loop loop) {
-        if (loop.getHash() == 8) {
-            System.err.println("loop_parallel");
+        if (loop.getHash() != 9) {
+            return;
+            //System.err.println("loop_parallel");
         }
         if (!isPureLoop(loop)) {
             return;
@@ -144,7 +145,6 @@ public class MarkParallel {
                     return;
                 }
             }
-
         }
 
         Value idcEnd = loop.getIdcEnd();

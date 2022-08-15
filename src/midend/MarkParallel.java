@@ -44,9 +44,9 @@ public class MarkParallel {
     }
 
     private void markLoop(Loop loop) {
-//        if (loop.getHash() == 8) {
-//            System.err.println("loop_parallel");
-//        }
+        if (loop.getHash() == 8) {
+            System.err.println("loop_parallel");
+        }
         if (!isPureLoop(loop)) {
             return;
         }
@@ -102,26 +102,6 @@ public class MarkParallel {
                     }
                     load.add(array);
 
-                } else if (instr instanceof Instr.GetElementPtr) {
-                    Value array = ((Instr.GetElementPtr) instr).getPtr();
-                    while (array instanceof Instr.GetElementPtr) {
-                        array = ((Instr.GetElementPtr) array).getPtr();
-                    }
-                    for (Use use = instr.getBeginUse(); use.getNext() != null; use = (Use) use.getNext()) {
-                        if (use.getUser() instanceof Instr.Load) {
-                            if (loadGep.containsKey(array)) {
-                                return;
-                            }
-                            loadGep.put(array, instr);
-                        } else if (use.getUser() instanceof Instr.Store) {
-                            if (storeGep.containsKey(array)) {
-                                return;
-                            }
-                            storeGep.put(array, instr);
-                        } else {
-                            return;
-                        }
-                    }
                 }
             }
         }
@@ -130,9 +110,41 @@ public class MarkParallel {
             return;
         }
 
-        Value storeArray = store.iterator().next();
-        if (load.contains(storeArray) && !storeGep.get(storeArray).equals(loadGep.get(storeArray))) {
-            return;
+        if (store.size() == 1) {
+            Value storeArray = store.iterator().next();
+            if (load.contains(storeArray)) {
+                for (BasicBlock bb : bbs) {
+                    for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+                        if (instr instanceof Instr.GetElementPtr) {
+                            Value array = ((Instr.GetElementPtr) instr).getPtr();
+                            while (array instanceof Instr.GetElementPtr) {
+                                array = ((Instr.GetElementPtr) array).getPtr();
+                            }
+                            if (array.equals(storeArray)) {
+                                for (Use use = instr.getBeginUse(); use.getNext() != null; use = (Use) use.getNext()) {
+                                    if (use.getUser() instanceof Instr.Load) {
+                                        if (loadGep.containsKey(array)) {
+                                            return;
+                                        }
+                                        loadGep.put(array, instr);
+                                    } else if (use.getUser() instanceof Instr.Store) {
+                                        if (storeGep.containsKey(array)) {
+                                            return;
+                                        }
+                                        storeGep.put(array, instr);
+                                    } else {
+                                        return;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                if (!storeGep.get(storeArray).equals(loadGep.get(storeArray))) {
+                    return;
+                }
+            }
+
         }
 
         Value idcEnd = loop.getIdcEnd();

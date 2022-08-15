@@ -8,6 +8,7 @@ import frontend.syntax.Ast;
 import frontend.syntax.Parser;
 import lir.MC;
 import manage.Manager;
+import midend.MergeBB;
 import midend.MidEndRunner;
 import midend.RemovePhi;
 import util.CenterControl;
@@ -80,6 +81,11 @@ public class Compiler {
 
             RemovePhi removePhi = new RemovePhi(midEndRunner.functions);
             removePhi.Run();
+
+            Manager.MANAGER.outputLLVM();
+
+            MergeBB mergeBB = new MergeBB(midEndRunner.functions);
+            mergeBB.Run();
 
             CenterControl.AlreadyBackend = true;
             System.err.println("code gen begin");

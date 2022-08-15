@@ -34,6 +34,10 @@ public class RemovePhi {
     private void removeFuncPhi(Function function) {
         BasicBlock bb = function.getBeginBB();
         while (bb.getNext() != null) {
+            if (!(bb.getBeginInstr() instanceof Instr.Phi)) {
+                bb = (BasicBlock) bb.getNext();
+                continue;
+            }
             ArrayList<BasicBlock> pres = new ArrayList<>();
             for (BasicBlock b:bb.getPrecBBs()) {
                 pres.add(b);
@@ -82,6 +86,7 @@ public class RemovePhi {
     private void addMidBB(BasicBlock src, BasicBlock mid, BasicBlock tag) {
         src.getSuccBBs().remove(tag);
         src.getSuccBBs().add(mid);
+        mid.getPrecBBs().add(src);
         mid.getSuccBBs().add(tag);
         tag.getPrecBBs().remove(src);
         tag.getPrecBBs().add(mid);

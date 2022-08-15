@@ -164,7 +164,7 @@ public class Arm {
     }
 
     public static class Glob extends MC.Operand {
-        public String name;
+        private String name;
         public GlobalVal.GlobalValue globalValue;
         public Initial init;
 

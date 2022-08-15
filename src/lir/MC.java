@@ -1,23 +1,29 @@
 package lir;
 
 import backend.CodeGen;
+import frontend.semantic.Initial;
 import mir.BasicBlock;
 import mir.Constant;
+import mir.Function;
 import mir.GlobalVal;
-import mir.Value;
 import mir.type.DataType;
+import util.CenterControl;
 import util.ILinkNode;
 import util.Ilist;
 
-import java.io.PrintStream;
-import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.TreeSet;
 
 import static backend.CodeGen.*;
 import static backend.RegAllocator.SP_ALIGN;
+import static lir.Arm.Reg.getRSReg;
 import static lir.Arm.Regs.FPRs.s0;
 import static lir.Arm.Regs.GPRs.*;
 import static lir.MC.Operand.Type.*;
+import static lir.MachineInst.Tag.Add;
+import static mir.Constant.ConstantInt.CONST_0;
 import static mir.type.DataType.F32;
 import static mir.type.DataType.I32;
 
@@ -26,116 +32,73 @@ public class MC {
     public static class Program {
         public static final Program PROGRAM = new Program();
         public Ilist<McFunction> funcList = new Ilist<>();
-        public ArrayList<Arm.Glob> globList = CodeGen.CODEGEN.globList;
+        public final ArrayList<Arm.Glob> globList = new ArrayList<>();
         public McFunction mainMcFunc;
         public ArrayList<I> needFixList = new ArrayList<>();
+        public static MachineInst specialMI;
 
-        public static final boolean NO_CACHE = true;
         private Program() {
         }
 
-        public void output(PrintStream os) {
-            if (NO_CACHE) {
-                os.println("@ generated at " + new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date()) + "\n");
-            }
-            os.println(".arch armv7ve");
-            os.println(".arm");
-            if (needFPU) {
-                os.println(".fpu vfpv3-d16");
-            }
-            os.println(".section .text");
-            for (McFunction function : funcList) {
-                os.println();
-                os.println(".global\t" + function.mFunc.getName());
-                os.println("\t.type\t" + function.mFunc.getName() + ",%function");
-                os.println("@ regStackSize =\t" + function.regStack + " ;\n@ varStackSize =\t" + function.varStack + " ;\n@ paramStackSize =\t" + function.paramStack + " ;");
-
-                os.println("@ usedCalleeSavedGPRs =\t" + function.usedCalleeSavedGPRs + " ;\n@ usedCalleeSavedFPRs =\t" + function.usedCalleeSavedFPRs + " ;\n");
-
-                os.println(function.mFunc.getName() + ":");
-
-
-                //asm for mb
-                for (Block mb : function.mbList) {
-                    os.println(mb.getLabel() + ":");
-                    for (MachineInst inst : mb.miList) {
-                        inst.output(os, function);
-                    }
-                }
-
-            }
-
-            os.println();
-            os.println();
-            // output float const
-            for (Map.Entry<String, Operand> entry : CodeGen.name2constFOpd.entrySet()) {
-                String name = entry.getKey();
-                Constant.ConstantFloat constF = entry.getValue().constF;
-                int i = constF.getIntBits();
-                os.println(name + ":");
-                os.println("\t.word\t" + i);
-            }
-            os.println(".section .data");
-            os.println(".align 2");
-            for (Arm.Glob glob : globList) {
-                GlobalVal.GlobalValue val = glob.getGlobalValue();
-                os.println();
-                os.println(".global\t" + val.name);
-                // os.println("\t.type\t" + val.name + ",%object");
-                os.println(val.name + ":");
-
-                int count = 0;
-                boolean init = false;
-                int last = 0;
-
-                for (Value value : glob.getInit().getFlattenInit()) {
-                    if (!init) {
-                        init = true;
-                        if (value.isConstantInt()) {
-                            last = ((Constant.ConstantInt) value).constIntVal;
-                        } else {
-                            last = ((Constant.ConstantFloat) value).getIntBits();
+        /**
+         * 对 .bss 段的全局变量中非零元素用指令进行初始化
+         *
+         * @return 用于初始化的 Machine Block ，插入到 main 函数开始处
+         */
+        public void bssInit() {
+            assert specialMI != null;
+            for (Arm.Glob glob : MC.Program.PROGRAM.globList) {
+                // 对每个变量初始化
+                // 用 movw 和 movt 指令获取基地址
+                MC.Operand rBase = getRSReg(r3), rOffset = getRSReg(r2), rData = getRSReg(r1);
+                specialMI = new I.Mov(specialMI, rBase, glob);  // r3: 基地址
+                Initial.Flatten flatten = glob.init.flatten();
+                int offset = 0;
+                for (Initial.Flatten.Entry entry : flatten) {
+                    // assert entry.value instanceof Constant.ConstantInt;
+                    int end = offset + entry.count;
+                    while (offset < end) {
+                        if (!entry.value.equals(CONST_0)) {
+                            if (LdrStrImmEncode(offset * 4)) {
+                                specialMI = new I.Mov(specialMI, rData, new Operand(I32, (int) ((Constant) entry.value).getConstVal())); // mov 写入值
+                                specialMI = new I.Str(specialMI, rData, rBase, new Operand(I32, offset * 4));
+                            } else {
+                                specialMI = new I.Mov(specialMI, rData, new Operand(I32, (int) ((Constant) entry.value).getConstVal())); // mov 写入值
+                                specialMI = new I.Mov(specialMI, rOffset, new Operand(I32, offset)); // mov 写入值
+                                specialMI = new I.Str(specialMI, rData, rBase, rOffset, new Arm.Shift(Arm.ShiftType.Lsl, 2));
+                            }
                         }
+                        offset++;
                     }
-                    int now = value instanceof Constant.ConstantInt ? ((Constant.ConstantInt) value).constIntVal : ((Constant.ConstantFloat) value).getIntBits();
-                    if (now == last) {
-                        count++;
-                    } else {
-                        if (count > 1) {
-                            //.zero
-                            os.println("\t.fill\t" + count + ",\t4,\t" + last);
-                        } else {
-                            os.println("\t.word\t" + last);
-                        }
-                        last = value instanceof Constant.ConstantInt ? ((Constant.ConstantInt) value).constIntVal : ((Constant.ConstantFloat) value).getIntBits();
-                        count = 1;
-                    }
-                }
-                if (count > 1) {
-                    //.zero
-                    os.println("\t.fill\t" + count + ",\t4,\t" + last);
-                } else {
-                    os.println("\t.word\t" + last);
                 }
             }
         }
 
-
         public StringBuilder getSTB() {
             StringBuilder stb = new StringBuilder();
-            if (NO_CACHE) {
-                stb.append("@ generated at ").append(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date())).append("\n");
-            }
+            stb.append("@ ").append(CenterControl._TAG).append("\n");
             stb.append(".arch armv7ve\n.arm\n");
             if (needFPU) {
                 stb.append(".fpu vfpv3-d16\n");
             }
+
+            // 遍历全局数组的初始化，生成一个专门用来初始化的 MB 在 main 的开头
+            // 在没有测好之前，暂时用 stderr 输出
+            // if (CenterControl._GLOBAL_BSS) {
+            //     Block initMB = bssInit();
+            //     System.err.println(initMB.getLabel() + ":");
+            //     for (MachineInst inst : initMB.miList) {
+            //         if (!inst.isComment()) System.err.print("\t");
+            //         System.err.println(inst.getSTB());
+            //     }
+            // }
+
             stb.append(".section .text\n");
             for (McFunction function : funcList) {
-                stb.append("\n\n.global\t").append(function.mFunc.getName()).append("\n");
+                stb.append("\n\n.global\t").append(function.getName()).append("\n");
                 stb.append("@ regStackSize =\t").append(function.regStack).append(" ;\n@ varStackSize =\t").append(function.varStack).append(" ;\n@ paramStackSize =\t").append(function.paramStack).append(" ;\n");
                 stb.append("@ usedCalleeSavedGPRs =\t").append(function.usedCalleeSavedGPRs).append(" ;\n@ usedCalleeSavedFPRs =\t").append(function.usedCalleeSavedFPRs).append(" ;\n");
-                stb.append(function.mFunc.getName()).append(":\n");
+                stb.append(function.getName()).append(":\n");
                 //asm for mb
                 for (Block mb : function.mbList) {
                     stb.append(mb.getLabel()).append(":\n");
@@ -144,7 +107,6 @@ public class MC {
                         stb.append(inst.getSTB()).append("\n");
                     }
                 }
-
             }
 
             stb.append("\n\n");
@@ -156,46 +118,31 @@ public class MC {
                 stb.append(name).append(":\n");
                 stb.append("\t.word\t").append(i).append("\n");
             }
-            stb.append(".section .data\n");
-            stb.append(".align 2\n");
-            for (Arm.Glob glob : globList) {
-                GlobalVal.GlobalValue val = glob.getGlobalValue();
-                stb.append("\n.global\t").append(val.name).append("\n");
-                stb.append(val.name).append(":\n");
 
-                int count = 0;
-                boolean init = false;
-                int last = 0;
-                for (Value value : glob.getInit().getFlattenInit()) {
-                    if (!init) {
-                        init = true;
-                        if (value.isConstantInt()) {
-                            last = ((Constant.ConstantInt) value).constIntVal;
-                        } else {
-                            last = ((Constant.ConstantFloat) value).getIntBits();
-                        }
-                    }
-                    int now = value instanceof Constant.ConstantInt ? ((Constant.ConstantInt) value).constIntVal : ((Constant.ConstantFloat) value).getIntBits();
-                    if (now == last) {
-                        count++;
-                    } else {
-                        if (count > 1) {
-                            //.zero
-                            stb.append("\t.fill\t").append(count).append(",\t4,\t").append(last).append("\n");
-                        } else {
-                            stb.append("\t.word\t").append(last).append("\n");
-                        }
-                        last = value instanceof Constant.ConstantInt ? ((Constant.ConstantInt) value).constIntVal : ((Constant.ConstantFloat) value).getIntBits();
-                        count = 1;
-                    }
+            if (CenterControl._GLOBAL_BSS) {
+                stb.append(".section .bss\n");
+                stb.append(".align 16\n");
+                for (Arm.Glob glob : globList) {
+                    stb.append("\n.global\t").append(glob.getGlob()).append("\n");
+                    stb.append(glob.getGlob()).append(":\n");
+                    Initial.Flatten flatten = glob.init.flatten();
+                    stb.append(".zero ").append(flatten.sizeInBytes()).append("\n");
                 }
-                if (count > 1) {
-                    //.zero
-                    stb.append("\t.fill\t").append(count).append(",\t4,\t").append(last).append("\n");
-                } else {
-                    stb.append("\t.word\t").append(last).append("\n");
+            } else {
+                stb.append(".section .data\n");
+                stb.append(".align 2\n");
+                for (Arm.Glob glob : globList) {
+                    stb.append("\n.global\t").append(glob.getGlob()).append("\n");
+                    stb.append(glob.getGlob()).append(":\n");
+                    if (glob.init != null) {
+                        Initial.Flatten flatten = glob.init.flatten();
+                        stb.append(flatten.toString());
+                    } else {
+                        stb.append("\t.word\t0\n");
+                    }
                 }
             }
+
             return stb;
         }
     }
@@ -207,6 +154,7 @@ public class MC {
         public Ilist<Block> mbList = new Ilist<>();
         public int floatParamCount = 0;
         public int intParamCount = 0;
+        public boolean isMain = false;
         private int vrCount = 0;
         private int sVrCount = 0;
 
@@ -247,6 +195,17 @@ public class MC {
 
         public McFunction(mir.Function function) {
             this.mFunc = function;
+        }
+
+        public String name;
+
+        public McFunction(String name) {
+            this.name = name;
+        }
+
+        public String getName() {
+            if (mFunc != null) return mFunc.getName();
+            return name;
         }
 
         public void addVarStack(int i) {
@@ -411,6 +370,8 @@ public class MC {
         public Ilist<MachineInst> miList = new Ilist<>();
         static int globIndex = 0;
         int mb_idx;
+        String label;
+        public ArrayList<Block> predMBs = new ArrayList<>();
         public ArrayList<Block> succMBs = new ArrayList<>();
         public HashSet<Operand> liveUseSet = new HashSet<>();
         public HashSet<Operand> liveDefSet = new HashSet<>();
@@ -450,23 +411,49 @@ public class MC {
             mb_idx = globIndex++;
         }
 
+        public Block(String label, McFunction insertAtEnd) {
+            this.bb = null;
+            this.label = label;
+            mf = insertAtEnd;
+            mf.insertAtEnd(this);
+        }
+
         public String getLabel() {
-            return MB_Prefix + mb_idx + (bb == null ? "" : "_" + bb.getLabel());
+            return (bb == null ? label : MB_Prefix + mb_idx + "_" + bb.getLabel());
         }
 
         @Override
         public String toString() {
-            return MB_Prefix + mb_idx + (bb == null ? "" : "_" + bb.getLabel());
+            return (bb == null ? label : MB_Prefix + mb_idx + "_" + bb.getLabel());
         }
 
         public void setMf(McFunction mf) {
             this.mf = mf;
             mf.insertAtEnd(this);
         }
+
+        public Block falseSucc() {
+            return succMBs.get(0);
+        }
+
+
+        public Block trueSucc() {
+            if(succMBs.size() < 2) return null;
+            return succMBs.get(1);
+        }
+
+        public void setFalse(Block onlySuccMB) {
+            succMBs.set(1, onlySuccMB);
+        }
+
+        public void setTrue(Block onlySuccMB) {
+            succMBs.set(0, onlySuccMB);
+        }
     }
 
     public static class Operand {
         public static final Operand I_ZERO = new Operand(I32, 0);
+        public static final Operand I_ONE = new Operand(I32, 1);
         public int loopCounter = 0;
 
         private String prefix;

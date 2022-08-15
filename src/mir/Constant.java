@@ -1,6 +1,7 @@
 package mir;
 
 import mir.type.Type;
+import util.CenterControl;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -34,7 +35,7 @@ public class Constant extends Value {
     }
 
     public static class ConstantInt extends Constant {
-        public  int constIntVal;
+        public int constIntVal;
 
         private static final HashMap<Integer, ConstantInt> constIntMap = new HashMap<>();
         public static final ConstantInt CONST_0/* = new ConstantInt(0)*/;
@@ -97,8 +98,9 @@ public class Constant extends Value {
 
         String asmName = null;
         static int floatConstCnt = 1;
-        public String getAsmName(){
-            if(asmName == null){
+
+        public String getAsmName() {
+            if (asmName == null) {
                 asmName = "_F_CONST_" + floatConstCnt++;
             }
             return asmName;
@@ -111,12 +113,15 @@ public class Constant extends Value {
 
         @Override
         public String getName() {
-            return String.format("0x%x",Double.doubleToRawLongBits((constFloatVal)));
+            return String.format("0x%x", Double.doubleToRawLongBits((constFloatVal)));
         }
 
         @Override
         public String toString() {
-            return String.format("0x%x",Double.doubleToRawLongBits((constFloatVal)));
+            if (CenterControl.AlreadyBackend) {
+                return String.valueOf(getIntBits());
+            }
+            return String.format("0x%x", Double.doubleToRawLongBits((constFloatVal)));
         }
 
         public int getIntBits() {

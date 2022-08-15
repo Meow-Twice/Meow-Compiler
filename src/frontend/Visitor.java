@@ -1,21 +1,22 @@
 package frontend;
 
-import frontend.semantic.Evaluate;
-import frontend.semantic.Initial;
-import frontend.syntax.Ast.*;
 import exception.SemanticException;
 import frontend.lexer.Token;
 import frontend.lexer.TokenType;
+import frontend.semantic.Evaluate;
+import frontend.semantic.Initial;
 import frontend.semantic.symbol.SymTable;
 import frontend.semantic.symbol.Symbol;
 import frontend.syntax.Ast;
-import lir.MC;
+import frontend.syntax.Ast.*;
 import manage.Manager;
 import mir.*;
 import mir.Instr.*;
 import mir.type.Type;
+import util.CenterControl;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static mir.Constant.ConstantFloat.CONST_0F;
 import static mir.Constant.ConstantInt.CONST_0;
@@ -398,8 +399,8 @@ public class Visitor {
     }
 
     private void visitAssign(Assign assign) throws SemanticException {
-        Value left = visitLVal(assign.left, true);
         Value right = visitExp(assign.right);
+        Value left = visitLVal(assign.left, true);
         assert left.getType() instanceof PointerType; // 分析出来的左值一定是指针类型
         Type innerType = ((PointerType) left.getType()).getInnerType();
         assert innerType instanceof BasicType;
@@ -463,6 +464,7 @@ public class Visitor {
         BinaryExp lOrExp = (BinaryExp) exp;
         boolean flag = false;
         BasicBlock nextBlock = falseBlock;
+        BasicBlock prevFalseBlock = falseBlock;
         if (!((BinaryExp) exp).getFollows().isEmpty()) {
             nextBlock = new BasicBlock(curFunc, curLoop); // 实为trueBlock的前驱
             flag = true;
@@ -482,6 +484,13 @@ public class Visitor {
             new Branch(first, trueBlock, nextBlock, curBB);
             curBB = nextBlock;
             dealCondCount();
+            if (iterOp.hasNext()) {
+                flag = true;
+                falseBlock = new BasicBlock(curFunc, curLoop);
+                nextBlock = falseBlock;
+            } else {
+                falseBlock = prevFalseBlock;
+            }
             first = visitCondLAnd(nextExp, falseBlock);
             assert first.getType().isInt1Type();
         }
@@ -730,11 +739,15 @@ public class Visitor {
                 // if (!(astInit instanceof InitArray)) {
                 //     throw new SemanticException("Array variable not init by a list");
                 // }
-                init = visitInitArray((InitArray) astInit, (ArrayType) pointeeType, constant, eval);
+                if (((InitArray) astInit).init.size() == 0) {
+                    init = new Initial.ZeroInit(pointeeType);
+                } else {
+                    init = visitInitArray((InitArray) astInit, (ArrayType) pointeeType, constant, eval);
+                }
             }
         }
         // 如果是全局变量且没有初始化，则初始化为零
-        if (isGlobal && init == null) {
+        if ((isGlobal || CenterControl._initAll) && init == null) {
             if (pointeeType instanceof BasicType) {
                 init = new Initial.ValueInit(CONST_0, pointeeType);
             } else {
@@ -764,20 +777,18 @@ public class Visitor {
                     } else if (init instanceof Initial.ValueInit) {
                         Value v = trimTo(((Initial.ValueInit) init).getValue(), (BasicType) pointeeType);
                         new Store(v, pointer, curBB);
-                    } else if (init instanceof Initial.ArrayInit) {
-                        ArrayList<Value> initValueList = init.getFlattenInit();
-                        HashSet<Value> checkSet = new HashSet<>(initValueList);
-                        assert checkSet.size() > 0;
-                        boolean allZero = false;
-                        if (checkSet.size() == 1) {
-                            if (checkSet.iterator().next().equals(CONST_0)) {
-                                initZeroHelper(pointer, pointeeType);
-                                allZero = true;
-                            }
-                        }
-                        if (!allZero) {
+                    } else if (init instanceof Initial.ZeroInit) {
+                        initZeroHelper(pointer, pointeeType);
+                    } else {
+                        // assert init instanceof Initial.ArrayInit;
+                        Initial.Flatten flattenInit = init.flatten();
+                        Set<Value> valueSet = flattenInit.valueSet();
+                        boolean allZero = flattenInit.isZero();
+                        if (allZero) {
+                            initZeroHelper(pointer, pointeeType);
+                        } else {
                             boolean afterMemset = false;
-                            if (initValueList.size() / 5 > checkSet.size() / 3) {
+                            if (flattenInit.sizeInWords() / 5 > valueSet.size() / 3) {
                                 initZeroHelper(pointer, pointeeType);
                                 afterMemset = true;
                             }
@@ -787,20 +798,20 @@ public class Visitor {
                             }
                             BasicType basicType = ((ArrayType) pointeeType).getBaseEleType();
                             Value ptr = new GetElementPtr(basicType, pointer, dimList, curBB);
-                            if (!(initValueList.get(0).equals(CONST_0) && afterMemset)) {
-                                dimList = new ArrayList<>();
-                                dimList.add(CONST_0);
-                                new Store(trimTo(initValueList.get(0), basicType), ptr, curBB);
+                            if (!(flattenInit.getBegin().value.equals(CONST_0) && afterMemset)) {
+                                new Store(trimTo(flattenInit.getBegin().value, basicType), ptr, curBB);
                             }
-                            for (int i = 1; i < initValueList.size(); i++) {
-                                Value initVal = initValueList.get(i);
-                                if (initVal.equals(CONST_0) && afterMemset) {
-                                    continue;
+                            Map<Integer, Value> stores = flattenInit.listNonZeros();
+                            if (!afterMemset) {
+                                for (int i = 1; i < flattenInit.sizeInWords(); i++) {
+                                    stores.putIfAbsent(i, CONST_0);
                                 }
+                            }
+                            for (Map.Entry<Integer, Value> entry : stores.entrySet().stream().filter(e -> !e.getKey().equals(0)).collect(Collectors.toSet())) {
                                 dimList = new ArrayList<>();
-                                dimList.add(Constant.ConstantInt.getConstInt(i));
+                                dimList.add(Constant.ConstantInt.getConstInt(entry.getKey()));
                                 Value p = new GetElementPtr(basicType, ptr, dimList, curBB);
-                                new Store(trimTo(initValueList.get(i), basicType), p, curBB);
+                                new Store(trimTo(entry.getValue(), basicType), p, curBB);
                             }
                         }
                     }

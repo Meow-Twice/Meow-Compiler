@@ -8,19 +8,21 @@ import manage.Manager;
 import mir.*;
 import mir.type.DataType;
 import mir.type.Type;
+import util.CenterControl;
 
 import java.math.BigInteger;
 import java.util.*;
 
-import static lir.Arm.Cond.*;
 import static lir.Arm.Cond.Eq;
 import static lir.Arm.Cond.Ge;
 import static lir.Arm.Cond.Gt;
 import static lir.Arm.Cond.Le;
 import static lir.Arm.Cond.Lt;
 import static lir.Arm.Cond.Ne;
-import static lir.Arm.Regs.FPRs.*;
-import static lir.Arm.Regs.GPRs.*;
+import static lir.Arm.Cond.*;
+import static lir.Arm.Regs.FPRs.s0;
+import static lir.Arm.Regs.GPRs.r0;
+import static lir.Arm.Regs.GPRs.sp;
 import static lir.MachineInst.Tag.*;
 import static midend.MidEndRunner.O2;
 import static mir.type.DataType.F32;
@@ -29,7 +31,7 @@ import static mir.type.DataType.I32;
 public class CodeGen {
 
     public static final CodeGen CODEGEN = new CodeGen();
-    public static boolean _DEBUG_OUTPUT_MIR_INTO_COMMENT = true;
+    public static boolean _DEBUG_OUTPUT_MIR_INTO_COMMENT;
     public static boolean needFPU = false;
     public static boolean optMulDiv = true;
 
@@ -46,7 +48,7 @@ public class CodeGen {
     // Value到Operand的Map
     public HashMap<Value, Operand> value2opd;
     public HashMap<GlobalVal.GlobalValue, Arm.Glob> globPtr2globOpd = new HashMap<>();
-    public final ArrayList<Arm.Glob> globList = new ArrayList<>();
+    // public final ArrayList<Arm.Glob> globList = new ArrayList<>();
 
     // 如名
     public HashMap<Function, MC.McFunction> f2mf;
@@ -57,6 +59,7 @@ public class CodeGen {
     // 全局变量
     private final HashMap<GlobalVal.GlobalValue, Initial> globalMap;
     private MC.Block curMB;
+    public MC.Block init_bss;
 
     // 整数数传参可使用最大个数
     public static final int rParamCnt = 4;
@@ -71,6 +74,8 @@ public class CodeGen {
         value2opd = new HashMap<>();
         f2mf = new HashMap<>();
         bb2mb = new HashMap<>();
+        // _DEBUG_OUTPUT_MIR_INTO_COMMENT = !MidEndRunner.O2;
+        _DEBUG_OUTPUT_MIR_INTO_COMMENT = false;
     }
 
     public void gen() {
@@ -104,6 +109,7 @@ public class CodeGen {
             if (curFunc.getName().equals("main")) {
                 isMain = true;
                 MC.Program.PROGRAM.mainMcFunc = curMF;
+                curMF.isMain = true;
             }
             curMF.clearVRCount();
             curMF.clearSVRCount();
@@ -131,6 +137,9 @@ public class CodeGen {
             bino.setNeedFix(STACK_FIX.VAR_STACK);
             if (!isMain) {
                 dealParam();
+            // } else {
+            //     if (CenterControl._GLOBAL_BSS)
+            //         MC.Program.specialMI = bino;
             }
             // 改写为循环加运行速度
             nextBBList = new LinkedList<>();
@@ -145,7 +154,8 @@ public class CodeGen {
 
     private void Push(MC.McFunction mf) {
         if (needFPU) new StackCtl.VPush(mf, curMB);
-        new StackCtl.Push(mf, curMB);
+        MachineInst tmp = new StackCtl.Push(mf, curMB);
+        if(curMF.isMain && CenterControl._GLOBAL_BSS) MC.Program.specialMI = tmp;
     }
 
     private void Pop(MC.McFunction mf) {
@@ -248,20 +258,45 @@ public class CodeGen {
                 case jump -> {
                     MC.Block mb = ((Instr.Jump) instr).getTarget().getMb();
                     curMB.succMBs.add(mb);
-                    if (!visitBBSet.contains(mb)) nextBBList.push(mb.bb);
+                    if (!visitBBSet.contains(mb)) {
+                        mb.predMBs.add(curMB);
+                        nextBBList.push(mb.bb);
+                    }
                     new MIJump(mb, curMB);
                 }
                 case icmp, fcmp -> genCmp(instr);
                 case branch -> {
                     Arm.Cond cond;
                     Instr.Branch brInst = (Instr.Branch) instr;
-                    Instr condValue = (Instr) brInst.getCond();
+                    MC.Block mb;
+                    if (brInst.getCond() instanceof Constant.ConstantBool) {
+                        Constant.ConstantBool bool = (Constant.ConstantBool) brInst.getCond();
+                        if ((int) bool.getConstVal() == 0) {
+                            mb = brInst.getElseTarget().getMb();
+                        } else {
+                            mb = brInst.getThenTarget().getMb();
+                        }
+                        curMB.succMBs.add(mb);
+                        if (!visitBBSet.contains(mb)) {
+                            mb.predMBs.add(curMB);
+                            nextBBList.push(mb.bb);
+                        }
+                        new MIJump(mb, curMB);
+                        break;
+                    }
+                    Value condValue = brInst.getCond();
                     MC.Block trueBlock = brInst.getThenTarget().getMb();
                     MC.Block falseBlock = brInst.getElseTarget().getMb();
                     curMB.succMBs.add(trueBlock);
                     curMB.succMBs.add(falseBlock);
-                    if (!visitBBSet.contains(falseBlock)) nextBBList.push(falseBlock.bb);
-                    if (!visitBBSet.contains(trueBlock)) nextBBList.push(trueBlock.bb);
+                    if (!visitBBSet.contains(falseBlock)) {
+                        falseBlock.predMBs.add(curMB);
+                        nextBBList.push(falseBlock.bb);
+                    }
+                    if (!visitBBSet.contains(trueBlock)) {
+                        trueBlock.predMBs.add(curMB);
+                        nextBBList.push(trueBlock.bb);
+                    }
                     CMPAndArmCond t = cmpInst2MICmpMap.get(condValue);
                     if (t != null) {
                         cond = t.ArmCond;
@@ -395,14 +430,15 @@ public class CodeGen {
                                     // value2opd.put(gep, curAddrVR);
                                 } else {
                                     int totalOff = offSet * curIdx;
-                                    if (AddSubImmEncode(totalOff)) {
+                                    if (immCanCode(totalOff)) {
                                         new I.Binary(Add, getVR_no_imm(gep), curAddrVR, new Operand(I32, totalOff), curMB);
                                     } else {
-                                        new I.Binary(Add, getVR_no_imm(gep), curAddrVR, getImmVR(totalOff), curMB);
+                                        singleTotalOff(gep, curAddrVR, totalOff);
                                     }
                                 }
                             } else {
-                                new I.Binary(Add, getVR_no_imm(gep), curAddrVR, getVR_no_imm(curIdxValue), new Arm.Shift(Arm.ShiftType.Lsl, 2), curMB);
+                                new I.Binary(Add, getVR_no_imm(gep), curAddrVR, getVR_no_imm(curIdxValue),
+                                        new Arm.Shift(Arm.ShiftType.Lsl, 2), curMB);
                             }
                         } else {
                             Value firstIdx = gep.getUseValueList().get(1);
@@ -413,10 +449,15 @@ public class CodeGen {
                                 if (secondIdx.isConstantInt()) {
                                     int secondIdxNum = (int) ((Constant.ConstantInt) secondIdx).getConstVal();
                                     int totalOff = 4 * secondIdxNum;
-                                    if (AddSubImmEncode(totalOff)) {
+                                    if (immCanCode(totalOff)) {
                                         new I.Binary(Add, getVR_no_imm(gep), curAddrVR, new Operand(I32, totalOff), curMB);
                                     } else {
-                                        new I.Binary(Add, getVR_no_imm(gep), curAddrVR, getImmVR(secondIdxNum), new Arm.Shift(Arm.ShiftType.Lsl, 2), curMB);
+                                        int i = 0;
+                                        while ((secondIdxNum % 2) == 0) {
+                                            i++;
+                                            secondIdxNum = secondIdxNum / 2;
+                                        }
+                                        new I.Binary(Add, getVR_no_imm(gep), curAddrVR, getImmVR(secondIdxNum), new Arm.Shift(Arm.ShiftType.Lsl, i + 2), curMB);
                                     }
                                 } else {
                                     new I.Binary(Add, getVR_no_imm(gep), curAddrVR, getVR_no_imm(secondIdx), new Arm.Shift(Arm.ShiftType.Lsl, 2), curMB);
@@ -426,17 +467,22 @@ public class CodeGen {
                                 // baseOffSet = 4 * baseSize
                                 int baseSize = ((Type.ArrayType) innerType).getFlattenSize();
                                 int baseOffSet = 4 * baseSize;
+                                boolean baseIs2Power = (baseSize & (baseSize - 1)) == 0;
                                 if (secondIdx.isConstantInt()) {
+                                    // offset 是常数
                                     int secondIdxNum = (int) ((Constant.ConstantInt) secondIdx).getConstVal();
-                                    int totalOffSet = baseOffSet * secondIdxNum;
-                                    if ((totalOffSet & (totalOffSet - 1)) == 0) {
-                                        assert AddSubImmEncode(totalOffSet);
-                                        if (!immCanCode(totalOffSet)) System.exit(187);
+                                    int totalOffSet = 4 * baseSize * secondIdxNum;
+                                    if (immCanCode(totalOffSet)) {
                                         new I.Binary(Add, getVR_no_imm(gep), curAddrVR, new Operand(I32, totalOffSet), curMB);
-                                    } else if ((baseOffSet & (baseOffSet - 1)) == 0) {
-                                        new I.Binary(Add, getVR_no_imm(gep), curAddrVR, getImmVR(secondIdxNum), new Arm.Shift(Arm.ShiftType.Lsl, Integer.numberOfTrailingZeros(baseOffSet)), curMB);
                                     } else {
-                                        new I.Binary(Add, getVR_no_imm(gep), curAddrVR, getImmVR(totalOffSet), curMB);
+                                        boolean secondIdxIs2Power = (secondIdxNum & (secondIdxNum - 1)) == 0;
+                                        if (baseIs2Power) {
+                                            genGepAdd(gep, curAddrVR, baseOffSet, secondIdxNum);
+                                        } else if (secondIdxIs2Power) {
+                                            genGepAdd(gep, curAddrVR, secondIdxNum, baseOffSet);
+                                        } else {
+                                            singleTotalOff(gep, curAddrVR, totalOffSet);
+                                        }
                                     }
                                 } else {
                                     if ((baseOffSet & (baseOffSet - 1)) == 0) {
@@ -476,7 +522,7 @@ public class CodeGen {
                                     // new I.Mov(dstVR, curAddrVR, curMB);
                                 } else {
                                     Operand imm;
-                                    if (AddSubImmEncode(totalConstOff)) {
+                                    if (immCanCode(totalConstOff)) {
                                         imm = new Operand(I32, totalConstOff);
                                     } else {
                                         imm = getImmVR(totalConstOff);
@@ -544,6 +590,26 @@ public class CodeGen {
         // for (Machine.Block mb : nextBlockList) {
         //     genBB(mb.bb);
         // }
+    }
+
+    private void singleTotalOff(Instr.GetElementPtr gep, Operand curAddrVR, int totalOff) {
+        int i = 0;
+        while ((totalOff % 2) == 0) {
+            i++;
+            totalOff = totalOff / 2;
+        }
+        new I.Binary(Add, getVR_no_imm(gep), curAddrVR, getImmVR(totalOff),
+                new Arm.Shift(Arm.ShiftType.Lsl, i), curMB);
+    }
+
+    private void genGepAdd(Instr.GetElementPtr gep, Operand curAddrVR, int offBase1, int offBase2) {
+        int i = 0;
+        while ((offBase2 % 2) == 0) {
+            i++;
+            offBase2 = offBase2 / 2;
+        }
+        new I.Binary(Add, getVR_no_imm(gep), curAddrVR, getImmVR(offBase2),
+                new Arm.Shift(Arm.ShiftType.Lsl, Integer.numberOfTrailingZeros(offBase1) + i), curMB);
     }
 
     private void dealCall(Instr.Call call_inst) {
@@ -708,7 +774,7 @@ public class CodeGen {
         return off <= 1020 && off >= -1020;
     }
 
-    public static boolean AddSubImmEncode(int off){
+    public static boolean AddSubImmEncode(int off) {
         return immCanCode(off);
     }
 
@@ -728,7 +794,7 @@ public class CodeGen {
             // } else {
             //     glob = new Arm.Glob(globalValue, F32);
             // }
-            globList.add(glob);
+            MC.Program.PROGRAM.globList.add(glob);
             globPtr2globOpd.put(globalValue, glob);
         }
     }
@@ -755,70 +821,76 @@ public class CodeGen {
         } else if (optMulDiv && tag == Mul && (lhs.isConstantInt() || rhs.isConstantInt())) {
             // 不考虑双立即数: r*i, i*r, r*r
             if (lhs.isConstantInt() && rhs.isConstantInt()) {
-                System.err.println("[MUL dst, imm, imm] should never occur @ " + instr);
-                System.exit(91);
-            }
-            MC.Operand srcOp;
-            int imm;
-            if (lhs.isConstantInt()) {
-                srcOp = getVR_may_imm(rhs);
-                imm = (int) ((Constant.ConstantInt) lhs).getConstVal();
+                // 双立即数情况，转成 move
+                int vlhs = ((Constant.ConstantInt) lhs).constIntVal;
+                int vrhs = ((Constant.ConstantInt) rhs).constIntVal;
+                new I.Mov(dVR, new Operand(I32, vlhs * vrhs), curMB);
             } else {
-                srcOp = getVR_may_imm(lhs);
-                imm = (int) ((Constant.ConstantInt) rhs).getConstVal();
-            }
-            int abs = (imm < 0) ? (-imm) : imm;
-            if (abs == 0) {
-                new I.Mov(dVR, new Operand(I32, 0), curMB); // dst = 0
-            } else if ((abs & (abs - 1)) == 0) {
-                // imm 是 2 的幂
-                int sh = bitsOfInt - 1 - Integer.numberOfLeadingZeros(abs);
-                // dst = src << sh
-                if (sh > 0) {
-                    new I.Mov(dVR, srcOp, new Arm.Shift(Arm.ShiftType.Lsl, sh), curMB);
+                MC.Operand srcOp;
+                int imm;
+                if (lhs.isConstantInt()) {
+                    srcOp = getVR_may_imm(rhs);
+                    imm = (int) ((Constant.ConstantInt) lhs).getConstVal();
                 } else {
-                    new I.Mov(dVR, srcOp, curMB);
+                    srcOp = getVR_may_imm(lhs);
+                    imm = (int) ((Constant.ConstantInt) rhs).getConstVal();
                 }
-                if (imm < 0) {
-                    // dst = -dst
-                    // TODO: 源操作数和目的操作数虚拟寄存器相同，不一定不会出 bug
-                    new I.Binary(Rsb, dVR, dVR, new Operand(I32, 0), curMB); // dst = 0 - dst
+                int abs = (imm < 0) ? (-imm) : imm;
+                if (abs == 0) {
+                    new I.Mov(dVR, new Operand(I32, 0), curMB); // dst = 0
+                } else if ((abs & (abs - 1)) == 0) {
+                    // imm 是 2 的幂
+                    int sh = bitsOfInt - 1 - Integer.numberOfLeadingZeros(abs);
+                    // dst = src << sh
+                    if (sh > 0) {
+                        new I.Mov(dVR, srcOp, new Arm.Shift(Arm.ShiftType.Lsl, sh), curMB);
+                    } else {
+                        new I.Mov(dVR, srcOp, curMB);
+                    }
+                    if (imm < 0) {
+                        // dst = -dst
+                        // TODO: 源操作数和目的操作数虚拟寄存器相同，不一定不会出 bug
+                        new I.Binary(Rsb, dVR, dVR, new Operand(I32, 0), curMB); // dst = 0 - dst
+                    }
+                } else if (Integer.bitCount(abs) == 2) {
+                    // constant multiplier has two 1 bits => two shift-left and one add
+                    // a * 10 => (a << 3) + (a << 1)
+                    int hi = bitsOfInt - 1 - Integer.numberOfLeadingZeros(abs);
+                    int lo = Integer.numberOfTrailingZeros(abs);
+                    Operand shiftHi = newVR();
+                    new I.Mov(shiftHi, srcOp, new Arm.Shift(Arm.ShiftType.Lsl, hi), curMB); // shiftHi = (a << hi)
+                    new I.Binary(Add, dVR, shiftHi, srcOp, new Arm.Shift(Arm.ShiftType.Lsl, lo), curMB); // dst = shiftHi + (a << lo)
+                    if (imm < 0) {
+                        // dst = -dst
+                        new I.Binary(Rsb, dVR, dVR, new Operand(I32, 0), curMB); // dst = 0 - dst
+                    }
+                } else if (((abs + 1) & (abs)) == 0) {  // (abs + 1) is power of 2
+                    // a * (2^sh - 1) => (a << sh) - a => rsb dst, src, src, lsl #sh
+                    int sh = bitsOfInt - 1 - Integer.numberOfLeadingZeros(abs + 1);
+                    assert sh > 0;
+                    new I.Binary(Rsb, dVR, srcOp, srcOp, new Arm.Shift(Arm.ShiftType.Lsl, sh), curMB);
+                    if (imm < 0) {
+                        // dst = -dst
+                        new I.Binary(Rsb, dVR, dVR, new Operand(I32, 0), curMB); // dst = 0 - dst
+                    }
+                } else {
+                    new I.Binary(tag, dVR, srcOp, getImmVR(imm), curMB);
                 }
-            } else if (Integer.bitCount(abs) == 2) {
-                // constant multiplier has two 1 bits => two shift-left and one add
-                // a * 10 => (a << 3) + (a << 1)
-                int hi = bitsOfInt - 1 - Integer.numberOfLeadingZeros(abs);
-                int lo = Integer.numberOfTrailingZeros(abs);
-                Operand shiftHi = newVR();
-                new I.Mov(shiftHi, srcOp, new Arm.Shift(Arm.ShiftType.Lsl, hi), curMB); // shiftHi = (a << hi)
-                new I.Binary(Add, dVR, shiftHi, srcOp, new Arm.Shift(Arm.ShiftType.Lsl, lo), curMB); // dst = shiftHi + (a << lo)
-                if (imm < 0) {
-                    // dst = -dst
-                    new I.Binary(Rsb, dVR, dVR, new Operand(I32, 0), curMB); // dst = 0 - dst
-                }
-            } else if (((abs + 1) & (abs)) == 0) {  // (abs + 1) is power of 2
-                // a * (2^sh - 1) => (a << sh) - a => rsb dst, src, src, lsl #sh
-                int sh = bitsOfInt - 1 - Integer.numberOfLeadingZeros(abs + 1);
-                assert sh > 0;
-                new I.Binary(Rsb, dVR, srcOp, srcOp, new Arm.Shift(Arm.ShiftType.Lsl, sh), curMB);
-                if (imm < 0) {
-                    // dst = -dst
-                    new I.Binary(Rsb, dVR, dVR, new Operand(I32, 0), curMB); // dst = 0 - dst
-                }
-            } else {
-                new I.Binary(tag, dVR, srcOp, getImmVR(imm), curMB);
             }
         } else if (optMulDiv && tag == Div && rhs.isConstantInt()) {
             // 不允许双立即数, 只能是 r/i
             // TODO: ayame 的 divMap 机制目前未实现
             if (lhs.isConstantInt()) {
-                System.err.println("[DIV dst, imm, imm] should never occur @ " + instr);
-                System.exit(94);
+                // 双立即数情况，转成 move
+                int vlhs = ((Constant.ConstantInt) lhs).constIntVal;
+                int vrhs = ((Constant.ConstantInt) rhs).constIntVal;
+                new I.Mov(dVR, new Operand(I32, vlhs / vrhs), curMB);
             }
             MC.Operand lVR = getVR_may_imm(lhs);
             int imm = (int) ((Constant.ConstantInt) rhs).getConstVal();
             int abs = (imm < 0) ? (-imm) : imm;
             if (abs == 0) {
+                System.err.println("Division by zero: " + instr);
                 System.exit(94);
             } else if (imm == 1) {
                 new I.Mov(dVR, lVR, curMB);
@@ -894,7 +966,6 @@ public class CodeGen {
                 int sh = more & s32ShiftMask;
                 int mask = (1 << sh), sign = ((more & (0x80)) != 0) ? -1 : 0, isPower2 = (magic == 0) ? 1 : 0;
                 // libdivide_s32_branchfree_do => process in runtime, use hardware instruction
-                // TODO: 不开 O2 => int-divide-optimization 寄存器分配爆内存; 开 O2 => 73_int_io 过不了
                 Operand q = newVR(); // quotient
                 new I.Binary(LongMul, q, lVR, getImmVR(magic), curMB); // q = mulhi(dividend, magic)
                 new I.Binary(Add, q, q, lVR, curMB); // q += dividend
@@ -970,7 +1041,7 @@ public class CodeGen {
     /**
      * 条件相关
      */
-    private HashMap<Instr, CMPAndArmCond> cmpInst2MICmpMap = new HashMap<>();
+    private HashMap<Value, CMPAndArmCond> cmpInst2MICmpMap = new HashMap<>();
 
     /**
      * 条件相关

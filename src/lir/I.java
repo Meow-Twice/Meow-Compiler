@@ -93,6 +93,21 @@ public class I extends MachineInst {
 
     public static class Str extends I implements MachineMemInst {
 
+        public Str(MachineInst insertAfter, Operand data, Operand addr) {
+            super(insertAfter, Tag.Str);
+            useOpds.add(data);
+            useOpds.add(addr);
+            // useOpds.add(new Operand(I32, 0));
+        }
+
+        public Str(MachineInst insertAfter, Operand data, Operand addr, Operand offset, Arm.Shift lsl) {
+            super(insertAfter, Tag.Str);
+            useOpds.add(data);
+            useOpds.add(addr);
+            useOpds.add(offset);
+            if(lsl.shiftOpd.needRegOf(I32)) useOpds.add(lsl.shiftOpd);
+        }
+
         public Str(Operand data, Operand addr, MC.Block insertAtEnd) {
             super(Tag.Str, insertAtEnd);
             useOpds.add(data);
@@ -170,6 +185,10 @@ public class I extends MachineInst {
             savedRegsMf = mf;
         }
 
+        public Ret(MC.Block insertAtEnd) {
+            super(Tag.IRet, insertAtEnd);
+        }
+
         @Override
         public void output(PrintStream os, MC.McFunction mf) {
             // TODO vpush我觉得可能八字节对齐比较好, 所以vpop必须在后面, 这样不能先pop lr再vpop
@@ -179,6 +198,10 @@ public class I extends MachineInst {
 
         @Override
         public String toString() {
+            if (savedRegsMf == null) {
+                return "bx\tlr";
+            }
+
             StringBuilder sb = new StringBuilder();
 
 
@@ -336,10 +359,10 @@ public class I extends MachineInst {
                         stb.append("mov").append(cond).append("\t").append(getDst().toString()).append(",\t#").append(imm);
                     } else {
                         int lowImm = (imm << 16) >>> 16;
-                        stb.append("movw").append(cond).append("\t").append(getDst().toString()).append(",\t#").append(lowImm).append("\n");
+                        stb.append("movw").append(cond).append("\t").append(getDst().toString()).append(",\t#").append(lowImm);
                         int highImm = imm >>> 16;
                         if (highImm != 0) {
-                            stb.append("\tmovt").append(cond).append("\t").append(getDst().toString()).append(",\t#").append(highImm);
+                            stb.append("\n\tmovt").append(cond).append("\t").append(getDst().toString()).append(",\t#").append(highImm);
                         }
                     }
                 }
@@ -384,6 +407,15 @@ public class I extends MachineInst {
             useOpds.add(rOpd);
         }
 
+        public Binary(MachineInst insertAfter, Tag tag, Operand dOpd, Operand lOpd, Operand rOpd, Arm.Shift shift) {
+            super(insertAfter, tag);
+            defOpds.add(dOpd);
+            useOpds.add(lOpd);
+            useOpds.add(rOpd);
+            this.shift = shift;
+            if (!shift.shiftOpd.needRegOf(I32)) useOpds.add(shift.shiftOpd);
+        }
+
         public Binary(Tag tag, Operand dOpd, Operand lOpd, Operand rOpd, MC.Block insertAtEnd) {
             super(tag, insertAtEnd);
             defOpds.add(dOpd);
@@ -397,6 +429,7 @@ public class I extends MachineInst {
             useOpds.add(lOpd);
             useOpds.add(rOpd);
             this.shift = shift;
+            if (!shift.shiftOpd.needRegOf(I32)) useOpds.add(shift.shiftOpd);
         }
 
         public Binary(Tag tag, Operand dstAddr, Arm.Reg rSP, Operand offset, MachineInst firstUse) {
@@ -617,4 +650,27 @@ public class I extends MachineInst {
         }
     }
 
+    public static class Swi extends I {
+
+        public Swi(MC.Block insertAtEnd) {
+            super(Tag.Swi, insertAtEnd);
+        }
+
+        @Override
+        public String toString() {
+            return "swi\t#0";
+        }
+    }
+
+
+    public static class Wait extends I {
+        public Wait(MC.Block insertAtEnd) {
+            super(Tag.Wait, insertAtEnd);
+        }
+
+        @Override
+        public String toString() {
+            return "bl\twait";
+        }
+    }
 }

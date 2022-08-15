@@ -2,9 +2,10 @@ package frontend.semantic;
 
 import mir.Value;
 import mir.type.Type;
+import util.ILinkNode;
+import util.Ilist;
 
-import java.util.ArrayList;
-import java.util.Collections;
+import java.util.*;
 
 import static mir.Constant.ConstantInt.CONST_0;
 
@@ -16,7 +17,7 @@ import static mir.Constant.ConstantInt.CONST_0;
 public abstract class Initial {
     private final Type type; // LLVM IR 的初始值是含有类型信息的
 
-    public abstract ArrayList<Value> getFlattenInit();
+    public abstract Flatten flatten();
 
     @Override
     public abstract String toString();
@@ -48,13 +49,14 @@ public abstract class Initial {
         }
 
         @Override
-        public ArrayList<Value> getFlattenInit() {
-            ArrayList<Value> result = new ArrayList<>();
+        public Flatten flatten() {
+            Flatten flat = new Flatten();
             for (Initial init : inits) {
-                ArrayList<Value> list1 = init.getFlattenInit();
-                result.addAll(list1);
+                Flatten flat1 = init.flatten();
+                flat.concat(flat1);
+                flat.mergeAll();
             }
-            return result;
+            return flat;
         }
     }
 
@@ -67,6 +69,13 @@ public abstract class Initial {
         }
 
         @Override
+        public Flatten flatten() {
+            Flatten flat = new Flatten();
+            flat.insertAtEnd(new Flatten.Entry(value, 1));
+            return flat;
+        }
+
+        @Override
         public String toString() {
             return getType() + " " + value;
         }
@@ -74,14 +83,6 @@ public abstract class Initial {
         public Value getValue() {
             return this.value;
         }
-
-        @Override
-        public ArrayList<Value> getFlattenInit() {
-            ArrayList<Value> result = new ArrayList<>();
-            result.add(value);
-            return result;
-        }
-
     }
 
     // 初值为0的初始化
@@ -92,12 +93,7 @@ public abstract class Initial {
         }
 
         @Override
-        public String toString() {
-            return getType() + " zeroinitializer";
-        }
-
-        @Override
-        public ArrayList<Value> getFlattenInit() {
+        public Flatten flatten() {
             int size;
             if (getType().isArrType()) {
                 size = ((Type.ArrayType) getType()).getFlattenSize();
@@ -105,10 +101,14 @@ public abstract class Initial {
                 assert getType().isBasicType();
                 size = 1;
             }
-            return new ArrayList<>(Collections.nCopies(size, CONST_0));
-            // ArrayList<Value> result = new ArrayList<>();
-            // result.add(new Constant.ConstantInt(0));
-            // return result;
+            Flatten flat = new Flatten();
+            flat.insertAtEnd(new Flatten.Entry(CONST_0, size));
+            return flat;
+        }
+
+        @Override
+        public String toString() {
+            return getType() + " zeroinitializer";
         }
     }
 
@@ -122,19 +122,19 @@ public abstract class Initial {
         }
 
         @Override
+        public Flatten flatten() {
+            Flatten flat = new Flatten();
+            flat.insertAtEnd(new Flatten.Entry(result, 1));
+            return flat;
+        }
+
+        @Override
         public String toString() {
             throw new AssertionError("non-evaluable initializer should never be output");
         }
 
         public Value getResult() {
             return this.result;
-        }
-
-        @Override
-        public ArrayList<Value> getFlattenInit() {
-            ArrayList<Value> result = new ArrayList<>();
-            result.add(this.result);
-            return result;
         }
 
     }
@@ -147,4 +147,138 @@ public abstract class Initial {
         return this.type;
     }
 
+    /**
+     * 展平初始化，得到分块形式, 对应汇编里的 .fill (如果是单个则为 .word)
+     */
+    public static class Flatten extends Ilist<Flatten.Entry> {
+        public static class Entry extends ILinkNode {
+            public Value value;
+            public int count;
+
+            public Entry(Value value, int count) {
+                this.value = value;
+                this.count = count;
+            }
+
+            public boolean canMerge(Entry that) {
+                assert that == this.getNext();
+                return this.value.equals(that.value);
+            }
+
+            public void merge(Entry that) {
+                assert that == this.getNext();
+                assert canMerge(that);
+                this.count += that.count;
+                that.remove();
+            }
+
+            @Override
+            public String toString() {
+                if (count == 1) {
+                    return ".word\t" + value;
+                } else {
+                    return ".fill\t" + count + ", 4, " + value;
+                }
+            }
+        }
+
+        // 判断一段初始化是否全零
+        public boolean isZero() {
+            for (Entry e : this) {
+                if (!e.value.equals(CONST_0)) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        // 相邻的初始化块不能是相同值
+        public boolean isFullyMerged() {
+            for (Entry e : this) {
+                if (e == getEnd()) {
+                    break;
+                }
+                if (e.canMerge((Entry) e.getNext())) {
+                    return false;
+                }
+
+            }
+            return true;
+        }
+
+        // 前后两段的拼接
+        public void concat(Flatten that) {
+            if (that.head.getNext() == that.tail) {
+                return;
+            }
+            that.head.getNext().setPrev(this.getEnd());
+            that.getEnd().setNext(this.tail);
+            this.tail.getPrev().setNext(that.getBegin());
+            this.tail.setPrev(that.getEnd());
+            size += that.size;
+        }
+
+        // 合并所有可以合并的项
+        public void mergeAll() {
+            int sizeBefore = sizeInWords();
+            for (ILinkNode cur = getBegin(); cur.hasNext(); cur = cur.getNext()) {
+                assert cur instanceof Entry;
+                Entry entry = (Entry) cur;
+                while (entry.getNext() != tail && entry.getNext() instanceof Entry && entry.canMerge((Entry) entry.getNext())) {
+                    entry.merge((Entry) entry.getNext());
+                    size--;
+                }
+            }
+            int sizeAfter = sizeInWords();
+            assert sizeBefore == sizeAfter;
+        }
+
+        public int sizeInWords() {
+            int size = 0;
+            for (Entry e : this) {
+                size += e.count;
+            }
+            return size;
+        }
+
+        public int sizeInBytes() {
+            return sizeInWords() * 4;
+        }
+
+        @Override
+        public String toString() {
+            StringBuilder stb = new StringBuilder();
+            for (Entry e : this) {
+                stb.append(e).append("\n");
+            }
+            return stb.toString();
+        }
+
+        // 获取当前初始化中所有非零的项，转化成 <Index, Value> 形式，其中 Index 是偏移的字数 (寻址时需要左移 2)
+        // 一个 Map.Entry 是一组 <Index, Value> 对
+        public Map<Integer, Value> listNonZeros() {
+            int index = 0;
+            LinkedHashMap<Integer, Value> nonZeros = new LinkedHashMap<>(); // 遍历顺序是插入顺序
+            for (Entry e : this) {
+                if (!e.value.equals(CONST_0)) {
+                    // 连续 count 个值都要手动赋值
+                    for (int k = 0; k < e.count; k++) {
+                        nonZeros.put(index, e.value);
+                        index++;
+                    }
+                } else {
+                    index += e.count; // 略过
+                }
+            }
+            return nonZeros;
+        }
+
+        public Set<Value> valueSet() {
+            Set<Value> set = new HashSet<>();
+            for (Entry e : this) {
+                set.add(e.value);
+            }
+            return set;
+        }
+    }
 }

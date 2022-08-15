@@ -1,7 +1,6 @@
 package midend;
 
 import frontend.semantic.Initial;
-import frontend.syntax.Ast;
 import mir.*;
 import mir.type.Type;
 

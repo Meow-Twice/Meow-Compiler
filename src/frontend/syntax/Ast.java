@@ -13,11 +13,11 @@ public class Ast {
 
     public ArrayList<CompUnit> units;
 
-    // CompUnit -> Decl | FuncDef
+    // CompUnit -> Decl | FuncDef 
     public interface CompUnit {
     }
 
-    // Decl -> ['const'] 'int' Def {',' Def} ';'
+    // Decl -> ['const'] 'int' Def {',' Def} ';' 
     public static class Decl implements CompUnit, BlockItem {
 
         public boolean constant;
@@ -45,7 +45,7 @@ public class Ast {
         }
     }
 
-    // Def -> Ident {'[' Exp ']'} ['=' Init]
+    // Def -> Ident {'[' Exp ']'} ['=' Init] 
     public static class Def {
 
         public TokenType bType;
@@ -57,7 +57,7 @@ public class Ast {
             assert bType != null;
             assert ident != null;
             assert indexes != null;
-            // assert init != null;
+            // assert init != null; 
             this.bType = bType;
             this.ident = ident;
             this.indexes = indexes;
@@ -77,11 +77,11 @@ public class Ast {
         }
     }
 
-    // Init -> Exp | InitArray
+    // Init -> Exp | InitArray 
     public interface Init {
     }
 
-    // InitArray -> '{' [ Init { ',' Init } ] '}'
+    // InitArray -> '{' [ Init { ',' Init } ] '}' 
     public static class InitArray implements Init {
         public ArrayList<Init> init;
         public int nowIdx = 0;
@@ -92,24 +92,24 @@ public class Ast {
         }
 
         public Init getNowInit() {
-            // if(nowIdx > this.init.size()){
-            //     throw new AssertionError("fuck idx wrong");
-            // }
-            // assert nowIdx < this.init.size();
+            // if(nowIdx > this.init.size()){ 
+            //     throw new AssertionError("fuck idx wrong"); 
+            // } 
+            // assert nowIdx < this.init.size(); 
             return this.init.get(nowIdx);
         }
 
-        public boolean hasInit(int count){
+        public boolean hasInit(int count) {
             return nowIdx < this.init.size();
         }
     }
 
-    // FuncDef -> FuncType Ident '(' [FuncFParams] ')' Block
-    // FuncFParams -> FuncFParam {',' FuncFParam}
+    // FuncDef -> FuncType Ident '(' [FuncFParams] ')' Block 
+    // FuncFParams -> FuncFParam {',' FuncFParam} 
     public static class FuncDef implements CompUnit {
 
-        public Token type; // FuncType
-        public Token ident; // name
+        public Token type; // FuncType 
+        public Token ident; // name 
         public ArrayList<FuncFParam> fParams;
         public Block body;
 
@@ -141,13 +141,13 @@ public class Ast {
         }
     }
 
-    // FuncFParam -> BType Ident ['[' ']' { '[' Exp ']' }]
+    // FuncFParam -> BType Ident ['[' ']' { '[' Exp ']' }] 
     public static class FuncFParam {
 
         public Token bType;
         public Token ident;
-        public boolean array; // whether it is an array
-        public ArrayList<Exp> sizes; // array sizes of each dim
+        public boolean array; // whether it is an array 
+        public ArrayList<Exp> sizes; // array sizes of each dim 
 
         public FuncFParam(Token bType, Token ident, boolean array, ArrayList<Exp> sizes) {
             assert bType != null;
@@ -176,7 +176,7 @@ public class Ast {
         }
     }
 
-    // Block
+    // Block 
     public static class Block implements Stmt {
 
         public ArrayList<BlockItem> items;
@@ -191,15 +191,15 @@ public class Ast {
         }
     }
 
-    // BlockItem -> Decl | Stmt
+    // BlockItem -> Decl | Stmt 
     public interface BlockItem {
     }
 
-    // Stmt -> Assign | ExpStmt | Block | IfStmt | WhileStmt | Break | Continue | Return
+    // Stmt -> Assign | ExpStmt | Block | IfStmt | WhileStmt | Break | Continue | Return 
     public interface Stmt extends BlockItem {
     }
 
-    // Assign
+    // Assign 
     public static class Assign implements Stmt {
 
         public LVal left;
@@ -221,12 +221,12 @@ public class Ast {
         }
     }
 
-    // ExpStmt
+    // ExpStmt 
     public static class ExpStmt implements Stmt {
-        public Exp exp; // nullable, empty stmt if null
+        public Exp exp; // nullable, empty stmt if null 
 
         public ExpStmt(Exp exp) {
-            // assert exp != null;
+            // assert exp != null; 
             this.exp = exp;
         }
 
@@ -235,7 +235,7 @@ public class Ast {
         }
     }
 
-    // IfStmt
+    // IfStmt 
     public static class IfStmt implements Stmt {
 
         public Exp cond;
@@ -245,7 +245,7 @@ public class Ast {
         public IfStmt(Exp cond, Stmt thenTarget, Stmt elseTarget) {
             assert cond != null;
             assert thenTarget != null;
-            // assert elseTarget != null;
+            // assert elseTarget != null; 
             this.cond = cond;
             this.thenTarget = thenTarget;
             this.elseTarget = elseTarget;
@@ -264,7 +264,7 @@ public class Ast {
         }
     }
 
-    // WhileStmt
+    // WhileStmt 
     public static class WhileStmt implements Stmt {
 
         public Exp cond;
@@ -286,24 +286,24 @@ public class Ast {
         }
     }
 
-    // Break
+    // Break 
     public static class Break implements Stmt {
         public Break() {
         }
     }
 
-    // Continue
+    // Continue 
     public static class Continue implements Stmt {
         public Continue() {
         }
     }
 
-    // Return
+    // Return 
     public static class Return implements Stmt {
         public Exp value;
 
         public Return(Exp value) {
-            // assert value != null;
+            // assert value != null; 
             this.value = value;
         }
 
@@ -312,14 +312,14 @@ public class Ast {
         }
     }
 
-    // PrimaryExp -> Call | '(' Exp ')' | LVal | Number
-    // Init -> Exp | InitArray
-    // Exp -> BinaryExp | UnaryExp
+    // PrimaryExp -> Call | '(' Exp ')' | LVal | Number 
+    // Init -> Exp | InitArray 
+    // Exp -> BinaryExp | UnaryExp 
     public interface Exp extends Init, PrimaryExp {
     }
 
-    // BinaryExp: Arithmetic, Relation, Logical
-    // BinaryExp -> Exp { Op Exp }, calc from left to right
+    // BinaryExp: Arithmetic, Relation, Logical 
+    // BinaryExp -> Exp { Op Exp }, calc from left to right 
     public static class BinaryExp implements Exp {
 
         public Exp first;
@@ -348,7 +348,7 @@ public class Ast {
         }
     }
 
-    // UnaryExp -> {UnaryOp} PrimaryExp
+    // UnaryExp -> {UnaryOp} PrimaryExp 
     public static class UnaryExp implements Exp {
 
         public ArrayList<Token> unaryOps;
@@ -370,11 +370,11 @@ public class Ast {
         }
     }
 
-    // PrimaryExp -> Call | '(' Exp ')' | LVal | Number
+    // PrimaryExp -> Call | '(' Exp ')' | LVal | Number 
     public interface PrimaryExp {
     }
 
-    // LVal -> Ident {'[' Exp ']'}
+    // LVal -> Ident {'[' Exp ']'} 
     public static class LVal implements PrimaryExp {
 
         public Token ident;
@@ -396,7 +396,7 @@ public class Ast {
         }
     }
 
-    // Number
+    // Number 
     public static class Number implements PrimaryExp {
 
         public Token number;
@@ -453,8 +453,8 @@ public class Ast {
         }
     }
 
-    // Call -> Ident '(' [ Exp {',' Exp} ] ')'
-    // FuncRParams -> Exp {',' Exp}, already inlined in Call
+    // Call -> Ident '(' [ Exp {',' Exp} ] ')' 
+    // FuncRParams -> Exp {',' Exp}, already inlined in Call 
     public static class Call implements PrimaryExp {
 
         public Token ident;
@@ -487,4 +487,4 @@ public class Ast {
         return this.units;
     }
 
-}
+} 

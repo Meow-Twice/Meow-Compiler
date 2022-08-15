@@ -254,6 +254,7 @@ public class RegAllocator {
     protected void dealDefUse(HashSet<Operand> live, MachineInst mi, MC.Block mb) {
         ArrayList<Operand> defs = mi.defOpds;
         ArrayList<Operand> uses = mi.useOpds;
+        int loopDepth = (mb.bb.getLoopDep());
         if (defs.size() == 1) {
             Operand def = defs.get(0);
             // 构建冲突图
@@ -263,7 +264,7 @@ public class RegAllocator {
                 for (Operand l : live) {
                     addEdge(l, def);
                 }
-                def.loopCounter += mb.bb.getLoopDep();
+                def.loopCounter += loopDepth;
             }
             live.remove(def);
         } else if (defs.size() > 1) {
@@ -289,7 +290,7 @@ public class RegAllocator {
             for (Operand def : defs) {
                 if (def.needColor(dataType)) {
                     live.remove(def);
-                    def.loopCounter += mb.bb.getLoopDep();
+                    def.loopCounter += loopDepth;
                 }
             }
         }
@@ -298,7 +299,7 @@ public class RegAllocator {
         for (Operand use : uses) {
             if (use.needColor(dataType)) {
                 live.add(use);
-                use.loopCounter += mb.bb.getLoopDep();
+                use.loopCounter += loopDepth;
             }
         }
     }
@@ -435,6 +436,7 @@ public class RegAllocator {
 
         while (simplifyWorkSet.size() + workListMoveSet.size() + freezeWorkSet.size() + spillWorkSet.size() > 0) {
             // TODO 尝试验证if - else if结构的可靠性和性能
+
             if (simplifyWorkSet.size() > 0) {
                 logOut("-- simplify");
                 logOut(simplifyWorkSet.toString());

@@ -1,6 +1,5 @@
 import arg.Arg;
 import backend.*;
-// import descriptor.MIDescriptor;
 import frontend.Visitor;
 import frontend.lexer.Lexer;
 import frontend.lexer.Token;
@@ -58,34 +57,35 @@ public class Compiler {
             // GlobalValueLocalize globalValueLocalize = new GlobalValueLocalize(funcManager.globals);
             // globalValueLocalize.Run();
             Manager.MANAGER.outputLLVM();
-
-            MidEndRunner.O2 = arg.optimize;
-            _ONLY_FRONTEND = !arg.outputAsm();
-            System.err.println("mid optimization begin");
-            long start = System.currentTimeMillis();
-            MidEndRunner midEndRunner = new MidEndRunner(Manager.MANAGER.getFunctionList());
-            midEndRunner.Run();
-            System.err.println("mid optimization end, Use Time: " + String.valueOf(((double) System.currentTimeMillis() - start) / 1000) + "s");
-
-            // DeadCodeDelete deadCodeDelete = new DeadCodeDelete(Manager.MANAGER.getFunctionList());
-            // deadCodeDelete.Run();
-
             if (arg.outputLLVM()) {
                 Manager.MANAGER.outputLLVM(arg.llvmStream);
             }
+            _ONLY_FRONTEND = !arg.outputAsm();
 
             if (_ONLY_FRONTEND) {
                 return;
             }
 
+            MidEndRunner.O2 = arg.optimize;
+            System.err.println("mid optimization begin");
+            long start = System.currentTimeMillis();
+            MidEndRunner midEndRunner = new MidEndRunner(Manager.MANAGER.getFunctionList());
+            midEndRunner.Run();
+            System.err.println("mid optimization end, Use Time: " + ((double) System.currentTimeMillis() - start) / 1000 + "s");
+
+            // DeadCodeDelete deadCodeDelete = new DeadCodeDelete(Manager.MANAGER.getFunctionList());
+            // deadCodeDelete.Run();
+
+
             RemovePhi removePhi = new RemovePhi(midEndRunner.functions);
             removePhi.Run();
 
+            CenterControl.AlreadyBackend = true;
             System.err.println("code gen begin");
             start = System.currentTimeMillis();
             //Manager.MANAGER.outputLLVM();
             CodeGen.CODEGEN.gen();
-            System.err.println("code gen end, Use Time: " + String.valueOf(((double) System.currentTimeMillis() - start) / 1000) + "s");
+            System.err.println("code gen end, Use Time: " + ((double) System.currentTimeMillis() - start) / 1000 + "s");
             MC.Program p = MC.Program.PROGRAM;
             // 为 MI Descriptor 设置输入输出流
             // MIDescriptor.MI_DESCRIPTOR.setInput(arg.interpretInputStream);
@@ -112,7 +112,7 @@ public class Compiler {
                 GPRegAllocator GPRegAllocator = new GPRegAllocator();
                 GPRegAllocator.AllocateRegister(p);
             }
-            System.err.println("Reg Alloc end, Use Time: " + String.valueOf(((double) System.currentTimeMillis() - start) / 1000) + "s");
+            System.err.println("Reg Alloc end, Use Time: " + ((double) System.currentTimeMillis() - start) / 1000 + "s");
             // Manager.outputMI(true);
             // System.err.println("after");
             Manager.MANAGER.outputMI();
@@ -126,8 +126,15 @@ public class Compiler {
 
             // System.err.println(p.getSTB());
             //
+            if (CenterControl._GLOBAL_BSS)
+                MC.Program.PROGRAM.bssInit();
+
             PeepHole peepHole = new PeepHole(p);
             peepHole.run();
+            if (CenterControl._OPEN_PARALLEL) {
+                Parallel parallel = new Parallel(p);
+                parallel.gen();
+            }
             if (arg.outputAsm()) {
                 FileDealer.outputToStream(p.getSTB(), arg.asmStream);
                 // p.output(new PrintStream(arg.asmStream));

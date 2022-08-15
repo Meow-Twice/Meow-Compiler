@@ -198,7 +198,6 @@ public class ConstFold {
         }
 
         Initial init = globalValues.get(ptr);
-        ArrayList<Value> initArray = init.getFlattenInit();
         if (indexs.size() != offsetArray.size()) {
             return null;
         }

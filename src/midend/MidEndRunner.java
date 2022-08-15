@@ -136,7 +136,7 @@ public class MidEndRunner {
         //outputLLVM();
 
         //outputLLVM();
-        LoopFuse();
+        //LoopFuse();
 
 
         ArrayLift();
@@ -156,6 +156,9 @@ public class MidEndRunner {
     }
 
     private void MarkParallel() {
+        if (!CenterControl._OPEN_PARALLEL) {
+            return;
+        }
         MarkParallel markParallel = new MarkParallel(functions);
         markParallel.Run();
 

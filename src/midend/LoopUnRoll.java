@@ -1,5 +1,6 @@
 package midend;
 
+import lir.I;
 import mir.*;
 
 import java.util.ArrayList;
@@ -17,7 +18,7 @@ public class LoopUnRoll {
     //LCSSA的PHI是对于那些在循环中定义在循环外使用的变量插入的
     //在循环中定义,外部还能用,意味着在循环前一定有"声明"
     //循环中有定义,意味着,Head块中一定有一条它的PHI
-    private static int loop_unroll_up_lines = 10000;
+    private static int loop_unroll_up_lines = 3000;
 
     private ArrayList<Function> functions;
     private HashMap<Function, HashSet<Loop>> loopsByFunc;
@@ -151,6 +152,7 @@ public class LoopUnRoll {
 //        }
         if (cnt * times > loop_unroll_up_lines) {
             //DoLoopUnRollForSeveralTimes(loop, cnt);
+            //System.err.println("loop_cnt " + String.valueOf(cnt * times));
             return;
         }
 

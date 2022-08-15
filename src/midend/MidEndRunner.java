@@ -70,6 +70,7 @@ public class MidEndRunner {
         //
         FuncGVN();
         FuncGCM();
+        //outputLLVM();
         FuncInline();
         Mem2Reg();
         MathOpt();
@@ -110,8 +111,12 @@ public class MidEndRunner {
         LoopFold();
         LoopFold();
 
+
+        MathOpt();
+        Pass();
         //outputLLVM();
         LoopStrengthReduction();
+
 
 
 
@@ -130,13 +135,15 @@ public class MidEndRunner {
         LoopInVarCodeLift();
         //outputLLVM();
 
-        outputLLVM();
+        //outputLLVM();
         LoopFuse();
 
 
         ArrayLift();
         removePhiUseSame();
         Rem2DivMulSub();
+        outputLLVM();
+        MarkParallel();
         GepSplit();
 
         //outputLLVM();
@@ -146,6 +153,16 @@ public class MidEndRunner {
         //
         // RemovePhi removePhi = new RemovePhi(functions);
         // removePhi.Run();
+    }
+
+    private void MarkParallel() {
+        if (!CenterControl._OPEN_PARALLEL) {
+            return;
+        }
+        MarkParallel markParallel = new MarkParallel(functions);
+        markParallel.Run();
+
+        reMakeCFGAndLoopInfo();
     }
 
     private void ArrayLift() {
@@ -300,7 +317,7 @@ public class MidEndRunner {
         LoopStrengthReduction loopStrengthReduction = new LoopStrengthReduction(functions);
         loopStrengthReduction.Run();
 
-
+        //outputLLVM();
 
         reMakeCFGAndLoopInfo();
 

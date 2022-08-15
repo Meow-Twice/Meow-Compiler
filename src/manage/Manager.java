@@ -56,6 +56,8 @@ public class Manager {
         public static final Function MEM_SET = new Function(true, "memset", wrapParam(new Type.PointerType(I32_TYPE), I32_TYPE, I32_TYPE), Type.VoidType.getVoidType());
         public static final Function START_TIME = new Function(true, "starttime", wrapParam(I32_TYPE), Type.VoidType.getVoidType());
         public static final Function STOP_TIME = new Function(true, "stoptime", wrapParam(I32_TYPE), Type.VoidType.getVoidType());
+        public static final Function PARALLEL_START = new Function(true, "parallel_start", new ArrayList<>(), I32_TYPE);
+        public static final Function PARALLEL_END = new Function(true, "parallel_end", wrapParam(I32_TYPE), Type.VoidType.getVoidType());
     }
 
     public final ArrayList<Function> externalFuncList = new ArrayList<>();
@@ -77,6 +79,9 @@ public class Manager {
         ExternFunction.START_TIME.isTimeFunc = true;
         addFunction(ExternFunction.STOP_TIME);
         ExternFunction.STOP_TIME.isTimeFunc = true;
+
+        addFunction(ExternFunction.PARALLEL_START);
+        addFunction(ExternFunction.PARALLEL_END);
         external = false;
     }
 

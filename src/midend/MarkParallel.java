@@ -5,6 +5,7 @@ import mir.*;
 import mir.type.Type;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 
 public class MarkParallel {
@@ -54,6 +55,17 @@ public class MarkParallel {
         HashSet<Loop> loops = new HashSet<>();
         DFS(bbs, idcVars, loops, loop);
 
+        for (Loop temp: loops) {
+            for (Instr instr = temp.getHeader().getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+                if (instr instanceof Instr.Phi && !instr.equals(temp.getIdcPHI())) {
+                    return;
+                }
+            }
+        }
+
+        HashSet<Value> load = new HashSet<>(), store = new HashSet<>();
+        HashMap<Value, Instr> loadGep = new HashMap<>(), storeGep = new HashMap<>();
+
         for (BasicBlock bb: bbs) {
             for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
                 if (instr instanceof Instr.Call) {
@@ -62,20 +74,65 @@ public class MarkParallel {
                 if (useOutLoops(instr, loops)) {
                     return;
                 }
-                if (instr instanceof Instr.GetElementPtr) {
-                    if (!(((Instr.GetElementPtr) instr).getPtr() instanceof GlobalVal.GlobalValue)) {
-                        return;
+                //trivel写法
+//                if (instr instanceof Instr.GetElementPtr) {
+//                    if (!(((Instr.GetElementPtr) instr).getPtr() instanceof GlobalVal.GlobalValue)) {
+//                        return;
+//                    }
+//                    for (Value idc: ((Instr.GetElementPtr) instr).getIdxList()) {
+//                        if (idc instanceof Constant && (int) ((Constant) idc).getConstVal() == 0) {
+//                            continue;
+//                        }
+//                        if (!idcVars.contains(idc)) {
+//                            return;
+//                        }
+//                    }
+//                }
+                if (instr instanceof Instr.Store) {
+                    Value array = ((Instr.Store) instr).getPointer();
+                    while (array instanceof Instr.GetElementPtr) {
+                        array = ((Instr.GetElementPtr) array).getPtr();
                     }
-                    for (Value idc: ((Instr.GetElementPtr) instr).getIdxList()) {
-                        if (idc instanceof Constant && (int) ((Constant) idc).getConstVal() == 0) {
-                            continue;
-                        }
-                        if (!idcVars.contains(idc)) {
+                    store.add(array);
+
+                } else if (instr instanceof Instr.Load) {
+                    Value array = ((Instr.Load) instr).getPointer();
+                    while (array instanceof Instr.GetElementPtr) {
+                        array = ((Instr.GetElementPtr) array).getPtr();
+                    }
+                    load.add(array);
+
+                } else if (instr instanceof Instr.GetElementPtr) {
+                    Value array = ((Instr.GetElementPtr) instr).getPtr();
+                    while (array instanceof Instr.GetElementPtr) {
+                        array = ((Instr.GetElementPtr) array).getPtr();
+                    }
+                    for (Use use = instr.getBeginUse(); use.getNext() != null; use = (Use) use.getNext()) {
+                        if (use.getUser() instanceof Instr.Load) {
+                            if (loadGep.containsKey(array)) {
+                                return;
+                            }
+                            loadGep.put(array, instr);
+                        } else if (use.getUser() instanceof Instr.Store) {
+                            if (storeGep.containsKey(array)) {
+                                return;
+                            }
+                            storeGep.put(array, instr);
+                        } else {
                             return;
                         }
                     }
                 }
             }
+        }
+
+        if (store.size() > 1) {
+            return;
+        }
+
+        Value storeArray = store.iterator().next();
+        if (load.contains(storeArray) && !storeGep.get(storeArray).equals(loadGep.get(storeArray))) {
+            return;
         }
 
         Value idcEnd = loop.getIdcEnd();

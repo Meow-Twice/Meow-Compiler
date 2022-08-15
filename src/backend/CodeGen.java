@@ -138,14 +138,15 @@ public class CodeGen {
             bino.setNeedFix(STACK_FIX.VAR_STACK);
             if (!isMain) {
                 dealParam();
-            // } else {
-            //     if (CenterControl._GLOBAL_BSS)
-            //         MC.Program.specialMI = bino;
+                // } else {
+                //     if (CenterControl._GLOBAL_BSS)
+                //         MC.Program.specialMI = bino;
             }
             // 改写为循环加运行速度
-            nextBBList = new LinkedList<>();
+            nextBBList = new Stack<>();
             // TODO 改写为Stack尝试加快性能
             nextBBList.push(bb);
+            // visitBBSet.add(curMB);
             while (nextBBList.size() > 0) {
                 BasicBlock visitBB = nextBBList.pop();
                 genBB(visitBB);
@@ -156,7 +157,7 @@ public class CodeGen {
     private void Push(MC.McFunction mf) {
         if (needFPU) new StackCtl.VPush(mf, curMB);
         MachineInst tmp = new StackCtl.Push(mf, curMB);
-        if(curMF.isMain && CenterControl._GLOBAL_BSS) MC.Program.specialMI = tmp;
+        if (curMF.isMain && CenterControl._GLOBAL_BSS) MC.Program.specialMI = tmp;
     }
 
     private void Pop(MC.McFunction mf) {
@@ -164,7 +165,7 @@ public class CodeGen {
         if (needFPU) new StackCtl.VPop(mf, curMB);
     }
 
-    LinkedList<BasicBlock> nextBBList;
+    Stack<BasicBlock> nextBBList;
 
     private void dealParam() {
         int rIdx = 0;
@@ -235,6 +236,7 @@ public class CodeGen {
     HashSet<MC.Block> visitBBSet = new HashSet<>();
 
     public void genBB(BasicBlock bb) {
+        System.err.println(curMB);
         curMB = bb.getMb();
         visitBBSet.add(curMB);
         curMB.setMf(curMF);
@@ -259,7 +261,7 @@ public class CodeGen {
                 case jump -> {
                     MC.Block mb = ((Instr.Jump) instr).getTarget().getMb();
                     curMB.succMBs.add(mb);
-                    if (!visitBBSet.contains(mb)) {
+                    if (visitBBSet.add(mb)) {
                         mb.predMBs.add(curMB);
                         nextBBList.push(mb.bb);
                     }
@@ -271,6 +273,7 @@ public class CodeGen {
                     Instr.Branch brInst = (Instr.Branch) instr;
                     MC.Block mb;
                     if (brInst.getCond() instanceof Constant.ConstantBool) {
+                        // assert false;
                         Constant.ConstantBool bool = (Constant.ConstantBool) brInst.getCond();
                         if ((int) bool.getConstVal() == 0) {
                             mb = brInst.getElseTarget().getMb();
@@ -278,7 +281,7 @@ public class CodeGen {
                             mb = brInst.getThenTarget().getMb();
                         }
                         curMB.succMBs.add(mb);
-                        if (!visitBBSet.contains(mb)) {
+                        if (visitBBSet.add(mb)) {
                             mb.predMBs.add(curMB);
                             nextBBList.push(mb.bb);
                         }
@@ -290,14 +293,15 @@ public class CodeGen {
                     MC.Block falseBlock = brInst.getElseTarget().getMb();
                     curMB.succMBs.add(trueBlock);
                     curMB.succMBs.add(falseBlock);
-                    if (!visitBBSet.contains(falseBlock)) {
+                    if (visitBBSet.add(falseBlock)) {
                         falseBlock.predMBs.add(curMB);
                         nextBBList.push(falseBlock.bb);
                     }
-                    if (!visitBBSet.contains(trueBlock)) {
+                    if (visitBBSet.add(trueBlock)) {
                         trueBlock.predMBs.add(curMB);
                         nextBBList.push(trueBlock.bb);
                     }
+                    boolean isIcmp = !condValue.isFcmp();
                     CMPAndArmCond t = cmpInst2MICmpMap.get(condValue);
                     if (t != null) {
                         cond = t.ArmCond;
@@ -306,7 +310,8 @@ public class CodeGen {
                         cond = Ne;
                         new I.Cmp(cond, condVR, new Operand(I32, 0), curMB);
                     }
-                    new MIBranch(cond, trueBlock, falseBlock, curMB);
+                    // new MIBranch(cond, trueBlock, falseBlock, curMB);
+                    new MIBranch(isIcmp ? getIcmpOppoCond(cond) : getFcmpOppoCond(cond), trueBlock, falseBlock, curMB);
                 }
                 case fneg -> {
                     assert needFPU;

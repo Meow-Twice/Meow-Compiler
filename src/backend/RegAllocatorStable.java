@@ -14,7 +14,7 @@ import static lir.Arm.Regs.GPRs.sp;
 import static mir.type.DataType.F32;
 import static mir.type.DataType.I32;
 
-public class RegAllocator {
+public class RegAllocatorStable {
     protected MC.McFunction curMF;
     public static final int SP_ALIGN = 2 * 4;
     protected static final boolean DEBUG_STDIN_OUT = false;
@@ -39,28 +39,28 @@ public class RegAllocator {
      * 欲从图中删除的结点集
      * 初始为低度数的传送(mv)无关的结点集, 实际上在select_spill的时候会把下一轮需要挪出去的点放到这里
      */
-    protected HashSet<Operand> simplifyWorkSet = new LinkedHashSet<>();
+    protected LinkedHashSet<Operand> simplifyWorkSet = new LinkedHashSet<>();
 
 
     /**
      * 低度数的传送有关的结点
      */
-    protected HashSet<Operand> freezeWorkSet = new LinkedHashSet<>();
+    protected LinkedHashSet<Operand> freezeWorkSet = new LinkedHashSet<>();
 
     /**
      * 高度数的结点
      */
-    protected HashSet<Operand> spillWorkSet = new LinkedHashSet<>();
+    protected LinkedHashSet<Operand> spillWorkSet = new LinkedHashSet<>();
 
     /**
      * 在本轮中要被溢出的结点集合, 初始为空
      */
-    protected HashSet<Operand> spilledNodeSet = new LinkedHashSet<>();
+    protected LinkedHashSet<Operand> spilledNodeSet = new LinkedHashSet<>();
 
     /**
      * 已合并的寄存器集合. 当合并 u <- v 时, 将 v 加入到这个集合中, u 则被放回到某个工作表中
      */
-    protected HashSet<Operand> coalescedNodeSet = new LinkedHashSet<>();
+    protected LinkedHashSet<Operand> coalescedNodeSet = new LinkedHashSet<>();
     /**
      * 已成功着色的结点集合
      */
@@ -143,7 +143,7 @@ public class RegAllocator {
             MC.McFunction mf = mi.getMb().mf;
             if (mi instanceof I.Binary) {
                 I.Binary binary = (I.Binary) mi;
-                MC.Operand off;
+                Operand off;
                 int newOff = switch (binary.getFixType()) {
                     case VAR_STACK -> mf.getVarStack();
                     case ONLY_PARAM -> binary.getCallee().getParamStack();
@@ -157,17 +157,17 @@ public class RegAllocator {
                     binary.remove();
                 } else {
                     if (CodeGen.immCanCode(newOff)) {
-                        off = new MC.Operand(I32, newOff);
+                        off = new Operand(I32, newOff);
                     } else {
                         off = Arm.Reg.getR(r11);
-                        new I.Mov(off, new MC.Operand(I32, newOff), binary);
+                        new I.Mov(off, new Operand(I32, newOff), binary);
                     }
                     binary.setROpd(off);
                 }
                 binary.clearNeedFix();
             } else if (mi.isIMov()) {
                 I.Mov mv = (I.Mov) mi;
-                MC.Operand off = mv.getSrc();
+                Operand off = mv.getSrc();
                 assert off.is_I_Imm();
                 int newOff = mf.getTotalStackSize() + off.get_I_Imm();
                 // mov a, #off
@@ -177,7 +177,7 @@ public class RegAllocator {
                     if (CenterControl._FixStackWithPeepHole && CodeGen.vLdrStrImmEncode(newOff) && mv.getNext() instanceof I.Ldr) {
                         V.Ldr vldr = (V.Ldr) mv.getNext().getNext();
                         vldr.setUse(0, Arm.Reg.getRSReg(sp));
-                        vldr.setOffSet(new MC.Operand(I32, newOff));
+                        vldr.setOffSet(new Operand(I32, newOff));
                         assert mv.getNext() instanceof I.Binary;
                         mv.getNext().remove();
                         mv.clearNeedFix();
@@ -187,9 +187,9 @@ public class RegAllocator {
                         I.Binary binary = (I.Binary) mv.getNext();
                         mv.clearNeedFix();
                         mv.remove();
-                        binary.setROpd(new MC.Operand(I32, newOff));
+                        binary.setROpd(new Operand(I32, newOff));
                     } else {
-                        mv.setSrc(new MC.Operand(I32, newOff));
+                        mv.setSrc(new Operand(I32, newOff));
                         mv.clearNeedFix();
                     }
                 } else if (mv.getFixType() == CodeGen.STACK_FIX.INT_TOTAL_STACK) {
@@ -197,11 +197,11 @@ public class RegAllocator {
                     // ldr opd, [sp, dst]
                     if (CenterControl._FixStackWithPeepHole && CodeGen.LdrStrImmEncode(newOff) && mv.getNext() instanceof I.Ldr) {
                         I.Ldr ldr = (I.Ldr) mv.getNext();
-                        ldr.setOffSet(new MC.Operand(I32, newOff));
+                        ldr.setOffSet(new Operand(I32, newOff));
                         mv.clearNeedFix();
                         mv.remove();
                     } else {
-                        mv.setSrc(new MC.Operand(I32, newOff));
+                        mv.setSrc(new Operand(I32, newOff));
                         mv.clearNeedFix();
                     }
                 } else {
@@ -412,7 +412,7 @@ public class RegAllocator {
                 // TODO : 此时考虑了Call
                 logOut(mi + "\tlive begin:\t" + live);
                 if (mi.isMovOfDataType(dataType)) {
-                    MachineInst.MachineMove mv = (MachineInst.MachineMove) mi;
+                    MachineMove mv = (MachineMove) mi;
                     if (mv.directColor()) {
                         // 没有cond, 没有shift, src和dst都是虚拟寄存器的mov指令
                         // move 的 dst 和 src 不应是直接冲突的关系, 而是潜在的可合并的关系
@@ -510,17 +510,17 @@ public class RegAllocator {
     /**
      * 已经合并的传送指令的集合
      */
-    HashSet<MachineMove> coalescedMoveSet = new LinkedHashSet<>();
+    LinkedHashSet<MachineMove> coalescedMoveSet = new LinkedHashSet<>();
 
     /**
      * src 和 dst相冲突的传送指令集合
      */
-    HashSet<MachineMove> constrainedMoveSet = new LinkedHashSet<>();
+    LinkedHashSet<MachineMove> constrainedMoveSet = new LinkedHashSet<>();
 
     /**
      * 不再考虑合并的传送指令集合
      */
-    HashSet<MachineMove> frozenMoveSet = new LinkedHashSet<>();
+    LinkedHashSet<MachineMove> frozenMoveSet = new LinkedHashSet<>();
 
     /**
      * 有可能合并的传送指令, 当结点x从高度数结点变为低度数结点时,
@@ -535,12 +535,12 @@ public class RegAllocator {
      * 如果 x 是传送有关的, 则与 x 本身关联的传送指令也要加入到此表中,
      * 因为 u 和 v 有可能都是高度数的结点
      */
-    HashSet<MachineMove> workListMoveSet = new LinkedHashSet<>();
+    LinkedHashSet<MachineMove> workListMoveSet = new LinkedHashSet<>();
 
     /**
      * 还未做好合并准备的传送指令的集合
      */
-    HashSet<MachineMove> activeMoveSet = new LinkedHashSet<>();
+    LinkedHashSet<MachineMove> activeMoveSet = new LinkedHashSet<>();
 
     /**
      * x.vMovSet 去掉

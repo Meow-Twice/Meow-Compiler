@@ -228,7 +228,7 @@ public class MIDescriptor implements Descriptor {
     public void finalOut() {
         if (OUT_TO_FILE) {
             FileDealer.outputToStream(out, output);
-            FileDealer.outputToFile(err, "stderr" + outputTimes++ + ".txt");
+            FileDealer.outputToFile(err, "stderr.out" + outputTimes++ + ".txt");
         }
     }
 

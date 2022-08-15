@@ -83,7 +83,7 @@ public class MC {
             }
 
             // 遍历全局数组的初始化，生成一个专门用来初始化的 MB 在 main 的开头
-            // 在没有测好之前，暂时用 stderr 输出
+            // 在没有测好之前，暂时用 stderr.out 输出
             // if (CenterControl._GLOBAL_BSS) {
             //     Block initMB = bssInit();
             //     System.err.println(initMB.getLabel() + ":");

@@ -143,7 +143,7 @@ public class MidEndRunner {
         removePhiUseSame();
         Rem2DivMulSub();
         MarkParallel();
-        outputLLVM();
+        //outputLLVM();
         GepSplit();
 
         //outputLLVM();

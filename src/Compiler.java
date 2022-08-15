@@ -57,14 +57,10 @@ public class Compiler {
             // GlobalValueLocalize globalValueLocalize = new GlobalValueLocalize(funcManager.globals);
             // globalValueLocalize.Run();
             Manager.MANAGER.outputLLVM();
-            if (arg.outputLLVM()) {
-                Manager.MANAGER.outputLLVM(arg.llvmStream);
-            }
+
             _ONLY_FRONTEND = !arg.outputAsm();
 
-            if (_ONLY_FRONTEND) {
-                return;
-            }
+
 
             MidEndRunner.O2 = arg.optimize;
             System.err.println("mid optimization begin");
@@ -75,7 +71,12 @@ public class Compiler {
 
             // DeadCodeDelete deadCodeDelete = new DeadCodeDelete(Manager.MANAGER.getFunctionList());
             // deadCodeDelete.Run();
-
+            if (arg.outputLLVM()) {
+                Manager.MANAGER.outputLLVM(arg.llvmStream);
+            }
+            if (_ONLY_FRONTEND) {
+                return;
+            }
 
             RemovePhi removePhi = new RemovePhi(midEndRunner.functions);
             removePhi.Run();

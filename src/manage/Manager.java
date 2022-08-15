@@ -79,6 +79,9 @@ public class Manager {
         ExternFunction.START_TIME.isTimeFunc = true;
         addFunction(ExternFunction.STOP_TIME);
         ExternFunction.STOP_TIME.isTimeFunc = true;
+
+        addFunction(ExternFunction.PARALLEL_START);
+        addFunction(ExternFunction.PARALLEL_END);
         external = false;
     }
 

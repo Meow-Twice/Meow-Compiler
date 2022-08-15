@@ -11,9 +11,7 @@ public class Lexer {
 
     private static final Lexer lexer = new Lexer();
     public static boolean detectFloat = false;
-    private static int lineNum = 0;
-    // private String str = "";
-    private Character lastChar = ' ';
+
     private TokenList tokenList;
 
     static {
@@ -60,19 +58,12 @@ public class Lexer {
         return c;
     }
 
-    private boolean isSpace(char c) {
-        return c == ' ';
+    private boolean isWhiteSpace(char c) {
+        return Character.isWhitespace(c);
     }
 
     private boolean isNewline(char c) {
-        if (c == '\n') {
-            lineNum++;
-            return true;
-        } else return c == '\r';
-    }
-
-    private boolean isTab(char c) {
-        return c == '\t';
+        return c == '\n';
     }
 
     private boolean isDigital(char c) {
@@ -81,13 +72,6 @@ public class Lexer {
 
     private boolean isLetter(char c) {
         return Character.isLowerCase(c) || Character.isUpperCase(c) || c == '_';
-    }
-
-    boolean dealAsicii(int c) {
-        boolean flag = (c == 32 || c == 33 || (c <= 126 && c >= 40));
-        if (c == 34) return false;
-        if (c == (int) '%') return true;
-        return flag;
     }
 
     private void keywordTokenDeal(String str) {
@@ -162,7 +146,7 @@ public class Lexer {
         // System.out.print((char)c);
         while (c != -1) {
             StringBuilder stringBuilder = new StringBuilder();
-            lastChar = (char) c;
+            Character lastChar = (char) c;
             if (lastChar == '/') {
                 c = myGetc(bis);
                 if (c == -1) {
@@ -188,8 +172,6 @@ public class Lexer {
                             } else {
                                 continue;
                             }
-                        } else if (c == (int) '\n') {
-                            lineNum++;
                         }
                         c = myGetc(bis);
                     }
@@ -202,7 +184,7 @@ public class Lexer {
                 }
                 lastChar = (char) c;
             }
-            while (isSpace(lastChar) || isNewline(lastChar) || isTab(lastChar)) {
+            while (isWhiteSpace(lastChar) || isNewline(lastChar)) {
                 c = myGetc(bis);
                 if (c == -1) {
                     break;
@@ -290,11 +272,9 @@ public class Lexer {
                     if (c == -1) {
                         break;
                     }
-                    lastChar = (char) c;
                     continue;
                 }
                 while (true) {
-                    dealAsicii(lastChar);
                     if (lastChar == '\\') {
                         stringBuilder.append("\\");
                     } else {
@@ -313,15 +293,12 @@ public class Lexer {
                 if (c == -1) {
                     break;
                 }
-                if (lastChar == '\"') {
-                    stringBuilder.append('\"');
-                    Token tk = new Token(STR_CON, stringBuilder.toString());
-                    tokenList.append(tk);
-                    c = myGetc(bis);
-                    if (c == -1) {
-                        break;
-                    }
-                    lastChar = (char) c;
+                stringBuilder.append('\"');
+                Token tk = new Token(STR_CON, stringBuilder.toString());
+                tokenList.append(tk);
+                c = myGetc(bis);
+                if (c == -1) {
+                    break;
                 }
             } else if (lastChar == '=') {
                 c = myGetc(bis);
@@ -338,7 +315,6 @@ public class Lexer {
                     if (c == -1) {
                         break;
                     }
-                    lastChar = (char) c;
                 } else {
                     Token tk = new Token(ASSIGN, "=");
                     tokenList.append(tk);
@@ -358,7 +334,6 @@ public class Lexer {
                     if (c == -1) {
                         break;
                     }
-                    lastChar = (char) c;
                 } else {
                     Token tk = new Token(NOT, "!");
                     tokenList.append(tk);
@@ -378,7 +353,6 @@ public class Lexer {
                     if (c == -1) {
                         break;
                     }
-                    lastChar = (char) c;
                 } else {
                     Token tk = new Token(GT, ">");
                     tokenList.append(tk);
@@ -398,7 +372,6 @@ public class Lexer {
                     if (c == -1) {
                         break;
                     }
-                    lastChar = (char) c;
                 } else {
                     Token tk = new Token(LT, "<");
                     tokenList.append(tk);
@@ -416,7 +389,6 @@ public class Lexer {
                     if (c == -1) {
                         break;
                     }
-                    lastChar = (char) c;
                 }
             } else if (lastChar == '|') {
                 c = myGetc(bis);
@@ -431,7 +403,6 @@ public class Lexer {
                     if (c == -1) {
                         break;
                     }
-                    lastChar = (char) c;
                 }
             } else {
                 switch (lastChar) {
@@ -501,7 +472,6 @@ public class Lexer {
                 if (c == -1) {
                     break;
                 }
-                lastChar = (char) c;
 
             }
         }
@@ -512,40 +482,4 @@ public class Lexer {
         }
 
     }
-
-    public void printLexer() {
-        File f = new File("output.txt");
-        FileOutputStream fop = null;
-        try {
-            fop = new FileOutputStream(f);
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        }
-        // 构建FileOutputStream对象,文件不存在会自动新建
-
-        OutputStreamWriter writer = null;
-        try {
-            writer = new OutputStreamWriter(fop, "UTF-8");
-        } catch (UnsupportedEncodingException e) {
-            e.printStackTrace();
-        }
-        for (Token t : tokenList.tokens) {
-            try {
-                writer.append(t.toString() + "\n");
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-        try {
-            writer.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        try {
-            fop.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
 }

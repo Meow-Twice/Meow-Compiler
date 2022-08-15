@@ -1,6 +1,5 @@
 import arg.Arg;
 import backend.*;
-// import descriptor.MIDescriptor;
 import frontend.Visitor;
 import frontend.lexer.Lexer;
 import frontend.lexer.Token;
@@ -72,7 +71,7 @@ public class Compiler {
             long start = System.currentTimeMillis();
             MidEndRunner midEndRunner = new MidEndRunner(Manager.MANAGER.getFunctionList());
             midEndRunner.Run();
-            System.err.println("mid optimization end, Use Time: " + String.valueOf(((double) System.currentTimeMillis() - start) / 1000) + "s");
+            System.err.println("mid optimization end, Use Time: " + ((double) System.currentTimeMillis() - start) / 1000 + "s");
 
             // DeadCodeDelete deadCodeDelete = new DeadCodeDelete(Manager.MANAGER.getFunctionList());
             // deadCodeDelete.Run();
@@ -86,7 +85,7 @@ public class Compiler {
             start = System.currentTimeMillis();
             //Manager.MANAGER.outputLLVM();
             CodeGen.CODEGEN.gen();
-            System.err.println("code gen end, Use Time: " + String.valueOf(((double) System.currentTimeMillis() - start) / 1000) + "s");
+            System.err.println("code gen end, Use Time: " + ((double) System.currentTimeMillis() - start) / 1000 + "s");
             MC.Program p = MC.Program.PROGRAM;
             // 为 MI Descriptor 设置输入输出流
             // MIDescriptor.MI_DESCRIPTOR.setInput(arg.interpretInputStream);
@@ -113,7 +112,7 @@ public class Compiler {
                 GPRegAllocator GPRegAllocator = new GPRegAllocator();
                 GPRegAllocator.AllocateRegister(p);
             }
-            System.err.println("Reg Alloc end, Use Time: " + String.valueOf(((double) System.currentTimeMillis() - start) / 1000) + "s");
+            System.err.println("Reg Alloc end, Use Time: " + ((double) System.currentTimeMillis() - start) / 1000 + "s");
             // Manager.outputMI(true);
             // System.err.println("after");
             Manager.MANAGER.outputMI();

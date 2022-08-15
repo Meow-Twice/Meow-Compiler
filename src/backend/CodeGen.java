@@ -20,12 +20,11 @@ import static lir.Arm.Cond.Le;
 import static lir.Arm.Cond.Lt;
 import static lir.Arm.Cond.Ne;
 import static lir.Arm.Cond.*;
-import static lir.Arm.Reg.getRSReg;
 import static lir.Arm.Regs.FPRs.s0;
-import static lir.Arm.Regs.GPRs.*;
+import static lir.Arm.Regs.GPRs.r0;
+import static lir.Arm.Regs.GPRs.sp;
 import static lir.MachineInst.Tag.*;
 import static midend.MidEndRunner.O2;
-import static mir.Constant.ConstantInt.CONST_0;
 import static mir.type.DataType.F32;
 import static mir.type.DataType.I32;
 
@@ -896,6 +895,7 @@ public class CodeGen {
             int imm = (int) ((Constant.ConstantInt) rhs).getConstVal();
             int abs = (imm < 0) ? (-imm) : imm;
             if (abs == 0) {
+                System.err.println("Division by zero: " + instr);
                 System.exit(94);
             } else if (imm == 1) {
                 new I.Mov(dVR, lVR, curMB);

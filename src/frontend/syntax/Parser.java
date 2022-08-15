@@ -23,8 +23,9 @@ public class Parser {
         while (tokenList.hasNext()) {
             if (tokenList.ahead(2).isOf(TokenType.LPARENT)) {
                 units.add(parseFuncDef());
+            } else {
+                units.add(parseDecl());
             }
-            else { units.add(parseDecl()); }
         }
         return new Ast(units);
     }
@@ -35,8 +36,9 @@ public class Parser {
         if (tokenList.get().isOf(TokenType.CONST)) {
             tokenList.consume();
             constant = true;
+        } else {
+            constant = false;
         }
-        else { constant = false; }
         Token bType = tokenList.consumeExpected(TokenType.INT, TokenType.FLOAT);
         defs.add(parseDef(bType, constant));
         while (tokenList.get().isOf(TokenType.COMMA)) {
@@ -59,8 +61,7 @@ public class Parser {
         if (constant) {
             tokenList.consumeExpected(TokenType.ASSIGN);
             init = parseInitVal();
-        }
-        else {
+        } else {
             if (tokenList.hasNext() && tokenList.get().isOf(TokenType.ASSIGN)) {
                 tokenList.consume();
                 init = parseInitVal();
@@ -72,8 +73,7 @@ public class Parser {
     private Ast.Init parseInitVal() throws SyntaxException {
         if (tokenList.get().isOf(TokenType.LBRACE)) {
             return parseInitArray();
-        }
-        else {
+        } else {
             return parseAddExp();
         }
     }
@@ -193,15 +193,14 @@ public class Parser {
                 tokenList.consumeExpected(TokenType.SEMI);
                 return new Ast.Return(value);
             case IDENT:
-                // 先读出一整个 Exp 再判断是否只有一个 LVal (因为 LVal 可能是数组)
+                // 先读出一整个 Exp 再判断是否只有一个 LVal (因为 LVal 可能是数组) 
                 Ast.Exp temp2 = parseAddExp();
                 Ast.LVal left = extractLValFromExp(temp2);
                 if (left == null) {
                     tokenList.consumeExpected(TokenType.SEMI);
                     return new Ast.ExpStmt(temp2);
-                }
-                else {
-                    // 只有一个 LVal，可能是 Exp; 也可能是 Assign
+                } else {
+                    // 只有一个 LVal，可能是 Exp; 也可能是 Assign 
                     if (tokenList.get().isOf(TokenType.ASSIGN)) {
                         tokenList.consumeExpected(TokenType.ASSIGN);
                         Ast.Exp right = parseAddExp();
@@ -265,7 +264,7 @@ public class Parser {
         return new Ast.Call(ident, params);
     }
 
-    // 二元表达式的种类
+    // 二元表达式的种类 
     private enum BinaryExpType {
         LOR(TokenType.LOR),
         LAND(TokenType.LAND),
@@ -286,7 +285,7 @@ public class Parser {
         }
     }
 
-    // 解析二元表达式的下一层表达式
+    // 解析二元表达式的下一层表达式 
     private Ast.Exp parseSubBinaryExp(BinaryExpType expType) throws SyntaxException {
         return switch (expType) {
             case LOR -> parseBinaryExp(BinaryExpType.LAND);
@@ -298,13 +297,13 @@ public class Parser {
         };
     }
 
-    // 解析二元表达式
+    // 解析二元表达式 
     private Ast.BinaryExp parseBinaryExp(BinaryExpType expType) throws SyntaxException {
         Ast.Exp first = parseSubBinaryExp(expType);
         ArrayList<Token> operators = new ArrayList<>();
         ArrayList<Ast.Exp> follows = new ArrayList<>();
         while (tokenList.hasNext() && expType.contains(tokenList.get().getType())) {
-            Token op = tokenList.consume(); // 取得当前层次的运算符
+            Token op = tokenList.consume(); // 取得当前层次的运算符 
             operators.add(op);
             follows.add(parseSubBinaryExp(expType));
         }
@@ -328,11 +327,11 @@ public class Parser {
         return parseBinaryExp(BinaryExpType.LOR);
     }
 
-    // 从 Exp 中提取一个 LVal (如果不是仅有一个 LVal) 则返回 null
+    // 从 Exp 中提取一个 LVal (如果不是仅有一个 LVal) 则返回 null 
     private Ast.LVal extractLValFromExp(Ast.Exp exp) {
         Ast.Exp cur = exp;
         while (cur instanceof Ast.BinaryExp) {
-            // 如果是二元表达式，只能有 first 否则一定不是一个 LVal
+            // 如果是二元表达式，只能有 first 否则一定不是一个 LVal 
             if (!(((Ast.BinaryExp) cur).getFollows().isEmpty())) {
                 return null;
             }
@@ -340,13 +339,13 @@ public class Parser {
         }
         assert cur instanceof Ast.UnaryExp;
         if (!(((Ast.UnaryExp) cur).getUnaryOps().isEmpty())) {
-            return null; // 不能有一元运算符
+            return null; // 不能有一元运算符 
         }
         Ast.PrimaryExp primary = ((Ast.UnaryExp) cur).getPrimary();
         if (primary instanceof Ast.LVal) {
             return (Ast.LVal) primary;
         } else {
-            return null; // 不是 LVal
+            return null; // 不是 LVal 
         }
     }
 }

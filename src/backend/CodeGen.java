@@ -59,7 +59,6 @@ public class CodeGen {
     // 全局变量
     private final HashMap<GlobalVal.GlobalValue, Initial> globalMap;
     private MC.Block curMB;
-    public MC.Block init_bss;
 
     // 整数数传参可使用最大个数
     public static final int rParamCnt = 4;

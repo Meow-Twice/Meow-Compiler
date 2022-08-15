@@ -44,7 +44,7 @@ public class MarkParallel {
     }
 
     private void markLoop(Loop loop) {
-        if (loop.getHash() != 9) {
+        if (loop.getHash() != 8) {
             return;
             //System.err.println("loop_parallel");
         }

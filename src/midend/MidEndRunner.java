@@ -70,6 +70,7 @@ public class MidEndRunner {
         //
         FuncGVN();
         FuncGCM();
+        //outputLLVM();
         FuncInline();
         Mem2Reg();
         MathOpt();
@@ -141,7 +142,8 @@ public class MidEndRunner {
         ArrayLift();
         removePhiUseSame();
         Rem2DivMulSub();
-        //LoopStrengthReduction();
+        MarkParallel();
+        outputLLVM();
         GepSplit();
 
         //outputLLVM();
@@ -151,6 +153,13 @@ public class MidEndRunner {
         //
         // RemovePhi removePhi = new RemovePhi(functions);
         // removePhi.Run();
+    }
+
+    private void MarkParallel() {
+        MarkParallel markParallel = new MarkParallel(functions);
+        markParallel.Run();
+
+        reMakeCFGAndLoopInfo();
     }
 
     private void ArrayLift() {

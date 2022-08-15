@@ -43,19 +43,23 @@ public class MarkParallel {
     }
 
     private void markLoop(Loop loop) {
-        if (loop.getHash() == 10) {
-            System.err.println("loop_10");
-        }
+//        if (loop.getHash() == 8) {
+//            System.err.println("loop_parallel");
+//        }
         if (!isPureLoop(loop)) {
             return;
         }
         HashSet<BasicBlock> bbs = new HashSet<>();
         HashSet<Value> idcVars = new HashSet<>();
-        DFS(bbs, idcVars, loop);
+        HashSet<Loop> loops = new HashSet<>();
+        DFS(bbs, idcVars, loops, loop);
 
         for (BasicBlock bb: bbs) {
             for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
                 if (instr instanceof Instr.Call) {
+                    return;
+                }
+                if (useOutLoops(instr, loops)) {
                     return;
                 }
                 if (instr instanceof Instr.GetElementPtr) {
@@ -131,12 +135,23 @@ public class MarkParallel {
         know.addAll(bbs);
     }
 
-    private void DFS(HashSet<BasicBlock> bbs, HashSet<Value>  idcVars, Loop loop) {
+    private void DFS(HashSet<BasicBlock> bbs, HashSet<Value>  idcVars, HashSet<Loop> loops, Loop loop) {
+        loops.add(loop);
         bbs.addAll(loop.getNowLevelBB());
         idcVars.add(loop.getIdcPHI());
         for (Loop next: loop.getChildrenLoops()) {
-            DFS(bbs, idcVars, next);
+            DFS(bbs, idcVars, loops, next);
         }
+    }
+
+    private boolean useOutLoops(Value value, HashSet<Loop> loops) {
+        for (Use use = value.getBeginUse(); use.getNext() != null; use = (Use) use.getNext()) {
+            Instr user = use.getUser();
+            if (!loops.contains(user.parentBB().getLoop())) {
+                return true;
+            }
+        }
+        return false;
     }
 
 }

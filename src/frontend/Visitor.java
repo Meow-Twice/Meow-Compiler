@@ -749,7 +749,11 @@ public class Visitor {
         // 如果是全局变量且没有初始化，则初始化为零
         if ((isGlobal || CenterControl._initAll) && init == null) {
             if (pointeeType instanceof BasicType) {
-                init = new Initial.ValueInit(CONST_0, pointeeType);
+                if (pointeeType == F32_TYPE) {
+                    init = new Initial.ValueInit(CONST_0F, pointeeType);
+                } else {
+                    init = new Initial.ValueInit(CONST_0, pointeeType);
+                }
             } else {
                 init = new Initial.ZeroInit(pointeeType);
             }

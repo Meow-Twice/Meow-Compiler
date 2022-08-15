@@ -4,7 +4,9 @@ import backend.CodeGen;
 import frontend.semantic.Initial;
 import mir.BasicBlock;
 import mir.Constant;
+import mir.Value;
 import mir.type.DataType;
+import mir.type.Type;
 import util.CenterControl;
 import util.ILinkNode;
 import util.Ilist;
@@ -51,9 +53,20 @@ public class MC {
                 Initial.Flatten flatten = glob.init.flatten();
                 int countNonZeros = 0;
                 for (Initial.Flatten.Entry entry : flatten) {
-                    if (!entry.value.equals(CONST_0)) {
-                        countNonZeros += entry.count;
+                    Value value = entry.value;
+                    if (value.getType() == Type.BasicType.F32_TYPE) {
+                        assert value instanceof Constant.ConstantFloat;
+                        int bin = ((Constant.ConstantFloat) value).getIntBits();
+                        if (bin != 0) {
+                            countNonZeros += entry.count;
+                        }
+                    } else {
+                        assert value instanceof Constant.ConstantInt;
+                        if (!value.equals(CONST_0)) {
+                            countNonZeros += entry.count;
+                        }
                     }
+
                 }
                 if (countNonZeros * 3 >= flatten.sizeInWords()) {
                     globData.add(glob);
@@ -74,14 +87,30 @@ public class MC {
                     int end = offset + entry.count;
                     // 对每一项: 加载偏移, 存入立即数
                     while (offset < end) {
-                        if (!entry.value.equals(CONST_0)) {
-                            if (LdrStrImmEncode(offset * 4)) {
-                                specialMI = new I.Mov(specialMI, rData, new Operand(I32, (int) ((Constant) entry.value).getConstVal())); // mov 写入值
-                                specialMI = new I.Str(specialMI, rData, rBase, new Operand(I32, offset * 4));
-                            } else {
-                                specialMI = new I.Mov(specialMI, rData, new Operand(I32, (int) ((Constant) entry.value).getConstVal())); // mov 写入值
-                                specialMI = new I.Mov(specialMI, rOffset, new Operand(I32, offset)); // mov 写入值
-                                specialMI = new I.Str(specialMI, rData, rBase, rOffset, new Arm.Shift(Arm.ShiftType.Lsl, 2));
+                        Value value = entry.value;
+                        if (value.getType() == Type.BasicType.F32_TYPE) {
+                            assert value instanceof Constant.ConstantFloat;
+                            int bin = ((Constant.ConstantFloat) value).getIntBits();
+                            if (bin != 0) {
+                                if (LdrStrImmEncode(offset * 4)) {
+                                    specialMI = new I.Mov(specialMI, rData, new Operand(I32, bin)); // mov 写入值
+                                    specialMI = new I.Str(specialMI, rData, rBase, new Operand(I32, offset * 4));
+                                } else {
+                                    specialMI = new I.Mov(specialMI, rData, new Operand(I32, bin)); // mov 写入值
+                                    specialMI = new I.Mov(specialMI, rOffset, new Operand(I32, offset)); // mov 写入值
+                                    specialMI = new I.Str(specialMI, rData, rBase, rOffset, new Arm.Shift(Arm.ShiftType.Lsl, 2));
+                                }
+                            }
+                        } else {
+                            if (!value.equals(CONST_0)) {
+                                if (LdrStrImmEncode(offset * 4)) {
+                                    specialMI = new I.Mov(specialMI, rData, new Operand(I32, (int) ((Constant) value).getConstVal())); // mov 写入值
+                                    specialMI = new I.Str(specialMI, rData, rBase, new Operand(I32, offset * 4));
+                                } else {
+                                    specialMI = new I.Mov(specialMI, rData, new Operand(I32, (int) ((Constant) value).getConstVal())); // mov 写入值
+                                    specialMI = new I.Mov(specialMI, rOffset, new Operand(I32, offset)); // mov 写入值
+                                    specialMI = new I.Str(specialMI, rData, rBase, rOffset, new Arm.Shift(Arm.ShiftType.Lsl, 2));
+                                }
                             }
                         }
                         offset++;

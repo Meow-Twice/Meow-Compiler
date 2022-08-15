@@ -150,6 +150,14 @@ public class MachineInst extends ILinkNode {
         return shift.noShift() && cond == Arm.Cond.Any;
     }
 
+    public boolean hasCond() {
+        return shift.shiftType == Arm.ShiftType.None;
+    }
+
+    public void setNext(MachineInst mi){
+        this.mb = mi.mb;
+        mi.mb.miList.insertBefore(this, mi);
+    }
     public enum Tag {
         // Binary
         Add("add"),

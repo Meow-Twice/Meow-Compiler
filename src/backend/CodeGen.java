@@ -259,7 +259,10 @@ public class CodeGen {
                 case jump -> {
                     MC.Block mb = ((Instr.Jump) instr).getTarget().getMb();
                     curMB.succMBs.add(mb);
-                    if (!visitBBSet.contains(mb)) nextBBList.push(mb.bb);
+                    if (!visitBBSet.contains(mb)) {
+                        mb.predMBs.add(curMB);
+                        nextBBList.push(mb.bb);
+                    }
                     new MIJump(mb, curMB);
                 }
                 case icmp, fcmp -> genCmp(instr);
@@ -275,7 +278,10 @@ public class CodeGen {
                             mb = brInst.getThenTarget().getMb();
                         }
                         curMB.succMBs.add(mb);
-                        if (!visitBBSet.contains(mb)) nextBBList.push(mb.bb);
+                        if (!visitBBSet.contains(mb)) {
+                            mb.predMBs.add(curMB);
+                            nextBBList.push(mb.bb);
+                        }
                         new MIJump(mb, curMB);
                         break;
                     }
@@ -284,8 +290,14 @@ public class CodeGen {
                     MC.Block falseBlock = brInst.getElseTarget().getMb();
                     curMB.succMBs.add(trueBlock);
                     curMB.succMBs.add(falseBlock);
-                    if (!visitBBSet.contains(falseBlock)) nextBBList.push(falseBlock.bb);
-                    if (!visitBBSet.contains(trueBlock)) nextBBList.push(trueBlock.bb);
+                    if (!visitBBSet.contains(falseBlock)) {
+                        falseBlock.predMBs.add(curMB);
+                        nextBBList.push(falseBlock.bb);
+                    }
+                    if (!visitBBSet.contains(trueBlock)) {
+                        trueBlock.predMBs.add(curMB);
+                        nextBBList.push(trueBlock.bb);
+                    }
                     CMPAndArmCond t = cmpInst2MICmpMap.get(condValue);
                     if (t != null) {
                         cond = t.ArmCond;

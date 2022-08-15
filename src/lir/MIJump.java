@@ -35,4 +35,8 @@ public class MIJump extends MachineInst {
     public String toString() {
         return tag.toString() + cond + "\t" + target.getLabel();
     }
+
+    public void setTarget(MC.Block block) {
+        target = block;
+    }
 }

@@ -44,10 +44,10 @@ public class MarkParallel {
     }
 
     private void markLoop(Loop loop) {
-        if (loop.getHash() != 8) {
-            return;
-            //System.err.println("loop_parallel");
-        }
+//        if (loop.getHash() != 8) {
+//            //return;
+//            //System.err.println("loop_parallel");
+//        }
         if (!isPureLoop(loop)) {
             return;
         }
@@ -76,76 +76,76 @@ public class MarkParallel {
                     return;
                 }
                 //trivel写法
-//                if (instr instanceof Instr.GetElementPtr) {
-//                    if (!(((Instr.GetElementPtr) instr).getPtr() instanceof GlobalVal.GlobalValue)) {
-//                        return;
-//                    }
-//                    for (Value idc: ((Instr.GetElementPtr) instr).getIdxList()) {
-//                        if (idc instanceof Constant && (int) ((Constant) idc).getConstVal() == 0) {
-//                            continue;
-//                        }
-//                        if (!idcVars.contains(idc)) {
-//                            return;
-//                        }
-//                    }
-//                }
-                if (instr instanceof Instr.Store) {
-                    Value array = ((Instr.Store) instr).getPointer();
-                    while (array instanceof Instr.GetElementPtr) {
-                        array = ((Instr.GetElementPtr) array).getPtr();
+                if (instr instanceof Instr.GetElementPtr) {
+                    if (!(((Instr.GetElementPtr) instr).getPtr() instanceof GlobalVal.GlobalValue)) {
+                        return;
                     }
-                    store.add(array);
-
-                } else if (instr instanceof Instr.Load) {
-                    Value array = ((Instr.Load) instr).getPointer();
-                    while (array instanceof Instr.GetElementPtr) {
-                        array = ((Instr.GetElementPtr) array).getPtr();
-                    }
-                    load.add(array);
-
-                }
-            }
-        }
-
-        if (store.size() > 1) {
-            return;
-        }
-
-        if (store.size() == 1) {
-            Value storeArray = store.iterator().next();
-            if (load.contains(storeArray)) {
-                for (BasicBlock bb : bbs) {
-                    for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
-                        if (instr instanceof Instr.GetElementPtr) {
-                            Value array = ((Instr.GetElementPtr) instr).getPtr();
-                            while (array instanceof Instr.GetElementPtr) {
-                                array = ((Instr.GetElementPtr) array).getPtr();
-                            }
-                            if (array.equals(storeArray)) {
-                                for (Use use = instr.getBeginUse(); use.getNext() != null; use = (Use) use.getNext()) {
-                                    if (use.getUser() instanceof Instr.Load) {
-                                        if (loadGep.containsKey(array)) {
-                                            return;
-                                        }
-                                        loadGep.put(array, instr);
-                                    } else if (use.getUser() instanceof Instr.Store) {
-                                        if (storeGep.containsKey(array)) {
-                                            return;
-                                        }
-                                        storeGep.put(array, instr);
-                                    } else {
-                                        return;
-                                    }
-                                }
-                            }
+                    for (Value idc: ((Instr.GetElementPtr) instr).getIdxList()) {
+                        if (idc instanceof Constant && (int) ((Constant) idc).getConstVal() == 0) {
+                            continue;
+                        }
+                        if (!idcVars.contains(idc)) {
+                            return;
                         }
                     }
                 }
-                if (!storeGep.get(storeArray).equals(loadGep.get(storeArray))) {
-                    return;
-                }
+//                if (instr instanceof Instr.Store) {
+//                    Value array = ((Instr.Store) instr).getPointer();
+//                    while (array instanceof Instr.GetElementPtr) {
+//                        array = ((Instr.GetElementPtr) array).getPtr();
+//                    }
+//                    store.add(array);
+//
+//                } else if (instr instanceof Instr.Load) {
+//                    Value array = ((Instr.Load) instr).getPointer();
+//                    while (array instanceof Instr.GetElementPtr) {
+//                        array = ((Instr.GetElementPtr) array).getPtr();
+//                    }
+//                    load.add(array);
+//
+//                }
             }
         }
+
+//        if (store.size() > 1) {
+//            return;
+//        }
+//
+//        if (store.size() == 1) {
+//            Value storeArray = store.iterator().next();
+//            if (load.contains(storeArray)) {
+//                for (BasicBlock bb : bbs) {
+//                    for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+//                        if (instr instanceof Instr.GetElementPtr) {
+//                            Value array = ((Instr.GetElementPtr) instr).getPtr();
+//                            while (array instanceof Instr.GetElementPtr) {
+//                                array = ((Instr.GetElementPtr) array).getPtr();
+//                            }
+//                            if (array.equals(storeArray)) {
+//                                for (Use use = instr.getBeginUse(); use.getNext() != null; use = (Use) use.getNext()) {
+//                                    if (use.getUser() instanceof Instr.Load) {
+//                                        if (loadGep.containsKey(array)) {
+//                                            return;
+//                                        }
+//                                        loadGep.put(array, instr);
+//                                    } else if (use.getUser() instanceof Instr.Store) {
+//                                        if (storeGep.containsKey(array)) {
+//                                            return;
+//                                        }
+//                                        storeGep.put(array, instr);
+//                                    } else {
+//                                        return;
+//                                    }
+//                                }
+//                            }
+//                        }
+//                    }
+//                }
+//                if (!storeGep.get(storeArray).equals(loadGep.get(storeArray))) {
+//                    return;
+//                }
+//            }
+//        }
 
         Value idcEnd = loop.getIdcEnd();
         if (idcEnd instanceof Constant) {

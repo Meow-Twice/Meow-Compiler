@@ -4,6 +4,7 @@ import backend.CodeGen;
 import frontend.semantic.Initial;
 import mir.BasicBlock;
 import mir.Constant;
+import mir.Function;
 import mir.GlobalVal;
 import mir.type.DataType;
 import util.CenterControl;
@@ -370,6 +371,7 @@ public class MC {
         static int globIndex = 0;
         int mb_idx;
         String label;
+        public ArrayList<Block> predMBs = new ArrayList<>();
         public ArrayList<Block> succMBs = new ArrayList<>();
         public HashSet<Operand> liveUseSet = new HashSet<>();
         public HashSet<Operand> liveDefSet = new HashSet<>();
@@ -428,6 +430,24 @@ public class MC {
         public void setMf(McFunction mf) {
             this.mf = mf;
             mf.insertAtEnd(this);
+        }
+
+        public Block falseSucc() {
+            return succMBs.get(0);
+        }
+
+
+        public Block trueSucc() {
+            if(succMBs.size() < 2) return null;
+            return succMBs.get(1);
+        }
+
+        public void setFalse(Block onlySuccMB) {
+            succMBs.set(1, onlySuccMB);
+        }
+
+        public void setTrue(Block onlySuccMB) {
+            succMBs.set(0, onlySuccMB);
         }
     }
 

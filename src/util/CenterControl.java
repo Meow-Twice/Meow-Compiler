@@ -12,4 +12,5 @@ public class CenterControl {
     public static boolean AlreadyBackend = false;
 
     public static final String _TAG = "1";
+    public static final boolean _initAll = false;
 }

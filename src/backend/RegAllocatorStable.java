@@ -75,7 +75,7 @@ public class RegAllocatorStable {
      * 图中冲突边 (u, v) 的集合, 如果(u, v) in adjSet, 则(v, u) in adjSet
      * 用于判断两个Operand是否相邻
      */
-    HashSet<AdjPair> adjSet = new HashSet<>();
+    LinkedHashSet<AdjPair> adjSet = new LinkedHashSet<>();
 
     protected static class AdjPair {
         public Operand u;
@@ -313,8 +313,8 @@ public class RegAllocatorStable {
      * @param x
      * @return x.adjOpdSet \ (selectStack u coalescedNodeSet)
      */
-    protected HashSet<Operand> adjacent(Operand x) {
-        HashSet<Operand> validConflictOpdSet = new HashSet<>(x.adjOpdSet);
+    protected LinkedHashSet<Operand> adjacent(Operand x) {
+        LinkedHashSet<Operand> validConflictOpdSet = new LinkedHashSet<>(x.adjOpdSet);
         validConflictOpdSet.removeIf(r -> selectStack.contains(r) || coalescedNodeSet.contains(r));
         return validConflictOpdSet;
     }
@@ -344,8 +344,8 @@ public class RegAllocatorStable {
         return true;
     }
 
-    protected boolean conservative(HashSet<Operand> adjacent, HashSet<Operand> adjacent1) {
-        HashSet<Operand> tmp = new HashSet<>(adjacent);
+    protected boolean conservative(LinkedHashSet<Operand> adjacent, LinkedHashSet<Operand> adjacent1) {
+        LinkedHashSet<Operand> tmp = new LinkedHashSet<>(adjacent);
         tmp.addAll(adjacent1);
         int cnt = 0;
         for (Operand x : tmp) {
@@ -358,7 +358,7 @@ public class RegAllocatorStable {
 
     protected void turnInit(MC.McFunction mf) {
         livenessAnalysis(mf);
-        adjSet = new HashSet<>();
+        adjSet = new LinkedHashSet<>();
         // AdjPair.cnt = 0;
         simplifyWorkSet = new LinkedHashSet<>();
         freezeWorkSet = new LinkedHashSet<>();
@@ -376,8 +376,8 @@ public class RegAllocatorStable {
 
     protected void livenessAnalysis(MC.McFunction mf) {
         for (MC.Block mb : mf.mbList) {
-            mb.liveUseSet = new HashSet<>();
-            mb.liveDefSet = new HashSet<>();
+            mb.liveUseSet = new LinkedHashSet<>();
+            mb.liveDefSet = new LinkedHashSet<>();
             for (MachineInst mi : mb.miList) {
                 // TODO
                 if (mi instanceof MIComment || (dataType == F32 && !(mi instanceof V))) continue;
@@ -393,8 +393,8 @@ public class RegAllocatorStable {
             }
             logOut(mb.getLabel() + "\tdefSet:\t" + mb.liveDefSet.toString());
             logOut(mb.getLabel() + "\tuseSet:\t" + mb.liveUseSet.toString());
-            mb.liveInSet = new HashSet<>(mb.liveUseSet);
-            mb.liveOutSet = new HashSet<>();
+            mb.liveInSet = new LinkedHashSet<>(mb.liveUseSet);
+            mb.liveOutSet = new LinkedHashSet<>();
         }
 
         liveInOutAnalysis(mf);
@@ -405,7 +405,7 @@ public class RegAllocatorStable {
             MC.Block mb = (MC.Block) mbNode;
             // 获取块的 liveOut
             logOut("build mb: " + mb.getLabel());
-            HashSet<Operand> live = new HashSet<>(mb.liveOutSet);
+            LinkedHashSet<Operand> live = new LinkedHashSet<>(mb.liveOutSet);
             for (ILinkNode iNode = mb.getEndMI(); !iNode.equals(mb.miList.head); iNode = iNode.getPrev()) {
                 MachineInst mi = (MachineInst) iNode;
                 if (mi.isComment()) continue;
@@ -551,8 +551,8 @@ public class RegAllocatorStable {
      * @param x
      * @return x.vMovSet ∩ (activeVMovSet ∪ workListVMovSet)
      */
-    protected HashSet<MachineMove> nodeMoves(Operand x) {
-        HashSet<MachineMove> canCoalesceSet = new HashSet<>(x.movSet);
+    protected LinkedHashSet<MachineMove> nodeMoves(Operand x) {
+        LinkedHashSet<MachineMove> canCoalesceSet = new LinkedHashSet<>(x.movSet);
         canCoalesceSet.removeIf(r -> !(activeMoveSet.contains(r) || workListMoveSet.contains(r)));
         return canCoalesceSet;
     }
@@ -699,7 +699,7 @@ public class RegAllocatorStable {
                 }
             } else {
                 // union实际统计 u 和 v 的有效冲突邻接结点
-                HashSet<Operand> union = new HashSet<>(u.adjOpdSet);
+                LinkedHashSet<Operand> union = new LinkedHashSet<>(u.adjOpdSet);
                 union.removeIf(r -> selectStack.contains(r) || coalescedNodeSet.contains(r));
                 union.addAll(v.adjOpdSet);
                 int cnt = 0;

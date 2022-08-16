@@ -11,7 +11,7 @@ import static lir.Arm.Regs.GPRs.r12;
 import static lir.Arm.Regs.GPRs.sp;
 import static mir.type.DataType.I32;
 
-public class GPRegAllocator extends RegAllocatorStable {
+public class GPRegAllocator extends RegAllocator {
     public GPRegAllocator() {
         dataType = I32;
         K = RK;
@@ -31,15 +31,15 @@ public class GPRegAllocator extends RegAllocatorStable {
                 for (Arm.Reg reg : Arm.Reg.getGPRPool()) {
                     reg.loopCounter = 0;
                     reg.degree = MAX_DEGREE;
-                    reg.adjOpdSet = new HashSet<>();
-                    reg.movSet = new HashSet<>();
+                    reg.adjOpdSet = newOperandSet();
+                    reg.movSet = newMoveSet();
                     reg.setAlias(null);
                 }
                 for (Operand o : curMF.vrList) {
                     o.loopCounter = 0;
                     o.degree = 0;
-                    o.adjOpdSet = new HashSet<>();
-                    o.movSet = new HashSet<>();
+                    o.adjOpdSet = newOperandSet();
+                    o.movSet = newMoveSet();
                     o.setAlias(null);
                 }
                 // logOut("in build");

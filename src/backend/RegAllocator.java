@@ -13,6 +13,7 @@ import static lir.Arm.Regs.GPRs.r11;
 import static lir.Arm.Regs.GPRs.sp;
 import static mir.type.DataType.F32;
 import static mir.type.DataType.I32;
+import static util.CenterControl.STABLE;
 
 public class RegAllocator {
     protected MC.McFunction curMF;
@@ -29,6 +30,25 @@ public class RegAllocator {
     protected final Arm.Reg rSP = Arm.Reg.getR(sp);
     protected int MAX_DEGREE = Integer.MAX_VALUE >> 2;
 
+    public static Set<MachineMove> newMoveSet() {
+        return STABLE ? new LinkedHashSet<>() : new HashSet<>();
+    }
+
+    public static Set<MachineMove> newMoveSet(Set<MachineMove> set) {
+        return STABLE ? new LinkedHashSet<>(set) : new HashSet<>(set);
+    }
+
+    public static Set<Operand> newOperandSet() {
+        return STABLE ? new LinkedHashSet<>() : new HashSet<>();
+    }
+
+    public static Set<Operand> newOperandSet(Set<Operand> set) {
+        return STABLE ? new LinkedHashSet<>(set) : new HashSet<>(set);
+    }
+
+    public static Set<AdjPair> newAdjPairSet() {
+        return STABLE ? new LinkedHashSet<>() : new HashSet<>();
+    }
 
     /***
      * 结点, 工作表, 集合和栈的数据结构.
@@ -39,28 +59,28 @@ public class RegAllocator {
      * 欲从图中删除的结点集
      * 初始为低度数的传送(mv)无关的结点集, 实际上在select_spill的时候会把下一轮需要挪出去的点放到这里
      */
-    protected HashSet<Operand> simplifyWorkSet = new LinkedHashSet<>();
+    protected Set<Operand> simplifyWorkSet = newOperandSet();
 
 
     /**
      * 低度数的传送有关的结点
      */
-    protected HashSet<Operand> freezeWorkSet = new LinkedHashSet<>();
+    protected Set<Operand> freezeWorkSet = newOperandSet();
 
     /**
      * 高度数的结点
      */
-    protected HashSet<Operand> spillWorkSet = new LinkedHashSet<>();
+    protected Set<Operand> spillWorkSet = newOperandSet();
 
     /**
      * 在本轮中要被溢出的结点集合, 初始为空
      */
-    protected HashSet<Operand> spilledNodeSet = new LinkedHashSet<>();
+    protected Set<Operand> spilledNodeSet = newOperandSet();
 
     /**
      * 已合并的寄存器集合. 当合并 u <- v 时, 将 v 加入到这个集合中, u 则被放回到某个工作表中
      */
-    protected HashSet<Operand> coalescedNodeSet = new LinkedHashSet<>();
+    protected Set<Operand> coalescedNodeSet = newOperandSet();
     /**
      * 已成功着色的结点集合
      */
@@ -75,7 +95,7 @@ public class RegAllocator {
      * 图中冲突边 (u, v) 的集合, 如果(u, v) in adjSet, 则(v, u) in adjSet
      * 用于判断两个Operand是否相邻
      */
-    HashSet<AdjPair> adjSet = new HashSet<>();
+    Set<AdjPair> adjSet = newAdjPairSet();
 
     protected static class AdjPair {
         public Operand u;
@@ -251,7 +271,7 @@ public class RegAllocator {
         }
     }
 
-    protected void dealDefUse(HashSet<Operand> live, MachineInst mi, MC.Block mb) {
+    protected void dealDefUse(Set<Operand> live, MachineInst mi, MC.Block mb) {
         ArrayList<Operand> defs = mi.defOpds;
         ArrayList<Operand> uses = mi.useOpds;
         int loopDepth = (mb.bb.getLoopDep());
@@ -313,8 +333,8 @@ public class RegAllocator {
      * @param x
      * @return x.adjOpdSet \ (selectStack u coalescedNodeSet)
      */
-    protected HashSet<Operand> adjacent(Operand x) {
-        HashSet<Operand> validConflictOpdSet = new HashSet<>(x.adjOpdSet);
+    protected Set<Operand> adjacent(Operand x) {
+        Set<Operand> validConflictOpdSet = newOperandSet(x.adjOpdSet);
         validConflictOpdSet.removeIf(r -> selectStack.contains(r) || coalescedNodeSet.contains(r));
         return validConflictOpdSet;
     }
@@ -344,8 +364,8 @@ public class RegAllocator {
         return true;
     }
 
-    protected boolean conservative(HashSet<Operand> adjacent, HashSet<Operand> adjacent1) {
-        HashSet<Operand> tmp = new HashSet<>(adjacent);
+    protected boolean conservative(Set<Operand> adjacent, Set<Operand> adjacent1) {
+        Set<Operand> tmp = newOperandSet(adjacent);
         tmp.addAll(adjacent1);
         int cnt = 0;
         for (Operand x : tmp) {
@@ -358,26 +378,26 @@ public class RegAllocator {
 
     protected void turnInit(MC.McFunction mf) {
         livenessAnalysis(mf);
-        adjSet = new HashSet<>();
+        adjSet = newAdjPairSet();
         // AdjPair.cnt = 0;
-        simplifyWorkSet = new LinkedHashSet<>();
-        freezeWorkSet = new LinkedHashSet<>();
-        spillWorkSet = new LinkedHashSet<>();
-        spilledNodeSet = new LinkedHashSet<>();
+        simplifyWorkSet = newOperandSet();
+        freezeWorkSet = newOperandSet();
+        spillWorkSet = newOperandSet();
+        spilledNodeSet = newOperandSet();
         coloredNodeList = new ArrayList<>();
         selectStack = new Stack<>();
-        coalescedNodeSet = new LinkedHashSet<>();
-        coalescedMoveSet = new LinkedHashSet<>();
-        constrainedMoveSet = new LinkedHashSet<>();
-        frozenMoveSet = new LinkedHashSet<>();
-        workListMoveSet = new LinkedHashSet<>();
-        activeMoveSet = new LinkedHashSet<>();
+        coalescedNodeSet = newOperandSet();
+        coalescedMoveSet = newMoveSet();
+        constrainedMoveSet = newMoveSet();
+        frozenMoveSet = newMoveSet();
+        workListMoveSet = newMoveSet();
+        activeMoveSet = newMoveSet();
     }
 
     protected void livenessAnalysis(MC.McFunction mf) {
         for (MC.Block mb : mf.mbList) {
-            mb.liveUseSet = new HashSet<>();
-            mb.liveDefSet = new HashSet<>();
+            mb.liveUseSet = newOperandSet();
+            mb.liveDefSet = newOperandSet();
             for (MachineInst mi : mb.miList) {
                 // TODO
                 if (mi instanceof MIComment || (dataType == F32 && !(mi instanceof V))) continue;
@@ -393,8 +413,8 @@ public class RegAllocator {
             }
             logOut(mb.getLabel() + "\tdefSet:\t" + mb.liveDefSet.toString());
             logOut(mb.getLabel() + "\tuseSet:\t" + mb.liveUseSet.toString());
-            mb.liveInSet = new HashSet<>(mb.liveUseSet);
-            mb.liveOutSet = new HashSet<>();
+            mb.liveInSet = newOperandSet(mb.liveUseSet);
+            mb.liveOutSet = newOperandSet();
         }
 
         liveInOutAnalysis(mf);
@@ -405,7 +425,7 @@ public class RegAllocator {
             MC.Block mb = (MC.Block) mbNode;
             // 获取块的 liveOut
             logOut("build mb: " + mb.getLabel());
-            HashSet<Operand> live = new HashSet<>(mb.liveOutSet);
+            Set<Operand> live = newOperandSet(mb.liveOutSet);
             for (ILinkNode iNode = mb.getEndMI(); !iNode.equals(mb.miList.head); iNode = iNode.getPrev()) {
                 MachineInst mi = (MachineInst) iNode;
                 if (mi.isComment()) continue;
@@ -510,17 +530,17 @@ public class RegAllocator {
     /**
      * 已经合并的传送指令的集合
      */
-    HashSet<MachineMove> coalescedMoveSet = new LinkedHashSet<>();
+    Set<MachineMove> coalescedMoveSet = newMoveSet();
 
     /**
      * src 和 dst相冲突的传送指令集合
      */
-    HashSet<MachineMove> constrainedMoveSet = new LinkedHashSet<>();
+    Set<MachineMove> constrainedMoveSet = newMoveSet();
 
     /**
      * 不再考虑合并的传送指令集合
      */
-    HashSet<MachineMove> frozenMoveSet = new LinkedHashSet<>();
+    Set<MachineMove> frozenMoveSet = newMoveSet();
 
     /**
      * 有可能合并的传送指令, 当结点x从高度数结点变为低度数结点时,
@@ -535,12 +555,12 @@ public class RegAllocator {
      * 如果 x 是传送有关的, 则与 x 本身关联的传送指令也要加入到此表中,
      * 因为 u 和 v 有可能都是高度数的结点
      */
-    HashSet<MachineMove> workListMoveSet = new LinkedHashSet<>();
+    Set<MachineMove> workListMoveSet = newMoveSet();
 
     /**
      * 还未做好合并准备的传送指令的集合
      */
-    HashSet<MachineMove> activeMoveSet = new LinkedHashSet<>();
+    Set<MachineMove> activeMoveSet = newMoveSet();
 
     /**
      * x.vMovSet 去掉
@@ -551,8 +571,8 @@ public class RegAllocator {
      * @param x
      * @return x.vMovSet ∩ (activeVMovSet ∪ workListVMovSet)
      */
-    protected HashSet<MachineMove> nodeMoves(Operand x) {
-        HashSet<MachineMove> canCoalesceSet = new HashSet<>(x.movSet);
+    protected Set<MachineMove> nodeMoves(Operand x) {
+        Set<MachineMove> canCoalesceSet = newMoveSet(x.movSet);
         canCoalesceSet.removeIf(r -> !(activeMoveSet.contains(r) || workListMoveSet.contains(r)));
         return canCoalesceSet;
     }

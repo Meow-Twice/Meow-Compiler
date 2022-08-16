@@ -194,7 +194,7 @@ public class PeepHole {
             mb.liveInSet = new HashSet<>(mb.liveUseSet);
             mb.liveOutSet = new HashSet<>();
         }
-        RegAllocatorStable.liveInOutAnalysis(mf);
+        RegAllocator.liveInOutAnalysis(mf);
 
         // HashMap<Operand, MachineInst> lastDefMI = new HashMap<>();
         // HashMap<MachineInst, MachineInst> defMI2lastUserMI = new HashMap<>();

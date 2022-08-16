@@ -6,10 +6,12 @@ import util.CenterControl;
 
 import java.util.*;
 
+import static backend.RegAllocator.newMoveSet;
+import static backend.RegAllocator.newOperandSet;
 import static mir.type.DataType.F32;
 import static mir.type.DataType.I32;
 
-public class FPRegAllocator extends RegAllocatorStable {
+public class FPRegAllocator extends RegAllocator {
 
     public FPRegAllocator() {
         dataType = F32;
@@ -32,15 +34,15 @@ public class FPRegAllocator extends RegAllocatorStable {
                 for (Arm.Reg reg : Arm.Reg.getFPRPool()) {
                     reg.loopCounter = 0;
                     reg.degree = MAX_DEGREE;
-                    reg.adjOpdSet = new HashSet<>();
-                    reg.movSet = new HashSet<>();
+                    reg.adjOpdSet = newOperandSet();
+                    reg.movSet = newMoveSet();
                     reg.setAlias(null);
                 }
                 for (Operand o : curMF.sVrList) {
                     o.loopCounter = 0;
                     o.degree = 0;
-                    o.adjOpdSet = new HashSet<>();
-                    o.movSet = new HashSet<>();
+                    o.adjOpdSet = newOperandSet();
+                    o.movSet = newMoveSet();
                     o.setAlias(null);
                 }
                 // logOut("in build");

@@ -11,13 +11,10 @@ import util.CenterControl;
 import util.ILinkNode;
 import util.Ilist;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.TreeSet;
+import java.util.*;
 
 import static backend.CodeGen.*;
-import static backend.RegAllocatorStable.SP_ALIGN;
+import static backend.RegAllocator.*;
 import static lir.Arm.Reg.getRSReg;
 import static lir.Arm.Regs.FPRs.s0;
 import static lir.Arm.Regs.GPRs.*;
@@ -163,7 +160,8 @@ public class MC {
                     if (glob.init != null) {
                         Initial.Flatten flatten = glob.init.flatten();
                         stb.append(".zero ").append(flatten.sizeInBytes()).append("\n");
-                    } else {stb.append(".zero 4\n");
+                    } else {
+                        stb.append(".zero 4\n");
                     }
                 }
                 globalDataStbHelper(stb, globData);
@@ -415,10 +413,10 @@ public class MC {
         String label;
         public ArrayList<Block> predMBs = new ArrayList<>();
         public ArrayList<Block> succMBs = new ArrayList<>();
-        public HashSet<Operand> liveUseSet = new HashSet<>();
-        public HashSet<Operand> liveDefSet = new HashSet<>();
-        public HashSet<Operand> liveInSet = new HashSet<>();
-        public HashSet<Operand> liveOutSet = new HashSet<>();
+        public Set<Operand> liveUseSet = newOperandSet();
+        public Set<Operand> liveDefSet = newOperandSet();
+        public Set<Operand> liveInSet = newOperandSet();
+        public Set<Operand> liveOutSet = newOperandSet();
 
         /**
          * 获取第一条真正的指令
@@ -480,7 +478,7 @@ public class MC {
 
 
         public Block trueSucc() {
-            if(succMBs.size() < 2) return null;
+            if (succMBs.size() < 2) return null;
             return succMBs.get(1);
         }
 
@@ -511,7 +509,13 @@ public class MC {
         /**
          * 对于每一个非预着色的虚拟寄存器 this , adjOpedSet 是与 this 冲突的 Operand 的集合
          */
-        public HashSet<Operand> adjOpdSet = new HashSet<>();
+        public Set<Operand> adjOpdSet = newOperandSet();
+        /**
+         * 与此 Operand 相关的传送指令列表的集合
+         */
+        // public HashSet<I.Mov> iMovSet = new HashSet<>();
+        // public HashSet<V.Mov> vMovSet = new HashSet<>();
+        public Set<MachineInst.MachineMove> movSet = newMoveSet();
 
         /**
          * 当前度数
@@ -523,12 +527,6 @@ public class MC {
          * alias(v) = u
          */
         private Operand alias;
-        /**
-         * 与此 Operand 相关的传送指令列表的集合
-         */
-        // public HashSet<I.Mov> iMovSet = new HashSet<>();
-        // public HashSet<V.Mov> vMovSet = new HashSet<>();
-        public HashSet<MachineInst.MachineMove> movSet = new HashSet<>();
         // public Arm.Reg reg;
         // public Arm.Reg reg;
         public Arm.Regs reg;

@@ -29,7 +29,9 @@ public class MergeBB {
             BasicBlock target = jump.getTarget();
             for (BasicBlock pre: bb.getPrecBBs()) {
                 pre.modifyBrAToB(bb, target);
+                target.getPrecBBs().add(pre);
             }
+            target.getPrecBBs().remove(bb);
             bb.remove();
         }
     }

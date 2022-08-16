@@ -9,7 +9,7 @@ import java.util.*;
 import static mir.type.DataType.F32;
 import static mir.type.DataType.I32;
 
-public class FPRegAllocator extends RegAllocator {
+public class FPRegAllocator extends RegAllocatorStable {
 
     public FPRegAllocator() {
         dataType = F32;

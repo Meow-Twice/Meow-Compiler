@@ -8,7 +8,7 @@ import java.util.ArrayList;
 import static mir.type.DataType.F32;
 import static mir.type.DataType.I32;
 
-public class NaiveRegAllocator extends RegAllocator {
+public class NaiveRegAllocator extends RegAllocatorStable {
     public NaiveRegAllocator() {
         initPool();
     }

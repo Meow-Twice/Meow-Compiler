@@ -17,7 +17,7 @@ import java.util.Map;
 import java.util.TreeSet;
 
 import static backend.CodeGen.*;
-import static backend.RegAllocator.SP_ALIGN;
+import static backend.RegAllocatorStable.SP_ALIGN;
 import static lir.Arm.Reg.getRSReg;
 import static lir.Arm.Regs.FPRs.s0;
 import static lir.Arm.Regs.GPRs.*;

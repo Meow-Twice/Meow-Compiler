@@ -11,7 +11,7 @@ import static lir.Arm.Regs.GPRs.r12;
 import static lir.Arm.Regs.GPRs.sp;
 import static mir.type.DataType.I32;
 
-public class GPRegAllocator extends RegAllocator {
+public class GPRegAllocator extends RegAllocatorStable {
     public GPRegAllocator() {
         dataType = I32;
         K = RK;

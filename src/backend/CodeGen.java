@@ -442,8 +442,18 @@ public class CodeGen {
                                     }
                                 }
                             } else {
-                                new I.Binary(Add, getVR_no_imm(gep), curAddrVR, getVR_no_imm(curIdxValue),
-                                        new Arm.Shift(Arm.ShiftType.Lsl, 2), curMB);
+                                if (curBaseType.isBasicType()){
+                                    new I.Binary(Add, getVR_no_imm(gep), curAddrVR, getVR_no_imm(curIdxValue),
+                                            new Arm.Shift(Arm.ShiftType.Lsl, 2), curMB);
+                                }else{
+                                    int baseSize = ((Type.ArrayType) curBaseType).getFlattenSize();
+                                    int baseOffSet = 4 * baseSize;
+                                    if ((baseOffSet & (baseOffSet - 1)) == 0) {
+                                        new I.Binary(Add, getVR_no_imm(gep), curAddrVR, getVR_no_imm(curIdxValue), new Arm.Shift(Arm.ShiftType.Lsl, Integer.numberOfTrailingZeros(baseOffSet)), curMB);
+                                    } else {
+                                        new I.Fma(true, false, getVR_no_imm(gep), getVR_no_imm(curIdxValue), getImmVR(baseOffSet), curAddrVR, curMB);
+                                    }
+                                }
                             }
                         } else {
                             Value firstIdx = gep.getUseValueList().get(1);

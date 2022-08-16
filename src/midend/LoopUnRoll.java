@@ -139,10 +139,33 @@ public class LoopUnRoll {
         DoLoopUnRoll(loop);
     }
 
+    private void checkDFS(Loop loop, HashSet<BasicBlock> allBB, HashSet<BasicBlock> exits) {
+        allBB.addAll(loop.getNowLevelBB());
+        exits.addAll(loop.getExits());
+        for (Loop loop1: loop.getChildrenLoops()) {
+            checkDFS(loop1, allBB, exits);
+        }
+    }
+
     private void DoLoopUnRoll(Loop loop) {
-//        if (loop.getHash() == 10) {
-//            return;
+//        if (loop.getHash() == 11) {
+//            System.err.println("loop_11");
+//            //return;
 //        }
+        //check子循环不能跳出此循环
+        HashSet<BasicBlock> allBB = new HashSet<>();
+        HashSet<BasicBlock> exits = new HashSet<>();
+        allBB.addAll(loop.getNowLevelBB());
+        for (Loop loop1: loop.getChildrenLoops()) {
+            checkDFS(loop1, allBB, exits);
+        }
+
+        for (BasicBlock bb: exits) {
+            if (!allBB.contains(bb)) {
+                return;
+            }
+        }
+
         CloneInfoMap.clear();
         Function function = loop.getHeader().getFunction();
         int times = loop.getIdcTimes();

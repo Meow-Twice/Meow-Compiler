@@ -90,7 +90,7 @@ public class MidEndRunner {
         MathOpt();
         BrOptimize();
 
-        //outputLLVM();
+
         loopOptimize();
 
         ArrayGVN();
@@ -109,6 +109,8 @@ public class MidEndRunner {
         BrOptimize();
         BrOptimize();
         BrOptimize();
+        removePhiUseSame();
+        //outputLLVM();
 
         //outputLLVM();
         LoopFold();
@@ -202,7 +204,6 @@ public class MidEndRunner {
         Rem2DivMulSub rem2DivMulSub = new Rem2DivMulSub(functions);
         rem2DivMulSub.Run();
 
-        outputLLVM();
         Pass();
     }
 
@@ -385,9 +386,10 @@ public class MidEndRunner {
         LoopInfo loopInfo = new LoopInfo(functions);
         loopInfo.Run();
 
+        //outputLLVM();
         LCSSA lcssa = new LCSSA(functions);
         lcssa.Run();
-
+        //outputLLVM();
         //outputLLVM();
 
         BranchLift branchLift = new BranchLift(functions);
@@ -402,6 +404,7 @@ public class MidEndRunner {
         Pass();
 
 
+
         // TODO:获取迭代变量idcVar的相关信息
         LoopIdcVarInfo loopIdcVarInfo = new LoopIdcVarInfo(functions);
         loopIdcVarInfo.Run();
@@ -409,6 +412,7 @@ public class MidEndRunner {
         // TODO:循环展开
         //outputLLVM();
 
+        //outputLLVM();
         LoopUnRoll loopUnRoll = new LoopUnRoll(functions);
         loopUnRoll.Run();
 

@@ -91,7 +91,8 @@ public class LoopInfo {
                 loop.addLatch(bb);
             }
             //出循环的边 exiting和exit
-            if (next.getLoopDep() == bb.getLoopDep() - 1) {
+            //next.getLoopDep() == bb.getLoopDep() - 1
+            if (next.getLoopDep() < bb.getLoopDep()) {
                 Loop loop = bb.getLoop();
                 loop.addExiting(bb);
                 loop.addExit(next);

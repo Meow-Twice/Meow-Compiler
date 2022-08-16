@@ -4,6 +4,7 @@ import mir.BasicBlock;
 import mir.Function;
 import mir.Instr;
 import mir.Use;
+import util.CenterControl;
 
 import java.util.*;
 
@@ -13,11 +14,28 @@ public class FuncInline {
     //TODO: 寻找函数调用链
     //TODO: 递归的内联
 
+
+    //fixme:考虑库函数如何维持正确性
+    //      因为建立反向图的时候,只考虑了自定义的函数
+
+    //TODO:如果存在调用:
+    // A -> A
+    // B -> A
+    // C -> B
+    // 在当前判断中 A B C 入度均为1,无法内联
+    // 但是,其实可以把B内联到C里,
+    // 所以可以内联的条件可以加强为:对于一个函数,如果入度为0/入度不为0,但是所有的入边对应的函数,均只存在自调用
+
     private ArrayList<Function> functions;
     private ArrayList<Function> funcCanInline;
+    private HashSet<Function> funcCallSelf = new HashSet<>();
 
+    //A调用B则存在B->A
     private HashMap<Function, HashSet<Function>> reserveMap;
+    //记录反图的入度
     private HashMap<Function, Integer> inNum;
+    //A调用B则存在A->B
+    private HashMap<Function, HashSet<Function>> Map = new HashMap<>();
     private Queue<Function> queue;
 
 
@@ -32,6 +50,9 @@ public class FuncInline {
     public void Run() {
         GetFuncCanInline();
         for (Function function: funcCanInline) {
+            if (funcCallSelf.contains(function)) {
+                continue;
+            }
             inlineFunc(function);
             functions.remove(function);
             for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
@@ -51,11 +72,18 @@ public class FuncInline {
 //            }
 //        }
         makeReserveMap();
-        topologySort();
+        if (CenterControl._STRONG_FUNC_INLINE) {
+            topologySortStrong();
+        } else {
+            topologySort();
+        }
     }
 
     //f1调用f2 添加一条f2到f1的边
     private void makeReserveMap() {
+        for (Function function: functions) {
+            Map.put(function, new HashSet<>());
+        }
         for (Function function: functions) {
             reserveMap.put(function, new HashSet<>());
             if (!inNum.containsKey(function)) {
@@ -65,6 +93,7 @@ public class FuncInline {
             while (use.getNext() != null) {
                 Function userFunc = use.getUser().parentBB().getFunction();
                 boolean ret = reserveMap.get(function).add(userFunc);
+                Map.get(userFunc).add(function);
                 if (!inNum.containsKey(userFunc)) {
                     inNum.put(userFunc, 0);
                 }
@@ -73,6 +102,36 @@ public class FuncInline {
                 }
                 use = (Use) use.getNext();
             }
+        }
+    }
+
+    private void topologySortStrong() {
+        for (Function function: inNum.keySet()) {
+            if (inNum.get(function) == 0 && !function.getName().equals("main")) {
+                queue.add(function);
+            } else if (inNum.get(function) == 1 && Map.get(function).iterator().next().equals(function)) {
+                queue.add(function);
+                funcCallSelf.add(function);
+            }
+        }
+        while (!queue.isEmpty()) {
+            Function pos = queue.peek();
+            funcCanInline.add(pos);
+            for (Function next: reserveMap.get(pos)) {
+                if (funcCanInline.contains(next)) {
+                    continue;
+                }
+                inNum.put(next, inNum.get(next) - 1);
+                assert Map.get(next).contains(pos);
+                Map.get(next).remove(pos);
+                if (inNum.get(next) == 0 && !next.getName().equals("main")) {
+                    queue.add(next);
+                } else if (inNum.get(next) == 1 && Map.get(next).iterator().next().equals(next)) {
+                    queue.add(next);
+                    funcCallSelf.add(next);
+                }
+            }
+            queue.poll();
         }
     }
 

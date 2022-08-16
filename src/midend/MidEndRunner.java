@@ -1,6 +1,5 @@
 package midend;
 
-import backend.PeepHole;
 import frontend.semantic.Initial;
 import manage.Manager;
 import mir.*;
@@ -16,6 +15,7 @@ public class MidEndRunner {
     public ArrayList<Function> functions;
     private HashMap<GlobalVal.GlobalValue, Initial> globalValues = Manager.MANAGER.getGlobals();
     public static boolean O2 = false;
+    public static boolean O0 = false;
 
     public MidEndRunner(ArrayList<Function> functions) {
         this.functions = functions;
@@ -24,7 +24,12 @@ public class MidEndRunner {
     public void Run() {
         MakeDFG makeDFG = new MakeDFG(functions);
         makeDFG.Run();
-        if (!O2) {
+        if (O0) {
+            Mem2Reg mem2Reg = new Mem2Reg(functions);
+            mem2Reg.Run();
+            return;
+        }
+        else if (!O2) {
             Mem2Reg mem2Reg = new Mem2Reg(functions);
             mem2Reg.Run();
             reMakeCFGAndLoopInfo();

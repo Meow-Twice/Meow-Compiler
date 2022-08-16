@@ -4,9 +4,9 @@ import backend.CodeGen;
 import frontend.semantic.Initial;
 import mir.BasicBlock;
 import mir.Constant;
-import mir.Function;
-import mir.GlobalVal;
+import mir.Value;
 import mir.type.DataType;
+import mir.type.Type;
 import util.CenterControl;
 import util.ILinkNode;
 import util.Ilist;
@@ -22,7 +22,6 @@ import static lir.Arm.Reg.getRSReg;
 import static lir.Arm.Regs.FPRs.s0;
 import static lir.Arm.Regs.GPRs.*;
 import static lir.MC.Operand.Type.*;
-import static lir.MachineInst.Tag.Add;
 import static mir.Constant.ConstantInt.CONST_0;
 import static mir.type.DataType.F32;
 import static mir.type.DataType.I32;
@@ -35,37 +34,83 @@ public class MC {
         public final ArrayList<Arm.Glob> globList = new ArrayList<>();
         public McFunction mainMcFunc;
         public ArrayList<I> needFixList = new ArrayList<>();
-        public static MachineInst specialMI;
+        public static MachineInst specialMI; // 用于插入 bss 段的初始化代码
+
+        // 对 globList 进行分流
+        public final ArrayList<Arm.Glob> globData = new ArrayList<>();
+        public final ArrayList<Arm.Glob> globBss = new ArrayList<>();
 
         private Program() {
         }
 
         /**
-         * 对 .bss 段的全局变量中非零元素用指令进行初始化
-         *
-         * @return 用于初始化的 Machine Block ，插入到 main 函数开始处
+         * 对 .bss 段的全局变量中非零元素用指令进行初始化，插在指定的 specialMI 处
          */
         public void bssInit() {
+            // 对 globList 进行分流
+            for (Arm.Glob glob : globList) {
+                // 放进 .data 条件: 非零值的数量超过 1/3
+                Initial.Flatten flatten = glob.init.flatten();
+                int countNonZeros = 0;
+                for (Initial.Flatten.Entry entry : flatten) {
+                    Value value = entry.value;
+                    if (value.getType() == Type.BasicType.F32_TYPE) {
+                        assert value instanceof Constant.ConstantFloat;
+                        int bin = ((Constant.ConstantFloat) value).getIntBits();
+                        if (bin != 0) {
+                            countNonZeros += entry.count;
+                        }
+                    } else {
+                        assert value instanceof Constant.ConstantInt;
+                        if (!value.equals(CONST_0)) {
+                            countNonZeros += entry.count;
+                        }
+                    }
+
+                }
+                if (countNonZeros * 3 >= flatten.sizeInWords()) {
+                    globData.add(glob);
+                } else {
+                    globBss.add(glob);
+                }
+            }
+
             assert specialMI != null;
-            for (Arm.Glob glob : MC.Program.PROGRAM.globList) {
+            for (Arm.Glob glob : globBss) {
                 // 对每个变量初始化
                 // 用 movw 和 movt 指令获取基地址
                 MC.Operand rBase = getRSReg(r3), rOffset = getRSReg(r2), rData = getRSReg(r1);
-                specialMI = new I.Mov(specialMI, rBase, glob);  // r3: 基地址
+                specialMI = new I.Mov(specialMI, rBase, glob); // 获取基地址
                 Initial.Flatten flatten = glob.init.flatten();
                 int offset = 0;
                 for (Initial.Flatten.Entry entry : flatten) {
-                    // assert entry.value instanceof Constant.ConstantInt;
                     int end = offset + entry.count;
+                    // 对每一项: 加载偏移, 存入立即数
                     while (offset < end) {
-                        if (!entry.value.equals(CONST_0)) {
-                            if (LdrStrImmEncode(offset * 4)) {
-                                specialMI = new I.Mov(specialMI, rData, new Operand(I32, (int) ((Constant) entry.value).getConstVal())); // mov 写入值
-                                specialMI = new I.Str(specialMI, rData, rBase, new Operand(I32, offset * 4));
-                            } else {
-                                specialMI = new I.Mov(specialMI, rData, new Operand(I32, (int) ((Constant) entry.value).getConstVal())); // mov 写入值
-                                specialMI = new I.Mov(specialMI, rOffset, new Operand(I32, offset)); // mov 写入值
-                                specialMI = new I.Str(specialMI, rData, rBase, rOffset, new Arm.Shift(Arm.ShiftType.Lsl, 2));
+                        Value value = entry.value;
+                        if (value.getType() == Type.BasicType.F32_TYPE) {
+                            assert value instanceof Constant.ConstantFloat;
+                            int bin = ((Constant.ConstantFloat) value).getIntBits();
+                            if (bin != 0) {
+                                if (LdrStrImmEncode(offset * 4)) {
+                                    specialMI = new I.Mov(specialMI, rData, new Operand(I32, bin)); // mov 写入值
+                                    specialMI = new I.Str(specialMI, rData, rBase, new Operand(I32, offset * 4));
+                                } else {
+                                    specialMI = new I.Mov(specialMI, rData, new Operand(I32, bin)); // mov 写入值
+                                    specialMI = new I.Mov(specialMI, rOffset, new Operand(I32, offset)); // mov 写入值
+                                    specialMI = new I.Str(specialMI, rData, rBase, rOffset, new Arm.Shift(Arm.ShiftType.Lsl, 2));
+                                }
+                            }
+                        } else {
+                            if (!value.equals(CONST_0)) {
+                                if (LdrStrImmEncode(offset * 4)) {
+                                    specialMI = new I.Mov(specialMI, rData, new Operand(I32, (int) ((Constant) value).getConstVal())); // mov 写入值
+                                    specialMI = new I.Str(specialMI, rData, rBase, new Operand(I32, offset * 4));
+                                } else {
+                                    specialMI = new I.Mov(specialMI, rData, new Operand(I32, (int) ((Constant) value).getConstVal())); // mov 写入值
+                                    specialMI = new I.Mov(specialMI, rOffset, new Operand(I32, offset)); // mov 写入值
+                                    specialMI = new I.Str(specialMI, rData, rBase, rOffset, new Arm.Shift(Arm.ShiftType.Lsl, 2));
+                                }
                             }
                         }
                         offset++;
@@ -81,17 +126,6 @@ public class MC {
             if (needFPU) {
                 stb.append(".fpu vfpv3-d16\n");
             }
-
-            // 遍历全局数组的初始化，生成一个专门用来初始化的 MB 在 main 的开头
-            // 在没有测好之前，暂时用 stderr.out 输出
-            // if (CenterControl._GLOBAL_BSS) {
-            //     Block initMB = bssInit();
-            //     System.err.println(initMB.getLabel() + ":");
-            //     for (MachineInst inst : initMB.miList) {
-            //         if (!inst.isComment()) System.err.print("\t");
-            //         System.err.println(inst.getSTB());
-            //     }
-            // }
 
             stb.append(".section .text\n");
             for (McFunction function : funcList) {
@@ -122,28 +156,32 @@ public class MC {
             if (CenterControl._GLOBAL_BSS) {
                 stb.append(".section .bss\n");
                 stb.append(".align 16\n");
-                for (Arm.Glob glob : globList) {
+                for (Arm.Glob glob : globBss) {
                     stb.append("\n.global\t").append(glob.getGlob()).append("\n");
                     stb.append(glob.getGlob()).append(":\n");
                     Initial.Flatten flatten = glob.init.flatten();
                     stb.append(".zero ").append(flatten.sizeInBytes()).append("\n");
                 }
+                globalDataStbHelper(stb, globData);
             } else {
-                stb.append(".section .data\n");
-                stb.append(".align 2\n");
-                for (Arm.Glob glob : globList) {
-                    stb.append("\n.global\t").append(glob.getGlob()).append("\n");
-                    stb.append(glob.getGlob()).append(":\n");
-                    if (glob.init != null) {
-                        Initial.Flatten flatten = glob.init.flatten();
-                        stb.append(flatten.toString());
-                    } else {
-                        stb.append("\t.word\t0\n");
-                    }
+                globalDataStbHelper(stb, globList);
+            }
+            return stb;
+        }
+
+        private void globalDataStbHelper(StringBuilder stb, ArrayList<Arm.Glob> globData) {
+            stb.append(".section .data\n");
+            stb.append(".align 2\n");
+            for (Arm.Glob glob : globData) {
+                stb.append("\n.global\t").append(glob.getGlob()).append("\n");
+                stb.append(glob.getGlob()).append(":\n");
+                if (glob.init != null) {
+                    Initial.Flatten flatten = glob.init.flatten();
+                    stb.append(flatten.toString());
+                } else {
+                    stb.append("\t.word\t0\n");
                 }
             }
-
-            return stb;
         }
     }
 

@@ -63,7 +63,9 @@ public class Compiler {
 
 
 
-            MidEndRunner.O2 = arg.optimize;
+            MidEndRunner.O2 = arg.optLevel == 2;
+            MidEndRunner.O0 = arg.optLevel == 0;
+            System.err.println("opt level = " + arg.optLevel);
             System.err.println("mid optimization begin");
             long start = System.currentTimeMillis();
             MidEndRunner midEndRunner = new MidEndRunner(Manager.MANAGER.getFunctionList());

@@ -4,7 +4,7 @@ import java.io.*;
 
 public class Arg {
     public final String srcFilename; // 源代码文件名 e.g. "testcase.sy"
-    public final boolean optimize; // 是否进行性能测试 -O2
+    public final int optLevel; // 优化等级，缺省值为 1
 
     public final String asmFilename; // 目标汇编代码文件名 e.g. "testcase.s"
     public final String llvmFilename; // LLVM IR 文件名 e.g. "testcase.ll"
@@ -17,10 +17,9 @@ public class Arg {
     public final InputStream interpretInputStream; // 解释执行 stdin
     public final OutputStream interpretOutputStream; // 解释执行 stdout
 
-    private Arg(String src, boolean optimize, String asm, String llvm,
-                boolean interpret, String interpretIn, String interpretOut) throws FileNotFoundException {
+    private Arg(String src, String asm, String llvm,
+                boolean interpret, String interpretIn, String interpretOut, int optimize) throws FileNotFoundException {
         this.srcFilename = src;
-        this.optimize = optimize;
         this.asmFilename = asm;
         this.llvmFilename = llvm;
 
@@ -31,6 +30,8 @@ public class Arg {
         this.interpretMI = interpret;
         this.interpretInputStream = interpretIn.isEmpty() ? System.in : new FileInputStream(interpretIn);
         this.interpretOutputStream = interpretOut.isEmpty() ? System.out : new FileOutputStream(interpretOut);
+
+        this.optLevel = optimize;
     }
 
     public boolean outputAsm() {
@@ -41,13 +42,19 @@ public class Arg {
 
     public static Arg parse(String[] args) {
         String src = "", asm = "", llvm = "";
-        boolean optimize = false;
+        int optLevel = 1;
         boolean interpret = false;
         String interpretIn = "", interpretOut = "";
         for (int i = 0; i < args.length; i++) {
-            // detect "-O2"
-            if ("-O2".equals(args[i])) {
-                optimize = true;
+            // detect "-Ox"
+            if (args[i].startsWith("-O")) {
+                if (optLevel != 1) {
+                    throw new RuntimeException("Optimize level should only have one.");
+                }
+                optLevel = Integer.parseInt(args[i].substring(2));
+                if (optLevel < 0 || optLevel > 2) {
+                    throw new RuntimeException("Optimize level should only be 0, 1, 2");
+                }
                 continue;
             }
             // detect "-S"
@@ -115,7 +122,7 @@ public class Arg {
             throw new RuntimeException("source file should be specified.");
         }
         try {
-            return new Arg(src, optimize, asm, llvm, interpret, interpretIn, interpretOut);
+            return new Arg(src, asm, llvm, interpret, interpretIn, interpretOut, optLevel);
         } catch (FileNotFoundException e) {
             printHelp();
             throw new RuntimeException(e);
@@ -123,6 +130,7 @@ public class Arg {
     }
 
     public static void printHelp() {
-        System.err.println("Usage: compiler {((-S|-emit-llvm) -o filename)|(-I [-i input_file] [-o output_file])} filename [-O2]");
+        System.err.println("Usage: compiler {(-S|-emit-llvm) -o filename} filename -On");
+        System.err.println("optimize level: 0, 1 (default), 2");
     }
 }

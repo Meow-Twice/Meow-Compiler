@@ -1,5 +1,6 @@
 package frontend.semantic;
 
+import mir.Constant;
 import mir.Value;
 import mir.type.Type;
 import util.ILinkNode;
@@ -174,10 +175,18 @@ public abstract class Initial {
 
             @Override
             public String toString() {
-                if (count == 1) {
-                    return ".word\t" + value;
+                String value2Str;
+                assert value.isConstant();
+                if (value.isConstantInt()) {
+                    value2Str = value.toString();
                 } else {
-                    return ".fill\t" + count + ", 4, " + value;
+                    assert value instanceof Constant.ConstantFloat;
+                    value2Str = String.valueOf(((Constant.ConstantFloat) value).getIntBits());
+                }
+                if (count == 1) {
+                    return ".word\t" + value2Str;
+                } else {
+                    return ".fill\t" + count + ", 4, " + value2Str;
                 }
             }
         }

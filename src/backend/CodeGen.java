@@ -258,7 +258,7 @@ public class CodeGen {
                 case jump -> {
                     MC.Block mb = ((Instr.Jump) instr).getTarget().getMb();
                     curMB.succMBs.add(mb);
-                    if (!visitBBSet.contains(mb)) {
+                    if (visitBBSet.add(mb)) {
                         mb.predMBs.add(curMB);
                         nextBBList.push(mb.bb);
                     }
@@ -277,7 +277,7 @@ public class CodeGen {
                             mb = brInst.getThenTarget().getMb();
                         }
                         curMB.succMBs.add(mb);
-                        if (!visitBBSet.contains(mb)) {
+                        if (visitBBSet.add(mb)) {
                             mb.predMBs.add(curMB);
                             nextBBList.push(mb.bb);
                         }
@@ -289,11 +289,14 @@ public class CodeGen {
                     MC.Block falseBlock = brInst.getElseTarget().getMb();
                     curMB.succMBs.add(trueBlock);
                     curMB.succMBs.add(falseBlock);
-                    if (!visitBBSet.contains(falseBlock)) {
+                    if (visitBBSet.add(falseBlock)) {
+                        if (falseBlock == null) {
+                            int a = 0;
+                        }
                         falseBlock.predMBs.add(curMB);
                         nextBBList.push(falseBlock.bb);
                     }
-                    if (!visitBBSet.contains(trueBlock)) {
+                    if (visitBBSet.add(trueBlock)) {
                         trueBlock.predMBs.add(curMB);
                         nextBBList.push(trueBlock.bb);
                     }

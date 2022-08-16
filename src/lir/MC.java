@@ -159,8 +159,12 @@ public class MC {
                 for (Arm.Glob glob : globBss) {
                     stb.append("\n.global\t").append(glob.getGlob()).append("\n");
                     stb.append(glob.getGlob()).append(":\n");
-                    Initial.Flatten flatten = glob.init.flatten();
-                    stb.append(".zero ").append(flatten.sizeInBytes()).append("\n");
+
+                    if (glob.init != null) {
+                        Initial.Flatten flatten = glob.init.flatten();
+                        stb.append(".zero ").append(flatten.sizeInBytes()).append("\n");
+                    } else {stb.append(".zero 4\n");
+                    }
                 }
                 globalDataStbHelper(stb, globData);
             } else {

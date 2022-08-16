@@ -511,24 +511,24 @@ public class PeepHole {
                             if (!(addMI.getROpd().isImm() && LdrStrImmEncode(addMI.getROpd().getValue()))) {
                                 // MachineInst nextMI = (MachineInst) mi.getNext();
                                 switch (nextMI.getTag()) {
-                                    // case Ldr, Str -> {
-                                    //     // add a, b, c, shift
-                                    //     // ldr/str x, [a, #0]
-                                    //     // =>
-                                    //     // ldr/str x, [b, c, shift]
-                                    //     if (mi.lastUserIsNext()) {
-                                    //         MachineMemInst mem = (MachineMemInst) nextMI;
-                                    //         if (addMI.getDst().equals(mem.getAddr())
-                                    //                 && mem.getOffset().equals(Operand.I_ZERO)
-                                    //                 && mem.isNoCond()) {
-                                    //             unDone = true;
-                                    //             mem.setAddr(addMI.getLOpd());
-                                    //             mem.setOffSet(addMI.getROpd());
-                                    //             mem.setShift(addMI.getShift());
-                                    //             addMI.remove();
-                                    //         }
-                                    //     }
-                                    // }
+                                    case Ldr, Str -> {
+                                        // add a, b, c, shift
+                                        // ldr/str x, [a, #0]
+                                        // =>
+                                        // ldr/str x, [b, c, shift]
+                                        if (mi.lastUserIsNext()) {
+                                            MachineMemInst mem = (MachineMemInst) nextMI;
+                                            if (addMI.getDst().equals(mem.getAddr())
+                                                    && mem.getOffset().equals(Operand.I_ZERO)
+                                                    && mem.isNoCond()) {
+                                                unDone = true;
+                                                mem.setAddr(addMI.getLOpd());
+                                                mem.setOffSet(addMI.getROpd());
+                                                mem.setShift(addMI.getShift());
+                                                addMI.remove();
+                                            }
+                                        }
+                                    }
                                     case IMov -> {
                                         // add a, b, c, shift
                                         // move d y

@@ -4,6 +4,7 @@ import frontend.Visitor;
 import midend.CloneInfoMap;
 import mir.type.Type;
 import mir.type.Type.*;
+import util.CenterControl;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -248,6 +249,23 @@ public class Instr extends Value {
         return true;
     }
 
+    public boolean checkFloat() {
+        if (!(this.isAlu())) {
+            return false;
+        }
+        //TODO:当前不是i32类型默认不可融合,后需要修改
+        if (!this.getType().isFloatType()) {
+            return false;
+        }
+        if (!((Alu) this).isFSub() && !((Alu) this).isFAdd()) {
+            return false;
+        }
+        if (!((Alu) this).hasOneConst()) {
+            return false;
+        }
+        return true;
+    }
+
     public void setArrayInit(boolean arrayInit) {
         this.arrayInit = arrayInit;
     }
@@ -264,6 +282,24 @@ public class Instr extends Value {
         while (use.getNext() != null) {
             Instr user = use.getUser();
             if (!user.check()) {
+                return false;
+            }
+            use = (Use) use.getNext();
+        }
+        return true;
+    }
+
+    public boolean canCombFloat() {
+        if (!CenterControl._OPEN_FLOAT_INSTR_COMB) {
+            return false;
+        }
+        if (!checkFloat()) {
+            return false;
+        }
+        Use use = getBeginUse();
+        while (use.getNext() != null) {
+            Instr user = use.getUser();
+            if (!user.checkFloat()) {
                 return false;
             }
             use = (Use) use.getNext();
@@ -362,6 +398,14 @@ public class Instr extends Value {
 
         public boolean isSub() {
             return op.equals(Op.SUB);
+        }
+
+        public boolean isFAdd() {
+            return op.equals(Op.FADD);
+        }
+
+        public boolean isFSub() {
+            return op.equals(Op.FSUB);
         }
 
         public boolean hasOneConst() {

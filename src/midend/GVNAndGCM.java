@@ -2,6 +2,7 @@ package midend;
 
 import lir.V;
 import mir.*;
+import util.CenterControl;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -91,6 +92,7 @@ public class GVNAndGCM {
     //TODO:GVN遍历支配树,在树的一条链上,先发现的定义的生命周期一定更长,因此只记录每条链上第一次发现的def即可
     private void RPOSearch(BasicBlock bb) {
         //Constant folding
+        //TODO:是否保留此处对ftoi itof的转换
         Instr alu = bb.getBeginInstr();
         while (alu.getNext() != null) {
             if (alu instanceof Instr.Alu && ((Instr.Alu) alu).hasTwoConst()) {
@@ -135,6 +137,9 @@ public class GVNAndGCM {
     }
 
     private boolean canGVN(Instr instr) {
+        if (instr instanceof Instr.FPtosi || instr instanceof Instr.SItofp) {
+            return CenterControl._OPEN_FTOI_ITOF_GVN;
+        }
         if (instr instanceof Instr.Call) {
             return !((Instr.Call) instr).getFunc().isExternal && ((Instr.Call) instr).getFunc().isCanGVN();
         }
@@ -460,7 +465,39 @@ public class GVNAndGCM {
     private boolean addInstrToGVN(Instr instr) {
         //进行替换
         boolean tag = false;
-        if (instr instanceof Instr.Icmp) {
+        if (instr instanceof Instr.FPtosi) {
+            String hash = "FPtosi " + ((Instr.FPtosi) instr).getRVal1().getName();
+            if (GvnMap.containsKey(hash)) {
+                instr.modifyAllUseThisToUseA(GvnMap.get(hash));
+                instr.remove();
+                //当进行替换的时候,(cmp相当于有多个Br
+                // 需要维护condCnt),
+                for (Use use = GvnMap.get(hash).getBeginUse(); use.getNext() != null; use = (Use) use.getNext()) {
+                    Instr user = use.getUser();
+                    if (user instanceof Instr.Branch) {
+                        user.setCondCount(GvnMap.get(hash).getCondCount());
+                    }
+                }
+                return true;
+            }
+            add(hash, instr);
+        } else if (instr instanceof Instr.SItofp) {
+            String hash = "SItofp " + ((Instr.SItofp) instr).getRVal1().getName();
+            if (GvnMap.containsKey(hash)) {
+                instr.modifyAllUseThisToUseA(GvnMap.get(hash));
+                instr.remove();
+                //当进行替换的时候,(cmp相当于有多个Br
+                // 需要维护condCnt),
+                for (Use use = GvnMap.get(hash).getBeginUse(); use.getNext() != null; use = (Use) use.getNext()) {
+                    Instr user = use.getUser();
+                    if (user instanceof Instr.Branch) {
+                        user.setCondCount(GvnMap.get(hash).getCondCount());
+                    }
+                }
+                return true;
+            }
+            add(hash, instr);
+        } else if (instr instanceof Instr.Icmp) {
             String hash = ((Instr.Icmp) instr).getOp().getName();
             hash += " " + ((Instr.Icmp) instr).getRVal1().getName() + ", " + ((Instr.Icmp) instr).getRVal2().getName();
             if (GvnMap.containsKey(hash)) {
@@ -529,7 +566,13 @@ public class GVNAndGCM {
     }
 
     private void removeInstrFromGVN(Instr instr) {
-        if (instr instanceof Instr.Icmp) {
+        if (instr instanceof Instr.FPtosi) {
+            String hash = "FPtosi " + ((Instr.FPtosi) instr).getRVal1().getName();
+            remove(hash);
+        } else if (instr instanceof Instr.SItofp) {
+            String hash = "SItofp " + ((Instr.SItofp) instr).getRVal1().getName();
+            remove(hash);
+        } else if (instr instanceof Instr.Icmp) {
             String hash = ((Instr.Icmp) instr).getOp().getName();
             hash += " " + ((Instr.Icmp) instr).getRVal1().getName() + ", " + ((Instr.Icmp) instr).getRVal2().getName();
             remove(hash);

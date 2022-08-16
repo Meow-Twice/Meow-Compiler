@@ -55,10 +55,13 @@ public class MidEndRunner {
         Mem2Reg();
 
         //outputLLVM();
-
+        if (CenterControl._OPEN_CONST_TRANS_FOLD) {
+            ConstTranFold();
+        }
 
         MathOpt();
 
+        //outputLLVM();
         Pass();
 
         MathOpt();
@@ -116,6 +119,7 @@ public class MidEndRunner {
         Pass();
         //outputLLVM();
         LoopStrengthReduction();
+        //outputLLVM();
 
 
 
@@ -142,7 +146,7 @@ public class MidEndRunner {
         ArrayLift();
         removePhiUseSame();
         Rem2DivMulSub();
-        outputLLVM();
+        //outputLLVM();
         MarkParallel();
         GepSplit();
 
@@ -198,6 +202,7 @@ public class MidEndRunner {
         Rem2DivMulSub rem2DivMulSub = new Rem2DivMulSub(functions);
         rem2DivMulSub.Run();
 
+        outputLLVM();
         Pass();
     }
 
@@ -328,6 +333,10 @@ public class MidEndRunner {
 
     //死代码删除 指令融合 GVN/GCM
     private void Pass() {
+        if (CenterControl._OPEN_CONST_TRANS_FOLD) {
+            ConstTranFold();
+        }
+
         DeadCodeDelete deadCodeDelete_1 = new DeadCodeDelete(functions, globalValues);
         deadCodeDelete_1.Run();
 
@@ -346,6 +355,11 @@ public class MidEndRunner {
 
         GVNAndGCM gvnAndGCM = new GVNAndGCM(functions);
         gvnAndGCM.Run();
+    }
+
+    private void ConstTranFold() {
+        ConstTransFold constTransFold = new ConstTransFold(functions);
+        constTransFold.Run();
     }
 
     //重建数据流, 简化PHI, 重建循环关系

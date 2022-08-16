@@ -13,4 +13,11 @@ public class CenterControl {
 
     public static final String _TAG = "1";
     public static final boolean _initAll = false;
+
+
+    //O2-control
+    public static final boolean _OPEN_CONST_TRANS_FOLD = true;
+    public static final boolean _OPEN_FLOAT_INSTR_COMB = true;
+    public static final boolean _OPEN_FLOAT_LOOP_STRENGTH_REDUCTION = true;
+    public static final boolean _OPEN_FTOI_ITOF_GVN = true;
 }

@@ -1,5 +1,6 @@
 package midend;
 
+import frontend.syntax.Ast;
 import mir.*;
 
 import java.util.ArrayList;
@@ -16,6 +17,9 @@ public class MidPeepHole {
         // time = b - 1; add = init + base; mul = time * base; ret = add + mul
         // mul = b * base; ret = add + mul;
         peepHoleA();
+        // A = load ptr_A, store A ptr_B, store A ptr_A
+        // A = load ptr_A, store A ptr_B
+        peepHoleB();
     }
 
     private void peepHoleA() {
@@ -83,6 +87,32 @@ public class MidPeepHole {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    private void peepHoleB() {
+        for (Function function: functions) {
+            for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
+                ArrayList<Instr> instrs = new ArrayList<>();
+                for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+                    if (instr instanceof Instr.Load || instr instanceof Instr.Store) {
+                        instrs.add(instr);
+                    }
+                }
+                if (instrs.size() != 3 || !(instrs.get(0) instanceof Instr.Load) ||
+                        !(instrs.get(1) instanceof Instr.Store) || !(instrs.get(2) instanceof Instr.Store)) {
+                    continue;
+                }
+                Instr.Load load = (Instr.Load) instrs.get(0);
+                Instr.Store storeA = (Instr.Store) instrs.get(1);
+                Instr.Store storeB = (Instr.Store) instrs.get(2);
+
+                if (!storeA.getValue().equals(load) || !storeB.getValue().equals(load) ||
+                        !storeB.getPointer().equals(load.getPointer())) {
+                    continue;
+                }
+                storeB.remove();
             }
         }
     }

@@ -3,7 +3,7 @@ package util;
 public class CenterControl {
     public static final boolean _FAST_REG_ALLOCATE = false;
     public static final boolean _IMM_TRY = false;
-    public static final boolean STABLE = true;
+    public static final boolean STABLE = false;
     public static boolean _ONLY_FRONTEND = false;
     public static final boolean _cutLiveNessShortest = false;
     public static final boolean _FixStackWithPeepHole = true;

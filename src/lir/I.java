@@ -105,7 +105,7 @@ public class I extends MachineInst {
             useOpds.add(data);
             useOpds.add(addr);
             useOpds.add(offset);
-            if(lsl.shiftOpd.needRegOf(I32)) useOpds.add(lsl.shiftOpd);
+            if (lsl.shiftOpd.needRegOf(I32)) useOpds.add(lsl.shiftOpd);
         }
 
         public Str(Operand data, Operand addr, MC.Block insertAtEnd) {

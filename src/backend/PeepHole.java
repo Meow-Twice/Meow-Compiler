@@ -67,9 +67,9 @@ public class PeepHole {
                     }
                     case Branch -> {
                         // TODO 可能改变branch方式
-                        if (((MIBranch) mi).getFalseTargetBlock().equals(curMB.getNext())) {
+                        if (((MIBranch) mi).getTrueTargetBlock().equals(curMB.getNext())) {
                             unDone = true;
-                            new MIJump(mi.getCond(), ((MIBranch) mi).getTrueTargetBlock(), mi);
+                            new MIJump(mi.getCond(), ((MIBranch) mi).getFalseTargetBlock(), mi);
                             mi.remove();
                         }
                     }
@@ -433,7 +433,7 @@ public class PeepHole {
                                     // TODO cmp a b
                                     I.Cmp icmp = (I.Cmp) nextMI;
                                     Operand dst = iMov.getDst();
-                                    if (dst.equals(icmp.getROpd()) && !dst.equals(icmp.getROpd())) {
+                                    if (dst.equals(icmp.getROpd()) && !dst.equals(icmp.getLOpd())) {
                                         if (immCanCode(imm)) {
                                             icmp.setROpd(iMov.getSrc());
                                             unDone = true;
@@ -449,6 +449,7 @@ public class PeepHole {
                                     // TODO
                                     //  mov Rd, #imm
                                     //  inst use Rd
+
                                 }
                             }
                         } else if (mi instanceof MachineInst.ActualDefMI) {
@@ -510,24 +511,24 @@ public class PeepHole {
                             if (!(addMI.getROpd().isImm() && LdrStrImmEncode(addMI.getROpd().getValue()))) {
                                 // MachineInst nextMI = (MachineInst) mi.getNext();
                                 switch (nextMI.getTag()) {
-                                    case Ldr, Str -> {
-                                        // add a, b, c, shift
-                                        // ldr/str x, [a, #0]
-                                        // =>
-                                        // ldr/str x, [b, c, shift]
-                                        if (mi.lastUserIsNext()) {
-                                            MachineMemInst mem = (MachineMemInst) nextMI;
-                                            if (addMI.getDst().equals(mem.getAddr())
-                                                    && mem.getOffset().equals(Operand.I_ZERO)
-                                                    && mem.isNoCond()) {
-                                                unDone = true;
-                                                mem.setAddr(addMI.getLOpd());
-                                                mem.setOffSet(addMI.getROpd());
-                                                mem.setShift(addMI.getShift());
-                                                addMI.remove();
-                                            }
-                                        }
-                                    }
+                                    // case Ldr, Str -> {
+                                    //     // add a, b, c, shift
+                                    //     // ldr/str x, [a, #0]
+                                    //     // =>
+                                    //     // ldr/str x, [b, c, shift]
+                                    //     if (mi.lastUserIsNext()) {
+                                    //         MachineMemInst mem = (MachineMemInst) nextMI;
+                                    //         if (addMI.getDst().equals(mem.getAddr())
+                                    //                 && mem.getOffset().equals(Operand.I_ZERO)
+                                    //                 && mem.isNoCond()) {
+                                    //             unDone = true;
+                                    //             mem.setAddr(addMI.getLOpd());
+                                    //             mem.setOffSet(addMI.getROpd());
+                                    //             mem.setShift(addMI.getShift());
+                                    //             addMI.remove();
+                                    //         }
+                                    //     }
+                                    // }
                                     case IMov -> {
                                         // add a, b, c, shift
                                         // move d y

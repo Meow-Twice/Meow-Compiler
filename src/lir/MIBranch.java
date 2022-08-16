@@ -25,16 +25,11 @@ public class MIBranch extends MachineInst {
         this.cond = cond;
         trueTargetBlock = trueBlock;
         falseTargetBlock = falseBlock;
-    }
-
-    @Override
-    public void output(PrintStream os, MC.McFunction f) {
-        os.println(tag.toString() + cond + "\t" + trueTargetBlock.getLabel());
-        os.println(tag.toString() + "\t" + falseTargetBlock.getLabel());
-    }
+     }
 
     @Override
     public String toString() {
-        return tag.toString() + cond + "\t" + trueTargetBlock.getLabel() + "\n\t" + tag.toString() + "\t" + falseTargetBlock.getLabel();
+        return tag.toString() + cond + "\t" + falseTargetBlock.getLabel() + "\n" +
+                "\t" + tag.toString() + "\t" + trueTargetBlock.getLabel();
     }
 }

@@ -59,7 +59,7 @@ public class MergeBlock {
                                     predMb.setFalse(onlySuccMB);
                                 }
                                 onlySuccMB.predMBs.add(predMb);
-                            } else if (predMb.trueSucc().equals(curMB) && predMb.succMBs.size() > 1) {
+                            } else if (predMb.succMBs.size() > 1 && predMb.trueSucc().equals(curMB)) {
                                 //如果pred有两个后继，且本块是pred的True后继
 
                             }

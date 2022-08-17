@@ -13,7 +13,7 @@ import static mir.Instr.Alu.Op.*;
 import static mir.type.DataType.F32;
 import static mir.type.DataType.I32;
 
-public class MachineInst extends ILinkNode implements Cloneable{
+public class MachineInst extends ILinkNode implements Cloneable {
     public final static MachineInst emptyInst = new MachineInst();
     public MachineInst theLastUserOfDef = null;
     protected Arm.Cond cond = Arm.Cond.Any;
@@ -154,13 +154,13 @@ public class MachineInst extends ILinkNode implements Cloneable{
         return shift.shiftType == Arm.ShiftType.None;
     }
 
-    public void setNext(MachineInst mi){
+    public void setNext(MachineInst mi) {
         this.mb = mi.mb;
         mi.mb.miList.insertBefore(this, mi);
     }
 
     @Override
-    public MachineInst clone(){
+    public MachineInst clone() {
         try {
             return (MachineInst) super.clone();
         } catch (CloneNotSupportedException e) {

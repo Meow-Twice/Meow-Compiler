@@ -23,6 +23,7 @@ import static lir.Arm.Cond.*;
 import static lir.Arm.Regs.FPRs.s0;
 import static lir.Arm.Regs.GPRs.r0;
 import static lir.Arm.Regs.GPRs.sp;
+import static lir.BJ.*;
 import static lir.MachineInst.Tag.*;
 import static midend.MidEndRunner.O2;
 import static mir.type.DataType.F32;
@@ -263,7 +264,7 @@ public class CodeGen {
                     if (visitBBSet.add(mb)) {
                         nextBBList.push(mb.bb);
                     }
-                    new MIJump(mb, curMB);
+                    new GDJump(mb, curMB);
                 }
                 case icmp, fcmp -> genCmp(instr);
                 case branch -> {
@@ -283,7 +284,7 @@ public class CodeGen {
                         if (visitBBSet.add(mb)) {
                             nextBBList.push(mb.bb);
                         }
-                        new MIJump(mb, curMB);
+                        new GDJump(mb, curMB);
                         break;
                     }
                     Value condValue = brInst.getCond();
@@ -309,7 +310,7 @@ public class CodeGen {
                         new I.Cmp(cond, condVR, new Operand(I32, 0), curMB);
                     }
                     // new MIBranch(cond, trueBlock, falseBlock, curMB);
-                    new MIBranch(isIcmp ? getIcmpOppoCond(cond) : getFcmpOppoCond(cond), falseBlock, trueBlock, curMB);
+                    new GDBranch(isIcmp ? getIcmpOppoCond(cond) : getFcmpOppoCond(cond), falseBlock, trueBlock, curMB);
                 }
                 case fneg -> {
                     assert needFPU;

@@ -6,6 +6,7 @@ import java.util.HashMap;
 
 import static lir.Arm.Reg.getRSReg;
 import static lir.Arm.Regs.GPRs.*;
+import static lir.BJ.*;
 import static lir.MC.Operand.I_ONE;
 import static lir.MC.Operand.I_ZERO;
 import static lir.MachineInst.Tag.Add;
@@ -128,13 +129,13 @@ public class Parallel {
         curMB = mb_parallel_start1;
         new I.Binary(Sub, getRSReg(r5), getRSReg(r5), new MC.Operand(I32, 1), curMB);
         new I.Cmp(Arm.Cond.Eq, getRSReg(r5), I_ZERO, curMB);
-        new MIJump(Arm.Cond.Eq, mb_parallel_start2, curMB);
+        new GDJump(Arm.Cond.Eq, mb_parallel_start2, curMB);
         new I.Mov(getRSReg(r7), new MC.Operand(I32, 120), curMB);
         new I.Mov(getRSReg(r0), new MC.Operand(I32, 273), curMB);
         new I.Mov(getRSReg(r1), getRSReg(sp), curMB);
         new I.Swi(curMB);
         new I.Cmp(Arm.Cond.Ne, getRSReg(r0), new MC.Operand(I32, 0), curMB);
-        new MIJump(Arm.Cond.Ne, mb_parallel_start1, curMB);
+        new GDJump(Arm.Cond.Ne, mb_parallel_start1, curMB);
         curMB = mb_parallel_start2;
         new I.Mov(getRSReg(r0), getRSReg(r5), curMB);
         new I.Mov(getRSReg(r2), getGlob(start_r7), curMB);
@@ -152,7 +153,7 @@ public class Parallel {
         curMF = mf_parallel_end;
         curMB = mb_parallel_end;
         new I.Cmp(Arm.Cond.Eq, getRSReg(r0), I_ZERO, curMB);
-        new MIJump(Arm.Cond.Eq, mb_parallel_end2, curMB);
+        new GDJump(Arm.Cond.Eq, mb_parallel_end2, curMB);
         curMB = mb_parallel_end1;
         new I.Mov(getRSReg(r7), I_ONE, curMB);
         new I.Swi(curMB);
@@ -168,12 +169,12 @@ public class Parallel {
         curMB = mb_parallel_end3;
         new I.Binary(Sub, getRSReg(r7), getRSReg(r7), I_ONE, curMB);
         new I.Cmp(Arm.Cond.Eq, getRSReg(r7), I_ZERO, curMB);
-        new MIJump(Arm.Cond.Eq, mb_parallel_end4, curMB);
+        new GDJump(Arm.Cond.Eq, mb_parallel_end4, curMB);
         new I.Binary(Sub, getRSReg(r0), getRSReg(sp), new MC.Operand(I32, 4), curMB);
         new I.Binary(Sub, getRSReg(sp), getRSReg(sp), new MC.Operand(I32, 4), curMB);
         new I.Wait(curMB);
         new I.Binary(Add, getRSReg(sp), getRSReg(sp), new MC.Operand(I32, 4), curMB);
-        new MIJump(mb_parallel_end3, curMB);
+        new GDJump(mb_parallel_end3, curMB);
         curMB = mb_parallel_end4;
         new I.Mov(getRSReg(r2), getGlob(end_r7), curMB);
         new I.Ldr(getRSReg(r7), getRSReg(r2), I_ZERO, curMB);

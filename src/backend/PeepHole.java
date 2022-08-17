@@ -7,11 +7,11 @@ import util.ILinkNode;
 
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.Objects;
 
 import static backend.CodeGen.*;
 import static lir.Arm.Regs.GPRs.cspr;
 import static lir.Arm.Regs.GPRs.sp;
+import static lir.BJ.*;
 import static lir.MachineInst.MachineMemInst;
 import static lir.MachineInst.MachineMove;
 import static lir.MachineInst.Tag.*;
@@ -60,16 +60,16 @@ public class PeepHole {
                         }
                     }
                     case Jump -> {
-                        if (mi.isNoCond() && ((MIJump) mi).getTarget().equals(curMB.getNext())) {
+                        if (mi.isNoCond() && ((GDJump) mi).getTarget().equals(curMB.getNext())) {
                             unDone = true;
                             mi.remove();
                         }
                     }
                     case Branch -> {
                         // TODO 可能改变branch方式
-                        if (((MIBranch) mi).getFalseTargetBlock().equals(curMB.getNext())) {
+                        if (((GDBranch) mi).getFalseTargetBlock().equals(curMB.getNext())) {
                             unDone = true;
-                            new MIJump(mi.getCond(), ((MIBranch) mi).getTrueTargetBlock(), mi);
+                            new GDJump(mi.getCond(), ((GDBranch) mi).getTrueTargetBlock(), mi);
                             mi.remove();
                         }
                     }

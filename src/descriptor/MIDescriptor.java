@@ -1,6 +1,5 @@
 package descriptor;
 
-import backend.CodeGen;
 import frontend.lexer.Lexer;
 import frontend.semantic.Initial;
 import lir.*;
@@ -18,6 +17,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 import static lir.Arm.Regs.FPRs.s0;
 import static lir.Arm.Regs.GPRs.*;
+import static lir.BJ.*;
 import static manage.Manager.ExternFunction.*;
 import static mir.type.DataType.I32;
 
@@ -626,8 +626,8 @@ public class MIDescriptor implements Descriptor {
                 }
                 case Branch -> {
                     isBJ = true;
-                    assert mi instanceof MIBranch;
-                    MIBranch br = (MIBranch) mi;
+                    assert mi instanceof GDBranch;
+                    GDBranch br = (GDBranch) mi;
                     if (satisfyCond(br.getCond()))
                         nextMB = br.getTrueTargetBlock();
                     else
@@ -635,8 +635,8 @@ public class MIDescriptor implements Descriptor {
                 }
                 case Jump -> {
                     isBJ = true;
-                    assert mi instanceof MIJump;
-                    MIJump j = (MIJump) mi;
+                    assert mi instanceof GDJump;
+                    GDJump j = (GDJump) mi;
                     nextMB = j.getTarget();
                 }
                 case IRet -> {

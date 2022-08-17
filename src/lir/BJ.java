@@ -1,5 +1,7 @@
 package lir;
 
+import backend.CodeGen;
+
 import java.io.PrintStream;
 
 public class BJ extends MachineInst {
@@ -36,17 +38,16 @@ public class BJ extends MachineInst {
             this.target = target;
         }
 
-        public GDJump(Arm.Cond cond, MC.Block target, MachineInst before) {
+        public GDJump(MC.Block target, MachineInst before) {
             super(Tag.Jump, before);
             this.target = target;
-            this.cond = cond;
         }
 
-        public GDJump(Arm.Cond cond, MC.Block target, MC.Block insertAtEnd) {
-            super(Tag.Jump, insertAtEnd);
-            this.target = target;
-            this.cond = cond;
-        }
+        // public GDJump(Arm.Cond cond, MC.Block target, MC.Block insertAtEnd) {
+        //     super(Tag.Jump, insertAtEnd);
+        //     this.target = target;
+        //     this.cond = cond;
+        // }
 
         public MC.Block getTrueBlock() {
             return target;
@@ -65,7 +66,7 @@ public class BJ extends MachineInst {
 
         @Override
         public String toString() {
-            return tag.toString() + cond + "\t" + target.getLabel();
+            return tag.toString() + "\t" + target.getLabel();
         }
 
         public void setTarget(MC.Block block) {
@@ -82,44 +83,53 @@ public class BJ extends MachineInst {
         }
 
         public MC.Block getTrueTargetBlock() {
-            return trueTargetBlock;
+            return target;
         }
 
         public MC.Block getFalseTargetBlock() {
-            return falseTargetBlock;
+            return (MC.Block) mb.getNext();
         }
 
         Arm.Cond cond;
-        MC.Block trueTargetBlock;
+        MC.Block target;
         // 条件不满足则跳这个块
-        MC.Block falseTargetBlock;
+        // MC.Block falseTargetBlock;
+        boolean isIcmp = true;
 
-        public GDBranch(Arm.Cond cond, MC.Block trueBlock, MC.Block falseBlock, MC.Block insertAtEnd) {
+        public GDBranch(Arm.Cond cond, MC.Block target, MC.Block insertAtEnd) {
             super(Tag.Branch, insertAtEnd);
             this.cond = cond;
-            trueTargetBlock = trueBlock;
-            falseTargetBlock = falseBlock;
+            this.target = target;
+        }
+
+        public GDBranch(boolean isFcmp, Arm.Cond cond, MC.Block target, MC.Block insertAtEnd) {
+            super(Tag.Branch, insertAtEnd);
+            this.cond = cond;
+            this.target = target;
+            isIcmp = !isFcmp;
         }
 
         @Override
         public String toString() {
-            return tag.toString() + cond + "\t" + trueTargetBlock.getLabel() + "\n" +
-                    "\t" + tag.toString() + "\t" + falseTargetBlock.getLabel();
+            return tag.toString() + cond + "\t" + target;
         }
 
 
         public MC.Block getTrueBlock() {
-            return trueTargetBlock;
+            return target;
         }
 
-        public MC.Block getFalseBlock() {
-            return falseTargetBlock;
-        }
+        // public MC.Block getFalseBlock() {
+        //     return falseTargetBlock;
+        // }
 
         public void setTarget(MC.Block onlySuccMB) {
-            falseTargetBlock = onlySuccMB;
+            target = onlySuccMB;
         }
 
+        public Arm.Cond getOppoCond() {
+            return isIcmp ? CodeGen.CODEGEN.getIcmpOppoCond(cond) : CodeGen.CODEGEN.getFcmpOppoCond(cond);
+        }
     }
 
 }

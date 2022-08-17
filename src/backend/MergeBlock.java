@@ -41,11 +41,10 @@ public class MergeBlock {
                                 // System.exit(201);
                                 //如果pred只有一个后继，且线性化后本块不是pred的下一个块
                                 //或者如果本块是pred的false后继(ll中的true块, 一定紧跟着当前块)，且线性化后本块不是pred的下一个块 // 这种情况好像不会出现， predMb.falseSucc()为原ll中true块一定放在了predMb的后面一个
-                                if(!(predMb.getEndMI() instanceof GDJump))
-                                {
-                                    int a = 0;
-                                }
-                                BJ bj = (BJ) predMb.getEndMI();
+                                // if (!(predMb.getEndMI() instanceof GDJump)) {
+                                //     int a = 0;
+                                // }
+                                GDJump bj = (GDJump) predMb.getEndMI();
                                 ArrayList<MachineInst> list = new ArrayList<>();
                                 for (MachineInst mi : curMB.miList) {
                                     if (!mi.isOf(MachineInst.Tag.Comment, MachineInst.Tag.Jump, MachineInst.Tag.Branch))
@@ -57,9 +56,8 @@ public class MergeBlock {
                                 if (predMb.getNext().equals(onlySuccMB)) {
                                     bj.remove();
                                 } else {
-                                    // fixme
-                                    assert false;
-                                    这个的前提是这里的块的最后一条是无条件跳转
+                                    //assert false;
+                                    //这个的前提是这里的块的最后一条是无条件跳转
                                     bj.setTarget(onlySuccMB);
                                 }
                                 removeList.add(predMb);
@@ -78,29 +76,62 @@ public class MergeBlock {
                                 assert predMb.succMBs.size() == 2;
                                 //如果线性化后pred正好在mb前面，且pred的true和false后继都是mb，那么需要特殊处理 // 好像不会有这种情况
                                 if (predMb.trueSucc() == curMB && predMb.falseSucc() == curMB) {
-                                    // todo
+                                    ILinkNode node = predMb.getEndMI();
+                                    while (!(node instanceof GDBranch || node.equals(predMb.miList.head))) {
+                                        node = node.getPrev();
+                                    }
+                                    if (!node.equals(predMb.miList.head)) {
+                                        boolean subHasCompare = false;
+                                        boolean subHasCond = false;
+                                        boolean subHasCall = false;
+                                        int subBranchNum = 0;
+                                        int subJumpNum = 0;
+                                        int subMINum = 0;//非comment数量
+                                        assert node instanceof GDBranch;
+                                        GDBranch branch = (GDBranch) node;
+                                        ILinkNode entry = branch.getNext();
+                                        while (entry != predMb.miList.tail) {
+                                            MachineInst mi = (MachineInst) entry;
+                                            entry = entry.getNext();
+                                            if (!(mi.isComment())) {
+                                                subMINum++;
+                                                if (mi.hasCond()) {
+                                                    subHasCond = true;
+                                                }
+                                                switch (mi.getTag()) {
+                                                    case ICmp, VCmp -> subHasCompare = true;
+                                                    case Call -> subHasCall = true;
+                                                    case Jump -> subJumpNum++;
+                                                    case Branch -> subBranchNum++;
+                                                }
+                                            }
+                                        }
+                                        if (subHasCompare || subHasCall || subHasCond || (subMINum) > 5 || subBranchNum > 0 || subJumpNum > 0) {
+                                            continue;
+                                        } else {
+                                            entry = branch.getNext();
+                                            while (entry != predMb.miList.tail) {
+                                                MachineInst mi = (MachineInst) entry;
+                                                entry = entry.getNext();
+                                                mi.setCond(branch.getOppoCond());
+                                            }
+                                            branch.remove();
+                                        }
+                                    }
                                 } else {
                                     if (hasCmp || hasCall || hasCond || (miNum - branchNum - jumpNum) > 5) {
                                         continue;
                                     }
                                     removeList.add(predMb);
-                                    BJ bj = (BJ) predMb.getEndMI();
-                                    MC.Block trueBlock = predMb.trueSucc();
-                                    MC.Block falseBlock = predMb.falseSucc();
-                                    assert trueBlock == bj.getTrueBlock();
-                                    assert falseBlock == bj.getFalseBlock();
+                                    ILinkNode node = predMb.getEndMI();
+                                    while (!(node instanceof GDBranch)) {
+                                        node = node.getPrev();
+                                    }
+                                    GDBranch bj = (GDBranch) node;
                                     ArrayList<MachineInst> list = new ArrayList<>();
                                     for (MachineInst mi : curMB.miList) {
                                         if (!mi.isOf(MachineInst.Tag.Comment, MachineInst.Tag.Jump, MachineInst.Tag.Branch))
                                             list.add(mi);
-                                    }
-                                    var branch = lastEntry.getVal();
-                                    while (lastEntry != null) {
-                                        var mc = lastEntry.getVal();
-                                        lastEntry = lastEntry.getPrev();
-                                        if (mc instanceof MCBranch && ((MCBranch) mc).getTarget() == mb) {
-                                            branch = mc;
-                                        }
                                     }
                                     for (MachineInst mi : list) {
                                         MachineInst newMI = mi.clone();
@@ -117,11 +148,6 @@ public class MergeBlock {
                                 }
                                 Manager.MANAGER.outputMI();
 
-                            } else if (fflag && predMb.succMBs.size() > 1) {
-                                // fixme
-                                if ((curMB.equals(predMb.falseSucc()) && !predMb.equals(curMB.getPrev()))) {
-                                    assert !(curMB.equals(predMb.falseSucc()) && !predMb.equals(curMB.getPrev()));
-                                }
                             }
                         }
                     }

@@ -65,14 +65,14 @@ public class PeepHole {
                             mi.remove();
                         }
                     }
-                    case Branch -> {
-                        // TODO 可能改变branch方式
-                        if (((GDBranch) mi).getFalseTargetBlock().equals(curMB.getNext())) {
-                            unDone = true;
-                            new GDJump(mi.getCond(), ((GDBranch) mi).getTrueTargetBlock(), mi);
-                            mi.remove();
-                        }
-                    }
+                    // case Branch -> {
+                    //     // TODO 可能改变branch方式
+                    //     if (((GDBranch) mi).getFalseTargetBlock().equals(curMB.getNext())) {
+                    //         unDone = true;
+                    //         new GDJump(mi.getCond(), ((GDBranch) mi).getTrueTargetBlock(), mi);
+                    //         mi.remove();
+                    //     }
+                    // }
                     case Ldr -> {
                         if (oneStageLdr(Str, mi, prevInst)) unDone = true;
                     }

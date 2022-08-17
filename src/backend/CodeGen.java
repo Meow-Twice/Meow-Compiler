@@ -314,7 +314,8 @@ public class CodeGen {
                         new I.Cmp(cond, condVR, new Operand(I32, 0), curMB);
                     }
                     // new MIBranch(cond, trueBlock, falseBlock, curMB);
-                    new GDBranch(isIcmp ? getIcmpOppoCond(cond) : getFcmpOppoCond(cond), falseBlock, trueBlock, curMB);
+                    new GDBranch(!isIcmp, isIcmp ? getIcmpOppoCond(cond) : getFcmpOppoCond(cond), falseBlock, curMB);
+                    new GDJump(trueBlock, curMB);
                 }
                 case fneg -> {
                     assert needFPU;

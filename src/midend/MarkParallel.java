@@ -226,6 +226,7 @@ public class MarkParallel {
 
     private void markLoopDebug(Loop loop) {
         if (loop.getHash() != 8) {
+            //
             return;
         }
 

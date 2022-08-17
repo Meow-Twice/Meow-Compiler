@@ -165,6 +165,7 @@ public class MidEndRunner {
         if (!CenterControl._OPEN_PARALLEL) {
             return;
         }
+
         reMakeCFGAndLoopInfo();
 
         AggressiveMarkParallel aggressiveMarkParallel = new AggressiveMarkParallel(functions);

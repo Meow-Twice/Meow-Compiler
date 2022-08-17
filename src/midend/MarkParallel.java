@@ -24,8 +24,8 @@ public class MarkParallel {
             know.clear();
             for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
                 if (!know.contains(bb) && bb.isLoopHeader()) {
-                    markLoop(bb.getLoop());
-                    //markLoopDebug(bb.getLoop());
+                    //markLoop(bb.getLoop());
+                    markLoopDebug(bb.getLoop());
                 }
             }
         }
@@ -225,7 +225,7 @@ public class MarkParallel {
 
 
     private void markLoopDebug(Loop loop) {
-        if (loop.getHash() != 7) {
+        if (loop.getHash() != 8) {
             return;
         }
 

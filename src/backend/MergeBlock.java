@@ -37,7 +37,7 @@ public class MergeBlock {
                     case 1 -> {
                         MC.Block onlySuccMB = curMB.succMBs.get(0);
                         for (MC.Block predMb : curMB.predMBs) {
-                            if (fflag && (predMb.succMBs.size() == 1 || curMB.equals(predMb.falseSucc())) && !predMb.equals(curMB.getPrev())) {
+                            if ((predMb.succMBs.size() == 1 || curMB.equals(predMb.falseSucc())) && !predMb.equals(curMB.getPrev())) {
                                 // System.exit(201);
                                 //如果pred只有一个后继，且线性化后本块不是pred的下一个块
                                 //或者如果本块是pred的false后继(ll中的true块, 一定紧跟着当前块)，且线性化后本块不是pred的下一个块 // 这种情况好像不会出现， predMb.falseSucc()为原ll中true块一定放在了predMb的后面一个
@@ -69,7 +69,7 @@ public class MergeBlock {
                                     predMb.setFalseSucc(onlySuccMB);
                                 }
                                 onlySuccMB.predMBs.add(predMb);
-                            } else if (fflag && predMb.succMBs.size() > 1 && predMb.trueSucc().equals(curMB)) {
+                            } else if (predMb.succMBs.size() > 1 && predMb.trueSucc().equals(curMB)) {
                                 // assert false;
 
                                 //如果pred有两个后继，且本块是pred的True后继

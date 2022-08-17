@@ -117,7 +117,7 @@ public class BJ extends MachineInst {
         }
 
         public void setTarget(MC.Block onlySuccMB) {
-            trueTargetBlock = onlySuccMB;
+            falseTargetBlock = onlySuccMB;
         }
 
     }

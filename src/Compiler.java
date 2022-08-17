@@ -142,7 +142,10 @@ public class Compiler {
             peepHole.run();
             Manager.MANAGER.outputMI();
             MergeBlock mergeBlock = new MergeBlock();
-            mergeBlock.run();
+            mergeBlock.run(false);
+            Manager.MANAGER.outputMI();
+            mergeBlock.run(true);
+            Manager.MANAGER.outputMI();
             if (CenterControl._OPEN_PARALLEL) {
                 Parallel.PARALLEL.gen();
             }

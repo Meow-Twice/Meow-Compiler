@@ -235,7 +235,7 @@ public class CodeGen {
     HashSet<MC.Block> visitBBSet = new HashSet<>();
 
     public void genBB(BasicBlock bb) {
-        System.err.println(curMB);
+        // System.err.println(curMB);
         curMB = bb.getMb();
         visitBBSet.add(curMB);
         curMB.setMf(curMF);
@@ -296,9 +296,13 @@ public class CodeGen {
                     trueBlock.predMBs.add(curMB);
                     if (visitBBSet.add(falseBlock)) {
                         nextBBList.push(falseBlock.bb);
+                        // }else{
+                        //     System.err.println(falseBlock.bb);
                     }
                     if (visitBBSet.add(trueBlock)) {
                         nextBBList.push(trueBlock.bb);
+                        // }else{
+                        //     System.err.println(trueBlock.bb);
                     }
                     boolean isIcmp = !condValue.isFcmp();
                     CMPAndArmCond t = cmpInst2MICmpMap.get(condValue);

@@ -71,7 +71,7 @@ public class I extends MachineInst {
 
         @Override
         public String toString() {
-            return tag.toString() + cond.toString() + '\t' + getData() +
+            return tag.toString() + cond + '\t' + getData() +
                     ",\t[" + getAddr() + (getOffset().equals(Operand.I_ZERO) ? "" : ",\t" + getOffset()) +
                     (shift.shiftType == Arm.ShiftType.None ? "" : ("\t," + shift)) + "]";
         }
@@ -467,7 +467,7 @@ public class I extends MachineInst {
                 case Or -> "orr";
                 case LongMul -> "smmul";
                 default -> throw new AssertionError("Wrong Int Binary");
-            };
+            } + cond;
 
             os.print(tag_str + "\t" + getDst() + ",\t" + getLOpd() + ",\t" + getROpd());
             if (shift.shiftType != Arm.ShiftType.None) {
@@ -494,7 +494,7 @@ public class I extends MachineInst {
                 default -> throw new AssertionError("Wrong Int Binary");
             });
 
-            stb.append("\t").append(getDst()).append(",\t").append(getLOpd()).append(",\t").append(getROpd());
+            stb.append(cond).append("\t").append(getDst()).append(",\t").append(getLOpd()).append(",\t").append(getROpd());
             if (shift.shiftType != Arm.ShiftType.None) {
                 stb.append(",\t").append(shift);
             }

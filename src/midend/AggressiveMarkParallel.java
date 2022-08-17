@@ -110,17 +110,19 @@ public class AggressiveMarkParallel {
 
         for (BasicBlock bb: bbs) {
             for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+                if (useOutLoops(instr, loops)) {
+                    return;
+                }
                 if (instr instanceof Instr.Call) {
+                    if (((Instr.Call) instr).getFunc().isExternal) {
+                        continue;
+                    }
                     if (func != null) {
                         return;
                     }
                     func = ((Instr.Call) instr).getFunc();
-                }
-                if (useOutLoops(instr, loops)) {
-                    return;
-                }
-                //trivel写法
-                if (instr instanceof Instr.GetElementPtr) {
+                } else if (instr instanceof Instr.GetElementPtr) {
+                    //trivel写法
                     if (!(((Instr.GetElementPtr) instr).getPtr() instanceof GlobalVal.GlobalValue)) {
                         return;
                     }
@@ -132,8 +134,7 @@ public class AggressiveMarkParallel {
                             return;
                         }
                     }
-                }
-                if (instr instanceof Instr.Load) {
+                } else if (instr instanceof Instr.Load) {
                     if (loadArray != null) {
                         return;
                     }
@@ -142,8 +143,7 @@ public class AggressiveMarkParallel {
                         array = ((Instr.GetElementPtr) array).getPtr();
                     }
                     loadArray = array;
-                }
-                if (instr instanceof Instr.Store) {
+                } else if (instr instanceof Instr.Store) {
                     if (storeArray != null) {
                         return;
                     }
@@ -152,6 +152,8 @@ public class AggressiveMarkParallel {
                         array = ((Instr.GetElementPtr) array).getPtr();
                     }
                     storeArray = array;
+                } else {
+                    return;
                 }
             }
         }

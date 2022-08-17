@@ -156,6 +156,15 @@ public class AggressiveMarkParallel {
             }
         }
 
+        if (func == null || loadArray == null || storeArray == null) {
+            return;
+        }
+
+        //很强的限制,可以考虑删除
+//        if (funcLoadArrays.get(func).size() != 1) {
+//            return;
+//        }
+
         for (Value array: funcLoadArrays.get(func)) {
             if (!(array instanceof GlobalVal.GlobalValue)) {
                 return;

@@ -98,6 +98,13 @@ public class AggressiveMarkParallel {
         idcVars.add(loop.getIdcPHI());
         loops.add(loop);
 
+        HashSet<Value> idcInstrs = new HashSet<>();
+        idcInstrs.add(loop.getIdcPHI());
+        idcInstrs.add(loop.getIdcCmp());
+        idcInstrs.add(loop.getIdcAlu());
+        idcInstrs.add(loop.getHeader().getEndInstr());
+        idcInstrs.add(loop.getLatchs().iterator().next().getEndInstr());
+
         for (Instr instr = loop.getHeader().getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
             if (instr instanceof Instr.Phi && !instr.equals(loop.getIdcPHI())) {
                 return;
@@ -113,7 +120,9 @@ public class AggressiveMarkParallel {
                 if (useOutLoops(instr, loops)) {
                     return;
                 }
-                if (instr instanceof Instr.Call) {
+                if (idcInstrs.contains(instr)) {
+
+                } else if (instr instanceof Instr.Call) {
                     if (((Instr.Call) instr).getFunc().isExternal) {
                         continue;
                     }
@@ -159,6 +168,10 @@ public class AggressiveMarkParallel {
         }
 
         if (func == null || loadArray == null || storeArray == null) {
+            return;
+        }
+
+        if (!(loadArray instanceof GlobalVal.GlobalValue) || !(storeArray instanceof GlobalVal.GlobalValue)) {
             return;
         }
 

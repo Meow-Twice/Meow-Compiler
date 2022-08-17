@@ -62,33 +62,33 @@ public class MergeBlock {
                                 //     predMb.setFalseSucc(onlySuccMB);
                                 // }
                                 onlySuccMB.predMBs.add(predMb);
-                            // } else if (predMb.succMBs.size() > 1 && predMb.trueSucc().equals(curMB)) {
-                            //     // assert false;
-                            //     //如果pred有两个后继，且本块是pred的True后继
-                            //     assert predMb.succMBs.size() == 2;
-                            //     //如果线性化后pred正好在mb前面，且pred的true和false后继都是mb，那么需要特殊处理 // 好像不会有这种情况
-                            //     if(hasCmp || hasCall || hasCond || (miNum - branchNum - jumpNum) > 5){
-                            //         removeList.add(predMb);
-                            //         BJ bj = (BJ) predMb.getEndMI();
-                            //         MC.Block trueBlock = predMb.trueSucc();
-                            //         MC.Block falseBlock = predMb.falseSucc();
-                            //         assert trueBlock == bj.getTrueBlock();
-                            //         assert falseBlock == bj.getFalseBlock();
-                            //         ArrayList<MachineInst> list = new ArrayList<>();
-                            //         for (MachineInst mi : curMB.miList) {
-                            //             if (!mi.isOf(MachineInst.Tag.Comment, MachineInst.Tag.Jump, MachineInst.Tag.Branch))
-                            //                 list.add(mi);
-                            //         }
-                            //         for (MachineInst mi : list) {
-                            //             MachineInst newMI = mi.clone();
-                            //             newMI.setCond(bj.getCond());
-                            //             predMb.miList.insertBefore(newMI, bj);
-                            //         }
-                            //         bj.setTarget(onlySuccMB);
-                            //         predMb.setTrueSucc(onlySuccMB);
-                            //         assert predMb.trueSucc() != predMb.falseSucc();
-                            //         onlySuccMB.predMBs.add(predMb);
-                            //     }
+                            } else if (predMb.succMBs.size() > 1 && predMb.trueSucc().equals(curMB)) {
+                                // assert false;
+                                //如果pred有两个后继，且本块是pred的True后继
+                                assert predMb.succMBs.size() == 2;
+                                //如果线性化后pred正好在mb前面，且pred的true和false后继都是mb，那么需要特殊处理 // 好像不会有这种情况
+                                if(hasCmp || hasCall || hasCond || (miNum - branchNum - jumpNum) > 5){
+                                    removeList.add(predMb);
+                                    BJ bj = (BJ) predMb.getEndMI();
+                                    MC.Block trueBlock = predMb.trueSucc();
+                                    MC.Block falseBlock = predMb.falseSucc();
+                                    assert trueBlock == bj.getTrueBlock();
+                                    assert falseBlock == bj.getFalseBlock();
+                                    ArrayList<MachineInst> list = new ArrayList<>();
+                                    for (MachineInst mi : curMB.miList) {
+                                        if (!mi.isOf(MachineInst.Tag.Comment, MachineInst.Tag.Jump, MachineInst.Tag.Branch))
+                                            list.add(mi);
+                                    }
+                                    for (MachineInst mi : list) {
+                                        MachineInst newMI = mi.clone();
+                                        newMI.setCond(bj.getCond());
+                                        predMb.miList.insertBefore(newMI, bj);
+                                    }
+                                    bj.setTarget(onlySuccMB);
+                                    predMb.setTrueSucc(onlySuccMB);
+                                    assert predMb.trueSucc() != predMb.falseSucc();
+                                    onlySuccMB.predMBs.add(predMb);
+                                }
 
                             }
                         }

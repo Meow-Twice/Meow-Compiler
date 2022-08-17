@@ -23,9 +23,11 @@ public class MarkParallel {
         for (Function function: functions) {
             know.clear();
             for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
-                if (!know.contains(bb) && bb.isLoopHeader()) {
-                    //markLoop(bb.getLoop());
-                    markLoopDebug(bb.getLoop());
+                if (!know.contains(bb) && bb.isLoopHeader() && bb.getLoop().isCanAggressiveParallel()) {
+                    doMarkParallel(bb.getLoop());
+                } else if (!know.contains(bb) && bb.isLoopHeader()) {
+                    markLoop(bb.getLoop());
+                    //markLoopDebug(bb.getLoop());
                 }
             }
         }
@@ -45,9 +47,6 @@ public class MarkParallel {
     }
 
     private void markLoop(Loop loop) {
-        if (loop.getHash() != 7) {
-            return;
-        }
         if (!isPureLoop(loop)) {
             return;
         }
@@ -221,6 +220,68 @@ public class MarkParallel {
             }
         }
         return false;
+    }
+
+    private void doMarkParallel(Loop loop) {
+        HashSet<BasicBlock> bbs = new HashSet<>();
+        HashSet<Value> idcVars = new HashSet<>();
+        HashSet<Loop> loops = new HashSet<>();
+        DFS(bbs, idcVars, loops, loop);
+        Value idcEnd = loop.getIdcEnd();
+        if (idcEnd instanceof Constant) {
+            return;
+        }
+        if (loop.getEnterings().size() > 1) {
+            return;
+        }
+        BasicBlock entering = loop.getEnterings().iterator().next();
+        BasicBlock head = loop.getHeader();
+        BasicBlock latch = loop.getLatchs().iterator().next();
+        BasicBlock exiting = loop.getExitings().iterator().next();
+        BasicBlock exit = loop.getExits().iterator().next();
+        int index = 1 - head.getPrecBBs().indexOf(latch);
+        Instr.Phi idcPhi = (Instr.Phi) loop.getIdcPHI();
+        Instr.Icmp cmp = (Instr.Icmp) loop.getIdcCmp();
+        Function func = loop.getHeader().getFunction();
+        BasicBlock parallelStartBB = new BasicBlock(func, loop.getParentLoop());
+        BasicBlock parallelEndBB = new BasicBlock(func, loop.getParentLoop());
+
+        if (!cmp.getOp().equals(Instr.Icmp.Op.SLT)) {
+            return;
+        }
+
+        //start BB
+        Instr.Call startCall = new Instr.Call(Manager.ExternFunction.PARALLEL_START, new ArrayList<>(), parallelStartBB);
+        Instr.Alu mul_1 = new Instr.Alu(Type.BasicType.getI32Type(), Instr.Alu.Op.MUL, startCall, idcEnd, parallelStartBB);
+        Instr.Alu div_1 = new Instr.Alu(Type.BasicType.getI32Type(), Instr.Alu.Op.DIV, mul_1, new Constant.ConstantInt(parallel_num), parallelStartBB);
+        idcPhi.modifyUse(div_1, index);
+        Instr.Alu add_1 = new Instr.Alu(Type.BasicType.getI32Type(), Instr.Alu.Op.ADD, startCall, new Constant.ConstantInt(1), parallelStartBB);
+        Instr.Alu mul_2 = new Instr.Alu(Type.BasicType.getI32Type(), Instr.Alu.Op.MUL, add_1, idcEnd, parallelStartBB);
+        Instr.Alu div_2 = new Instr.Alu(Type.BasicType.getI32Type(), Instr.Alu.Op.DIV, mul_2, new Constant.ConstantInt(parallel_num), parallelStartBB);
+        cmp.modifyUse(div_2, 1);
+        Instr.Jump jump_1 = new Instr.Jump(head, parallelStartBB);
+
+        entering.modifyBrAToB(head, parallelStartBB);
+        entering.modifySuc(head, parallelStartBB);
+        parallelStartBB.addPre(entering);
+        parallelStartBB.addSuc(head);
+        head.modifyPre(entering, parallelStartBB);
+
+
+        //end BB
+        ArrayList<Value> args = new ArrayList<>();
+        args.add(startCall);
+        Instr.Call endCall = new Instr.Call(Manager.ExternFunction.PARALLEL_END, args, parallelEndBB);
+        Instr.Jump jump_2 = new Instr.Jump(exit, parallelEndBB);
+
+
+        exiting.modifyBrAToB(exit, parallelEndBB);
+        exiting.modifySuc(exit, parallelEndBB);
+        parallelEndBB.addPre(exiting);
+        parallelEndBB.addSuc(exit);
+        exit.modifyPre(exiting, parallelEndBB);
+
+        know.addAll(bbs);
     }
 
 

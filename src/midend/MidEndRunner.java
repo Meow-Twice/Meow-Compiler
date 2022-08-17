@@ -73,7 +73,7 @@ public class MidEndRunner {
         //
         FuncGVN();
         FuncGCM();
-        //outputLLVM();
+        AggressiveMarkParallel();
         FuncInline();
         Mem2Reg();
         MathOpt();
@@ -159,6 +159,16 @@ public class MidEndRunner {
         //
         // RemovePhi removePhi = new RemovePhi(functions);
         // removePhi.Run();
+    }
+
+    private void AggressiveMarkParallel() {
+        if (!CenterControl._OPEN_PARALLEL) {
+            return;
+        }
+        reMakeCFGAndLoopInfo();
+
+        AggressiveMarkParallel aggressiveMarkParallel = new AggressiveMarkParallel(functions);
+        aggressiveMarkParallel.Run();
     }
 
     private void MarkParallel() {

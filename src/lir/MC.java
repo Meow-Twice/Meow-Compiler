@@ -1,6 +1,7 @@
 package lir;
 
 import backend.CodeGen;
+import backend.Parallel;
 import frontend.semantic.Initial;
 import mir.BasicBlock;
 import mir.Constant;
@@ -132,7 +133,9 @@ public class MC {
                 stb.append(function.getName()).append(":\n");
                 //asm for mb
                 for (Block mb : function.mbList) {
-                    stb.append(mb.getLabel()).append(":\n");
+                    stb.append("\n\n").append(mb.getLabel()).append(":\n");
+                    stb.append("@ pred:\t").append(mb.predMBs).append("\n");
+                    stb.append("@ succ:\t").append(mb.succMBs).append("\n");
                     for (MachineInst inst : mb.miList) {
                         if (!inst.isComment()) stb.append("\t");
                         stb.append(inst.getSTB()).append("\n");
@@ -152,7 +155,7 @@ public class MC {
 
             if (CenterControl._GLOBAL_BSS) {
                 stb.append(".section .bss\n");
-                stb.append(".align 16\n");
+                stb.append(".align 2\n");
                 for (Arm.Glob glob : globBss) {
                     stb.append("\n.global\t").append(glob.getGlob()).append("\n");
                     stb.append(glob.getGlob()).append(":\n");
@@ -165,9 +168,17 @@ public class MC {
                     }
                 }
                 globalDataStbHelper(stb, globData);
+                if (CenterControl._OPEN_PARALLEL) {
+                    for(Arm.Glob glob: Parallel.PARALLEL.tmpGlob.values()){
+                        stb.append("\n.global\t").append(glob.getGlob()).append("\n");
+                        stb.append(glob.getGlob()).append(":\n");
+                        stb.append("\t.word\t0\n");
+                    }
+                }
             } else {
                 globalDataStbHelper(stb, globList);
             }
+
             return stb;
         }
 
@@ -411,7 +422,12 @@ public class MC {
         static int globIndex = 0;
         int mb_idx;
         String label;
-        public ArrayList<Block> predMBs = new ArrayList<>();
+        public Set<Block> predMBs = new HashSet<>();
+        /**
+         * succMBs[0]: trueBlock
+         * succMBs[1]: falseBlock
+         */
+        // succMBs[1]: falseBlock
         public ArrayList<Block> succMBs = new ArrayList<>();
         public Set<Operand> liveUseSet = newOperandSet();
         public Set<Operand> liveDefSet = newOperandSet();
@@ -473,20 +489,20 @@ public class MC {
         }
 
         public Block falseSucc() {
-            return succMBs.get(0);
-        }
-
-
-        public Block trueSucc() {
             if (succMBs.size() < 2) return null;
             return succMBs.get(1);
         }
 
-        public void setFalse(Block onlySuccMB) {
+
+        public Block trueSucc() {
+            return succMBs.get(0);
+        }
+
+        public void setFalseSucc(Block onlySuccMB) {
             succMBs.set(1, onlySuccMB);
         }
 
-        public void setTrue(Block onlySuccMB) {
+        public void setTrueSucc(Block onlySuccMB) {
             succMBs.set(0, onlySuccMB);
         }
     }

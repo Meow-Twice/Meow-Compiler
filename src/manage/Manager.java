@@ -136,8 +136,12 @@ public class Manager {
 
     static int outputMIcnt = 0;
 
-    public void outputMI() throws FileNotFoundException {
-        outputMI("lirOutput-" + outputMIcnt++);
+    public void outputMI(){
+        try {
+            outputMI("lirOutput-" + outputMIcnt++);
+        } catch (FileNotFoundException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public static void outputMI(boolean flag) {
@@ -171,11 +175,16 @@ public class Manager {
         MC.Program p = MC.Program.PROGRAM;
         for (MC.McFunction mcFunc : p.funcList) {
             FileDealer.addOutputString("\n");
-            FileDealer.addOutputString(mcFunc.mFunc.getName());
+            FileDealer.addOutputString(mcFunc.mFunc.getName()+":");
             for (MC.Block mb : mcFunc.mbList) {
                 FileDealer.addOutputString("\n");
-                FileDealer.addOutputString(mb.getLabel());
+                FileDealer.addOutputString(mb.getLabel()+":");
+                FileDealer.addOutputString("@ pred:\t"+mb.predMBs.toString());
+                FileDealer.addOutputString("@ succ:\t"+mb.succMBs.toString());
                 for (MachineInst mi : mb.miList) {
+                    if(!(mi.getNext() instanceof MachineInst ) && mi.getNext()!=mb.miList.tail){
+                        int a = 0;
+                    }
                     String str = mi instanceof MIComment ? "" : "\t";
                     FileDealer.addOutputString(str + mi);
                 }

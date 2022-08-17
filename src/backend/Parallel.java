@@ -13,12 +13,13 @@ import static lir.MachineInst.Tag.Sub;
 import static mir.type.DataType.I32;
 
 public class Parallel {
+    public static final Parallel PARALLEL = new Parallel(MC.Program.PROGRAM);
     MC.Program p;
     // TODO parallel的function都需要def r2
     MC.McFunction mf_parallel_start = new MC.McFunction("parallel_start");
     MC.McFunction mf_parallel_end = new MC.McFunction("parallel_end");
     private static MC.McFunction curMF;
-    private HashMap<String, Arm.Glob> tmpGlob = new HashMap<>();
+    public final HashMap<String, Arm.Glob> tmpGlob = new HashMap<>();
     private String start_r5 = "$start_r5";
     private String start_r7 = "$start_r7";
     private String start_lr = "$start_lr";
@@ -33,7 +34,7 @@ public class Parallel {
     MC.Block mb_parallel_end2;
     MC.Block mb_parallel_end3;
     MC.Block mb_parallel_end4;
-    public Parallel(MC.Program p) {
+    private Parallel(MC.Program p) {
         this.p = p;
     }
 

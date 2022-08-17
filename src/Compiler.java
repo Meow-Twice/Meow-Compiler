@@ -102,7 +102,7 @@ public class Compiler {
             // 用参数给定的输入输出流后，分配寄存器前和分配寄存器后只运行一遍解释器，否则后者的输出会覆盖前者
             // MIDescriptor.MI_DESCRIPTOR.run(); // 分配寄存器前
             // System.err.println("before");
-            Manager.MANAGER.outputMI();
+            // Manager.MANAGER.outputMI();
             // System.err.println("before end");
             // Manager.outputMI(true);
             System.err.println("Reg Alloc begin");
@@ -124,7 +124,7 @@ public class Compiler {
             System.err.println("Reg Alloc end, Use Time: " + ((double) System.currentTimeMillis() - start) / 1000 + "s");
             // Manager.outputMI(true);
             // System.err.println("after");
-            Manager.MANAGER.outputMI();
+            // Manager.MANAGER.outputMI();
             // System.err.println("after end");
             // System.err.println("BEGIN rerun");
             // MIDescriptor.MI_DESCRIPTOR.setRegMode();
@@ -140,9 +140,11 @@ public class Compiler {
 
             PeepHole peepHole = new PeepHole(p);
             peepHole.run();
+            Manager.MANAGER.outputMI();
+            MergeBlock mergeBlock = new MergeBlock();
+            mergeBlock.run();
             if (CenterControl._OPEN_PARALLEL) {
-                Parallel parallel = new Parallel(p);
-                parallel.gen();
+                Parallel.PARALLEL.gen();
             }
             if (arg.outputAsm()) {
                 FileDealer.outputToStream(p.getSTB(), arg.asmStream);

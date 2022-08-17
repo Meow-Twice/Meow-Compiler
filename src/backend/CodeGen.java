@@ -74,7 +74,7 @@ public class CodeGen {
         f2mf = new HashMap<>();
         bb2mb = new HashMap<>();
         // _DEBUG_OUTPUT_MIR_INTO_COMMENT = !MidEndRunner.O2;
-        _DEBUG_OUTPUT_MIR_INTO_COMMENT = false;
+        _DEBUG_OUTPUT_MIR_INTO_COMMENT = true;
     }
 
     public void gen() {
@@ -259,8 +259,8 @@ public class CodeGen {
                 case jump -> {
                     MC.Block mb = ((Instr.Jump) instr).getTarget().getMb();
                     curMB.succMBs.add(mb);
+                    mb.predMBs.add(curMB);
                     if (visitBBSet.add(mb)) {
-                        mb.predMBs.add(curMB);
                         nextBBList.push(mb.bb);
                     }
                     new MIJump(mb, curMB);
@@ -279,8 +279,8 @@ public class CodeGen {
                             mb = brInst.getThenTarget().getMb();
                         }
                         curMB.succMBs.add(mb);
+                        mb.predMBs.add(curMB);
                         if (visitBBSet.add(mb)) {
-                            mb.predMBs.add(curMB);
                             nextBBList.push(mb.bb);
                         }
                         new MIJump(mb, curMB);
@@ -289,14 +289,14 @@ public class CodeGen {
                     Value condValue = brInst.getCond();
                     MC.Block trueBlock = brInst.getThenTarget().getMb();
                     MC.Block falseBlock = brInst.getElseTarget().getMb();
-                    curMB.succMBs.add(trueBlock);
                     curMB.succMBs.add(falseBlock);
+                    curMB.succMBs.add(trueBlock);
+                    falseBlock.predMBs.add(curMB);
+                    trueBlock.predMBs.add(curMB);
                     if (visitBBSet.add(falseBlock)) {
-                        falseBlock.predMBs.add(curMB);
                         nextBBList.push(falseBlock.bb);
                     }
                     if (visitBBSet.add(trueBlock)) {
-                        trueBlock.predMBs.add(curMB);
                         nextBBList.push(trueBlock.bb);
                     }
                     boolean isIcmp = !condValue.isFcmp();
@@ -309,7 +309,7 @@ public class CodeGen {
                         new I.Cmp(cond, condVR, new Operand(I32, 0), curMB);
                     }
                     // new MIBranch(cond, trueBlock, falseBlock, curMB);
-                    new MIBranch(isIcmp ? getIcmpOppoCond(cond) : getFcmpOppoCond(cond), trueBlock, falseBlock, curMB);
+                    new MIBranch(isIcmp ? getIcmpOppoCond(cond) : getFcmpOppoCond(cond), falseBlock, trueBlock, curMB);
                 }
                 case fneg -> {
                     assert needFPU;
@@ -441,8 +441,19 @@ public class CodeGen {
                                     }
                                 }
                             } else {
-                                new I.Binary(Add, getVR_no_imm(gep), curAddrVR, getVR_no_imm(curIdxValue),
-                                        new Arm.Shift(Arm.ShiftType.Lsl, 2), curMB);
+                                if (curBaseType.isBasicType()) {
+                                    new I.Binary(Add, getVR_no_imm(gep), curAddrVR, getVR_no_imm(curIdxValue),
+                                            new Arm.Shift(Arm.ShiftType.Lsl, 2), curMB);
+                                } else {
+                                    int baseSize = ((Type.ArrayType) curBaseType).getFlattenSize();
+                                    int baseOffSet = 4 * baseSize;
+                                    if ((baseOffSet & (baseOffSet - 1)) == 0) {
+                                        new I.Binary(Add, getVR_no_imm(gep), curAddrVR, getVR_no_imm(curIdxValue),
+                                                new Arm.Shift(Arm.ShiftType.Lsl, Integer.numberOfTrailingZeros(baseOffSet)), curMB);
+                                    } else {
+                                        new I.Fma(true, false, getVR_no_imm(gep), getVR_no_imm(curIdxValue), getImmVR(baseOffSet), curAddrVR, curMB);
+                                    }
+                                }
                             }
                         } else {
                             Value firstIdx = gep.getUseValueList().get(1);
@@ -522,6 +533,7 @@ public class CodeGen {
                             if (i == offsetCount - 1) {
                                 // 这里的设计比较微妙
                                 if (totalConstOff == 0) {
+                                    // TODO
                                     value2opd.put(gep, curAddrVR);
                                     // new I.Mov(dstVR, curAddrVR, curMB);
                                 } else {

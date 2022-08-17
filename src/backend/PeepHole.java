@@ -67,9 +67,9 @@ public class PeepHole {
                     }
                     case Branch -> {
                         // TODO 可能改变branch方式
-                        if (((MIBranch) mi).getTrueTargetBlock().equals(curMB.getNext())) {
+                        if (((MIBranch) mi).getFalseTargetBlock().equals(curMB.getNext())) {
                             unDone = true;
-                            new MIJump(mi.getCond(), ((MIBranch) mi).getFalseTargetBlock(), mi);
+                            new MIJump(mi.getCond(), ((MIBranch) mi).getTrueTargetBlock(), mi);
                             mi.remove();
                         }
                     }

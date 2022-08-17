@@ -29,7 +29,7 @@ public class MIBranch extends MachineInst {
 
     @Override
     public String toString() {
-        return tag.toString() + cond + "\t" + falseTargetBlock.getLabel() + "\n" +
-                "\t" + tag.toString() + "\t" + trueTargetBlock.getLabel();
+        return tag.toString() + cond + "\t" + trueTargetBlock.getLabel() + "\n" +
+                "\t" + tag.toString() + "\t" + falseTargetBlock.getLabel();
     }
 }

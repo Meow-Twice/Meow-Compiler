@@ -36,6 +36,7 @@ public class MICall extends MachineInst {
                 defOpds.add(Reg.getS(i));
             }
         }
+        // TODO: 区分自己定义的函数
         for (int i = r0.ordinal(); i < r0.ordinal() + rParamCnt; i++) {
             defOpds.add(Reg.getR(i));
         }

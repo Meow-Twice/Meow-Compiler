@@ -36,6 +36,7 @@ public class Compiler {
 
     public static void main(String[] args) {
         Arg arg = Arg.parse(args);
+        CenterControl._HEURISTIC_BASE = arg.heuristicBase;
         try {
             BufferedInputStream source = new BufferedInputStream(arg.srcStream);
             // System.err.println(source); // output source code via stderr;

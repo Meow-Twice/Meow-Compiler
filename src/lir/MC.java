@@ -782,7 +782,7 @@ public class MC {
         }
 
         public double heuristicVal() {
-            return (degree << 10) / Math.pow(1.6, loopCounter);
+            return (degree << 10) / Math.pow(CenterControl._HEURISTIC_BASE, loopCounter);
         }
 
         public boolean isF32() {

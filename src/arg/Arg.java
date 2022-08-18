@@ -17,6 +17,9 @@ public class Arg {
     public final InputStream interpretInputStream; // 解释执行 stdin
     public final OutputStream interpretOutputStream; // 解释执行 stdout
 
+    // options
+    public double heuristicBase = 1.6;
+
     private Arg(String src, String asm, String llvm,
                 boolean interpret, String interpretIn, String interpretOut, int optimize) throws FileNotFoundException {
         this.srcFilename = src;
@@ -45,6 +48,8 @@ public class Arg {
         int optLevel = 1;
         boolean interpret = false;
         String interpretIn = "", interpretOut = "";
+        // options
+        double heuristicBase = 1.6;
         for (int i = 0; i < args.length; i++) {
             // detect "-Ox"
             if (args[i].startsWith("-O")) {
@@ -54,6 +59,14 @@ public class Arg {
                 optLevel = Integer.parseInt(args[i].substring(2));
                 if (optLevel < 0 || optLevel > 2) {
                     throw new RuntimeException("Optimize level should only be 0, 1, 2");
+                }
+                continue;
+            }
+            // detect optimize options
+            if (args[i].startsWith("--heuristic-base=")) {
+                heuristicBase = Double.parseDouble(args[i].substring(17));
+                if (heuristicBase < 1 || heuristicBase > 2) {
+                    throw new RuntimeException("heuristic base should in range [1, 2]");
                 }
                 continue;
             }
@@ -122,7 +135,9 @@ public class Arg {
             throw new RuntimeException("source file should be specified.");
         }
         try {
-            return new Arg(src, asm, llvm, interpret, interpretIn, interpretOut, optLevel);
+            Arg arg = new Arg(src, asm, llvm, interpret, interpretIn, interpretOut, optLevel);
+            arg.heuristicBase = heuristicBase;
+            return arg;
         } catch (FileNotFoundException e) {
             printHelp();
             throw new RuntimeException(e);
@@ -130,7 +145,7 @@ public class Arg {
     }
 
     public static void printHelp() {
-        System.err.println("Usage: compiler {(-S|-emit-llvm) -o filename} filename -On");
+        System.err.println("Usage: compiler {(-S|-emit-llvm) -o filename} filename -On [options...]");
         System.err.println("optimize level: 0, 1 (default), 2");
     }
 }

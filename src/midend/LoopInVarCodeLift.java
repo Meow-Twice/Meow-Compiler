@@ -268,6 +268,11 @@ public class LoopInVarCodeLift {
                     defs.put(value, new HashSet<>());
                 }
                 defs.get(value).add(instr);
+            } else if (((Instr.Call) instr).getFunc().getName().equals("putarray")) {
+                if (!users.containsKey(value)) {
+                    users.put(value, new HashSet<>());
+                }
+                users.get(value).add(instr);
             } else {
                 if (!users.containsKey(value)) {
                     users.put(value, new HashSet<>());
@@ -306,6 +311,12 @@ public class LoopInVarCodeLift {
             for (BasicBlock bb: loop.getEnterings()) {
                 entering = bb;
             }
+            //强条件
+            for (Loop defLoop: defLoops.get(array)) {
+                if (check(loop, defLoop)) {
+                    return;
+                }
+            }
             if (!defLoops.get(array).contains(loop)) {
                 if (((Instr.Load) user).getPointer() instanceof Instr.GetElementPtr &&
                         ((Instr.GetElementPtr) ((Instr.Load) user).getPointer()).parentBB().getLoop().equals(loop)) {
@@ -316,6 +327,27 @@ public class LoopInVarCodeLift {
                 user.setBb(entering);
             }
         }
+    }
+
+    private boolean check(Loop useLoop, Loop defLoop) {
+        int useDeep = useLoop.getLoopDepth();
+        int defDeep = defLoop.getLoopDepth();
+        if (useDeep == defDeep) {
+            return useLoop.equals(defLoop);
+        }
+        if (useDeep > defDeep) {
+            int time = useDeep - defDeep;
+            for (int i = 0; i < time; i++) {
+                useLoop = useLoop.getParentLoop();
+            }
+        } else {
+            int time = defDeep - useDeep;
+            for (int i = 0; i < time; i++) {
+                defLoop = defLoop.getParentLoop();
+            }
+        }
+        assert useLoop.getLoopDepth() == defLoop.getLoopDepth();
+        return useLoop.equals(defLoop);
     }
 
 }

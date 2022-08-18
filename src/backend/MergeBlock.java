@@ -11,13 +11,17 @@ import java.util.ArrayList;
 public class MergeBlock {
     public MC.Program p = MC.Program.PROGRAM;
 
-    public void run() {
+    boolean yesCondMov = true;
+
+    public void run(boolean yesCondMov) {
+        this.yesCondMov = yesCondMov;
         for (MC.McFunction mf : p.funcList) {
             for (ILinkNode mb = mf.mbList.getEnd(); !mb.equals(mf.mbList.head); mb = mb.getPrev()) {
                 final MC.Block curMB = (MC.Block) mb;
                 boolean hasCmp = false;
                 boolean hasCond = false;
                 boolean hasCall = false;
+                boolean hasV = false;
                 int branchNum = 0;
                 int jumpNum = 0;
                 int miNum = 0;
@@ -25,6 +29,7 @@ public class MergeBlock {
                     if (mi.isComment()) continue;
                     miNum++;
                     if (mi.hasCond()) hasCond = true;
+                    if (mi instanceof V) hasV = true;
                     switch (mi.getTag()) {
                         case ICmp, VCmp -> hasCmp = true;
                         case Call -> hasCall = true;
@@ -40,7 +45,7 @@ public class MergeBlock {
                             if ((predMb.succMBs.size() == 1 || curMB.equals(predMb.falseSucc())) && !predMb.equals(curMB.getPrev())) {
                                 // System.exit(201);
                                 //如果pred只有一个后继，且线性化后本块不是pred的下一个块
-                                //或者如果本块是pred的false后继(ll中的true块, 一定紧跟着当前块)，且线性化后本块不是pred的下一个块 // 这种情况好像不会出现， predMb.falseSucc()为原ll中true块一定放在了predMb的后面一个
+                                //或者如果本块是pred的false后继(ll中的true块, 不一定紧跟着当前块)，且线性化后本块不是pred的下一个块 // 这种情况好像不会出现， predMb.falseSucc()为原ll中true块一定放在了predMb的后面一个
                                 // if (!(predMb.getEndMI() instanceof GDJump)) {
                                 //     int a = 0;
                                 // }
@@ -73,49 +78,11 @@ public class MergeBlock {
                                 //如果pred有两个后继，且本块是pred的True后继
                                 assert predMb.succMBs.size() == 2;
                                 //如果线性化后pred正好在mb前面，且pred的true和false后继都是mb，那么需要特殊处理
-                                if (/*predMb == curMB.getPrev() &&*/ predMb.falseSucc() == curMB) {
-                                    System.exit(122);
-                                    ILinkNode node = predMb.getEndMI();
-                                    while (!(node instanceof GDBranch || node.equals(predMb.miList.head))) {
-                                        node = node.getPrev();
-                                    }
-                                    if (!node.equals(predMb.miList.head)) {
-                                        boolean subHasCompare = false;
-                                        boolean subHasCond = false;
-                                        boolean subHasCall = false;
-                                        int subBranchNum = 0;
-                                        int subJumpNum = 0;
-                                        int subMINum = 0;//非comment数量
-                                        assert node instanceof GDBranch;
-                                        GDBranch branch = (GDBranch) node;
-
-                                        for (ILinkNode entry = branch.getNext(); entry != predMb.miList.tail; entry = entry.getNext()) {
-                                            MachineInst mi = (MachineInst) entry;
-                                            if (!(mi.isComment())) {
-                                                subMINum++;
-                                                if (mi.hasCond()) {
-                                                    subHasCond = true;
-                                                }
-                                                switch (mi.getTag()) {
-                                                    case ICmp, VCmp -> subHasCompare = true;
-                                                    case Call -> subHasCall = true;
-                                                    case Jump -> subJumpNum++;
-                                                    case Branch -> subBranchNum++;
-                                                }
-                                            }
-                                        }
-                                        if (subHasCompare || subHasCall || subHasCond || (subMINum) > 5 || subBranchNum > 0 || subJumpNum > 0) {
-                                            continue;
-                                        } else {
-                                            for (ILinkNode entry = branch.getNext(); entry != predMb.miList.tail; entry = entry.getNext()) {
-                                                MachineInst mi = (MachineInst) entry;
-                                                mi.setCond(branch.getOppoCond());
-                                            }
-                                            branch.remove();
-                                        }
-                                    }
-                                } else {
-                                    if (hasCmp || hasCall || hasCond || (miNum - branchNum - jumpNum) > 5) {
+                                if (predMb == curMB.getPrev() && predMb.falseSucc() == curMB) {
+                                    // System.exit(122);
+                                    dealPred(predMb);
+                                } else if (yesCondMov) {
+                                    if (hasV || hasCmp || hasCall || hasCond || (miNum - branchNum - jumpNum) > 5) {
                                         continue;
                                     }
                                     removeList.add(predMb);
@@ -142,7 +109,7 @@ public class MergeBlock {
                                     // assert predMb.trueSucc() != predMb.falseSucc();
                                     onlySuccMB.predMBs.add(predMb);
                                 }
-                                Manager.MANAGER.outputMI();
+                                // Manager.MANAGER.outputMI();
 
                             }
                         }
@@ -152,59 +119,44 @@ public class MergeBlock {
                             //如果线性化后pred就是本块的上一个块
                             if (predMb.equals(curMB.getPrev())) {
                                 //如果线性化后pred正好在mb前面，且pred的true和false后继都是mb，那么需要特殊处理
-                                if (predMb.falseSucc() == predMb.trueSucc()) {
+                                if (curMB == predMb.trueSucc() && predMb.falseSucc() == predMb.trueSucc()) {
                                     // fixme 有没有可能不等于curMB
-                                    System.exit(122);
-                                    ILinkNode node = predMb.getEndMI();
-                                    // TODO 从下往上和从上往下应该没有区别
-                                    while (!(node instanceof GDBranch || node.equals(predMb.miList.head))) {
-                                        node = node.getPrev();
-                                    }
-                                    if (!node.equals(predMb.miList.head)) {
-                                        boolean subHasCompare = false;
-                                        boolean subHasCond = false;
-                                        boolean subHasCall = false;
-                                        int subBranchNum = 0;
-                                        int subJumpNum = 0;
-                                        int subMINum = 0;//非comment数量
-                                        assert node instanceof GDBranch;
-                                        GDBranch branch = (GDBranch) node;
-
-                                        for (ILinkNode entry = branch.getNext(); entry != predMb.miList.tail; entry = entry.getNext()) {
-                                            MachineInst mi = (MachineInst) entry;
-                                            if (!(mi.isComment())) {
-                                                subMINum++;
-                                                if (mi.hasCond()) {
-                                                    subHasCond = true;
-                                                }
-                                                switch (mi.getTag()) {
-                                                    case ICmp, VCmp -> subHasCompare = true;
-                                                    case Call -> subHasCall = true;
-                                                    case Jump -> subJumpNum++;
-                                                    case Branch -> subBranchNum++;
-                                                }
-                                            }
-                                        }
-                                        if (subHasCompare || subHasCall || subHasCond || (subMINum) > 5 || subBranchNum > 0 || subJumpNum > 0) {
-                                            continue;
-                                        } else {
-                                            for (ILinkNode entry = branch.getNext(); entry != predMb.miList.tail; entry = entry.getNext()) {
-                                                MachineInst mi = (MachineInst) entry;
-                                                mi.setCond(branch.getOppoCond());
-                                            }
-                                            branch.remove();
-                                        }
-                                    }
+                                    // System.exit(122);
+                                    dealPred(predMb);
                                 }
                                 // Manager.MANAGER.outputMI();
                             } else if (!curMB.getEndMI().isJump()) {
                                 continue;
-                            } else if (predMb.succMBs.size() == 1 || predMb.falseSucc() == curMB) {
+                            } else if (predMb.succMBs.size() == 1) {
+                                Manager.MANAGER.outputMI();
                                 //如果pred只有一个后继，且线性化后本块不是pred的下一个块
-                                //或者如果本块是pred的false后继，且线性化后本块不是pred的下一个块
                                 assert predMb.miList.getEnd().isJump();
                                 GDJump j = (GDJump) predMb.getEndMI();
-
+                                MC.Block newMB = new MC.Block(curMB, predMb);
+                                // predMb.insertAfter(newMB);
+                                for (MachineInst mi : curMB.miList) {
+                                    newMB.miList.insertAtEnd(mi.clone());
+                                }
+                                j.remove();
+                                removeList.add(predMb);
+                                predMb.succMBs.set(0, newMB);
+                                newMB.succMBs.addAll(curMB.succMBs);
+                                newMB.predMBs.add(predMb);
+                            } else if (predMb.succMBs.size() == 2 && predMb.falseSucc() == curMB) {
+                                //或者如果本块是pred的false后继，且线性化后本块不是pred的下一个块(第一个if排除)
+                                Manager.MANAGER.outputMI();
+                                assert predMb.miList.getEnd().isJump();
+                                GDJump j = (GDJump) predMb.getEndMI();
+                                MC.Block newMB = new MC.Block(curMB, predMb);
+                                // predMb.insertAfter(newMB);
+                                for (MachineInst mi : curMB.miList) {
+                                    newMB.miList.insertAtEnd(mi.clone());
+                                }
+                                j.remove();
+                                removeList.add(predMb);
+                                predMb.succMBs.set(1, newMB);
+                                newMB.succMBs.addAll(curMB.succMBs);
+                                newMB.predMBs.add(predMb);
                             }
                         }
 
@@ -226,6 +178,53 @@ public class MergeBlock {
                         succ.predMBs.remove(curMB);
                     }
                 }
+            }
+        }
+    }
+
+    static int cnt = 0;
+
+    private void dealPred(MC.Block predMb) {
+        if (!yesCondMov) return;
+        ILinkNode node = predMb.getEndMI();
+        while (!(node instanceof GDBranch || node.equals(predMb.miList.head))) {
+            node = node.getPrev();
+        }
+        if (!node.equals(predMb.miList.head)) {
+            boolean hasCmp = false;
+            boolean hasCond = false;
+            boolean hasCall = false;
+            boolean hasV = false;
+            int brNum = 0;
+            int jNum = 0;
+            int miNum = 0;//非comment数量
+            assert node instanceof GDBranch;
+            GDBranch branch = (GDBranch) node;
+
+            for (ILinkNode entry = branch.getNext(); entry != predMb.miList.tail; entry = entry.getNext()) {
+                MachineInst mi = (MachineInst) entry;
+                if (!(mi.isComment())) {
+                    miNum++;
+                    if (mi.hasCond()) {
+                        hasCond = true;
+                    }
+                    switch (mi.getTag()) {
+                        case ICmp, VCmp -> hasCmp = true;
+                        case Call -> hasCall = true;
+                        case Jump -> jNum++;
+                        case Branch -> brNum++;
+                    }
+                    if (mi instanceof V) {
+                        hasV = true;
+                    }
+                }
+            }
+            if (!hasV && !hasCmp && !hasCall && !hasCond && (miNum) <= 5 && brNum <= 0 && jNum <= 0) {
+                for (ILinkNode entry = branch.getNext(); entry != predMb.miList.tail; entry = entry.getNext()) {
+                    MachineInst mi = (MachineInst) entry;
+                    mi.setCond(branch.getOppoCond());
+                }
+                branch.remove();
             }
         }
     }

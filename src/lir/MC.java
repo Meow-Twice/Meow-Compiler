@@ -456,10 +456,11 @@ public class MC {
             miList.insertAtBegin(in);
         }
 
-        public Block(BasicBlock bb, McFunction insertAtEnd) {
-            this.bb = bb;
-            this.mf = insertAtEnd;
-            mf.insertAtEnd(this);
+        public Block(Block curMB, Block pred) {
+            this.mf = pred.mf;
+            mb_idx = globIndex++;
+            label = MB_Prefix + mb_idx + curMB.getLabel();
+            pred.insertAfter(this);
         }
 
         public Block(BasicBlock bb) {

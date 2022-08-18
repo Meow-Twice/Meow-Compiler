@@ -151,7 +151,7 @@ public class MachineInst extends ILinkNode implements Cloneable {
     }
 
     public boolean hasCond() {
-        return shift.shiftType == Arm.ShiftType.None;
+        return shift.shiftType != Arm.ShiftType.None;
     }
 
     public void setNext(MachineInst mi) {

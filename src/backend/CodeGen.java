@@ -290,8 +290,6 @@ public class CodeGen {
                     Value condValue = brInst.getCond();
                     MC.Block trueBlock = brInst.getThenTarget().getMb();
                     MC.Block falseBlock = brInst.getElseTarget().getMb();
-                    curMB.succMBs.add(falseBlock);
-                    curMB.succMBs.add(trueBlock);
                     falseBlock.predMBs.add(curMB);
                     trueBlock.predMBs.add(curMB);
                     if (visitBBSet.add(falseBlock)) {
@@ -299,7 +297,9 @@ public class CodeGen {
                         // }else{
                         //     System.err.println(falseBlock.bb);
                     }
+                    boolean exchanged = false;
                     if (visitBBSet.add(trueBlock)) {
+                        exchanged = true;
                         nextBBList.push(trueBlock.bb);
                         // }else{
                         //     System.err.println(trueBlock.bb);
@@ -313,9 +313,17 @@ public class CodeGen {
                         cond = Ne;
                         new I.Cmp(cond, condVR, new Operand(I32, 0), curMB);
                     }
+                    if(exchanged){
+                        MC.Block tmp = falseBlock;
+                        falseBlock = trueBlock;
+                        trueBlock = tmp;
+                        cond = isIcmp ? getIcmpOppoCond(cond) : getFcmpOppoCond(cond);
+                    }
+                    curMB.succMBs.add(trueBlock);
+                    curMB.succMBs.add(falseBlock);
                     // new MIBranch(cond, trueBlock, falseBlock, curMB);
-                    new GDBranch(!isIcmp, isIcmp ? getIcmpOppoCond(cond) : getFcmpOppoCond(cond), falseBlock, curMB);
-                    new GDJump(trueBlock, curMB);
+                    new GDBranch(!isIcmp, cond, trueBlock, curMB);
+                    new GDJump(falseBlock, curMB);
                 }
                 case fneg -> {
                     assert needFPU;

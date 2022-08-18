@@ -377,6 +377,9 @@ public class LoopInVarCodeLift {
             if (!(user instanceof Instr.Load)) {
                 continue;
             }
+//            if (user.toString().equals("%v188 = load i32, i32* %v184")) {
+//                int a = 1;
+//            }
             Loop loop = user.parentBB().getLoop();
             if (loop.getEnterings().size() > 1) {
                 continue;
@@ -390,10 +393,14 @@ public class LoopInVarCodeLift {
                 entering = bb;
             }
             //强条件
+            boolean tag = false;
             for (Loop defLoop: defLoops.get(array)) {
                 if (check(loop, defLoop)) {
-                    return;
+                    tag = true;
                 }
+            }
+            if (tag) {
+                continue;
             }
             if (!defLoops.get(array).contains(loop)) {
                 if (((Instr.Load) user).getPointer() instanceof Instr.GetElementPtr &&
@@ -414,10 +421,7 @@ public class LoopInVarCodeLift {
             return useLoop.equals(defLoop);
         }
         if (useDeep > defDeep) {
-            int time = useDeep - defDeep;
-            for (int i = 0; i < time; i++) {
-                useLoop = useLoop.getParentLoop();
-            }
+            return false;
         } else {
             int time = defDeep - useDeep;
             for (int i = 0; i < time; i++) {

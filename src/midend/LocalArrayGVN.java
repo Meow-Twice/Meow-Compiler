@@ -12,7 +12,7 @@ public class LocalArrayGVN {
     //TODO:GCM更新phi,删除无用phi,添加数组相关分析,
     // 把load,store,get_element_ptr也纳入GCM考虑之中
 
-    private static boolean _STRONG_CHECK_ = false;
+    private static boolean _STRONG_CHECK_ = true;
 
     private static HashSet<Instr> know;
     private BasicBlock root;
@@ -142,10 +142,12 @@ public class LocalArrayGVN {
             if (bb.getPrecBBs().size() > 1) {
                 GvnCnt.clear();
                 GvnMap.clear();
+                System.exit(111);
             }
             if (bb.getPrecBBs().size() == 1 && !bb.getIDominator().equals(bb.getPrecBBs().get(0))) {
                 GvnCnt.clear();
                 GvnMap.clear();
+                System.exit(222);
             }
         }
         HashMap<String, Integer> tempGvnCnt = new HashMap<>();

@@ -76,6 +76,7 @@ public class MidEndRunner {
         //暂定函数内联的位置
         Pass();
         //
+        ArrayGVN();
         FuncGVN();
         FuncGCM();
         AggressiveMarkParallel();

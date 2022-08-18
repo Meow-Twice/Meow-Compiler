@@ -124,7 +124,7 @@ public class LocalArrayGVN {
     private void GVN() {
         GvnMap.clear();
         GvnCnt.clear();
-        //GVNInit();
+        GVNInit();
         for (Function function: functions) {
             localArrayGVN(function);
         }
@@ -134,6 +134,35 @@ public class LocalArrayGVN {
     private void localArrayGVN(Function function) {
         BasicBlock bb = function.getBeginBB();
         RPOSearch(bb);
+    }
+
+
+    private HashSet<Function> goodFuncs = new HashSet<>();
+
+    private void GVNInit() {
+        for (Function function: functions) {
+            if (check_good_func(function)) {
+                goodFuncs.add(function);
+            }
+        }
+    }
+
+    private boolean check_good_func(Function function) {
+        for (Value value: function.getParams()) {
+            if (value.getType().isPointerType()) {
+                return false;
+            }
+        }
+        for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
+            for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+                for (Value value: instr.getUseValueList()) {
+                    if (value instanceof GlobalVal.GlobalValue) {
+                        return false;
+                    }
+                }
+            }
+        }
+        return true;
     }
 
 
@@ -190,8 +219,13 @@ public class LocalArrayGVN {
 //
 //                }
                 //TODO:待强化,根据函数传入的指针,判断修改了哪个Alloc/参数
-                GvnMap.clear();
-                GvnCnt.clear();
+                if (goodFuncs.contains(((Instr.Call) instr).getFunc())) {
+
+                } else {
+                    GvnMap.clear();
+                    GvnCnt.clear();
+                }
+
             }
             instr = (Instr) instr.getNext();
         }

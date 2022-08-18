@@ -16,6 +16,7 @@ public class MathOptimize {
     // key ==> %1
     // value ==> 100
     private HashMap<Instr, Integer> mulMap = new HashMap<>();
+    private HashMap<Instr, String> fmulMap = new HashMap<>();
 
     public MathOptimize(ArrayList<Function> functions) {
         this.functions = functions;
@@ -23,8 +24,11 @@ public class MathOptimize {
 
     public void Run() {
         continueAddToMul();
+        continueFAddToMul();
         addZeroFold();
+        faddZeroFold();
         mulDivFold();
+        fmulFDivFold();
     }
 
     private void continueAddToMul() {
@@ -41,6 +45,102 @@ public class MathOptimize {
                 bb = (BasicBlock) bb.getNext();
             }
         }
+    }
+
+    private void continueFAddToMul() {
+        for (Function function: functions) {
+            for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
+                for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+                    continueFAddToMulForInstr(instr);
+                }
+            }
+        }
+    }
+
+    private void continueFAddToMulForInstr(Instr instr) {
+        if (instr.getName().equals("%v300086")) {
+            int a = 0;
+        }
+        int cnt = 0;
+        Instr beginInstr = instr;
+        if (!(instr instanceof Instr.Alu)) {
+            return;
+        }
+        //连加的启动,能否启动
+        Value rhs1 = instr.getUseValueList().get(0);
+        Value rhs2 = instr.getUseValueList().get(1);
+        Value base = null;
+        Value addValue = null;
+        if (faddCanTransToMul(instr, rhs1)) {
+            base = rhs1;
+            addValue = rhs2;
+        } else if (faddCanTransToMul(instr, rhs2)) {
+            base = rhs2;
+            addValue = rhs1;
+        } else {
+            return;
+        }
+
+        ArrayList<Instr> adds = new ArrayList<>();
+        adds.add(instr);
+        cnt = 1;
+        while (faddCanTransToMul(instr, base)) {
+            adds.add(getOneUser(instr));
+            instr = (Instr) instr.getNext();
+            cnt++;
+        }
+
+        BasicBlock bb = instr.parentBB();
+        if (cnt > adds_to_mul_boundary) {
+            //TODO:do trans adds -> mul
+            if (addValue.equals(base)) {
+                cnt++;
+                ((Instr.Alu) instr).setOp(Instr.Alu.Op.FMUL);
+                instr.modifyUse(base, 0);
+                instr.modifyUse(new Constant.ConstantFloat(cnt), 1);
+                for (int i = 0; i < adds.size() - 1; i++) {
+                    adds.get(i).remove();
+                }
+                beginInstr.setNext(instr.getNext());
+            } else {
+                Instr.Alu mul = new Instr.Alu(instr.getType(), Instr.Alu.Op.FMUL, base, new Constant.ConstantFloat(cnt), bb);
+                instr.insertBefore(mul);
+                instr.modifyUse(mul, 0);
+                instr.modifyUse(addValue, 1);
+
+                for (int i = 0; i < adds.size() - 1; i++) {
+                    adds.get(i).remove();
+                }
+                beginInstr.setNext(instr.getNext());
+            }
+        }
+    }
+
+    private boolean faddCanTransToMul(Instr instr, Value value) {
+        if (!(instr instanceof Instr.Alu && ((Instr.Alu) instr).getOp().equals(Instr.Alu.Op.FADD))) {
+            return false;
+        }
+        //TODO:似乎不是必要,可以考虑一下如何找到可以归越成多个乘法的多个连加
+        if (!instr.onlyOneUser()) {
+            return false;
+        }
+        Use use = instr.getBeginUse();
+        Instr user = use.getUser();
+        if (!(user instanceof Instr.Alu && ((Instr.Alu) user).getOp().equals(Instr.Alu.Op.FADD))) {
+            return false;
+        }
+        if (value instanceof Constant.ConstantFloat) {
+            int index = 1 - user.getUseValueList().indexOf(instr);
+            float val1 = (float) ((Constant.ConstantFloat) value).getConstVal();
+            Value value2 = user.getUseValueList().get(index);
+            if (value2 instanceof Constant.ConstantFloat) {
+                float val2 = (float) ((Constant.ConstantFloat) value2).getConstVal();
+                return val1 == val2;
+            } else {
+                return false;
+            }
+        }
+        return user.getUseValueList().contains(value);
     }
 
     private void continueAddToMulForInstr(Instr instr) {
@@ -225,6 +325,88 @@ public class MathOptimize {
     }
 
 
+    private void faddZeroFold() {
+        for (Function function: functions) {
+            for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
+                for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+                    if (instr instanceof Instr.Alu && ((Instr.Alu) instr).getOp().equals(Instr.Alu.Op.FADD)) {
+                        if (((Instr.Alu) instr).getRVal1() instanceof Constant.ConstantFloat) {
+                            Constant.ConstantFloat val =  ((Constant.ConstantFloat) ((Instr.Alu) instr).getRVal1());
+                            if (val.isZero()) {
+                                instr.modifyAllUseThisToUseA(((Instr.Alu) instr).getRVal2());
+                                instr.remove();
+                            }
+                        } else if (((Instr.Alu) instr).getRVal2() instanceof Constant.ConstantFloat) {
+                            Constant.ConstantFloat val = ((Constant.ConstantFloat) ((Instr.Alu) instr).getRVal2());
+                            if (val.isZero()) {
+                                instr.modifyAllUseThisToUseA(((Instr.Alu) instr).getRVal1());
+                                instr.remove();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private void fmulFDivFold() {
+        fmulMap.clear();
+        for (Function function: functions) {
+            BasicBlock bb = function.getBeginBB();
+            RPOSearchFloat(bb);
+        }
+    }
+
+
+    private void RPOSearchFloat(BasicBlock bb) {
+        HashSet<Instr> adds = new HashSet<>();
+
+        for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+            if (instr instanceof Instr.Alu) {
+                Instr.Alu.Op op = ((Instr.Alu) instr).getOp();
+                if (op.equals(Instr.Alu.Op.FMUL)) {
+                    Value val1 = ((Instr.Alu) instr).getRVal1();
+                    Value val2 = ((Instr.Alu) instr).getRVal2();
+                    if (val1 instanceof Constant.ConstantFloat) {
+                        adds.add(instr);
+                        fmulMap.put(instr, val1.getName());
+                    } else if (val2 instanceof Constant.ConstantFloat) {
+                        adds.add(instr);
+                        fmulMap.put(instr, val2.getName());
+                    }
+                } else if (op.equals(Instr.Alu.Op.FDIV)) {
+                    if (((Instr.Alu) instr).getRVal2() instanceof Constant.ConstantFloat) {
+                        String divTime =  ((Instr.Alu) instr).getRVal2().getName();
+                        if (((Instr.Alu) instr).getRVal1() instanceof Instr) {
+                            Instr val = (Instr) ((Instr.Alu) instr).getRVal1();
+                            if (fmulMap.containsKey(val) && fmulMap.get(val).equals(divTime)) {
+                                assert val instanceof Instr.Alu;
+                                if (((Instr.Alu) val).getRVal1() instanceof Constant.ConstantFloat) {
+                                    instr.modifyAllUseThisToUseA(((Instr.Alu) val).getRVal2());
+                                    instr.remove();
+                                } else if (((Instr.Alu) val).getRVal2() instanceof Constant.ConstantFloat) {
+                                    instr.modifyAllUseThisToUseA(((Instr.Alu) val).getRVal1());
+                                    instr.remove();
+                                } else {
+                                    assert false;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        for (BasicBlock next: bb.getIdoms()) {
+            RPOSearchFloat(next);
+        }
+
+        for (Instr instr: adds) {
+            fmulMap.remove(instr);
+        }
+
+
+    }
 
 
 }

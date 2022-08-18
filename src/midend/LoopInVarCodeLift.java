@@ -186,6 +186,9 @@ public class LoopInVarCodeLift {
                 if (!allocUsers.containsKey(alloc)) {
                     allocUsers.put(alloc, new HashSet<>());
                 }
+                if (!allocDefs.containsKey(alloc)) {
+                    allocDefs.put(alloc, new HashSet<>());
+                }
                 allocUsers.get(alloc).add(instr);
                 allocDefs.get(alloc).add(instr);
             }
@@ -293,6 +296,10 @@ public class LoopInVarCodeLift {
             }
             Loop loop = user.parentBB().getLoop();
             if (loop.getEnterings().size() > 1) {
+                continue;
+            }
+            //处在0层循环的code不需要提升-->不能(entering为null)
+            if (loop.getLoopDepth() == 0) {
                 continue;
             }
             BasicBlock entering = null;

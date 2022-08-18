@@ -60,10 +60,13 @@ public class MidEndRunner {
         Mem2Reg();
 
         //outputLLVM();
-
+        if (CenterControl._OPEN_CONST_TRANS_FOLD) {
+            ConstTranFold();
+        }
 
         MathOpt();
 
+        //outputLLVM();
         Pass();
 
         MathOpt();
@@ -75,7 +78,7 @@ public class MidEndRunner {
         //
         FuncGVN();
         FuncGCM();
-        //outputLLVM();
+        AggressiveMarkParallel();
         FuncInline();
         Mem2Reg();
         MathOpt();
@@ -92,7 +95,7 @@ public class MidEndRunner {
         MathOpt();
         BrOptimize();
 
-        //outputLLVM();
+
         loopOptimize();
 
         ArrayGVN();
@@ -111,6 +114,8 @@ public class MidEndRunner {
         BrOptimize();
         BrOptimize();
         BrOptimize();
+        removePhiUseSame();
+        //outputLLVM();
 
         //outputLLVM();
         LoopFold();
@@ -121,6 +126,7 @@ public class MidEndRunner {
         Pass();
         //outputLLVM();
         LoopStrengthReduction();
+        //outputLLVM();
 
 
 
@@ -147,7 +153,7 @@ public class MidEndRunner {
         ArrayLift();
         removePhiUseSame();
         Rem2DivMulSub();
-        outputLLVM();
+        //outputLLVM();
         MarkParallel();
         GepSplit();
 
@@ -158,6 +164,17 @@ public class MidEndRunner {
         //
         // RemovePhi removePhi = new RemovePhi(functions);
         // removePhi.Run();
+    }
+
+    private void AggressiveMarkParallel() {
+        if (!CenterControl._OPEN_PARALLEL) {
+            return;
+        }
+
+        reMakeCFGAndLoopInfo();
+
+        AggressiveMarkParallel aggressiveMarkParallel = new AggressiveMarkParallel(functions);
+        aggressiveMarkParallel.Run();
     }
 
     private void MarkParallel() {
@@ -333,6 +350,10 @@ public class MidEndRunner {
 
     //死代码删除 指令融合 GVN/GCM
     private void Pass() {
+        if (CenterControl._OPEN_CONST_TRANS_FOLD) {
+            ConstTranFold();
+        }
+
         DeadCodeDelete deadCodeDelete_1 = new DeadCodeDelete(functions, globalValues);
         deadCodeDelete_1.Run();
 
@@ -351,6 +372,11 @@ public class MidEndRunner {
 
         GVNAndGCM gvnAndGCM = new GVNAndGCM(functions);
         gvnAndGCM.Run();
+    }
+
+    private void ConstTranFold() {
+        ConstTransFold constTransFold = new ConstTransFold(functions);
+        constTransFold.Run();
     }
 
     //重建数据流, 简化PHI, 重建循环关系
@@ -376,9 +402,10 @@ public class MidEndRunner {
         LoopInfo loopInfo = new LoopInfo(functions);
         loopInfo.Run();
 
+        //outputLLVM();
         LCSSA lcssa = new LCSSA(functions);
         lcssa.Run();
-
+        //outputLLVM();
         //outputLLVM();
 
         BranchLift branchLift = new BranchLift(functions);
@@ -393,6 +420,7 @@ public class MidEndRunner {
         Pass();
 
 
+
         // TODO:获取迭代变量idcVar的相关信息
         LoopIdcVarInfo loopIdcVarInfo = new LoopIdcVarInfo(functions);
         loopIdcVarInfo.Run();
@@ -400,6 +428,7 @@ public class MidEndRunner {
         // TODO:循环展开
         //outputLLVM();
 
+        //outputLLVM();
         LoopUnRoll loopUnRoll = new LoopUnRoll(functions);
         loopUnRoll.Run();
 

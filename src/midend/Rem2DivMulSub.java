@@ -62,11 +62,11 @@ public class Rem2DivMulSub {
         for (Instr.Alu frem: frems) {
             Value A = frem.getRVal1();
             Value B = frem.getRVal2();
-            Instr div = new Instr.Alu(Type.BasicType.getI32Type(), Instr.Alu.Op.FDIV, A, B, frem.parentBB());
+            Instr div = new Instr.Alu(Type.BasicType.getF32Type(), Instr.Alu.Op.FDIV, A, B, frem.parentBB());
             frem.insertBefore(div);
-            Instr mul = new Instr.Alu(Type.BasicType.getI32Type(), Instr.Alu.Op.FMUL, div, B, frem.parentBB());
+            Instr mul = new Instr.Alu(Type.BasicType.getF32Type(), Instr.Alu.Op.FMUL, div, B, frem.parentBB());
             frem.insertBefore(mul);
-            Instr mod = new Instr.Alu(Type.BasicType.getI32Type(), Instr.Alu.Op.FSUB, A, mul, frem.parentBB());
+            Instr mod = new Instr.Alu(Type.BasicType.getF32Type(), Instr.Alu.Op.FSUB, A, mul, frem.parentBB());
             frem.insertBefore(mod);
 
             frem.modifyAllUseThisToUseA(mod);

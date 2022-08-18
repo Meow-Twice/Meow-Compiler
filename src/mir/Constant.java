@@ -116,6 +116,24 @@ public class Constant extends Value {
             return String.format("0x%x", Double.doubleToRawLongBits((constFloatVal)));
         }
 
+        public boolean isZero() {
+            return getName().equals("0x0");
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            if (!super.equals(o)) return false;
+            ConstantFloat that = (ConstantFloat) o;
+            return this.getName().equals(that.getName());
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(super.hashCode(), constFloatVal);
+        }
+
         @Override
         public String toString() {
             if (CenterControl.AlreadyBackend) {

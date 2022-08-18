@@ -3,6 +3,7 @@ package midend;
 import frontend.Visitor;
 import mir.*;
 import mir.type.Type;
+import util.CenterControl;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -27,8 +28,256 @@ public class LoopStrengthReduction {
 
     public void Run() {
         divToShift();
+        addConstToMul();
+        if (CenterControl._OPEN_FLOAT_LOOP_STRENGTH_REDUCTION) {
+            addConstFloatToMul();
+        }
 //        addConstAndModToMulAndMod();
 //        addIdcAndModToMulAndMod();
+    }
+
+    private void addConstToMul() {
+        //TODO: ret += const; ret %= mod; i++;
+        for (Function function: functions) {
+            for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
+                if (bb.isLoopHeader()) {
+                    addConstLoopInit(bb.getLoop());
+                }
+            }
+        }
+    }
+
+    private void addConstLoopInit(Loop loop) {
+        if (!loop.isSimpleLoop() || !loop.isIdcSet()) {
+            return;
+        }
+        if (loop.hasChildLoop()) {
+            return;
+        }
+        //只有head和latch的简单循环
+        for (BasicBlock bb: loop.getNowLevelBB()) {
+            if (!bb.isLoopHeader() && !bb.isLoopLatch()) {
+                return;
+            }
+        }
+        if (!loop.getHeader().isLoopExiting()) {
+            return;
+        }
+        BasicBlock latch = loop.getLatchs().iterator().next();
+        BasicBlock head = loop.getHeader();
+        BasicBlock exit = loop.getExits().iterator().next();
+        if (exit.getPrecBBs().size() > 1) {
+            return;
+        }
+        HashSet<Instr> idcInstrs = new HashSet<>();
+        Instr.Alu add = null;
+        Instr.Phi phi = null;
+        int add_cnt = 0, phi_cnt = 0;
+        idcInstrs.add((Instr) loop.getIdcPHI());
+        idcInstrs.add((Instr) loop.getIdcCmp());
+        idcInstrs.add((Instr) loop.getIdcAlu());
+        idcInstrs.add(head.getEndInstr());
+        idcInstrs.add(latch.getEndInstr());
+        for (Instr idcInstr: idcInstrs) {
+            if (useOutLoop(idcInstr, loop)) {
+                return;
+            }
+        }
+        for (BasicBlock bb: loop.getNowLevelBB()) {
+            for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+                if (!idcInstrs.contains(instr)) {
+                    if (instr instanceof Instr.Alu) {
+                        if (((Instr.Alu) instr).getOp().equals(Instr.Alu.Op.ADD)) {
+                            add = (Instr.Alu) instr;
+                            add_cnt++;
+                        } else {
+                            return;
+                        }
+                    } else if (instr instanceof Instr.Phi) {
+                        phi = (Instr.Phi) instr;
+                        phi_cnt++;
+                    } else {
+                        return;
+                    }
+                }
+            }
+        }
+        if (add_cnt != 1 || phi_cnt != 1) {
+            return;
+        }
+        if (useOutLoop(add, loop) || !useOutLoop(phi, loop)) {
+            return;
+        }
+
+        int latchIndex = head.getPrecBBs().indexOf(latch);
+        int enteringIndex = 1 - latchIndex;
+        if (!phi.getUseValueList().get(latchIndex).equals(add)) {
+            return;
+        }
+        if (!add.getUseValueList().contains(phi)) {
+            return;
+        }
+        int addConstIndex = 1 - add.getUseValueList().indexOf(phi);
+        //TODO:待强化,使用的只要是同一个值就可以?
+        //      且当前没有考虑float!!!
+        if (!(add.getUseValueList().get(addConstIndex) instanceof Constant.ConstantInt)) {
+            return;
+        }
+        //此限制是否必须,计算值的初始值为常数
+        if (!(phi.getUseValueList().get(enteringIndex) instanceof Constant.ConstantInt)) {
+            return;
+        }
+        if (!(loop.getIdcInit() instanceof Constant.ConstantInt) || !(loop.getIdcStep() instanceof Constant.ConstantInt)) {
+            return;
+        }
+        if (!((Instr.Alu) loop.getIdcAlu()).getOp().equals(Instr.Alu.Op.ADD)) {
+            return;
+        }
+        if (!((Instr.Icmp) loop.getIdcCmp()).getOp().equals(Instr.Icmp.Op.SLT)) {
+            return;
+        }
+        int idc_init = (int) ((Constant.ConstantInt) loop.getIdcInit()).getConstVal();
+        int idc_step = (int) ((Constant.ConstantInt) loop.getIdcStep()).getConstVal();
+        Value idc_end = loop.getIdcEnd();
+        if (idc_init != 0 || idc_step != 1) {
+            return;
+        }
+        int base = (int) ((Constant.ConstantInt) add.getUseValueList().get(addConstIndex)).getConstVal();
+        int init = (int) ((Constant.ConstantInt) phi.getUseValueList().get(enteringIndex)).getConstVal();
+
+        Instr.Alu mul = new Instr.Alu(Type.BasicType.getI32Type(), Instr.Alu.Op.MUL, new Constant.ConstantInt(base), idc_end, exit);
+        Instr.Alu ret = new Instr.Alu(Type.BasicType.getI32Type(), Instr.Alu.Op.ADD, new Constant.ConstantInt(init), mul, exit);
+
+        exit.getBeginInstr().insertBefore(ret);
+        exit.getBeginInstr().insertBefore(mul);
+
+        phi.modifyAllUseThisToUseA(ret);
+        phi.remove();
+        add.remove();
+
+    }
+
+    private void addConstFloatToMul() {
+        //TODO: ret += const; ret %= mod; i++;
+        for (Function function: functions) {
+            for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
+                if (bb.isLoopHeader()) {
+                    addConstFloatLoopInit(bb.getLoop());
+                }
+            }
+        }
+    }
+
+    private void addConstFloatLoopInit(Loop loop) {
+        if (!loop.isSimpleLoop() || !loop.isIdcSet()) {
+            return;
+        }
+        if (loop.hasChildLoop()) {
+            return;
+        }
+        //只有head和latch的简单循环
+        for (BasicBlock bb: loop.getNowLevelBB()) {
+            if (!bb.isLoopHeader() && !bb.isLoopLatch()) {
+                return;
+            }
+        }
+        if (!loop.getHeader().isLoopExiting()) {
+            return;
+        }
+        BasicBlock latch = loop.getLatchs().iterator().next();
+        BasicBlock head = loop.getHeader();
+        BasicBlock exit = loop.getExits().iterator().next();
+        if (exit.getPrecBBs().size() > 1) {
+            return;
+        }
+        HashSet<Instr> idcInstrs = new HashSet<>();
+        Instr.Alu add = null;
+        Instr.Phi phi = null;
+        int add_cnt = 0, phi_cnt = 0;
+        idcInstrs.add((Instr) loop.getIdcPHI());
+        idcInstrs.add((Instr) loop.getIdcCmp());
+        idcInstrs.add((Instr) loop.getIdcAlu());
+        idcInstrs.add(head.getEndInstr());
+        idcInstrs.add(latch.getEndInstr());
+        for (Instr idcInstr: idcInstrs) {
+            if (useOutLoop(idcInstr, loop)) {
+                return;
+            }
+        }
+        for (BasicBlock bb: loop.getNowLevelBB()) {
+            for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+                if (!idcInstrs.contains(instr)) {
+                    if (instr instanceof Instr.Alu) {
+                        if (((Instr.Alu) instr).getOp().equals(Instr.Alu.Op.FADD)) {
+                            add = (Instr.Alu) instr;
+                            add_cnt++;
+                        } else {
+                            return;
+                        }
+                    } else if (instr instanceof Instr.Phi) {
+                        phi = (Instr.Phi) instr;
+                        phi_cnt++;
+                    } else {
+                        return;
+                    }
+                }
+            }
+        }
+        if (add_cnt != 1 || phi_cnt != 1) {
+            return;
+        }
+        if (useOutLoop(add, loop) || !useOutLoop(phi, loop)) {
+            return;
+        }
+
+        int latchIndex = head.getPrecBBs().indexOf(latch);
+        int enteringIndex = 1 - latchIndex;
+        if (!phi.getUseValueList().get(latchIndex).equals(add)) {
+            return;
+        }
+        if (!add.getUseValueList().contains(phi)) {
+            return;
+        }
+        int addConstIndex = 1 - add.getUseValueList().indexOf(phi);
+        //TODO:待强化,使用的只要是同一个值就可以?
+        //      且当前没有考虑float!!!
+        if (!(add.getUseValueList().get(addConstIndex) instanceof Constant.ConstantFloat)) {
+            return;
+        }
+        //此限制是否必须,计算值的初始值为常数
+        if (!(phi.getUseValueList().get(enteringIndex) instanceof Constant.ConstantFloat)) {
+            return;
+        }
+        if (!(loop.getIdcInit() instanceof Constant.ConstantInt) || !(loop.getIdcStep() instanceof Constant.ConstantInt)) {
+            return;
+        }
+        if (!((Instr.Alu) loop.getIdcAlu()).getOp().equals(Instr.Alu.Op.ADD)) {
+            return;
+        }
+        if (!((Instr.Icmp) loop.getIdcCmp()).getOp().equals(Instr.Icmp.Op.SLT)) {
+            return;
+        }
+        int idc_init = (int) ((Constant.ConstantInt) loop.getIdcInit()).getConstVal();
+        int idc_step = (int) ((Constant.ConstantInt) loop.getIdcStep()).getConstVal();
+        Value idc_end = loop.getIdcEnd();
+        if (idc_init != 0 || idc_step != 1) {
+            return;
+        }
+        float base = (float) ((Constant.ConstantFloat) add.getUseValueList().get(addConstIndex)).getConstVal();
+        float init = (float) ((Constant.ConstantFloat) phi.getUseValueList().get(enteringIndex)).getConstVal();
+
+        Instr.SItofp sItofp = new Instr.SItofp(idc_end, exit);
+        Instr.Alu mul = new Instr.Alu(Type.BasicType.getF32Type(), Instr.Alu.Op.FMUL, new Constant.ConstantFloat(base), sItofp, exit);
+        Instr.Alu ret = new Instr.Alu(Type.BasicType.getF32Type(), Instr.Alu.Op.FADD, new Constant.ConstantFloat(init), mul, exit);
+
+        exit.getBeginInstr().insertBefore(ret);
+        exit.getBeginInstr().insertBefore(mul);
+        exit.getBeginInstr().insertBefore(sItofp);
+
+        phi.modifyAllUseThisToUseA(ret);
+        phi.remove();
+        add.remove();
+
     }
 
     private void divToShift() {

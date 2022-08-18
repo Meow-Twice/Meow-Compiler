@@ -68,7 +68,15 @@ public class Loop {
     private int mod;
     private int addConstIndex;
 
+    private boolean canAggressiveParallel = false;
 
+    public void setCanAggressiveParallel(boolean canAggressiveParallel) {
+        this.canAggressiveParallel = canAggressiveParallel;
+    }
+
+    public boolean isCanAggressiveParallel() {
+        return canAggressiveParallel;
+    }
 
     public void clearAddAndModLoopInfo() {
         this.isAddAndModLoop = false;

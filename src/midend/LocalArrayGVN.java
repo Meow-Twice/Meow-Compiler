@@ -142,12 +142,10 @@ public class LocalArrayGVN {
             if (bb.getPrecBBs().size() > 1) {
                 GvnCnt.clear();
                 GvnMap.clear();
-                System.exit(111);
             }
             if (bb.getPrecBBs().size() == 1 && !bb.getIDominator().equals(bb.getPrecBBs().get(0))) {
                 GvnCnt.clear();
                 GvnMap.clear();
-                System.exit(222);
             }
         }
         HashMap<String, Integer> tempGvnCnt = new HashMap<>();

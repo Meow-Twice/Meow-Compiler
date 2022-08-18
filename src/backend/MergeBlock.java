@@ -128,7 +128,7 @@ public class MergeBlock {
                             } else if (!curMB.getEndMI().isJump()) {
                                 continue;
                             } else if (predMb.succMBs.size() == 1) {
-                                Manager.MANAGER.outputMI();
+                                // Manager.MANAGER.outputMI();
                                 //如果pred只有一个后继，且线性化后本块不是pred的下一个块
                                 assert predMb.miList.getEnd().isJump();
                                 GDJump j = (GDJump) predMb.getEndMI();
@@ -144,7 +144,7 @@ public class MergeBlock {
                                 newMB.predMBs.add(predMb);
                             } else if (predMb.succMBs.size() == 2 && predMb.falseSucc() == curMB) {
                                 //或者如果本块是pred的false后继，且线性化后本块不是pred的下一个块(第一个if排除)
-                                Manager.MANAGER.outputMI();
+                                // Manager.MANAGER.outputMI();
                                 assert predMb.miList.getEnd().isJump();
                                 GDJump j = (GDJump) predMb.getEndMI();
                                 MC.Block newMB = new MC.Block(curMB, predMb);

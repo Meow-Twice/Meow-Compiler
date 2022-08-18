@@ -90,6 +90,7 @@ public class MidEndRunner {
 
         //outputLLVM();
 
+        //outputLLVM();
         ArrayGVN();
 
         MathOpt();
@@ -264,7 +265,8 @@ public class MidEndRunner {
 
     private void ArrayGVN() {
         Pass();
-
+//        reMakeCFGAndLoopInfo();
+//        outputLLVM();
         LocalArrayGVN localArrayGVN = new LocalArrayGVN(functions, "GVN");
         localArrayGVN.Run();
 

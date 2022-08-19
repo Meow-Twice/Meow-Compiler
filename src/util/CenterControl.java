@@ -27,5 +27,5 @@ public class CenterControl {
 
     public static final boolean _STRONG_FUNC_INLINE = true;
 
-    public static double _HEURISTIC_BASE = 1.6;
+    public static double _HEURISTIC_BASE = 1.45;
 }

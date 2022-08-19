@@ -18,7 +18,7 @@ public class Arg {
     public final OutputStream interpretOutputStream; // 解释执行 stdout
 
     // options
-    public double heuristicBase = 1.6;
+    public double heuristicBase = 1.45;
 
     private Arg(String src, String asm, String llvm,
                 boolean interpret, String interpretIn, String interpretOut, int optimize) throws FileNotFoundException {
@@ -49,7 +49,7 @@ public class Arg {
         boolean interpret = false;
         String interpretIn = "", interpretOut = "";
         // options
-        double heuristicBase = 1.6;
+        double heuristicBase = 1.45;
         for (int i = 0; i < args.length; i++) {
             // detect "-Ox"
             if (args[i].startsWith("-O")) {

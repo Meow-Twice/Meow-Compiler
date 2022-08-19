@@ -236,6 +236,7 @@ public class AggressiveFuncGVN {
             ((Instr.Store) instr).setAlloc(alloc);
         } else {
             //assert false;
+            //memset已经特判,不需要考虑bitcast?
         }
     }
 

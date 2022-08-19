@@ -12,6 +12,8 @@ public class LocalArrayGVN {
     //TODO:GCM更新phi,删除无用phi,添加数组相关分析,
     // 把load,store,get_element_ptr也纳入GCM考虑之中
 
+    private static boolean _STRONG_CHECK_ = false;
+
     private static HashSet<Instr> know;
     private BasicBlock root;
 
@@ -22,6 +24,10 @@ public class LocalArrayGVN {
     private HashSet<Instr> instrCanGCM = new HashSet<>();
     //private HashMap<GlobalVal.GlobalValue, Initial> globalValues;
     private String label;
+
+    HashMap<BasicBlock, HashMap<String, Instr>> GvnMapByBB = new HashMap<>();
+    HashMap<BasicBlock, HashMap<String, Integer>> GvnCntByBB = new HashMap<>();
+
 
     public LocalArrayGVN(ArrayList<Function> functions, String label) {
         this.functions = functions;
@@ -118,17 +124,59 @@ public class LocalArrayGVN {
     private void GVN() {
         GvnMap.clear();
         GvnCnt.clear();
+        GVNInit();
         for (Function function: functions) {
             localArrayGVN(function);
         }
     }
+
 
     private void localArrayGVN(Function function) {
         BasicBlock bb = function.getBeginBB();
         RPOSearch(bb);
     }
 
+
+    private HashSet<Function> goodFuncs = new HashSet<>();
+
+    private void GVNInit() {
+        for (Function function: functions) {
+            if (check_good_func(function)) {
+                goodFuncs.add(function);
+            }
+        }
+    }
+
+    private boolean check_good_func(Function function) {
+        for (Value value: function.getParams()) {
+            if (value.getType().isPointerType()) {
+                return false;
+            }
+        }
+        for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
+            for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+                for (Value value: instr.getUseValueList()) {
+                    if (value instanceof GlobalVal.GlobalValue) {
+                        return false;
+                    }
+                }
+            }
+        }
+        return true;
+    }
+
+
     private void RPOSearch(BasicBlock bb) {
+        if (_STRONG_CHECK_) {
+            if (bb.getPrecBBs().size() > 1) {
+                GvnCnt.clear();
+                GvnMap.clear();
+            }
+            if (bb.getPrecBBs().size() == 1 && !bb.getIDominator().equals(bb.getPrecBBs().get(0))) {
+                GvnCnt.clear();
+                GvnMap.clear();
+            }
+        }
         HashMap<String, Integer> tempGvnCnt = new HashMap<>();
         HashMap<String, Instr> tempGvnMap = new HashMap<>();
         for (String key: GvnCnt.keySet()) {
@@ -171,8 +219,13 @@ public class LocalArrayGVN {
 //
 //                }
                 //TODO:待强化,根据函数传入的指针,判断修改了哪个Alloc/参数
-                GvnMap.clear();
-                GvnCnt.clear();
+                if (goodFuncs.contains(((Instr.Call) instr).getFunc())) {
+
+                } else {
+                    GvnMap.clear();
+                    GvnCnt.clear();
+                }
+
             }
             instr = (Instr) instr.getNext();
         }

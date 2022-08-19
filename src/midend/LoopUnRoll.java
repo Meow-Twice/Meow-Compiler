@@ -173,7 +173,7 @@ public class LoopUnRoll {
 //        if (!loop.getChildrenLoops().isEmpty()) {
 //            return;
 //        }
-        if (cnt * times > loop_unroll_up_lines) {
+        if ((long) cnt * times > loop_unroll_up_lines) {
             //DoLoopUnRollForSeveralTimes(loop, cnt);
             //System.err.println("loop_cnt " + String.valueOf(cnt * times));
             return;

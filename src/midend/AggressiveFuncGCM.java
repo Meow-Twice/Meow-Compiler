@@ -63,17 +63,19 @@ public class AggressiveFuncGCM {
     }
 
     private void GCM() {
+        noUserCallDelete();
         for (Function function: functions) {
             pinnedInstrMap.put(function, new HashSet<>());
             for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
                 for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
                     if (isPinned(instr)) {
                         pinnedInstrMap.get(function).add(instr);
-                    } else {
-                        if (instr.isNoUse()) {
-                            instr.remove();
-                        }
                     }
+//                    else {
+//                        if (instr.isNoUse()) {
+//                            instr.remove();
+//                        }
+//                    }
                 }
             }
         }
@@ -87,6 +89,37 @@ public class AggressiveFuncGCM {
         move();
     }
 
+
+    public void noUserCallDelete() {
+        boolean changed = true;
+        while(changed)
+        {
+            changed = false;
+            for (Function function : functions) {
+                BasicBlock beginBB = function.getBeginBB();
+                BasicBlock end = function.getEnd();
+
+                BasicBlock pos = beginBB;
+                while (!pos.equals(end)) {
+
+                    Instr instr = pos.getBeginInstr();
+                    try {
+                        while (instr.getNext() != null) {
+                            if ((instr instanceof Instr.Call) && instr.isNoUse() && canGCM(instr)) {
+                                instr.remove();
+                                changed = true;
+                            }
+                            instr = (Instr) instr.getNext();
+                        }
+                    } catch (Exception e) {
+                        System.out.println(instr.toString());
+                    }
+
+                    pos = (BasicBlock) pos.getNext();
+                }
+            }
+        }
+    }
 
     private void scheduleEarlyForFunc(Function function) {
         HashSet<Instr> pinnedInstr = pinnedInstrMap.get(function);

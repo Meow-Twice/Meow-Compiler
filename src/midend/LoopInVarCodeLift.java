@@ -21,6 +21,11 @@ public class LoopInVarCodeLift {
     private HashMap<Value, HashSet<Loop>> defLoops = new HashMap<>();
     private HashMap<Value, HashSet<Loop>> useLoops = new HashMap<>();
     private HashSet<Instr> loadCanGCM = new HashSet<>();
+    private HashMap<Function, HashSet<Function>> callMap = new HashMap<>();
+    //private HashMap<Value, HashSet<Function>> useGlobalFuncs = new HashMap<>();
+    //private HashMap<Value, HashSet<Function>> defGlobalFuncs = new HashMap<>();
+    private HashMap<Function, HashSet<Value>> funcUseGlobals = new HashMap<>();
+    private HashMap<Function, HashSet<Value>> funcDefGlobals = new HashMap<>();
 
 
     public LoopInVarCodeLift(ArrayList<Function> functions, HashMap<GlobalVal.GlobalValue, Initial> globalValues) {
@@ -217,8 +222,79 @@ public class LoopInVarCodeLift {
             }
         }
         for (GlobalVal.GlobalValue globalVal: globalValues.keySet()) {
+            users.put(globalVal, new HashSet<>());
+            defs.put(globalVal, new HashSet<>());
+        }
+
+        for (GlobalVal.GlobalValue globalVal: globalValues.keySet()) {
+            //useGlobalFuncs.put(globalVal, new HashSet<>());
+            //defGlobalFuncs.put(globalVal, new HashSet<>());
             for (Use use = globalVal.getBeginUse(); use.getNext() != null; use = (Use) use.getNext()) {
                 DFSArray(globalVal, use.getUser());
+            }
+        }
+
+        for (Function function: functions) {
+            funcUseGlobals.put(function, new HashSet<>());
+            funcDefGlobals.put(function, new HashSet<>());
+            callMap.put(function, new HashSet<>());
+            for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
+                for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+                    if (instr instanceof Instr.Call && !((Instr.Call) instr).getFunc().isExternal) {
+                        callMap.get(function).add(((Instr.Call) instr).getFunc());
+                    }
+                }
+            }
+        }
+
+        for (GlobalVal.GlobalValue globalVal: globalValues.keySet()) {
+            for (Instr instr: users.get(globalVal)) {
+                //useGlobalFuncs.get(globalVal).add(instr.parentBB().getFunction());
+                funcUseGlobals.get(instr.parentBB().getFunction()).add(globalVal);
+            }
+            for (Instr instr: defs.get(globalVal)) {
+                //defGlobalFuncs.get(globalVal).add(instr.parentBB().getFunction());
+                funcDefGlobals.get(instr.parentBB().getFunction()).add(globalVal);
+            }
+        }
+
+        boolean change = true;
+        while (change) {
+            change = false;
+            for (Function function: functions) {
+                for (Function called: callMap.get(function)) {
+                    for (Value value: funcUseGlobals.get(called)) {
+                        boolean ret = funcUseGlobals.get(function).add(value);
+                        if (ret) {
+                            change = true;
+                        }
+                    }
+
+                    for (Value value: funcDefGlobals.get(called)) {
+                        boolean ret = funcDefGlobals.get(function).add(value);
+                        if (ret) {
+                            change = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        for (Function function: funcUseGlobals.keySet()) {
+            for (Value value: funcUseGlobals.get(function)) {
+                for (Use use = function.getBeginUse(); use.getNext() != null; use = (Use) use.getNext()) {
+                    Instr user = use.getUser();
+                    users.get(value).add(user);
+                }
+            }
+        }
+
+        for (Function function: funcDefGlobals.keySet()) {
+            for (Value value: funcDefGlobals.get(function)) {
+                for (Use use = function.getBeginUse(); use.getNext() != null; use = (Use) use.getNext()) {
+                    Instr user = use.getUser();
+                    defs.get(value).add(user);
+                }
             }
         }
 
@@ -242,6 +318,8 @@ public class LoopInVarCodeLift {
         for (Value array: users.keySet()) {
             loopInVarLoadLiftForArray(array);
         }
+
+
     }
 
     private void DFSArray(Value value, Instr instr) {
@@ -268,6 +346,11 @@ public class LoopInVarCodeLift {
                     defs.put(value, new HashSet<>());
                 }
                 defs.get(value).add(instr);
+            } else if (((Instr.Call) instr).getFunc().getName().equals("putarray")) {
+                if (!users.containsKey(value)) {
+                    users.put(value, new HashSet<>());
+                }
+                users.get(value).add(instr);
             } else {
                 if (!users.containsKey(value)) {
                     users.put(value, new HashSet<>());
@@ -294,6 +377,9 @@ public class LoopInVarCodeLift {
             if (!(user instanceof Instr.Load)) {
                 continue;
             }
+//            if (user.toString().equals("%v188 = load i32, i32* %v184")) {
+//                int a = 1;
+//            }
             Loop loop = user.parentBB().getLoop();
             if (loop.getEnterings().size() > 1) {
                 continue;
@@ -306,6 +392,16 @@ public class LoopInVarCodeLift {
             for (BasicBlock bb: loop.getEnterings()) {
                 entering = bb;
             }
+            //强条件
+            boolean tag = false;
+            for (Loop defLoop: defLoops.get(array)) {
+                if (check(loop, defLoop)) {
+                    tag = true;
+                }
+            }
+            if (tag) {
+                continue;
+            }
             if (!defLoops.get(array).contains(loop)) {
                 if (((Instr.Load) user).getPointer() instanceof Instr.GetElementPtr &&
                         ((Instr.GetElementPtr) ((Instr.Load) user).getPointer()).parentBB().getLoop().equals(loop)) {
@@ -316,6 +412,24 @@ public class LoopInVarCodeLift {
                 user.setBb(entering);
             }
         }
+    }
+
+    private boolean check(Loop useLoop, Loop defLoop) {
+        int useDeep = useLoop.getLoopDepth();
+        int defDeep = defLoop.getLoopDepth();
+        if (useDeep == defDeep) {
+            return useLoop.equals(defLoop);
+        }
+        if (useDeep > defDeep) {
+            return false;
+        } else {
+            int time = defDeep - useDeep;
+            for (int i = 0; i < time; i++) {
+                defLoop = defLoop.getParentLoop();
+            }
+        }
+        assert useLoop.getLoopDepth() == defLoop.getLoopDepth();
+        return useLoop.equals(defLoop);
     }
 
 }

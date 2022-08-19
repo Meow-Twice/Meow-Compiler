@@ -73,6 +73,10 @@ public class LoopIdcVarInfo {
             return;
         }
 
+        if (!((Instr) idcPHI).parentBB().equals(loop.getHeader())) {
+            return;
+        }
+
 
         assert idcPHI instanceof Instr.Phi;
         Value phiRVal1 = ((Instr.Phi) idcPHI).getUseValueList().get(0);

@@ -76,6 +76,7 @@ public class MidEndRunner {
         //暂定函数内联的位置
         Pass();
         //
+        ArrayGVN();
         FuncGVN();
         FuncGCM();
         AggressiveMarkParallel();
@@ -90,6 +91,7 @@ public class MidEndRunner {
 
         //outputLLVM();
 
+        //outputLLVM();
         ArrayGVN();
 
         MathOpt();
@@ -264,7 +266,8 @@ public class MidEndRunner {
 
     private void ArrayGVN() {
         Pass();
-
+//        reMakeCFGAndLoopInfo();
+//        outputLLVM();
         LocalArrayGVN localArrayGVN = new LocalArrayGVN(functions, "GVN");
         localArrayGVN.Run();
 

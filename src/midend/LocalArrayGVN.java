@@ -212,7 +212,7 @@ public class LocalArrayGVN {
                     for (Instr load: ((Instr.Alloc) alloc).getLoads()) {
                         assert load instanceof Instr.Load;
                         try {
-                            removeLoadFromGVN(load);
+                            removeLoadFromGVN(load, tempGvnMap);
                         } catch (Exception e) {
                             System.err.println("err");
                         }
@@ -220,7 +220,7 @@ public class LocalArrayGVN {
                 } else if (alloc instanceof Function.Param) {
                     for (Instr load: ((Function.Param) alloc).getLoads()) {
                         assert load instanceof Instr.Load;
-                        removeLoadFromGVN(load);
+                        removeLoadFromGVN(load, tempGvnMap);
                     }
                 } else {
                     assert false;
@@ -239,6 +239,8 @@ public class LocalArrayGVN {
                 } else {
                     GvnMap.clear();
                     GvnCnt.clear();
+                    tempGvnCnt.clear();
+                    tempGvnMap.clear();
                 }
 
             }
@@ -295,10 +297,11 @@ public class LocalArrayGVN {
         return false;
     }
 
-    private void removeLoadFromGVN(Instr load) {
+    private void removeLoadFromGVN(Instr load, HashMap<String, Instr> tempGvnMap) {
         assert load instanceof Instr.Load;
         String hash = ((Instr.Load) load).getPointer().getName();
         remove(hash);
+        tempGvnMap.remove(hash);
     }
 
     private HashMap<Value, Instr> reachDef = new HashMap<>();

@@ -16,7 +16,6 @@ import mir.type.Type;
 import util.CenterControl;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 import static mir.Constant.ConstantFloat.CONST_0F;
 import static mir.Constant.ConstantInt.CONST_0;
@@ -802,7 +801,7 @@ public class Visitor {
                             }
                             BasicType basicType = ((ArrayType) pointeeType).getBaseEleType();
                             Value ptr = new GetElementPtr(basicType, pointer, dimList, curBB);
-                            if (!(flattenInit.getBegin().value.equals(CONST_0) && afterMemset)) {
+                            if (!(flattenInit.getBegin().isZero() && afterMemset)) {
                                 new Store(trimTo(flattenInit.getBegin().value, basicType), ptr, curBB);
                             }
                             Map<Integer, Value> stores = flattenInit.listNonZeros();
@@ -812,7 +811,10 @@ public class Visitor {
                                 }
                             }
                             // System.err.println(stores);
-                            for (Map.Entry<Integer, Value> entry : stores.entrySet().stream().filter(e -> !e.getKey().equals(0)).collect(Collectors.toSet())) {
+                            for (Map.Entry<Integer, Value> entry : stores.entrySet()) {
+                                if (entry.getKey().equals(0)) {
+                                    continue;
+                                }
                                 // System.err.println(entry);
                                 dimList = new ArrayList<>();
                                 dimList.add(Constant.ConstantInt.getConstInt(entry.getKey()));

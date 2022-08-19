@@ -8,6 +8,7 @@ import util.Ilist;
 
 import java.util.*;
 
+import static mir.Constant.ConstantFloat.CONST_0F;
 import static mir.Constant.ConstantInt.CONST_0;
 
 /**
@@ -161,6 +162,15 @@ public abstract class Initial {
                 this.count = count;
             }
 
+            public boolean isZero() {
+                if (value.isConstantInt()) {
+                    return value.equals(CONST_0);
+                } else {
+                    assert value instanceof Constant.ConstantFloat;
+                    return value.equals(CONST_0F);
+                }
+            }
+
             public boolean canMerge(Entry that) {
                 assert that == this.getNext();
                 return this.value.equals(that.value);
@@ -194,7 +204,7 @@ public abstract class Initial {
         // 判断一段初始化是否全零
         public boolean isZero() {
             for (Entry e : this) {
-                if (!e.value.equals(CONST_0)) {
+                if (!e.isZero()) {
                     return false;
                 }
             }
@@ -267,9 +277,9 @@ public abstract class Initial {
         // 一个 Map.Entry 是一组 <Index, Value> 对
         public Map<Integer, Value> listNonZeros() {
             int index = 0;
-            LinkedHashMap<Integer, Value> nonZeros = new LinkedHashMap<>(); // 遍历顺序是插入顺序
+            Map<Integer, Value> nonZeros = new LinkedHashMap<>(); // 遍历顺序是插入顺序
             for (Entry e : this) {
-                if (!e.value.equals(CONST_0)) {
+                if (!e.isZero()) {
                     // 连续 count 个值都要手动赋值
                     for (int k = 0; k < e.count; k++) {
                         nonZeros.put(index, e.value);

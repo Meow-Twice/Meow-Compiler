@@ -75,7 +75,7 @@ public class CodeGen {
         f2mf = new HashMap<>();
         bb2mb = new HashMap<>();
         // _DEBUG_OUTPUT_MIR_INTO_COMMENT = !MidEndRunner.O2;
-        _DEBUG_OUTPUT_MIR_INTO_COMMENT = true;
+        _DEBUG_OUTPUT_MIR_INTO_COMMENT = false;
     }
 
     public void gen() {
@@ -115,6 +115,7 @@ public class CodeGen {
             curMF.clearSVRCount();
             value2opd = new HashMap<>();
             cmpInst2MICmpMap = new HashMap<>();
+            // curMFGlobalValueMap = new HashSet<>();
 
             BasicBlock bb = func.getBeginBB();
             BasicBlock endBB = func.getEnd();
@@ -149,6 +150,13 @@ public class CodeGen {
             while (nextBBList.size() > 0) {
                 BasicBlock visitBB = nextBBList.pop();
                 genBB(visitBB);
+            }
+            for (MC.Block mb : curMF.mbList) {
+                for (MachineInst mi : mb.miList) {
+                    if (mi instanceof I.Binary || mi.isOf(Ldr, LongMul, IMov, FMA)) {
+                        mi.calCost();
+                    }
+                }
             }
         }
     }
@@ -313,7 +321,7 @@ public class CodeGen {
                         cond = Ne;
                         new I.Cmp(cond, condVR, new Operand(I32, 0), curMB);
                     }
-                    if(exchanged){
+                    if (exchanged) {
                         MC.Block tmp = falseBlock;
                         falseBlock = trueBlock;
                         trueBlock = tmp;
@@ -446,6 +454,7 @@ public class CodeGen {
                                 if (curIdx == 0) {
                                     new I.Mov(getVR_no_imm(gep), curAddrVR, curMB);
                                     // value2opd.put(gep, curAddrVR);
+                                    // value2opd.put(ptrValue, curAddrVR);
                                 } else {
                                     int totalOff = offSet * curIdx;
                                     if (immCanCode(totalOff)) {
@@ -478,6 +487,11 @@ public class CodeGen {
                                 if (secondIdx.isConstantInt()) {
                                     int secondIdxNum = (int) ((Constant.ConstantInt) secondIdx).getConstVal();
                                     int totalOff = 4 * secondIdxNum;
+                                    /*if (totalOff == 0) {
+                                        new I.Mov(getVR_no_imm(gep), curAddrVR, curMB);
+                                        // value2opd.put(gep, curAddrVR);
+                                        // value2opd.put(ptrValue, curAddrVR);
+                                    } else */
                                     if (immCanCode(totalOff)) {
                                         new I.Binary(Add, getVR_no_imm(gep), curAddrVR, new Operand(I32, totalOff), curMB);
                                     } else {
@@ -604,7 +618,13 @@ public class CodeGen {
                 case pcopy -> {
                 }
                 case move -> {
+                    // if(cnt++ > 38){
+                    //     int b = 0;
+                    // }
                     Operand source = getOp_may_imm(((Instr.Move) instr).getSrc());
+                    // if(source.getValue() == 18) {
+                    //     int a = 0;
+                    // }
                     Operand target = getVR_no_imm(((Instr.Move) instr).getDst());
                     if (source.isF32() || target.isF32()) {
                         assert needFPU;
@@ -621,6 +641,7 @@ public class CodeGen {
         //     genBB(mb.bb);
         // }
     }
+    int cnt = 0;
 
     private void singleTotalOff(Instr.GetElementPtr gep, Operand curAddrVR, int totalOff) {
         int i = 0;
@@ -1201,6 +1222,8 @@ public class CodeGen {
      * 不可能是立即数的vr获取
      */
     public Operand getVR_no_imm(Value value) {
+        // if(value.name.equals("v469")||value.name.equals("v53")||value.name.equals("v407"))
+        // System.err.println(value.name);
         Operand opd = value2opd.get(value);
         return opd == null ? (value.getType().isFloatType() ? newSVR(value) : newVR(value)) : opd;
     }
@@ -1263,11 +1286,19 @@ public class CodeGen {
         }
     }
 
+    // public HashSet<GlobalVal.GlobalValue> curMFGlobalValueMap = new HashSet<>();
+
     public Operand getVR_from_ptr(Value value) {
         if (value instanceof GlobalVal.GlobalValue) {
+            // if (value2opd.containsKey(value)) {
+            //     return value2opd.get(value);
+            // }
             Operand addr = newVR();
             Arm.Glob glob = globPtr2globOpd.get((GlobalVal.GlobalValue) value);
             new I.Mov(addr, glob, curMB);
+            addr.setGlobAddr();
+            // value2opd.put(value, addr);
+            // curMFGlobalValueMap.add(((GlobalVal.GlobalValue) value));
             // 取出来的Operand 是立即数类型
             return addr;
         } else {

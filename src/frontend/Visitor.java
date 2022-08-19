@@ -811,7 +811,9 @@ public class Visitor {
                                     stores.putIfAbsent(i, CONST_0);
                                 }
                             }
+                            // System.err.println(stores);
                             for (Map.Entry<Integer, Value> entry : stores.entrySet().stream().filter(e -> !e.getKey().equals(0)).collect(Collectors.toSet())) {
+                                // System.err.println(entry);
                                 dimList = new ArrayList<>();
                                 dimList.add(Constant.ConstantInt.getConstInt(entry.getKey()));
                                 Value p = new GetElementPtr(basicType, ptr, dimList, curBB);
@@ -876,7 +878,11 @@ public class Visitor {
             // 初始化个数小于当前维度的长度，补零
             count++;
             if (type.getBaseType() instanceof BasicType) {
-                arrayInit.add(new Initial.ValueInit(CONST_0, I32_TYPE));
+                if (type.getBaseType().isFloatType()) {
+                    arrayInit.add(new Initial.ValueInit(CONST_0F, F32_TYPE));
+                } else {
+                    arrayInit.add(new Initial.ValueInit(CONST_0, I32_TYPE));
+                }
             } else {
                 assert type.getBaseType() instanceof ArrayType;
                 arrayInit.add(new Initial.ZeroInit(type.getBaseType()));

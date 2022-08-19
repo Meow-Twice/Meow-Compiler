@@ -204,20 +204,20 @@ public class V extends MachineInst {
         public String toString() {
             StringBuilder stb = new StringBuilder();
             if (getOffset() == null) {
-                stb.append("\tvstr").append(cond).append(".32\t").append(getData()).append(",\t[").append(getAddr()).append("]");
+                stb.append("vstr").append(cond).append(".32\t").append(getData()).append(",\t[").append(getAddr()).append("]");
             } else if (getOffset().type == MC.Operand.Type.Immediate) {
                 int shift = (this.shift.shiftType == Arm.ShiftType.None) ? 0 : this.shift.shiftOpd.getValue();
                 int offset = this.getOffset().value << shift;
                 if (offset != 0) {
-                    stb.append("\tvstr").append(cond).append(".32\t").append(getData()).append(",\t[").append(getAddr()).append(",\t#").append(offset).append("]");
+                    stb.append("vstr").append(cond).append(".32\t").append(getData()).append(",\t[").append(getAddr()).append(",\t#").append(offset).append("]");
                 } else {
-                    stb.append("\tvstr").append(cond).append(".32\t").append(getData()).append(",\t[").append(getAddr()).append("]");
+                    stb.append("vstr").append(cond).append(".32\t").append(getData()).append(",\t[").append(getAddr()).append("]");
                 }
             } else {
                 if (this.shift.shiftType == Arm.ShiftType.None) {
-                    stb.append("\tvstr").append(cond).append(".32\t").append(getData()).append(",\t[").append(getAddr()).append(",\t").append(getOffset()).append("]");
+                    stb.append("vstr").append(cond).append(".32\t").append(getData()).append(",\t[").append(getAddr()).append(",\t").append(getOffset()).append("]");
                 } else {
-                    stb.append("\tvstr").append(cond).append(".32\t").append(getData()).append(",\t[").append(getAddr()).append(",\t").append(getOffset()).append(",\tLSL #").append(this.shift.shiftOpd).append("]");
+                    stb.append("vstr").append(cond).append(".32\t").append(getData()).append(",\t[").append(getAddr()).append(",\t").append(getOffset()).append(",\tLSL #").append(this.shift.shiftOpd).append("]");
                 }
             }
             return stb.toString();

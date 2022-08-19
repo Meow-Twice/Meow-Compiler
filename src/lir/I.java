@@ -4,6 +4,7 @@ import java.io.PrintStream;
 import java.util.Iterator;
 
 import static backend.CodeGen.*;
+import static lir.Arm.Regs.GPRs.sp;
 import static lir.MC.Operand;
 import static mir.type.DataType.I32;
 
@@ -42,6 +43,15 @@ public class I extends MachineInst {
             useOpds.add(offset);
         }
 
+        public Ldr(Operand data, Operand addr, Operand offset, Arm.Shift lsl, MachineInst insertBefore) {
+            super(Tag.Ldr, insertBefore);
+            defOpds.add(data);
+            useOpds.add(addr);
+            useOpds.add(offset);
+            shift = lsl;
+            if (lsl.shiftIsReg()) useOpds.add(lsl.shiftOpd);
+        }
+
         public Operand getDef() {
             return getData();
         }
@@ -62,6 +72,33 @@ public class I extends MachineInst {
         @Override
         public boolean isNoCond() {
             return super.isNoCond();
+        }
+
+        @Override
+        public void calCost() {
+            Operand data = getData();
+            Operand addr = getAddr();
+            Operand offset = getOffset();
+            if (!data.hasReg()) {
+                if (addr.isVirtual(I32) && addr.isGlobAddr()) {
+                    data.setDefCost(this, 1);
+                } else {
+                    int cost = 4;
+                    if (addr.hasReg()) {
+                        data.setUnReCal();
+                    } else {
+                        cost += addr.cost;
+                    }
+                    if (!offset.isImm()) {
+                        if (offset.hasReg()) {
+                            data.setUnReCal();
+                        } else {
+                            cost += offset.cost;
+                        }
+                    }
+                    data.setDefCost(this, cost);
+                }
+            }
         }
 
         @Override
@@ -97,7 +134,7 @@ public class I extends MachineInst {
             super(insertAfter, Tag.Str);
             useOpds.add(data);
             useOpds.add(addr);
-            // useOpds.add(new Operand(I32, 0));
+            useOpds.add(new Operand(I32, 0));
         }
 
         public Str(MachineInst insertAfter, Operand data, Operand addr, Operand offset, Arm.Shift lsl) {
@@ -105,14 +142,15 @@ public class I extends MachineInst {
             useOpds.add(data);
             useOpds.add(addr);
             useOpds.add(offset);
-            if (lsl.shiftOpd.needRegOf(I32)) useOpds.add(lsl.shiftOpd);
+            shift = lsl;
+            if (lsl.shiftIsReg()) useOpds.add(lsl.shiftOpd);
         }
 
         public Str(Operand data, Operand addr, MC.Block insertAtEnd) {
             super(Tag.Str, insertAtEnd);
             useOpds.add(data);
             useOpds.add(addr);
-            // useOpds.add(new Operand(I32, 0));
+            useOpds.add(new Operand(I32, 0));
         }
 
         public Str(Operand data, Operand addr, Operand offset, MC.Block insertAtEnd) {
@@ -272,8 +310,18 @@ public class I extends MachineInst {
             super(Tag.IMov, insertAtEnd);
             defOpds.add(dOpd);
             useOpds.add(sOpd);
-            if (shift.getShiftOpd().needRegOf(I32)) {
+            if (shift.shiftIsReg()) {
                 useOpds.add(shift.getShiftOpd());
+            }
+            this.shift = shift;
+        }
+
+        public Mov(Operand dOpd, Operand sOpd, Arm.Shift shift, MachineInst firstUse) {
+            super(Tag.IMov, firstUse);
+            defOpds.add(dOpd);
+            useOpds.add(sOpd);
+            if (shift.shiftIsReg()) {
+                useOpds.add(shift.shiftOpd);
             }
             this.shift = shift;
         }
@@ -295,6 +343,28 @@ public class I extends MachineInst {
             this.cond = cond;
             defOpds.add(dOpd);
             useOpds.add(sOpd);
+        }
+
+        @Override
+        public void calCost() {
+            Operand dst = getDst();
+            Operand src = getSrc();
+            if (dst.reg == null) {
+                if (src.reg != null) {
+                    dst.setUnReCal();
+                } else if (src.isImm()) {
+                    dst.setDefCost(this, 1);
+                } else {
+                    int cost = src.getCost();
+                    if (shift.hasShift()) {
+                        cost++;
+                        if (shift.shiftIsReg()) {
+                            cost += shift.shiftOpd.cost;
+                        }
+                    }
+                    dst.setDefCost(this, cost);
+                }
+            }
         }
 
         @Override
@@ -413,7 +483,7 @@ public class I extends MachineInst {
             useOpds.add(lOpd);
             useOpds.add(rOpd);
             this.shift = shift;
-            if (!shift.shiftOpd.needRegOf(I32)) useOpds.add(shift.shiftOpd);
+            if (!shift.shiftIsReg()) useOpds.add(shift.shiftOpd);
         }
 
         public Binary(Tag tag, Operand dOpd, Operand lOpd, Operand rOpd, MC.Block insertAtEnd) {
@@ -429,7 +499,16 @@ public class I extends MachineInst {
             useOpds.add(lOpd);
             useOpds.add(rOpd);
             this.shift = shift;
-            if (!shift.shiftOpd.needRegOf(I32)) useOpds.add(shift.shiftOpd);
+            if (!shift.shiftIsReg()) useOpds.add(shift.shiftOpd);
+        }
+
+        public Binary(Tag tag, MC.Operand dOpd, MC.Operand lOpd, MC.Operand rOpd, Arm.Shift shift, MachineInst firstUse) {
+            super(tag, firstUse);
+            defOpds.add(dOpd);
+            useOpds.add(lOpd);
+            useOpds.add(rOpd);
+            this.shift = shift;
+            if (!shift.shiftIsReg()) useOpds.add(shift.shiftOpd);
         }
 
         public Binary(Tag tag, Operand dstAddr, Arm.Reg rSP, Operand offset, MachineInst firstUse) {
@@ -453,6 +532,35 @@ public class I extends MachineInst {
 
         public void setROpd(Operand o) {
             useOpds.set(1, o);
+        }
+
+        @Override
+        public void calCost() {
+            Operand dst = getDst();
+            Operand l = getLOpd();
+            Operand r = getROpd();
+            if (!dst.hasReg()) {
+                int cost = 1;
+                if (l.hasReg()) {
+                    if (!(l.equals(Arm.Reg.getRSReg(sp)) && isOf(Tag.Add) && l != dst)) {
+                        dst.setUnReCal();
+                    }
+                } else {
+                    assert !l.isImm();
+                    cost += l.cost;
+                }
+                if (!r.isImm()) {
+                    if (r.hasReg()) {
+                        dst.setUnReCal();
+                    } else if (!l.equals(r)) {
+                        cost += r.cost;
+                    }
+                }
+                assert !shift.shiftIsReg();
+                if (shift.hasShift()) cost++;
+                if (tag == Tag.LongMul) cost += 3;
+                dst.setDefCost(this, cost);
+            }
         }
 
         @Override
@@ -611,6 +719,17 @@ public class I extends MachineInst {
             useOpds.add(lOpd);
             useOpds.add(rOpd);
             useOpds.add(acc);
+        }
+
+        @Override
+        public void calCost() {
+            if(getDst().isVirtual(I32)){
+                int cost = 0;
+                for(Operand use: useOpds){
+                    cost += use.cost;
+                }
+                getDst().setDefCost(this, cost);
+            }
         }
 
         @Override

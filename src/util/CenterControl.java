@@ -18,11 +18,11 @@ public class CenterControl {
 
 
     //O2-control
-    public static final boolean _CLOSE_ALL_FLOAT_OPT = true;
-    public static final boolean _OPEN_CONST_TRANS_FOLD = !_CLOSE_ALL_FLOAT_OPT;
-    public static final boolean _OPEN_FLOAT_INSTR_COMB = !_CLOSE_ALL_FLOAT_OPT;
-    public static final boolean _OPEN_FLOAT_LOOP_STRENGTH_REDUCTION = !_CLOSE_ALL_FLOAT_OPT;
-    public static final boolean _OPEN_FTOI_ITOF_GVN = !_CLOSE_ALL_FLOAT_OPT;
+    public static final boolean _CLOSE_ALL_FLOAT_OPT = false;
+    public static final boolean _OPEN_CONST_TRANS_FOLD = _CLOSE_ALL_FLOAT_OPT? false : true;
+    public static final boolean _OPEN_FLOAT_INSTR_COMB = _CLOSE_ALL_FLOAT_OPT? false : true;
+    public static final boolean _OPEN_FLOAT_LOOP_STRENGTH_REDUCTION = _CLOSE_ALL_FLOAT_OPT? false : true;
+    public static final boolean _OPEN_FTOI_ITOF_GVN = _CLOSE_ALL_FLOAT_OPT? false : true;
 
 
     public static final boolean _STRONG_FUNC_INLINE = true;

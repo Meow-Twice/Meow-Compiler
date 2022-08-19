@@ -167,30 +167,45 @@ public class LocalArrayGVN {
 
 
     private void RPOSearch(BasicBlock bb) {
-        if (_STRONG_CHECK_) {
-            if (bb.getPrecBBs().size() > 1) {
-                GvnCnt.clear();
-                GvnMap.clear();
-            }
-            if (bb.getPrecBBs().size() == 1 && !bb.getIDominator().equals(bb.getPrecBBs().get(0))) {
-                GvnCnt.clear();
-                GvnMap.clear();
-            }
-        }
+//        if (_STRONG_CHECK_) {
+//            if (bb.getPrecBBs().size() > 1) {
+//                GvnCnt.clear();
+//                GvnMap.clear();
+//            }
+//            if (bb.getPrecBBs().size() == 1 && !bb.getIDominator().equals(bb.getPrecBBs().get(0))) {
+//                GvnCnt.clear();
+//                GvnMap.clear();
+//            }
+//        }
         HashMap<String, Integer> tempGvnCnt = new HashMap<>();
         HashMap<String, Instr> tempGvnMap = new HashMap<>();
+        HashMap<String, Integer> backGvnCnt = new HashMap<>();
+        HashMap<String, Instr> backGvnMap = new HashMap<>();
         for (String key: GvnCnt.keySet()) {
             tempGvnCnt.put(key, GvnCnt.get(key));
+            backGvnCnt.put(key, GvnCnt.get(key));
         }
         for (String key: GvnMap.keySet()) {
             tempGvnMap.put(key, GvnMap.get(key));
+            backGvnCnt.put(key, GvnCnt.get(key));
+        }
+        //GvnCntByBB.put(bb, tempGvnCnt);
+        if (_STRONG_CHECK_) {
+            if (bb.getPrecBBs().size() > 1) {
+                tempGvnCnt.clear();
+                tempGvnMap.clear();
+            }
+            if (bb.getPrecBBs().size() == 1 && !bb.getIDominator().equals(bb.getPrecBBs().get(0))) {
+                tempGvnCnt.clear();
+                tempGvnMap.clear();
+            }
         }
 
 
         Instr instr = bb.getBeginInstr();
         while (instr.getNext() != null) {
             if (instr instanceof Instr.Load && ((Instr.Load) instr).getAlloc() != null) {
-                addLoadToGVN(instr);
+                addLoadToGVN(instr, tempGvnMap);
             } else if (instr instanceof Instr.Store && ((Instr.Store) instr).getAlloc() != null) {
                 Value alloc = ((Instr.Store) instr).getAlloc();
                 if (alloc instanceof Instr.Alloc) {
@@ -239,8 +254,8 @@ public class LocalArrayGVN {
 //        }
         GvnMap.clear();
         GvnCnt.clear();
-        GvnMap.putAll(tempGvnMap);
-        GvnCnt.putAll(tempGvnCnt);
+        GvnMap.putAll(backGvnMap);
+        GvnCnt.putAll(backGvnCnt);
     }
 
     private void add(String str, Instr instr) {
@@ -264,16 +279,19 @@ public class LocalArrayGVN {
         }
     }
 
-    private boolean addLoadToGVN(Instr load) {
+    private boolean addLoadToGVN(Instr load, HashMap<String, Instr> tempGvnMap) {
         //进行替换
         assert load instanceof Instr.Load;
         String hash = ((Instr.Load) load).getPointer().getName();
-        if (GvnMap.containsKey(hash)) {
+        if (GvnMap.containsKey(hash) && tempGvnMap.containsKey(hash)) {
             load.modifyAllUseThisToUseA(GvnMap.get(hash));
             //load.remove();
             return true;
         }
         add(hash, load);
+        if (!tempGvnMap.containsKey(hash)) {
+            tempGvnMap.put(hash, load);
+        }
         return false;
     }
 

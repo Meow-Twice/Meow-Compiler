@@ -144,7 +144,7 @@ public class Compiler {
             Manager.MANAGER.outputMI();
             MergeBlock mergeBlock = new MergeBlock();
             int i = 0;
-            while (i++ < 5) {
+            while (i++ < 2) {
                 mergeBlock.run(true);
             }
             Manager.MANAGER.outputMI();

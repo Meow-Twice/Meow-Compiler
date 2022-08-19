@@ -12,7 +12,7 @@ public class LocalArrayGVN {
     //TODO:GCM更新phi,删除无用phi,添加数组相关分析,
     // 把load,store,get_element_ptr也纳入GCM考虑之中
 
-    private static boolean _STRONG_CHECK_ = false;
+    private static boolean _STRONG_CHECK_ = true;
 
     private static HashSet<Instr> know;
     private BasicBlock root;
@@ -167,16 +167,16 @@ public class LocalArrayGVN {
 
 
     private void RPOSearch(BasicBlock bb) {
-        if (_STRONG_CHECK_) {
-            if (bb.getPrecBBs().size() > 1) {
-                GvnCnt.clear();
-                GvnMap.clear();
-            }
-            if (bb.getPrecBBs().size() == 1 && !bb.getIDominator().equals(bb.getPrecBBs().get(0))) {
-                GvnCnt.clear();
-                GvnMap.clear();
-            }
-        }
+//        if (_STRONG_CHECK_) {
+//            if (bb.getPrecBBs().size() > 1) {
+//                GvnCnt.clear();
+//                GvnMap.clear();
+//            }
+//            if (bb.getPrecBBs().size() == 1 && !bb.getIDominator().equals(bb.getPrecBBs().get(0))) {
+//                GvnCnt.clear();
+//                GvnMap.clear();
+//            }
+//        }
         HashMap<String, Integer> tempGvnCnt = new HashMap<>();
         HashMap<String, Instr> tempGvnMap = new HashMap<>();
         for (String key: GvnCnt.keySet()) {
@@ -184,6 +184,17 @@ public class LocalArrayGVN {
         }
         for (String key: GvnMap.keySet()) {
             tempGvnMap.put(key, GvnMap.get(key));
+        }
+        //GvnCntByBB.put(bb, tempGvnCnt);
+        if (_STRONG_CHECK_) {
+            if (bb.getPrecBBs().size() > 1) {
+                tempGvnCnt.clear();
+                tempGvnMap.clear();
+            }
+            if (bb.getPrecBBs().size() == 1 && !bb.getIDominator().equals(bb.getPrecBBs().get(0))) {
+                tempGvnCnt.clear();
+                tempGvnMap.clear();
+            }
         }
 
 

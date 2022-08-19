@@ -216,7 +216,7 @@ public class PeepHole {
                     defs.add(Arm.Reg.getRSReg(cspr));
                     uses.add(Arm.Reg.getRSReg(sp));
                 }
-                if (!mi.isNoCond()) {
+                if (mi.hasCond()) {
                     uses.add(Arm.Reg.getRSReg(cspr));
                 }
                 for (Operand use : mi.useOpds) {
@@ -248,6 +248,7 @@ public class PeepHole {
                     if (Arm.Reg.getRSReg(sp).equals(def)) defNoSp = false;
                 }
                 if (!(isLastDefMI && defRegInLiveOut) && mi.isNoCond()) {
+                    // TODO nextMI条件执行不支持
                     if (mi instanceof StackCtl) continue;
                     if (mi.theLastUserOfDef == null && mi.noShift() && defNoSp) {
                         mi.remove();
@@ -425,32 +426,53 @@ public class PeepHole {
                                 }
                             } else if (iMov.getSrc().isPureImmWithOutGlob(I32)) {
                                 int imm = iMov.getSrc().getValue();
-                                if (nextMI.isOf(ICmp) && mi.lastUserIsNext() && nextMI.noShift()) {
-                                    // mov a imm
-                                    // cmp b a
-                                    // =>
-                                    // cmp b imm
-                                    // TODO cmp a b
-                                    I.Cmp icmp = (I.Cmp) nextMI;
-                                    Operand dst = iMov.getDst();
-                                    if (dst.equals(icmp.getROpd()) && !dst.equals(icmp.getLOpd())) {
-                                        if (immCanCode(imm)) {
-                                            icmp.setROpd(iMov.getSrc());
-                                            unDone = true;
-                                            iMov.remove();
-                                        } else if (immCanCode(-imm)) {
-                                            icmp.setROpd(new Operand(I32, -imm));
-                                            icmp.cmn = true;
-                                            unDone = true;
-                                            iMov.remove();
+                                if (iMov.lastUserIsNext() && nextMI.noShift()) {
+                                    switch (nextMI.getTag()) {
+                                        case ICmp -> {
+                                            // mov a imm
+                                            // cmp b a
+                                            // =>
+                                            // cmp b imm
+                                            // TODO cmp a b
+                                            I.Cmp icmp = (I.Cmp) nextMI;
+                                            Operand dst = iMov.getDst();
+                                            if (dst.equals(icmp.getROpd()) && !dst.equals(icmp.getLOpd())) {
+                                                if (immCanCode(imm)) {
+                                                    icmp.setROpd(iMov.getSrc());
+                                                    unDone = true;
+                                                    iMov.remove();
+                                                } else if (immCanCode(-imm)) {
+                                                    icmp.setROpd(new Operand(I32, -imm));
+                                                    icmp.cmn = true;
+                                                    unDone = true;
+                                                    iMov.remove();
+                                                }
+                                            }
+                                        }
+                                        case Add, Sub -> {
+                                            // mov a imm
+                                            // add/sub c b a
+                                            // =>
+                                            // add/sub c b imm
+                                            I.Binary binary = ((I.Binary) nextMI);
+                                            Operand l = binary.getLOpd();
+                                            Operand r = binary.getROpd();
+                                            if (immCanCode(imm) && r.equals(iMov.getDst()) && !l.equals(iMov.getDst())) {
+                                                binary.setROpd(iMov.getSrc());
+                                                iMov.remove();
+                                                unDone = true;
+                                            }
                                         }
                                     }
-                                } else {
-                                    // TODO
-                                    //  mov Rd, #imm
-                                    //  inst use Rd
-
                                 }
+                                // if (nextMI.isOf(ICmp) && mi.lastUserIsNext() && nextMI.noShift()) {
+                                // } else if(nextMI.isOf(Add, Sub) && mi.lastUserIsNext() && nextMI.noShift()){
+                                //     // TODO
+                                //     //  mov Rd, #imm
+                                //     //  inst use Rd
+                                //
+                                //
+                                // }
                             }
                         } else if (mi instanceof MachineInst.ActualDefMI) {
                             if (mi.lastUserIsNext()) {
@@ -495,7 +517,7 @@ public class PeepHole {
                                     if (fma != null) {
                                         unDone = true;
                                         fma.theLastUserOfDef = addOrSub.theLastUserOfDef;
-                                        if(lastGPRsDefMI[asDst.getValue()].equals(addOrSub)){
+                                        if (lastGPRsDefMI[asDst.getValue()].equals(addOrSub)) {
                                             lastGPRsDefMI[asDst.getValue()] = fma;
                                         }
                                         mul.remove();

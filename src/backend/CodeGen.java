@@ -734,11 +734,11 @@ public class CodeGen {
             }
         }
         if (needFPU) {
-            while (sIdx < 2) {
-                Operand tmpDst = newSVR();
-                paramSVRList.add(tmpDst);
-                new V.Mov(tmpDst, Arm.Reg.getS(sIdx++), curMB);
-            }
+            // while (sIdx < 2) {
+            //     Operand tmpDst = newSVR();
+            //     paramSVRList.add(tmpDst);
+            //     new V.Mov(tmpDst, Arm.Reg.getS(sIdx++), curMB);
+            // }
         }
         // 栈空间移位
         Function callFunc = call_inst.getFunc();
@@ -811,10 +811,10 @@ public class CodeGen {
                         new I.Mov(Arm.Reg.getR(i), paramVRList.get(i), curMB);
                     }*/
         // 需要把挪走的s0-sx再挪回来
-        for (int i = 0; i < paramSVRList.size(); i++) {
-            assert needFPU;
-            new V.Mov(Arm.Reg.getS(i), paramSVRList.get(i), curMB);
-        }
+        // for (int i = 0; i < paramSVRList.size(); i++) {
+        //     assert needFPU;
+        //     new V.Mov(Arm.Reg.getS(i), paramSVRList.get(i), curMB);
+        // }
     }
 
     public static boolean LdrStrImmEncode(int off) {

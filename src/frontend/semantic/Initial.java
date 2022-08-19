@@ -166,7 +166,7 @@ public abstract class Initial {
                 if (value.isConstantInt()) {
                     return value.equals(CONST_0);
                 } else {
-                    assert value instanceof Constant.ConstantFloat;
+                    // assert value instanceof Constant.ConstantFloat;
                     return value.equals(CONST_0F);
                 }
             }

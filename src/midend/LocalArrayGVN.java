@@ -12,7 +12,7 @@ public class LocalArrayGVN {
     //TODO:GCM更新phi,删除无用phi,添加数组相关分析,
     // 把load,store,get_element_ptr也纳入GCM考虑之中
 
-    private static boolean _STRONG_CHECK_ = true;
+    private static boolean _STRONG_CHECK_ = false;
 
     private static HashSet<Instr> know;
     private BasicBlock root;

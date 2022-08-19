@@ -7,9 +7,13 @@ public class CenterControl {
     public static boolean _ONLY_FRONTEND = false;
     public static final boolean _cutLiveNessShortest = false;
     public static final boolean _FixStackWithPeepHole = true;
-    public static boolean _MustToStack = true;
+    public static boolean _GPRMustToStack = true;
+    public static boolean _FPRMustToStack = true;
+    public static boolean _GPR_NOT_RESPILL = true;
+    public static boolean _FPR_NOT_RESPILL = true;
     public static final boolean _AGGRESSIVE_ADD_MOD_OPT = false;
     public static final boolean _OPEN_PARALLEL = false;
+    public static final boolean _OPEN_PARALLEL_BACKEND = true;
     public static final boolean _GLOBAL_BSS = true;
     public static boolean AlreadyBackend = false;
 

@@ -2,6 +2,7 @@ package backend;
 
 import lir.*;
 import lir.MC.Operand;
+import manage.Manager;
 import util.CenterControl;
 
 import java.util.*;
@@ -38,6 +39,7 @@ public class FPRegAllocator extends RegAllocator {
                     reg.adjOpdSet = newOperandSet();
                     reg.movSet = newMoveSet();
                     reg.setAlias(null);
+                    reg.old = null;
                 }
                 for (Operand o : curMF.sVrList) {
                     o.loopCounter = 0;
@@ -45,6 +47,7 @@ public class FPRegAllocator extends RegAllocator {
                     o.adjOpdSet = newOperandSet();
                     o.movSet = newMoveSet();
                     o.setAlias(null);
+                    o.old = null;
                 }
                 // logOut("in build");
                 build();
@@ -77,23 +80,27 @@ public class FPRegAllocator extends RegAllocator {
         }
     }
 
-    int vrIdx = -1;
+    Operand sVr = null;
+    // int vrIdx = -1;
     MachineInst firstUse = null;
     MachineInst lastDef = null;
     Operand offImm;
     boolean toStack = true;
+    MC.Block curMB;
 
     int dealSpillTimes = 0;
 
     private void dealSpillNode(Operand x) {
         dealSpillTimes++;
+        toStack = CenterControl._FPRMustToStack;
         for (MC.Block mb : curMF.mbList) {
+            curMB = mb;
             offImm = new Operand(I32, curMF.getVarStack());
             // generate a MILoad before first use, and a MIStore after last def
             firstUse = null;
             lastDef = null;
-            vrIdx = -1;
-            toStack = true;
+            sVr = null;
+            // vrIdx = -1;
 
             int checkCount = 0;
             for (MachineInst srcMI : mb.miList) {
@@ -107,15 +114,13 @@ public class FPRegAllocator extends RegAllocator {
                     if (def.equals(x)) {
                         logOut(x + "-------match def--------" + def);
                         // 如果一条指令def的是溢出结点
-                        if (vrIdx == -1) {
+                        if (sVr == null) {
                             // 新建一个结点, vrIdx 即为当前新建立的结点
                             // TODO toStack
-                            vrIdx = curMF.getSVRSize();
-                            srcMI.setDef(curMF.newSVR());
-                        } else {
-                            // 替换当前 def 为新建立的 def
-                            srcMI.setDef(curMF.sVrList.get(vrIdx));
+                            sVr = vrCopy(x);
                         }
+                        // 替换当前 def 为新建立的 def
+                        srcMI.setDef(sVr);
                         lastDef = srcMI;
                     }
                 }
@@ -123,13 +128,11 @@ public class FPRegAllocator extends RegAllocator {
                     Operand use = uses.get(idx);
                     if (use.equals(x)) {
                         // Load
-                        if (vrIdx == -1) {
+                        if (sVr == null) {
                             // TODO toStack
-                            vrIdx = curMF.getSVRSize();
-                            srcMI.setUse(idx, curMF.newSVR());
-                        } else {
-                            srcMI.setUse(idx, curMF.sVrList.get(vrIdx));
+                            sVr = vrCopy(x);
                         }
+                        srcMI.setUse(idx, sVr);
                         if (firstUse == null && (CenterControl._cutLiveNessShortest || lastDef == null)) {
                             // 基本块内如果没有def过这个虚拟寄存器, 并且是第一次用的话就将firstUse设为这个
                             firstUse = srcMI;
@@ -153,45 +156,75 @@ public class FPRegAllocator extends RegAllocator {
                 // Operand offset = offImm;
                 V.Ldr mi;
                 if (offImm.getValue() < 1024) {
-                    new V.Ldr(curMF.getSVR(vrIdx), rSP, offImm, firstUse);
+                    new V.Ldr(sVr, rSP, offImm, firstUse);
                 } else {
                     if (CodeGen.immCanCode(offImm.get_I_Imm())) {
                         Operand dstAddr = curMF.newVR();
                         new I.Binary(MachineInst.Tag.Add, dstAddr, rSP, offImm, firstUse);
-                        new V.Ldr(curMF.getSVR(vrIdx), dstAddr, firstUse);
+                        new V.Ldr(sVr, dstAddr, firstUse);
                     } else {
                         Operand dstAddr = curMF.newVR();
                         new I.Mov(dstAddr, offImm, firstUse);
                         Operand finalAddr = curMF.newVR();
                         new I.Binary(MachineInst.Tag.Add, finalAddr, rSP, dstAddr, firstUse);
-                        new V.Ldr(curMF.getSVR(vrIdx), finalAddr, firstUse);
+                        new V.Ldr(sVr, finalAddr, firstUse);
                     }
                 }
-                firstUse = null;
             }
             if (lastDef != null) {
                 // MachineInst insertAfter = lastDef;
                 // Operand offset = offImm;
                 if (offImm.getValue() < 1024) {
-                    new V.Str(lastDef, curMF.getSVR(vrIdx), rSP, offImm);
+                    new V.Str(lastDef, sVr, rSP, offImm);
                 } else {
                     if (CodeGen.immCanCode(offImm.get_I_Imm())) {
                         Operand dstAddr = curMF.newVR();
                         I.Binary bino = new I.Binary(lastDef, MachineInst.Tag.Add, dstAddr, rSP, offImm);
-                        new V.Str(bino, curMF.getSVR(vrIdx), dstAddr);
+                        new V.Str(bino, sVr, dstAddr);
                     } else {
                         Operand dstAddr = curMF.newVR();
                         I.Mov mv = new I.Mov(lastDef, dstAddr, offImm);
                         Operand finalAddr = curMF.newVR();
                         I.Binary bino = new I.Binary(mv, MachineInst.Tag.Add, finalAddr, rSP, dstAddr);
-                        new V.Str(bino, curMF.getSVR(vrIdx), finalAddr);
+                        new V.Str(bino, sVr, finalAddr);
                     }
                 }
-                lastDef = null;
             }
-            vrIdx = -1;
         }
-        // TODO 计算生命周期长度
+
+        if (sVr != null) {
+            int firstPos = -1;
+            int lastPos = -1;
+            int pos = 0;
+            for (MachineInst mi : curMB.miList) {
+                ++pos;
+                if (mi.defOpds.contains(sVr) || mi.useOpds.contains(sVr)) {
+                    if (firstPos == -1) {
+                        firstPos = pos;
+                    }
+                    lastPos = pos;
+                }
+            }
+
+            if (firstPos >= 0) {
+                newVRLiveLength.put(sVr, lastPos - firstPos + 1);
+            }
+        }
+        firstUse = null;
+        lastDef = null;
+        sVr = null;
+    }
+
+    public Operand vrCopy(Operand oldVR) {
+        Operand copy = curMF.newSVR();
+        // if (oldVR != null && oldVR.isVirtual(dataType) && !oldVR.isGlobAddr()) {
+        //     while (oldVR.old != null) {
+        //         oldVR = oldVR.old;
+        //     }
+        //     copy.old = oldVR;
+        //     copy.setDefCost(oldVR);
+        // }
+        return copy;
     }
 
     @Override

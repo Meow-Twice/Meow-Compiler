@@ -96,12 +96,13 @@ public class GPRegAllocator extends RegAllocator {
         // assert false;
         assertDataType(x);
         dealSpillTimes++;
-        toStack = judge(x);
-        int a = 0;
-        if(x.getValue() == 80){
-            a = 1;
-            // assert false;
-        }
+        // toStack = judge(x);
+        // int a = 0;
+        // if(x.getValue() == 80){
+        //     a = 1;
+        //     // assert false;
+        // }
+        toStack = CenterControl._GPRMustToStack || x.cost > 4 || x.getDefMI() == null;
         for (MC.Block mb : curMF.mbList) {
             curMB = mb;
             offImm = new Operand(I32, curMF.getVarStack());
@@ -109,15 +110,6 @@ public class GPRegAllocator extends RegAllocator {
             firstUse = null;
             lastDef = null;
             vr = null;
-            toStack = CenterControl._MustToStack || x.cost > 4 || x.getDefMI() == null;
-            if(a == 1 && mb.getLabel().equals("._MB_75_b10")){
-                a = 2;
-                Manager.MANAGER.outputMI();
-                assert false;
-            }
-            if (x.getValue() == 18) {
-                a = 0;
-            }
 
             int checkCount = 0;
             for (MachineInst srcMI : mb.miList) {
@@ -129,20 +121,15 @@ public class GPRegAllocator extends RegAllocator {
                     assert defs.size() == 1;
                     Operand def = defs.get(0);
                     if (def.equals(x)) {
-                        if ("v18-------match def--------v18".equals(x + "-------match def--------" + def)) {
-                            a = 0;
-                        }
                         logOut(x + "-------match def--------" + def);
                         // 如果一条指令def的是溢出结点
                         if (vr == null) {
                             // 新建一个结点, vrIdx 即为当前新建立的结点
                             // TODO toStack
                             vr = vrCopy(x);
-                            srcMI.setDef(vr);
-                        } else {
-                            // 替换当前 def 为新建立的 def
-                            srcMI.setDef(vr);
                         }
+                        // 替换当前 def 为新建立的 def
+                        srcMI.setDef(vr);
                         lastDef = srcMI;
                     }
                 }
@@ -153,10 +140,8 @@ public class GPRegAllocator extends RegAllocator {
                         if (vr == null) {
                             // TODO toStack
                             vr = vrCopy(x);
-                            srcMI.setUse(idx, vr);
-                        } else {
-                            srcMI.setUse(idx, vr);
                         }
+                        srcMI.setUse(idx, vr);
                         if (firstUse == null && (CenterControl._cutLiveNessShortest || lastDef == null)) {
                             // 基本块内如果没有def过这个虚拟寄存器, 并且是第一次用的话就将firstUse设为这个
                             firstUse = srcMI;
@@ -174,15 +159,15 @@ public class GPRegAllocator extends RegAllocator {
         }
     }
 
-    private boolean judge(Operand x) {
-        return x.getDefMI() == null || x.getCost() > 4;
-    }
+    // private boolean judge(Operand x) {
+    //     return x.getDefMI() == null || x.getCost() > 4;
+    // }
 
     LinkedHashSet<MachineInst> toInsertMIList = new LinkedHashSet<>();
     HashMap<Operand, Operand> regMap = new HashMap<>();
 
     private void checkpoint(Operand x) {
-        boolean flag = false;
+        // boolean flag = false;
         if (toStack) {
             if (firstUse != null) {
                 Operand offset = offImm;
@@ -219,9 +204,9 @@ public class GPRegAllocator extends RegAllocator {
         } else {
             // assert false;
             if (firstUse != null) {
-                Manager.MANAGER.outputMI();
+                // Manager.MANAGER.outputMI();
                 // assert false;
-                flag = true;
+                // flag = true;
                 MachineInst defMI = x.getDefMI();
                 toInsertMIList = new LinkedHashSet<>();
                 regMap = new HashMap<>();
@@ -302,10 +287,6 @@ public class GPRegAllocator extends RegAllocator {
         }
 
         if (vr != null) {
-            if(flag) {
-                Manager.MANAGER.outputMI();
-                // assert false;
-            }
             int firstPos = -1;
             int lastPos = -1;
             int pos = 0;
@@ -326,7 +307,6 @@ public class GPRegAllocator extends RegAllocator {
         firstUse = null;
         lastDef = null;
         vr = null;
-        // TODO 计算生命周期长度
     }
 
     private void addDefiners(Operand o) {

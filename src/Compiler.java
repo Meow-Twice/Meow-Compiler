@@ -16,6 +16,7 @@ import util.FileDealer;
 
 import java.io.*;
 
+import static midend.MidEndRunner.O2;
 import static util.CenterControl._ONLY_FRONTEND;
 
 public class Compiler {
@@ -63,8 +64,7 @@ public class Compiler {
             _ONLY_FRONTEND = !arg.outputAsm();
 
 
-
-            MidEndRunner.O2 = arg.optLevel == 2;
+            O2 = arg.optLevel == 2;
             MidEndRunner.O0 = arg.optLevel == 0;
             System.err.println("opt level = " + arg.optLevel);
             System.err.println("mid optimization begin");
@@ -139,17 +139,22 @@ public class Compiler {
             if (CenterControl._GLOBAL_BSS)
                 MC.Program.PROGRAM.bssInit();
 
-            PeepHole peepHole = new PeepHole(p);
-            peepHole.run();
-            Manager.MANAGER.outputMI();
-            MergeBlock mergeBlock = new MergeBlock();
-            int i = 0;
-            while (i++ < 2) {
-                mergeBlock.run(true);
-            }
-            Manager.MANAGER.outputMI();
-            if (CenterControl._OPEN_PARALLEL) {
-                Parallel.PARALLEL.gen();
+            if (O2) {
+                PeepHole peepHole = new PeepHole(p);
+                peepHole.run();
+                Manager.MANAGER.outputMI();
+                MergeBlock mergeBlock = new MergeBlock();
+                int i = 0;
+                while (i++ < 2) {
+                    mergeBlock.run(true);
+                }
+                Manager.MANAGER.outputMI();
+                if (CenterControl._OPEN_PARALLEL_BACKEND) {
+                    Parallel.PARALLEL.gen();
+                }
+            } else {
+                PeepHole peepHole = new PeepHole(p);
+                peepHole.runOneStage();
             }
             if (arg.outputAsm()) {
                 FileDealer.outputToStream(p.getSTB(), arg.asmStream);

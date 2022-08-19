@@ -35,6 +35,15 @@ public class PeepHole {
         }
     }
 
+    public void runOneStage() {
+        for (MC.McFunction mf : p.funcList) {
+            boolean unDone = true;
+            while (unDone) {
+                unDone = oneStage(mf);
+            }
+        }
+    }
+
     MC.Block curMB = null;
 
     // 注意不能用unDone当条件来判断是否remove之类, 可能是上一次结果的残留

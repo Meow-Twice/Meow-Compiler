@@ -168,7 +168,7 @@ public class MC {
                     }
                 }
                 globalDataStbHelper(stb, globData);
-                if (CenterControl._OPEN_PARALLEL) {
+                if (CenterControl._OPEN_PARALLEL_BACKEND) {
                     for (Arm.Glob glob : Parallel.PARALLEL.tmpGlob.values()) {
                         stb.append("\n.global\t").append(glob.getGlob()).append("\n");
                         stb.append(glob.getGlob()).append(":\n");

@@ -12,7 +12,7 @@ import java.util.*;
 import static lir.Arm.Regs.GPRs.*;
 import static mir.type.DataType.F32;
 import static mir.type.DataType.I32;
-import static util.CenterControl.STABLE;
+import static util.CenterControl.*;
 
 public class RegAllocator {
     protected MC.McFunction curMF;
@@ -501,8 +501,10 @@ public class RegAllocator {
                 Iterator<Operand> it = spillWorkSet.iterator();
                 Operand x = it.next();
                 assert x != null;
+                boolean reSpill = (dataType == I32 && _GPR_NOT_RESPILL)
+                        || (dataType == F32 && _FPR_NOT_RESPILL);
                 double max = x.heuristicVal();
-                if (x.isVirtual(dataType)) {
+                if (reSpill && x.isVirtual(dataType)) {
                     Integer len = newVRLiveLength.get(x);
                     if (len != null && len < 5) {
                         max = 0;
@@ -512,7 +514,7 @@ public class RegAllocator {
                     Operand o = it.next();
                     double h = o.heuristicVal();
 
-                    if (o.isVirtual(dataType)) {
+                    if (reSpill && o.isVirtual(dataType)) {
                         Integer len = newVRLiveLength.get(o);
                         if (len != null && len < 5) {
                             h = 0;

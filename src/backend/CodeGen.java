@@ -941,8 +941,9 @@ public class CodeGen {
             int imm = (int) ((Constant.ConstantInt) rhs).getConstVal();
             int abs = (imm < 0) ? (-imm) : imm;
             if (abs == 0) {
+                new I.Mov(dVR, lVR, curMB);
                 System.err.println("Division by zero: " + instr);
-                System.exit(94);
+                // System.exit(94);
             } else if (imm == 1) {
                 new I.Mov(dVR, lVR, curMB);
             } else if (imm == -1) {

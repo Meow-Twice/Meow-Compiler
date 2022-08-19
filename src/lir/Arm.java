@@ -279,26 +279,26 @@ public class Arm {
     }
 
     public static class Shift {
-        Shift() {
-            shiftOpd = new MC.Operand(I32, 0);
-            shiftType = ShiftType.None;
-        }
 
         public ShiftType shiftType;
         public static final Shift NONE_SHIFT = new Shift();
 
         public MC.Operand shiftOpd;
 
-        // public MC.Operand shiftReg = null;
-        public Shift(ShiftType shiftType, MC.Operand shiftOpd) {
-            this.shiftType = shiftType;
-            // this.shiftReg = shiftOpd;
-            this.shiftOpd = shiftOpd;
+        Shift() {
+            shiftOpd = new MC.Operand(I32, 0);
+            shiftType = ShiftType.None;
         }
 
         public Shift(ShiftType shiftType, int shiftOpd) {
             this.shiftType = shiftType;
             this.shiftOpd = new MC.Operand(I32, shiftOpd);
+        }
+        // public MC.Operand shiftReg = null;
+        public Shift(ShiftType shiftType, MC.Operand shiftOpd) {
+            this.shiftType = shiftType;
+            // this.shiftReg = shiftOpd;
+            this.shiftOpd = shiftOpd;
         }
 
         public MC.Operand getShiftOpd() {

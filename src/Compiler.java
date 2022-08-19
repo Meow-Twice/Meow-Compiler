@@ -139,14 +139,14 @@ public class Compiler {
             if (CenterControl._GLOBAL_BSS)
                 MC.Program.PROGRAM.bssInit();
 
-            // PeepHole peepHole = new PeepHole(p);
-            // peepHole.run();
-            // Manager.MANAGER.outputMI();
-            // MergeBlock mergeBlock = new MergeBlock();
-            // int i = 0;
-            // while (i++ < 5) {
-            //     mergeBlock.run(true);
-            // }
+            PeepHole peepHole = new PeepHole(p);
+            peepHole.run();
+            Manager.MANAGER.outputMI();
+            MergeBlock mergeBlock = new MergeBlock();
+            int i = 0;
+            while (i++ < 5) {
+                mergeBlock.run(true);
+            }
             Manager.MANAGER.outputMI();
             if (CenterControl._OPEN_PARALLEL) {
                 Parallel.PARALLEL.gen();

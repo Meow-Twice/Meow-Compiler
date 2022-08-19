@@ -1243,7 +1243,7 @@ public class CodeGen {
         return dst;
     }
 
-    public static final HashMap<String, Operand> name2constFOpd = new HashMap<>();
+    public static final LinkedHashMap<String, Operand> name2constFOpd = new LinkedHashMap<>();
 
     public Operand getFConstVR(Constant.ConstantFloat constF) {
         assert needFPU;

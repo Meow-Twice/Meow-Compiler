@@ -119,7 +119,9 @@ public class MC {
 
         public StringBuilder getSTB() {
             StringBuilder stb = new StringBuilder();
-            stb.append("@ ").append(CenterControl._TAG).append("\n");
+            if (CenterControl._BACKEND_COMMENT_OUTPUT) {
+                stb.append("@ ").append(CenterControl._TAG).append("\n");
+            }
             stb.append(".arch armv7ve\n.arm\n");
             if (needFPU) {
                 stb.append(".fpu vfpv3-d16\n");
@@ -128,16 +130,26 @@ public class MC {
             stb.append(".section .text\n");
             for (McFunction function : funcList) {
                 stb.append("\n\n.global\t").append(function.getName()).append("\n");
-                stb.append("@ regStackSize =\t").append(function.regStack).append(" ;\n@ varStackSize =\t").append(function.varStack).append(" ;\n@ paramStackSize =\t").append(function.paramStack).append(" ;\n");
-                stb.append("@ usedCalleeSavedGPRs =\t").append(function.usedCalleeSavedGPRs).append(" ;\n@ usedCalleeSavedFPRs =\t").append(function.usedCalleeSavedFPRs).append(" ;\n");
+                if (CenterControl._BACKEND_COMMENT_OUTPUT) {
+                    stb.append("@ regStackSize =\t").append(function.regStack).append(" ;\n@ varStackSize =\t").append(function.varStack).append(" ;\n@ paramStackSize =\t").append(function.paramStack).append(" ;\n");
+                    stb.append("@ usedCalleeSavedGPRs =\t").append(function.usedCalleeSavedGPRs).append(" ;\n@ usedCalleeSavedFPRs =\t").append(function.usedCalleeSavedFPRs).append(" ;\n");
+                }
                 stb.append(function.getName()).append(":\n");
                 //asm for mb
                 for (Block mb : function.mbList) {
                     stb.append("\n\n").append(mb.getLabel()).append(":\n");
-                    stb.append("@ pred:\t").append(mb.predMBs).append("\n");
-                    stb.append("@ succ:\t").append(mb.succMBs).append("\n");
+                    if (CenterControl._BACKEND_COMMENT_OUTPUT) {
+                        stb.append("@ pred:\t").append(mb.predMBs).append("\n");
+                        stb.append("@ succ:\t").append(mb.succMBs).append("\n");
+                    }
                     for (MachineInst inst : mb.miList) {
-                        if (!inst.isComment()) stb.append("\t");
+                        if (inst.isComment()) {
+                            if (!CenterControl._BACKEND_COMMENT_OUTPUT) {
+                                continue;
+                            }
+                        } else {
+                            stb.append("\t");
+                        }
                         stb.append(inst.getSTB()).append("\n");
                     }
                 }
@@ -699,6 +711,7 @@ public class MC {
         }
 
         boolean isGlobAddr = false;
+
         public void setGlobAddr() {
             isGlobAddr = true;
         }

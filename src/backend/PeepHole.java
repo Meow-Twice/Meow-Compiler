@@ -524,7 +524,7 @@ public class PeepHole {
                                                 unDone = true;
                                                 mem.setAddr(addMI.getLOpd());
                                                 mem.setOffSet(addMI.getROpd());
-                                                mem.setShift(addMI.getShift());
+                                                mem.addShift(addMI.getShift());
                                                 addMI.remove();
                                             }
                                         }
@@ -556,7 +556,7 @@ public class PeepHole {
                                                         && str.getOffset().equals(Operand.I_ZERO)) {
                                                     str.setAddr(addMI.getLOpd());
                                                     str.setOffSet(addMI.getROpd());
-                                                    str.setShift(addMI.getShift());
+                                                    str.addShift(addMI.getShift());
                                                     addMI.remove();
                                                     unDone = true;
                                                 }
@@ -583,10 +583,11 @@ public class PeepHole {
                                     I.Binary binary = (I.Binary) nextMI;
                                     Operand lOpd = binary.getLOpd();
                                     Operand rOpd = binary.getROpd();
-                                    if (rOpd.equals(iMov.getDst()) && !lOpd.equals(iMov.getDst())) {
+                                    if (rOpd.equals(iMov.getDst()) && !lOpd.equals(rOpd)) {
+                                        // assert false;
                                         assert !rOpd.isImm();
                                         binary.setROpd(iMov.getSrc());
-                                        binary.setShift(iMov.getShift());
+                                        binary.addShift(iMov.getShift());
                                         unDone = true;
                                         iMov.remove();
                                     }
@@ -609,7 +610,7 @@ public class PeepHole {
                                             && ((nextMI.isOf(Ldr) || memLdrStr.getData().equals(iMov.getDst())))) {
                                         unDone = true;
                                         memLdrStr.setOffSet(iMov.getDst());
-                                        memLdrStr.setShift(iMov.getShift());
+                                        memLdrStr.addShift(iMov.getShift());
                                         iMov.remove();
                                     }
                                 }
@@ -622,7 +623,7 @@ public class PeepHole {
                                     if (nextMov.getSrc().equals(iMov.getDst())) {
                                         unDone = true;
                                         nextMov.setSrc(iMov.getSrc());
-                                        nextMov.setShift(iMov.getShift());
+                                        nextMov.addShift(iMov.getShift());
                                         iMov.remove();
                                     }
                                 }

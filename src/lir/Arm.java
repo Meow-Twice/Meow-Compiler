@@ -288,6 +288,7 @@ public class Arm {
         public static final Shift NONE_SHIFT = new Shift();
 
         public MC.Operand shiftOpd;
+
         // public MC.Operand shiftReg = null;
         public Shift(ShiftType shiftType, MC.Operand shiftOpd) {
             this.shiftType = shiftType;
@@ -335,6 +336,10 @@ public class Arm {
 
         public boolean noShift() {
             return shiftType == ShiftType.None;
+        }
+
+        public boolean shiftIsReg() {
+            return shiftOpd != null && !shiftOpd.isImm() && shiftOpd.type != FConst;
         }
     }
 }

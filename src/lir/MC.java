@@ -169,7 +169,7 @@ public class MC {
                 }
                 globalDataStbHelper(stb, globData);
                 if (CenterControl._OPEN_PARALLEL) {
-                    for(Arm.Glob glob: Parallel.PARALLEL.tmpGlob.values()){
+                    for (Arm.Glob glob : Parallel.PARALLEL.tmpGlob.values()) {
                         stb.append("\n.global\t").append(glob.getGlob()).append("\n");
                         stb.append(glob.getGlob()).append(":\n");
                         stb.append("\t.word\t0\n");
@@ -593,6 +593,14 @@ public class MC {
             return this.dataType == dataType && type == Virtual;
         }
 
+        // public boolean isVirtual() {
+        //     return type == Virtual;
+        // }
+
+        // public boolean isPreColored() {
+        //     return type == PreColored;
+        // }
+
         public void setValue(int i) {
             value = i;
         }
@@ -636,6 +644,63 @@ public class MC {
 
         public boolean isImm() {
             return type == Immediate;
+        }
+
+        public int cost = 10;
+
+        public MachineInst defMI = null;
+
+        public MachineInst getDefMI() {
+            return defMI;
+        }
+
+        public int getCost() {
+            return cost;
+        }
+
+        public Operand old = null;
+
+        boolean isMultiDef = false;
+        boolean unReCal = false;
+
+        public void setDefCost(MachineInst def, int cost) {
+            if (this.defMI == null && !isMultiDef && !unReCal) {
+                defMI = def;
+                this.cost = cost;
+            } else {
+                defMI = null;
+                isMultiDef = true;
+                this.cost = 10;
+            }
+        }
+
+        public void setDefCost(Operand oldVR) {
+            if (this.defMI == null && !isMultiDef && !unReCal) {
+                defMI = oldVR.defMI;
+                cost = oldVR.cost;
+            } else {
+                defMI = null;
+                isMultiDef = true;
+                cost = 10;
+            }
+        }
+
+        public void setUnReCal() {
+            unReCal = true;
+            cost = 10;
+        }
+
+        public boolean isGlobAddr() {
+            return isGlobAddr;
+        }
+
+        public boolean isConst() {
+            return type == Immediate || type == Operand.Type.FConst;
+        }
+
+        boolean isGlobAddr = false;
+        public void setGlobAddr() {
+            isGlobAddr = true;
         }
 
         public enum Type {

@@ -23,6 +23,7 @@ public class FPRegAllocator extends RegAllocator {
 
     public void AllocateRegister(MC.Program program) {
         for (MC.McFunction mf : program.funcList) {
+            newVRLiveLength = new HashMap<>();
             curMF = mf;
             while (true) {
                 turnInit(mf);

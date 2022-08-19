@@ -9,8 +9,7 @@ import util.ILinkNode;
 
 import java.util.*;
 
-import static lir.Arm.Regs.GPRs.r11;
-import static lir.Arm.Regs.GPRs.sp;
+import static lir.Arm.Regs.GPRs.*;
 import static mir.type.DataType.F32;
 import static mir.type.DataType.I32;
 import static util.CenterControl.STABLE;
@@ -162,6 +161,7 @@ public class RegAllocator {
             // fixStack
             MC.McFunction mf = mi.getMb().mf;
             if (mi instanceof I.Binary) {
+                // sp add or sub
                 I.Binary binary = (I.Binary) mi;
                 MC.Operand off;
                 int newOff = switch (binary.getFixType()) {
@@ -179,7 +179,7 @@ public class RegAllocator {
                     if (CodeGen.immCanCode(newOff)) {
                         off = new MC.Operand(I32, newOff);
                     } else {
-                        off = Arm.Reg.getR(r11);
+                        off = Arm.Reg.getR(r4);
                         new I.Mov(off, new MC.Operand(I32, newOff), binary);
                     }
                     binary.setROpd(off);
@@ -449,6 +449,8 @@ public class RegAllocator {
         }
     }
 
+    HashMap<Operand, Integer> newVRLiveLength = new HashMap<>();
+
     protected void regAllocIteration() {
         logOut("spillWorkSet:\t" + spillWorkSet.toString());
         logOut("freezeWorkSet:\t" + freezeWorkSet.toString());
@@ -500,9 +502,23 @@ public class RegAllocator {
                 Operand x = it.next();
                 assert x != null;
                 double max = x.heuristicVal();
+                if (x.isVirtual(dataType)) {
+                    Integer len = newVRLiveLength.get(x);
+                    if (len != null && len < 5) {
+                        max = 0;
+                    }
+                }
                 while (it.hasNext()) {
                     Operand o = it.next();
                     double h = o.heuristicVal();
+
+                    if (o.isVirtual(dataType)) {
+                        Integer len = newVRLiveLength.get(o);
+                        if (len != null && len < 5) {
+                            h = 0;
+                        }
+                    }
+
                     if (h > max) {
                         x = o;
                         max = h;

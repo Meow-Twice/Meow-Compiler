@@ -69,6 +69,8 @@ public class MachineInst extends ILinkNode implements Cloneable {
         this.cond = cond;
     }
 
+    public void calCost() {
+    }
 
     public Arm.Shift getShift() {
         return shift;
@@ -142,7 +144,11 @@ public class MachineInst extends ILinkNode implements Cloneable {
         return !getNext().equals(mb.miList.tail);
     }
 
-    public void setShift(Arm.Shift shift) {
+    public void addShift(Arm.Shift shift) {
+        // 不可能出现shift.getShiftOpd()和this.shift.getShiftOpd不一致的情况
+        if (this.shift.shiftOpd.type != MC.Operand.Type.FConst && this.shift.shiftOpd.type != MC.Operand.Type.Immediate) {
+            this.useOpds.add(shift.getShiftOpd());
+        }
         this.shift = new Arm.Shift(shift.shiftType, shift.getShiftOpd());
     }
 
@@ -352,7 +358,7 @@ public class MachineInst extends ILinkNode implements Cloneable {
 
         void setOffSet(MC.Operand rOpd);
 
-        void setShift(Arm.Shift shift);
+        void addShift(Arm.Shift shift);
 
         Arm.Cond getCond();
     }

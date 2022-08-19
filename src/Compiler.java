@@ -106,6 +106,7 @@ public class Compiler {
             // Manager.MANAGER.outputMI();
             // System.err.println("before end");
             // Manager.outputMI(true);
+            Manager.MANAGER.outputMI();
             System.err.println("Reg Alloc begin");
             start = System.currentTimeMillis();
             if (CenterControl._FAST_REG_ALLOCATE) {

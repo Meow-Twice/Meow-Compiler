@@ -202,6 +202,9 @@ public class LoopUnRoll {
         //latch.modifySucAToB(head, exit);
 
 
+        if (headNext.getPrecBBs().size() != 1) {
+            return;
+        }
 
         //headNext 只有head一个前驱
         assert headNext.getPrecBBs().size() == 1;

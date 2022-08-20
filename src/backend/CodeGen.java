@@ -918,8 +918,6 @@ public class CodeGen {
                     MC.Operand lVR = getVR_may_imm(lhs);
                     MC.Operand sign = newVR();
                     new I.Mov(sign, lVR, new Arm.Shift(Arm.ShiftType.Asr, 31), curMB);
-                    MC.Operand mask = newVR();
-                    new I.Mov(mask, sign, new Arm.Shift(Arm.ShiftType.Lsl, sh), curMB);
                     // MC.Operand mod = newVR();
                     MC.Operand immOp = new Operand(I32, abs - 1), immVR;
                     if (immCanCode(abs - 1)) {
@@ -931,7 +929,7 @@ public class CodeGen {
                     new I.Binary(And, dVR, lVR, immVR, curMB);
                     // 条件执行
                     new I.Cmp(Ne, dVR, I_ZERO, curMB);
-                    I.Binary or = new I.Binary(Or, dVR, dVR, mask, curMB);
+                    I.Binary or = new I.Binary(Or, dVR, dVR, sign, new Arm.Shift(Arm.ShiftType.Lsl, sh), curMB);
                     or.setCond(Ne);
                 }
             } else {

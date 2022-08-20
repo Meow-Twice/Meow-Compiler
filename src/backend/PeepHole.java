@@ -181,6 +181,7 @@ public class PeepHole {
     private boolean twoStage(MC.McFunction mf) {
         boolean unDone = false;
         for (MC.Block mb : mf.mbList) {
+            mb.miNum = 0;
             curMB = mb;
             // TODO MergeBlock的时候自己修吧
             // mb.succMBs = new ArrayList<>();
@@ -214,6 +215,8 @@ public class PeepHole {
             lastGPRsDefMI = new MachineInst[GPRs.values().length];
             lastFPRsDefMI = new MachineInst[FPRs.values().length];
             for (MachineInst mi : mb.miList) {
+                if (mi.isComment()) continue;
+                mb.miNum++;
                 mi.theLastUserOfDef = null; // to be removed
                 ArrayList<Operand> uses = mi.useOpds;
                 ArrayList<Operand> defs = mi.defOpds;
@@ -262,6 +265,7 @@ public class PeepHole {
                     if (mi.theLastUserOfDef == null && mi.noShift() && defNoSp) {
                         mi.remove();
                         unDone = true;
+                        mb.miNum--;
                         continue;
                     }
 
@@ -405,6 +409,7 @@ public class PeepHole {
                                     sub1.remove();
                                     // fixme
                                     sub2.remove();
+                                    mb.miNum--;
                                     iMov.theLastUserOfDef = sub2.theLastUserOfDef;
                                     if (lastGPRsDefMI[iMov.getDst().getValue()].equals(sub2)) {
                                         lastGPRsDefMI[iMov.getDst().getValue()] = iMov;
@@ -532,6 +537,7 @@ public class PeepHole {
                                         mul.remove();
                                         // fixme
                                         addOrSub.remove();
+                                        mb.miNum--;
                                     }
                                 }
                             }
@@ -547,7 +553,7 @@ public class PeepHole {
                                         // ldr/str x, [a, #0]
                                         // =>
                                         // ldr/str x, [b, c, shift]
-                                        if (mi.lastUserIsNext()) {
+                                        if (/*mb.miNum > 5 &&*/ mi.lastUserIsNext()) {
                                             MachineMemInst mem = (MachineMemInst) nextMI;
                                             if (addMI.getDst().equals(mem.getAddr())
                                                     && mem.getOffset().equals(Operand.I_ZERO)
@@ -663,6 +669,7 @@ public class PeepHole {
                     }
 
                 }
+                if (unDone) mb.miNum--;
             }
         }
         return unDone;

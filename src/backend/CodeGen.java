@@ -1296,8 +1296,8 @@ public class CodeGen {
             // }
             Operand addr = newVR();
             Arm.Glob glob = globPtr2globOpd.get((GlobalVal.GlobalValue) value);
-            new I.Mov(addr, glob, curMB);
-            addr.setGlobAddr();
+            I.Mov iMov = new I.Mov(addr, glob, curMB);
+            iMov.setGlobAddr();
             // value2opd.put(value, addr);
             // curMFGlobalValueMap.add(((GlobalVal.GlobalValue) value));
             // 取出来的Operand 是立即数类型

@@ -432,6 +432,7 @@ public class MC {
         // public MachineInst firstMIForBJ = null;
         public Ilist<MachineInst> miList = new Ilist<>();
         static int globIndex = 0;
+        public int miNum = 0;
         int mb_idx;
         String label;
         public Set<Block> predMBs = new HashSet<>();

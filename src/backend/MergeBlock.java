@@ -22,12 +22,16 @@ public class MergeBlock {
                 boolean hasCond = false;
                 boolean hasCall = false;
                 boolean hasV = false;
+                boolean hasGlobAddr = false;
                 int branchNum = 0;
                 int jumpNum = 0;
                 int miNum = 0;
                 for (MachineInst mi : curMB.miList) {
                     if (mi.isComment()) continue;
                     miNum++;
+                    if (mi.isGlobAddr()) {
+                        hasGlobAddr = true;
+                    }
                     if (mi.hasCond()) hasCond = true;
                     if (mi instanceof V) hasV = true;
                     switch (mi.getTag()) {
@@ -82,7 +86,7 @@ public class MergeBlock {
                                     // System.exit(122);
                                     dealPred(predMb);
                                 } else if (yesCondMov) {
-                                    if (hasV || hasCmp || hasCall || hasCond || (miNum - branchNum - jumpNum) > 5) {
+                                    if (hasGlobAddr || hasV || hasCmp || hasCall || hasCond || (miNum - branchNum - jumpNum) > 5) {
                                         continue;
                                     }
                                     removeList.add(predMb);
@@ -195,6 +199,7 @@ public class MergeBlock {
             boolean hasCond = false;
             boolean hasCall = false;
             boolean hasV = false;
+            boolean hasGlobAddr = false;
             int brNum = 0;
             int jNum = 0;
             int miNum = 0;//非comment数量
@@ -208,6 +213,9 @@ public class MergeBlock {
                     if (mi.hasCond()) {
                         hasCond = true;
                     }
+                    if (mi.isGlobAddr()) {
+                        hasGlobAddr = true;
+                    }
                     switch (mi.getTag()) {
                         case ICmp, VCmp -> hasCmp = true;
                         case Call -> hasCall = true;
@@ -219,7 +227,7 @@ public class MergeBlock {
                     }
                 }
             }
-            if (!hasV && !hasCmp && !hasCall && !hasCond && (miNum) <= 5 && brNum <= 0 && jNum <= 0) {
+            if (!hasGlobAddr && !hasV && !hasCmp && !hasCall && !hasCond && (miNum) <= 5 && brNum <= 0 && jNum <= 0) {
                 for (ILinkNode entry = branch.getNext(); entry != predMb.miList.tail; entry = entry.getNext()) {
                     MachineInst mi = (MachineInst) entry;
                     mi.setCond(branch.getOppoCond());

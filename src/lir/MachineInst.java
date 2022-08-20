@@ -340,6 +340,15 @@ public class MachineInst extends ILinkNode implements Cloneable {
         void setCond(Arm.Cond cond);
     }
 
+    public boolean isGlobAddr = false;
+
+    public void setGlobAddr() {
+        isGlobAddr = true;
+    }
+
+    public boolean isGlobAddr() {
+        return isGlobAddr;
+    }
 
     public interface MachineMemInst {
         MC.Operand getData();

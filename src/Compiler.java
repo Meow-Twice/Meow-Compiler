@@ -145,9 +145,9 @@ public class Compiler {
                 Manager.MANAGER.outputMI();
                 MergeBlock mergeBlock = new MergeBlock();
                 int i = 0;
-//                while (i++ < 2) {
-//                    mergeBlock.run(true);
-//                }
+               while (i++ < 2) {
+                   mergeBlock.run(true);
+               }
                 Manager.MANAGER.outputMI();
                 if (CenterControl._OPEN_PARALLEL_BACKEND) {
                     Parallel.PARALLEL.gen();

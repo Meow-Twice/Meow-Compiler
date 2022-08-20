@@ -24,6 +24,7 @@ import static lir.Arm.Regs.FPRs.s0;
 import static lir.Arm.Regs.GPRs.r0;
 import static lir.Arm.Regs.GPRs.sp;
 import static lir.BJ.*;
+import static lir.MC.Operand.I_ZERO;
 import static lir.MachineInst.Tag.*;
 import static midend.MidEndRunner.O2;
 import static mir.type.DataType.F32;
@@ -886,13 +887,62 @@ public class CodeGen {
         // instr不可能是Constant
         MC.Operand dVR = getVR_no_imm(instr);
         if (tag == Mod) {
-            MC.Operand lVR = getVR_may_imm(lhs);
-            MC.Operand rVR = getVR_may_imm(rhs);
-            MC.Operand dst1 = newVR();
-            new I.Binary(MachineInst.Tag.Div, dst1, lVR, rVR, curMB);
-            MC.Operand dst2 = newVR();
-            new I.Binary(MachineInst.Tag.Mul, dst2, dst1, rVR, curMB);
-            new I.Binary(MachineInst.Tag.Sub, dVR, lVR, dst2, curMB);
+            boolean isPowerOf2 = false;
+            int imm = 1, abs = 1;
+            if (rhs.isConstantInt()) {
+                imm = (int) ((Constant.ConstantInt) rhs).getConstVal();
+                abs = (imm < 0) ? (-imm) : imm;
+                if ((abs & (abs - 1)) == 0) {
+                    isPowerOf2 = true;
+                }
+            }
+            if (optMulDiv && isPowerOf2) {
+                assert imm != 0;
+                if (lhs.isConstantInt()) {
+                    int vlhs = (int) ((Constant.ConstantInt) lhs).getConstVal();
+                    new I.Mov(dVR, new Operand(I32, vlhs % imm), curMB);
+                } else if (abs == 1) {
+                    new I.Mov(dVR, new Operand(I32, 0), curMB);
+                } else {
+                    // 模结果的正负只和被除数有关
+                    // 被除数为正: x % abs => x & (abs - 1)
+                    // 被除数为负: 先做与运算，然后高位全 1 (取出符号位，左移，或上)
+                    /*
+                     * sign = x >>> 31
+                     * mask = sign << sh
+                     * mod = x & (abs - 1)
+                     * if (mod != 0)
+                     *     mod |= mask
+                     */
+                    int sh = Integer.numberOfTrailingZeros(abs);
+                    MC.Operand lVR = getVR_may_imm(lhs);
+                    MC.Operand sign = newVR();
+                    new I.Mov(sign, lVR, new Arm.Shift(Arm.ShiftType.Asr, 31), curMB);
+                    MC.Operand mask = newVR();
+                    new I.Mov(mask, sign, new Arm.Shift(Arm.ShiftType.Lsl, sh), curMB);
+                    // MC.Operand mod = newVR();
+                    MC.Operand immOp = new Operand(I32, abs - 1), immVR;
+                    if (immCanCode(abs - 1)) {
+                        immVR = immOp;
+                    } else {
+                        immVR = newVR();
+                        new I.Mov(immVR, immOp, curMB);
+                    }
+                    new I.Binary(And, dVR, lVR, immVR, curMB);
+                    // 条件执行
+                    new I.Cmp(Ne, dVR, I_ZERO, curMB);
+                    I.Binary or = new I.Binary(Or, dVR, dVR, mask, curMB);
+                    or.setCond(Ne);
+                }
+            } else {
+                MC.Operand lVR = getVR_may_imm(lhs);
+                MC.Operand rVR = getVR_may_imm(rhs);
+                MC.Operand dst1 = newVR();
+                new I.Binary(MachineInst.Tag.Div, dst1, lVR, rVR, curMB);
+                MC.Operand dst2 = newVR();
+                new I.Binary(MachineInst.Tag.Mul, dst2, dst1, rVR, curMB);
+                new I.Binary(MachineInst.Tag.Sub, dVR, lVR, dst2, curMB);
+            }
         } else if (optMulDiv && tag == Mul && (lhs.isConstantInt() || rhs.isConstantInt())) {
             // 不考虑双立即数: r*i, i*r, r*r
             if (lhs.isConstantInt() && rhs.isConstantInt()) {

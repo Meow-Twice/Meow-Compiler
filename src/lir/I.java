@@ -563,9 +563,8 @@ public class I extends MachineInst {
             }
         }
 
-        @Override
-        public void output(PrintStream os, MC.McFunction f) {
-            String tag_str = "\t" + switch (tag) {
+        private String tagName(Tag tag) {
+            return switch (tag) {
                 case Mul -> "mul";
                 case Add -> "add";
                 case Sub -> "sub";
@@ -574,8 +573,14 @@ public class I extends MachineInst {
                 case And -> "and";
                 case Or -> "orr";
                 case LongMul -> "smmul";
+                case Bic -> "bic";
                 default -> throw new AssertionError("Wrong Int Binary");
-            } + cond;
+            };
+        }
+
+        @Override
+        public void output(PrintStream os, MC.McFunction f) {
+            String tag_str = "\t" + tagName(tag) + cond;
 
             os.print(tag_str + "\t" + getDst() + ",\t" + getLOpd() + ",\t" + getROpd());
             if (shift.shiftType != Arm.ShiftType.None) {
@@ -590,17 +595,7 @@ public class I extends MachineInst {
         public String toString() {
             StringBuilder stb = new StringBuilder();
 
-            stb.append(switch (tag) {
-                case Mul -> "mul";
-                case Add -> "add";
-                case Sub -> "sub";
-                case Rsb -> "rsb";
-                case Div -> "sdiv";
-                case And -> "and";
-                case Or -> "orr";
-                case LongMul -> "smmul";
-                default -> throw new AssertionError("Wrong Int Binary");
-            });
+            stb.append(tagName(tag));
 
             stb.append(cond).append("\t").append(getDst()).append(",\t").append(getLOpd()).append(",\t").append(getROpd());
             if (shift.shiftType != Arm.ShiftType.None) {

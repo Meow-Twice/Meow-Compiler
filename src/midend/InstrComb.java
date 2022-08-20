@@ -46,29 +46,31 @@ public class InstrComb {
                     assert instr instanceof Instr.Alu;
                     combSrcToTagsFloat((Instr.Alu) instr, tags);
                     instr.remove();
-                } else if (instr.canCombMul()) {
-                    ArrayList<Instr.Alu> tags = new ArrayList<>();
-                    Use use = instr.getBeginUse();
-                    while (use.getNext() != null) {
-                        assert use.getUser() instanceof Instr.Alu;
-                        tags.add((Instr.Alu) use.getUser());
-                        use = (Use) use.getNext();
-                    }
-                    assert instr instanceof Instr.Alu;
-                    combSrcToTagsMul((Instr.Alu) instr, tags);
-                    instr.remove();
-                } else if (instr.canCombMulFloat()) {
-                    ArrayList<Instr.Alu> tags = new ArrayList<>();
-                    Use use = instr.getBeginUse();
-                    while (use.getNext() != null) {
-                        assert use.getUser() instanceof Instr.Alu;
-                        tags.add((Instr.Alu) use.getUser());
-                        use = (Use) use.getNext();
-                    }
-                    assert instr instanceof Instr.Alu;
-                    combSrcToTagsMulFloat((Instr.Alu) instr, tags);
-                    instr.remove();
                 }
+//                else if (instr.canCombMul()) {
+//                    ArrayList<Instr.Alu> tags = new ArrayList<>();
+//                    Use use = instr.getBeginUse();
+//                    while (use.getNext() != null) {
+//                        assert use.getUser() instanceof Instr.Alu;
+//                        tags.add((Instr.Alu) use.getUser());
+//                        use = (Use) use.getNext();
+//                    }
+//                    assert instr instanceof Instr.Alu;
+//                    combSrcToTagsMul((Instr.Alu) instr, tags);
+//                    instr.remove();
+//                }
+//                else if (instr.canCombMulFloat()) {
+//                    ArrayList<Instr.Alu> tags = new ArrayList<>();
+//                    Use use = instr.getBeginUse();
+//                    while (use.getNext() != null) {
+//                        assert use.getUser() instanceof Instr.Alu;
+//                        tags.add((Instr.Alu) use.getUser());
+//                        use = (Use) use.getNext();
+//                    }
+//                    assert instr instanceof Instr.Alu;
+//                    combSrcToTagsMulFloat((Instr.Alu) instr, tags);
+//                    instr.remove();
+//                }
                 instr = (Instr) instr.getNext();
             }
             bb = (BasicBlock) bb.getNext();

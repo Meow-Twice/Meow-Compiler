@@ -1,6 +1,7 @@
 package midend;
 
 import mir.*;
+import util.CenterControl;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -33,14 +34,14 @@ public class AggressiveFuncGCM {
     }
 
     private void init() {
-        for (Function function: functions) {
+        for (Function function : functions) {
             def.put(function, new HashSet<>());
             defGlobals.put(function, new HashSet<>());
             use.put(function, new HashSet<>());
             useGlobals.put(function, new HashSet<>());
         }
 
-        for (Function function: functions) {
+        for (Function function : functions) {
             for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
                 for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
                     if (instr instanceof Instr.Store) {
@@ -60,7 +61,8 @@ public class AggressiveFuncGCM {
                         }
                         if (val instanceof Function.Param) {
                             use.get(function).add(function.getParams().indexOf(val));
-                        } if (val instanceof GlobalVal.GlobalValue) {
+                        }
+                        if (val instanceof GlobalVal.GlobalValue) {
                             useGlobals.get(function).add(val);
                         }
                     }
@@ -69,12 +71,12 @@ public class AggressiveFuncGCM {
         }
 
 
-        for (Function function: functions) {
+        for (Function function : functions) {
             for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
                 for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
                     if (instr instanceof Instr.Call) {
                         Function callFunc = ((Instr.Call) instr).getFunc();
-                        for (Value val: ((Instr.Call) instr).getParamList()) {
+                        for (Value val : ((Instr.Call) instr).getParamList()) {
                             if (val instanceof Function.Param) {
                                 int thisFuncIndex = function.getParams().indexOf(val);
                                 int callFuncIndex = ((Instr.Call) instr).getParamList().indexOf(val);
@@ -100,7 +102,7 @@ public class AggressiveFuncGCM {
         boolean change = true;
         while (change) {
             change = false;
-            for (Function function: functions) {
+            for (Function function : functions) {
                 if (!canGCMFunc.contains(function) && check(function)) {
                     canGCMFunc.add(function);
                     change = true;
@@ -111,10 +113,32 @@ public class AggressiveFuncGCM {
     }
 
     private boolean check(Function function) {
+        if (!CenterControl._STRONG_FUNC_GCM) {
+            for (Function.Param param : function.getParams()) {
+                if (param.getType().isPointerType()) {
+                    return false;
+                }
+            }
+            for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
+                for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+                    if (instr instanceof Instr.Call) {
+                        if (!((Instr.Call) instr).getFunc().equals(function) && !canGCMFunc.contains(((Instr.Call) instr).getFunc())) {
+                            return false;
+                        }
+                    }
+                    for (Value value : instr.getUseValueList()) {
+                        if (value instanceof GlobalVal.GlobalValue) {
+                            return false;
+                        }
+                    }
+                }
+            }
+            return true;
+        }
         if (defGlobals.get(function).size() > 0) {
             return false;
         }
-        for (Function.Param param: function.getParams()) {
+        for (Function.Param param : function.getParams()) {
             if (param.getType().isPointerType() && def.get(function).contains(function.getParams().indexOf(param))) {
                 return false;
             }
@@ -138,7 +162,7 @@ public class AggressiveFuncGCM {
 
     private void GCM() {
         noUserCallDelete();
-        for (Function function: functions) {
+        for (Function function : functions) {
             pinnedInstrMap.put(function, new HashSet<>());
             for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
                 for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
@@ -153,10 +177,10 @@ public class AggressiveFuncGCM {
                 }
             }
         }
-        for (Function function: functions) {
+        for (Function function : functions) {
             scheduleEarlyForFunc(function);
         }
-        for (Function function: functions) {
+        for (Function function : functions) {
             scheduleLateForFunc(function);
         }
         //printBeforeMove();
@@ -166,8 +190,7 @@ public class AggressiveFuncGCM {
 
     public void noUserCallDelete() {
         boolean changed = true;
-        while(changed)
-        {
+        while (changed) {
             changed = false;
             for (Function function : functions) {
                 BasicBlock beginBB = function.getBeginBB();
@@ -199,7 +222,7 @@ public class AggressiveFuncGCM {
         HashSet<Instr> pinnedInstr = pinnedInstrMap.get(function);
         know = new HashSet<>();
         root = function.getBeginBB();
-        for (Instr instr: pinnedInstr) {
+        for (Instr instr : pinnedInstr) {
             instr.setEarliestBB(instr.parentBB());
             know.add(instr);
         }
@@ -210,7 +233,7 @@ public class AggressiveFuncGCM {
                 if (!know.contains(instr)) {
                     scheduleEarly(instr);
                 } else if (pinnedInstr.contains(instr)) {
-                    for (Value value: instr.getUseValueList()) {
+                    for (Value value : instr.getUseValueList()) {
                         if (!(value instanceof Instr)) {
                             continue;
                         }
@@ -230,7 +253,7 @@ public class AggressiveFuncGCM {
         }
         know.add(instr);
         instr.setEarliestBB(root);
-        for (Value X: instr.getUseValueList()) {
+        for (Value X : instr.getUseValueList()) {
             if (X instanceof Instr) {
                 //assert X instanceof Instr;
                 scheduleEarly((Instr) X);
@@ -245,11 +268,11 @@ public class AggressiveFuncGCM {
     private void scheduleLateForFunc(Function function) {
         HashSet<Instr> pinnedInstr = pinnedInstrMap.get(function);
         know = new HashSet<>();
-        for (Instr instr: pinnedInstr) {
+        for (Instr instr : pinnedInstr) {
             instr.setLatestBB(instr.parentBB());
             know.add(instr);
         }
-        for (Instr instr: pinnedInstr) {
+        for (Instr instr : pinnedInstr) {
             Use use = instr.getBeginUse();
             while (use.getNext() != null) {
                 scheduleLate(use.getUser());
@@ -264,7 +287,7 @@ public class AggressiveFuncGCM {
                 instrs.add(instr);
                 instr = (Instr) instr.getPrev();
             }
-            for (Instr instr1: instrs) {
+            for (Instr instr1 : instrs) {
                 if (!know.contains(instr1)) {
                     scheduleLate(instr1);
                 }
@@ -320,7 +343,7 @@ public class AggressiveFuncGCM {
     }
 
     private void move() {
-        for (Function function: functions) {
+        for (Function function : functions) {
             BasicBlock bb = function.getBeginBB();
             while (bb.getNext() != null) {
                 Instr instr = bb.getBeginInstr();
@@ -329,7 +352,7 @@ public class AggressiveFuncGCM {
                     instrs.add(instr);
                     instr = (Instr) instr.getNext();
                 }
-                for (Instr i: instrs) {
+                for (Instr i : instrs) {
                     if (!i.getLatestBB().equals(bb)) {
                         assert false;
                         i.delFromNowBB();
@@ -393,8 +416,6 @@ public class AggressiveFuncGCM {
 
         return bb.getEndInstr();
     }
-
-
 
 
     // TODO:考虑数组变量读写的GCM 指针是SSA形式 但是内存不是

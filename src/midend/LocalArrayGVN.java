@@ -12,7 +12,7 @@ public class LocalArrayGVN {
     //TODO:GCM更新phi,删除无用phi,添加数组相关分析,
     // 把load,store,get_element_ptr也纳入GCM考虑之中
 
-    private static boolean _STRONG_CHECK_ = true;
+    private static boolean _STRONG_CHECK_ = false;
 
     private static HashSet<Instr> know;
     private BasicBlock root;
@@ -167,30 +167,22 @@ public class LocalArrayGVN {
 
 
     private void RPOSearch(BasicBlock bb) {
-//        if (_STRONG_CHECK_) {
-//            if (bb.getPrecBBs().size() > 1) {
-//                GvnCnt.clear();
-//                GvnMap.clear();
-//            }
-//            if (bb.getPrecBBs().size() == 1 && !bb.getIDominator().equals(bb.getPrecBBs().get(0))) {
-//                GvnCnt.clear();
-//                GvnMap.clear();
-//            }
-//        }
-        HashMap<String, Integer> tempGvnCnt = new HashMap<>();
-        HashMap<String, Instr> tempGvnMap = new HashMap<>();
-        HashMap<String, Integer> backGvnCnt = new HashMap<>();
-        HashMap<String, Instr> backGvnMap = new HashMap<>();
-        for (String key: GvnCnt.keySet()) {
-            tempGvnCnt.put(key, GvnCnt.get(key));
-            backGvnCnt.put(key, GvnCnt.get(key));
-        }
-        for (String key: GvnMap.keySet()) {
-            tempGvnMap.put(key, GvnMap.get(key));
-            backGvnCnt.put(key, GvnCnt.get(key));
-        }
-        //GvnCntByBB.put(bb, tempGvnCnt);
         if (_STRONG_CHECK_) {
+            HashMap<String, Integer> tempGvnCnt = new HashMap<>();
+            HashMap<String, Instr> tempGvnMap = new HashMap<>();
+            HashMap<String, Integer> backGvnCnt = new HashMap<>();
+            HashMap<String, Instr> backGvnMap = new HashMap<>();
+            for (String key : GvnCnt.keySet()) {
+                tempGvnCnt.put(key, GvnCnt.get(key));
+                backGvnCnt.put(key, GvnCnt.get(key));
+            }
+            for (String key : GvnMap.keySet()) {
+                tempGvnMap.put(key, GvnMap.get(key));
+                backGvnCnt.put(key, GvnCnt.get(key));
+            }
+            //GvnCntByBB.put(bb, tempGvnCnt);
+
+
             if (bb.getPrecBBs().size() > 1) {
                 tempGvnCnt.clear();
                 tempGvnMap.clear();
@@ -199,65 +191,111 @@ public class LocalArrayGVN {
                 tempGvnCnt.clear();
                 tempGvnMap.clear();
             }
-        }
 
 
-        Instr instr = bb.getBeginInstr();
-        while (instr.getNext() != null) {
-            if (instr instanceof Instr.Load && ((Instr.Load) instr).getAlloc() != null) {
-                addLoadToGVN(instr, tempGvnMap);
-            } else if (instr instanceof Instr.Store && ((Instr.Store) instr).getAlloc() != null) {
-                Value alloc = ((Instr.Store) instr).getAlloc();
-                if (alloc instanceof Instr.Alloc) {
-                    for (Instr load: ((Instr.Alloc) alloc).getLoads()) {
-                        assert load instanceof Instr.Load;
-                        try {
-                            removeLoadFromGVN(load, tempGvnMap);
-                        } catch (Exception e) {
-                            System.err.println("err");
+            Instr instr = bb.getBeginInstr();
+            while (instr.getNext() != null) {
+                if (instr instanceof Instr.Load && ((Instr.Load) instr).getAlloc() != null) {
+                    addLoadToGVNStrong(instr, tempGvnMap);
+                } else if (instr instanceof Instr.Store && ((Instr.Store) instr).getAlloc() != null) {
+                    Value alloc = ((Instr.Store) instr).getAlloc();
+                    if (alloc instanceof Instr.Alloc) {
+                        for (Instr load : ((Instr.Alloc) alloc).getLoads()) {
+                            assert load instanceof Instr.Load;
+                            try {
+                                removeLoadFromGVNStrong(load, tempGvnMap);
+                            } catch (Exception e) {
+                                System.err.println("err");
+                            }
                         }
+                    } else if (alloc instanceof Function.Param) {
+                        for (Instr load : ((Function.Param) alloc).getLoads()) {
+                            assert load instanceof Instr.Load;
+                            removeLoadFromGVNStrong(load, tempGvnMap);
+                        }
+                    } else {
+                        assert false;
                     }
-                } else if (alloc instanceof Function.Param) {
-                    for (Instr load: ((Function.Param) alloc).getLoads()) {
-                        assert load instanceof Instr.Load;
-                        removeLoadFromGVN(load, tempGvnMap);
+
+                } else if (instr instanceof Instr.Call) {
+                    //TODO:待强化,根据函数传入的指针,判断修改了哪个Alloc/参数
+                    if (goodFuncs.contains(((Instr.Call) instr).getFunc())) {
+
+                    } else {
+                        GvnMap.clear();
+                        GvnCnt.clear();
+                        tempGvnCnt.clear();
+                        tempGvnMap.clear();
                     }
-                } else {
-                    assert false;
+
                 }
-
-            } else if (instr instanceof Instr.Call) {
-                //判断函数的传参有没有数组
-//                if (((Instr.Call) instr).getFunc().isExternal) {
-//
-//                } else if (((Instr.Call) instr).getFunc().getName().equals("memset")) {
-//
-//                }
-                //TODO:待强化,根据函数传入的指针,判断修改了哪个Alloc/参数
-                if (goodFuncs.contains(((Instr.Call) instr).getFunc())) {
-
-                } else {
-                    GvnMap.clear();
-                    GvnCnt.clear();
-                    tempGvnCnt.clear();
-                    tempGvnMap.clear();
-                }
-
+                instr = (Instr) instr.getNext();
             }
-            instr = (Instr) instr.getNext();
-        }
 
-        for (BasicBlock next : bb.getIdoms()) {
-            RPOSearch(next);
-        }
+            for (BasicBlock next : bb.getIdoms()) {
+                RPOSearch(next);
+            }
 
-//        for (Instr temp : adds) {
-//            removeLoadFromGVN(temp);
-//        }
-        GvnMap.clear();
-        GvnCnt.clear();
-        GvnMap.putAll(backGvnMap);
-        GvnCnt.putAll(backGvnCnt);
+            GvnMap.clear();
+            GvnCnt.clear();
+            GvnMap.putAll(backGvnMap);
+            GvnCnt.putAll(backGvnCnt);
+        } else {
+            HashMap<String, Integer> tempGvnCnt = new HashMap<>();
+            HashMap<String, Instr> tempGvnMap = new HashMap<>();
+            for (String key : GvnCnt.keySet()) {
+                tempGvnCnt.put(key, GvnCnt.get(key));
+            }
+            for (String key : GvnMap.keySet()) {
+                tempGvnMap.put(key, GvnMap.get(key));
+            }
+            //GvnCntByBB.put(bb, tempGvnCnt);
+            Instr instr = bb.getBeginInstr();
+            while (instr.getNext() != null) {
+                if (instr instanceof Instr.Load && ((Instr.Load) instr).getAlloc() != null) {
+                    addLoadToGVN(instr);
+                } else if (instr instanceof Instr.Store && ((Instr.Store) instr).getAlloc() != null) {
+                    Value alloc = ((Instr.Store) instr).getAlloc();
+                    if (alloc instanceof Instr.Alloc) {
+                        for (Instr load : ((Instr.Alloc) alloc).getLoads()) {
+                            assert load instanceof Instr.Load;
+                            try {
+                                removeLoadFromGVN(load);
+                            } catch (Exception e) {
+                                System.err.println("err");
+                            }
+                        }
+                    } else if (alloc instanceof Function.Param) {
+                        for (Instr load : ((Function.Param) alloc).getLoads()) {
+                            assert load instanceof Instr.Load;
+                            removeLoadFromGVN(load);
+                        }
+                    } else {
+                        assert false;
+                    }
+
+                } else if (instr instanceof Instr.Call) {
+                    //TODO:待强化,根据函数传入的指针,判断修改了哪个Alloc/参数
+                    if (goodFuncs.contains(((Instr.Call) instr).getFunc())) {
+
+                    } else {
+                        GvnMap.clear();
+                        GvnCnt.clear();
+                    }
+
+                }
+                instr = (Instr) instr.getNext();
+            }
+
+            for (BasicBlock next : bb.getIdoms()) {
+                RPOSearch(next);
+            }
+
+            GvnMap.clear();
+            GvnCnt.clear();
+            GvnMap.putAll(tempGvnMap);
+            GvnCnt.putAll(tempGvnCnt);
+        }
     }
 
     private void add(String str, Instr instr) {
@@ -281,7 +319,7 @@ public class LocalArrayGVN {
         }
     }
 
-    private boolean addLoadToGVN(Instr load, HashMap<String, Instr> tempGvnMap) {
+    private boolean addLoadToGVNStrong(Instr load, HashMap<String, Instr> tempGvnMap) {
         //进行替换
         assert load instanceof Instr.Load;
         String hash = ((Instr.Load) load).getPointer().getName();
@@ -297,11 +335,31 @@ public class LocalArrayGVN {
         return false;
     }
 
-    private void removeLoadFromGVN(Instr load, HashMap<String, Instr> tempGvnMap) {
+    private void removeLoadFromGVNStrong(Instr load, HashMap<String, Instr> tempGvnMap) {
         assert load instanceof Instr.Load;
         String hash = ((Instr.Load) load).getPointer().getName();
         remove(hash);
         tempGvnMap.remove(hash);
+    }
+
+
+    private boolean addLoadToGVN(Instr load) {
+        //进行替换
+        assert load instanceof Instr.Load;
+        String hash = ((Instr.Load) load).getPointer().getName();
+        if (GvnMap.containsKey(hash)) {
+            load.modifyAllUseThisToUseA(GvnMap.get(hash));
+            //load.remove();
+            return true;
+        }
+        add(hash, load);
+        return false;
+    }
+
+    private void removeLoadFromGVN(Instr load) {
+        assert load instanceof Instr.Load;
+        String hash = ((Instr.Load) load).getPointer().getName();
+        remove(hash);
     }
 
     private HashMap<Value, Instr> reachDef = new HashMap<>();

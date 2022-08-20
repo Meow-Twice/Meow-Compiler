@@ -56,7 +56,7 @@ public class MidEndRunner {
 
         //TODO:内联,重算数据流,控制流信息并再进行一次局部化
         //FuncInline();
-        //MergeSimpleBB();
+        MergeSimpleBB();
 
         Mem2Reg();
 
@@ -80,7 +80,7 @@ public class MidEndRunner {
         ArrayGVN();
         FuncGVN();
         FuncGCM();
-        // AggressiveMarkParallel();
+        AggressiveMarkParallel();
         FuncInline();
         Mem2Reg();
         MathOpt();
@@ -150,7 +150,7 @@ public class MidEndRunner {
         //outputLLVM();
 
         //outputLLVM();
-        // LoopFuse();
+        LoopFuse();
 
 
         ArrayLift();
@@ -160,6 +160,7 @@ public class MidEndRunner {
         SimpleCalc();
         //outputLLVM();
         MarkParallel();
+        //MarkParallelForNormalLoop();
         GepSplit();
 
         //outputLLVM();
@@ -215,6 +216,16 @@ public class MidEndRunner {
         }
         MarkParallel markParallel = new MarkParallel(functions);
         markParallel.Run();
+
+        reMakeCFGAndLoopInfo();
+    }
+
+    private void MarkParallelForNormalLoop() {
+        if (!CenterControl._OPEN_PARALLEL) {
+            return;
+        }
+        MarkParallelForNormalLoop markParallelForNormalLoop = new MarkParallelForNormalLoop(functions);
+        markParallelForNormalLoop.Run();
 
         reMakeCFGAndLoopInfo();
     }

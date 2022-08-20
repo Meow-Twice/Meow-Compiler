@@ -19,6 +19,7 @@ public class CenterControl {
     public static boolean AlreadyBackend = false;
 
     public static String _TAG = "1";
+    public static boolean _FUNC_PARALLEL = false;
     public static final boolean _initAll = false;
 
 
@@ -34,4 +35,5 @@ public class CenterControl {
     public static final boolean _STRONG_FUNC_GCM = false;
 
     public static double _HEURISTIC_BASE = 1.45;
+
 }

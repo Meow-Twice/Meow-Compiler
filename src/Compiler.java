@@ -141,6 +141,9 @@ public class Compiler {
 
             if (O2) {
                 CenterControl._TAG = "O2_1";
+                if (CenterControl._FUNC_PARALLEL) {
+                    CenterControl._TAG = "O2_func";
+                }
                 PeepHole peepHole = new PeepHole(p);
                 peepHole.run();
                 // Manager.MANAGER.outputMI();

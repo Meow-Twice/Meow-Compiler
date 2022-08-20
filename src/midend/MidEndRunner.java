@@ -56,6 +56,7 @@ public class MidEndRunner {
 
         //TODO:内联,重算数据流,控制流信息并再进行一次局部化
         //FuncInline();
+        MergeSimpleBB();
 
         Mem2Reg();
 
@@ -168,6 +169,14 @@ public class MidEndRunner {
         //
         // RemovePhi removePhi = new RemovePhi(functions);
         // removePhi.Run();
+    }
+
+    private void MergeSimpleBB() {
+        MergeSimpleBB mergeSimpleBB = new MergeSimpleBB(functions);
+        mergeSimpleBB.Run();
+
+        MakeDFG makeDFG = new MakeDFG(functions);
+        makeDFG.Run();
     }
 
     private void IfComb() {

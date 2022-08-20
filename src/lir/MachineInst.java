@@ -196,6 +196,7 @@ public class MachineInst extends ILinkNode implements Cloneable {
         And("and"),
         FAnd("!Fand"),
         Or("or"),
+        Bic("bic"),
         FOr("!FOr"),
         LongMul("smmul"),
         FMA("!Fma"),

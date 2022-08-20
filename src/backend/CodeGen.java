@@ -862,13 +862,38 @@ public class CodeGen {
         // instr不可能是Constant
         MC.Operand dVR = getVR_no_imm(instr);
         if (tag == Mod) {
-            MC.Operand lVR = getVR_may_imm(lhs);
-            MC.Operand rVR = getVR_may_imm(rhs);
-            MC.Operand dst1 = newVR();
-            new I.Binary(MachineInst.Tag.Div, dst1, lVR, rVR, curMB);
-            MC.Operand dst2 = newVR();
-            new I.Binary(MachineInst.Tag.Mul, dst2, dst1, rVR, curMB);
-            new I.Binary(MachineInst.Tag.Sub, dVR, lVR, dst2, curMB);
+            boolean isPowerOf2 = false;
+            int imm = 1, abs = 1;
+            if (rhs.isConstantInt()) {
+                imm = (int) ((Constant.ConstantInt) rhs).getConstVal();
+                abs = (imm < 0) ? (-imm) : imm;
+                if ((abs & (abs - 1)) == 0) {
+                    isPowerOf2 = true;
+                }
+            }
+            if (optMulDiv && isPowerOf2) {
+                assert imm != 0;
+                if (lhs.isConstantInt()) {
+                    int vlhs = (int) ((Constant.ConstantInt) lhs).getConstVal();
+                    new I.Mov(dVR, new Operand(I32, vlhs % imm), curMB);
+                } else {
+
+
+
+                }
+                // 模结果的正负只和被除数有关
+                if (imm < 0) {
+                    new I.Binary(Rsb, dVR, dVR, new Operand(I32, 0), curMB);
+                }
+            } else {
+                MC.Operand lVR = getVR_may_imm(lhs);
+                MC.Operand rVR = getVR_may_imm(rhs);
+                MC.Operand dst1 = newVR();
+                new I.Binary(MachineInst.Tag.Div, dst1, lVR, rVR, curMB);
+                MC.Operand dst2 = newVR();
+                new I.Binary(MachineInst.Tag.Mul, dst2, dst1, rVR, curMB);
+                new I.Binary(MachineInst.Tag.Sub, dVR, lVR, dst2, curMB);
+            }
         } else if (optMulDiv && tag == Mul && (lhs.isConstantInt() || rhs.isConstantInt())) {
             // 不考虑双立即数: r*i, i*r, r*r
             if (lhs.isConstantInt() && rhs.isConstantInt()) {

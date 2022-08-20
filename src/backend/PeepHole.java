@@ -32,6 +32,7 @@ public class PeepHole {
                 if (twoStage(mf))
                     unDone = true;
             }
+            threeStage(mf);
         }
     }
 
@@ -40,6 +41,29 @@ public class PeepHole {
             boolean unDone = true;
             while (unDone) {
                 unDone = oneStage(mf);
+            }
+        }
+    }
+
+    public void threeStage(MC.McFunction mf) {
+        for (MC.Block mb : mf.mbList) {
+            curMB = mb;
+            Operand[] GPRConstPool = new Operand[GPRs.values().length];
+            ArrayList<MachineInst> removeList = new ArrayList<>();
+            for (MachineInst mi : mb.miList) {
+                if (mi.isIMov()) {
+                    I.Mov iMov = (I.Mov) mi;
+                    if (iMov.getSrc().isImm()) {
+                        if (GPRConstPool[iMov.getDst().getValue()] == iMov.getDst()) {
+                            removeList.add(mi);
+                        } else {
+                            GPRConstPool[iMov.getDst().getValue()] = iMov.getDst();
+                        }
+                    }
+                }
+            }
+            for (MachineInst mi : removeList) {
+                mi.remove();
             }
         }
     }

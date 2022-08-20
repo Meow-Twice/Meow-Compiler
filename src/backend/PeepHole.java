@@ -51,13 +51,20 @@ public class PeepHole {
             Operand[] GPRConstPool = new Operand[GPRs.values().length];
             ArrayList<MachineInst> removeList = new ArrayList<>();
             for (MachineInst mi : mb.miList) {
-                if (mi.isIMov()) {
+                if (mi.isIMov() && mi.noShiftAndCond()) {
                     I.Mov iMov = (I.Mov) mi;
                     if (iMov.getSrc().isImm()) {
-                        if (GPRConstPool[iMov.getDst().getValue()] == iMov.getDst()) {
+                        Operand gpr = GPRConstPool[iMov.getDst().getValue()];
+                        if (gpr == iMov.getDst()) {
                             removeList.add(mi);
                         } else {
-                            GPRConstPool[iMov.getDst().getValue()] = iMov.getDst();
+                            GPRConstPool[iMov.getDst().getValue()] = iMov.getSrc();
+                        }
+                    }
+                } else {
+                    for (Operand def : mi.defOpds) {
+                        if (def.isDataType(I32)) {
+                            GPRConstPool[def.getValue()] = null;
                         }
                     }
                 }
@@ -500,6 +507,37 @@ public class PeepHole {
                                                 iMov.remove();
                                                 unDone = true;
                                             }
+                                        }
+                                    }
+                                } else if (nextMI.isNotLastInst() && nextMI.noShiftAndCond()) {
+                                    MachineInst next2MI = (MachineInst) nextMI.getNext();
+                                    if (mi.theLastUserOfDef.equals(next2MI) && next2MI.isOf(ICmp) && next2MI.noShift()) {
+                                        I.Cmp icmp = (I.Cmp) next2MI;
+                                        boolean flag = true;
+                                        ArrayList<Operand> uses = nextMI.useOpds;
+                                        ArrayList<Operand> defs = nextMI.defOpds;
+                                        if (nextMI.isOf(ICmp, VCmp)) {
+                                            defs.add(Arm.Reg.getRSReg(cspr));
+
+                                        }
+                                        if (nextMI.isCall()) {
+                                            defs.add(Arm.Reg.getRSReg(cspr));
+                                            uses.add(Arm.Reg.getRSReg(sp));
+                                        }
+                                        for (Operand def : defs) {
+                                            if (def == iMov.getDst() && def != iMov.getSrc()) {
+                                                flag = false;
+                                            }
+                                        }
+                                        for (Operand use : uses) {
+                                            if (use == iMov.getDst()) {
+                                                flag = false;
+                                            }
+                                        }
+                                        if (flag && icmp.getROpd() == iMov.getDst()) {
+                                            unDone = true;
+                                            icmp.setROpd(iMov.getSrc());
+                                            iMov.remove();
                                         }
                                     }
                                 }

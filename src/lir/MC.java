@@ -775,6 +775,24 @@ public class MC {
             this.value = imm;
         }
 
+        /**
+         * 可编码浮点立即数
+         * 用的太多了没法改了就这样吧
+         *
+         * @param dataType
+         * @param imm
+         */
+        public float fConst = 0;
+        public boolean isFConst = false;
+        public Operand(DataType dataType, float imm) {
+            assert dataType == F32;
+            type = FConst;
+            prefix = "#";
+            // this.dataType = dataType;
+            this.fConst = imm;
+            this.isFConst = true;
+        }
+
         Constant.ConstantFloat constF = null;
 
         /**
@@ -875,6 +893,9 @@ public class MC {
             if (this instanceof Arm.Reg) {
                 return getReg().toString();
             } else if (type == FConst) {
+                if (isFConst) {
+                    return getPrefix() + fConst;
+                }
                 return constF.getAsmName();
             } else {
                 return getPrefix() + value;

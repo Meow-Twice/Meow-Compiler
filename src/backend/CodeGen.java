@@ -1187,6 +1187,14 @@ public class CodeGen {
         return false;
     }
 
+    /**
+     * 浮点立即数编码
+     * @return
+     */
+    public static boolean floatCanCode(float imm) {
+        return false;
+    }
+
     public Operand newSVR() {
         return curMF.newSVR();
     }
@@ -1247,19 +1255,24 @@ public class CodeGen {
 
     public Operand getFConstVR(Constant.ConstantFloat constF) {
         assert needFPU;
-        Operand dst = newSVR();
-        String name = constF.getAsmName();
-        Operand addr = name2constFOpd.get(name);
-        if (addr == null) {
-            addr = new Operand(F32, constF);
-            name2constFOpd.put(name, addr);
+        float imm = (float) constF.getConstVal();
+        if (floatCanCode(imm)) {
+            return new Operand(F32, imm);
+        } else {
+            Operand dst = newSVR();
+            String name = constF.getAsmName();
+            Operand addr = name2constFOpd.get(name);
+            if (addr == null) {
+                addr = new Operand(F32, constF);
+                name2constFOpd.put(name, addr);
+            }
+            Arm.Glob glob = new Arm.Glob(name);
+            // globList.add(glob);
+            Operand labelAddr = newVR();
+            new I.Mov(labelAddr, glob, curMB);
+            new V.Ldr(dst, labelAddr, curMB);
+            return dst;
         }
-        Arm.Glob glob = new Arm.Glob(name);
-        // globList.add(glob);
-        Operand labelAddr = newVR();
-        new I.Mov(labelAddr, glob, curMB);
-        new V.Ldr(dst, labelAddr, curMB);
-        return dst;
     }
 
     /**

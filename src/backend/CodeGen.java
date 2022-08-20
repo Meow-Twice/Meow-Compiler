@@ -1192,7 +1192,24 @@ public class CodeGen {
      * @return
      */
     public static boolean floatCanCode(float imm) {
-        return false;
+        // aBbbbbbc defgh000 00000000 00000000
+        int bits = Float.floatToIntBits(imm);
+        boolean[] bitArray = new boolean[32];
+        for (int i = 0; i < 32; i++) {
+            int base = (1 << i);
+            bitArray[i] = (bits & base) != 0;
+        }
+        for (int i = 0; i < 19; i++) {
+            if (bitArray[i]) {
+                return false;
+            }
+        }
+        for (int i = 25; i <= 29; i++) {
+            if (bitArray[i] == bitArray[30]) {
+                return false;
+            }
+        }
+        return true;
     }
 
     public Operand newSVR() {

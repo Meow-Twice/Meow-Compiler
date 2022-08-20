@@ -894,7 +894,7 @@ public class MC {
                 return getReg().toString();
             } else if (type == FConst) {
                 if (isFConst) {
-                    return getPrefix() + fConst;
+                    return "#" + fConst;
                 }
                 return constF.getAsmName();
             } else {

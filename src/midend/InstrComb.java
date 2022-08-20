@@ -46,6 +46,28 @@ public class InstrComb {
                     assert instr instanceof Instr.Alu;
                     combSrcToTagsFloat((Instr.Alu) instr, tags);
                     instr.remove();
+                } else if (instr.canCombMul()) {
+                    ArrayList<Instr.Alu> tags = new ArrayList<>();
+                    Use use = instr.getBeginUse();
+                    while (use.getNext() != null) {
+                        assert use.getUser() instanceof Instr.Alu;
+                        tags.add((Instr.Alu) use.getUser());
+                        use = (Use) use.getNext();
+                    }
+                    assert instr instanceof Instr.Alu;
+                    combSrcToTagsMul((Instr.Alu) instr, tags);
+                    instr.remove();
+                } else if (instr.canCombMulFloat()) {
+                    ArrayList<Instr.Alu> tags = new ArrayList<>();
+                    Use use = instr.getBeginUse();
+                    while (use.getNext() != null) {
+                        assert use.getUser() instanceof Instr.Alu;
+                        tags.add((Instr.Alu) use.getUser());
+                        use = (Use) use.getNext();
+                    }
+                    assert instr instanceof Instr.Alu;
+                    combSrcToTagsMulFloat((Instr.Alu) instr, tags);
+                    instr.remove();
                 }
                 instr = (Instr) instr.getNext();
             }
@@ -62,6 +84,19 @@ public class InstrComb {
     private void combSrcToTagsFloat(Instr.Alu src, ArrayList<Instr.Alu> tags) {
         for (Instr.Alu alu: tags) {
             combAToBFloat(src, alu);
+        }
+    }
+
+    private void combSrcToTagsMul(Instr.Alu src, ArrayList<Instr.Alu> tags) {
+        for (Instr.Alu alu: tags) {
+            combAToBMul(src, alu);
+        }
+    }
+
+
+    private void combSrcToTagsMulFloat(Instr.Alu src, ArrayList<Instr.Alu> tags) {
+        for (Instr.Alu alu: tags) {
+            combAToBMulFloat(src, alu);
         }
     }
 
@@ -325,6 +360,93 @@ public class InstrComb {
             B.modifyUse(constantFloat, 0);
             B.modifyUse(AUseList.get(0), 1);
             B.setOp(Instr.Alu.Op.FADD);
+            //A.remove();
+        }
+    }
+
+
+    private void combAToBMul(Instr.Alu A, Instr.Alu B) {
+        ArrayList<Value> AUseList = A.getUseValueList();
+        ArrayList<Value> BUseList = B.getUseValueList();
+        int ConstInA = 0, ConstInB = 0;
+        boolean ConstInAIs0 = false, ConstInBIs0 = false;
+        if (AUseList.get(0) instanceof Constant) {
+            ConstInA = (int) ((Constant.ConstantInt) AUseList.get(0)).getConstVal();
+            ConstInAIs0 = true;
+        } else {
+            ConstInA = (int) ((Constant.ConstantInt) AUseList.get(1)).getConstVal();
+        }
+
+        if (BUseList.get(0) instanceof Constant) {
+            ConstInB = (int) ((Constant.ConstantInt) BUseList.get(0)).getConstVal();
+            ConstInBIs0 = true;
+        } else {
+            ConstInB = (int) ((Constant.ConstantInt) BUseList.get(1)).getConstVal();
+        }
+
+        Constant.ConstantInt constantInt = new Constant.ConstantInt(ConstInA * ConstInB);
+        if (ConstInAIs0 && ConstInBIs0) {
+            B.modifyUse(constantInt, 0);
+            B.modifyUse(AUseList.get(1), 1);
+            //A.remove();
+        }
+        else if (ConstInAIs0 && !ConstInBIs0) {
+            B.modifyUse(constantInt, 1);
+            B.modifyUse(AUseList.get(1), 0);
+            //A.remove();
+        }
+        else if (!ConstInAIs0 && ConstInBIs0) {
+            B.modifyUse(constantInt, 0);
+            B.modifyUse(AUseList.get(1), 1);
+            //A.remove();
+        }
+        else if (!ConstInAIs0 && !ConstInBIs0) {
+            B.modifyUse(constantInt, 1);
+            B.modifyUse(AUseList.get(1), 0);
+            //A.remove();
+        }
+    }
+
+
+
+    private void combAToBMulFloat(Instr.Alu A, Instr.Alu B) {
+        ArrayList<Value> AUseList = A.getUseValueList();
+        ArrayList<Value> BUseList = B.getUseValueList();
+        float ConstInA = 0, ConstInB = 0;
+        boolean ConstInAIs0 = false, ConstInBIs0 = false;
+        if (AUseList.get(0) instanceof Constant) {
+            ConstInA = (float) ((Constant.ConstantFloat) AUseList.get(0)).getConstVal();
+            ConstInAIs0 = true;
+        } else {
+            ConstInA = (float) ((Constant.ConstantFloat) AUseList.get(1)).getConstVal();
+        }
+
+        if (BUseList.get(0) instanceof Constant) {
+            ConstInB = (float) ((Constant.ConstantFloat) BUseList.get(0)).getConstVal();
+            ConstInBIs0 = true;
+        } else {
+            ConstInB = (float) ((Constant.ConstantFloat) BUseList.get(1)).getConstVal();
+        }
+
+        Constant.ConstantFloat constantFloat = new Constant.ConstantFloat(ConstInA * ConstInB);
+        if (ConstInAIs0 && ConstInBIs0) {
+            B.modifyUse(constantFloat, 0);
+            B.modifyUse(AUseList.get(1), 1);
+            //A.remove();
+        }
+        else if (ConstInAIs0 && !ConstInBIs0) {
+            B.modifyUse(constantFloat, 1);
+            B.modifyUse(AUseList.get(1), 0);
+            //A.remove();
+        }
+        else if (!ConstInAIs0 && ConstInBIs0) {
+            B.modifyUse(constantFloat, 0);
+            B.modifyUse(AUseList.get(1), 1);
+            //A.remove();
+        }
+        else if (!ConstInAIs0 && !ConstInBIs0) {
+            B.modifyUse(constantFloat, 1);
+            B.modifyUse(AUseList.get(1), 0);
             //A.remove();
         }
     }

@@ -56,7 +56,7 @@ public class MidEndRunner {
 
         //TODO:内联,重算数据流,控制流信息并再进行一次局部化
         //FuncInline();
-        MergeSimpleBB();
+        //MergeSimpleBB();
 
         Mem2Reg();
 

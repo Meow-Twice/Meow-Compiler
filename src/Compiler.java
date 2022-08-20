@@ -143,13 +143,13 @@ public class Compiler {
                 CenterControl._TAG = "O2_1";
                 PeepHole peepHole = new PeepHole(p);
                 peepHole.run();
-                Manager.MANAGER.outputMI();
+                // Manager.MANAGER.outputMI();
                 MergeBlock mergeBlock = new MergeBlock();
                 int i = 0;
                 while (i++ < 2) {
                     mergeBlock.run(true);
                 }
-                Manager.MANAGER.outputMI();
+                // Manager.MANAGER.outputMI();
                 if (CenterControl._OPEN_PARALLEL_BACKEND) {
                     Parallel.PARALLEL.gen();
                 }

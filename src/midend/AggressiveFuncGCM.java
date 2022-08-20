@@ -380,6 +380,10 @@ public class AggressiveFuncGCM {
                 later = pos;
                 break;
             }
+            if (pos instanceof Instr.Call && ((Instr.Call) pos).getFunc().getName().equals("_sysy_stoptime")) {
+                later = pos;
+                break;
+            }
             pos = (Instr) pos.getNext();
         }
 

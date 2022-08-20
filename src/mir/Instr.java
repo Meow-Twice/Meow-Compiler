@@ -266,6 +266,38 @@ public class Instr extends Value {
         return true;
     }
 
+    public boolean checkMul() {
+        if (!(this.isAlu())) {
+            return false;
+        }
+        if (!this.getType().isInt32Type()) {
+            return false;
+        }
+        if (!((Alu) this).isMul()) {
+            return false;
+        }
+        if (!((Alu) this).hasOneConst()) {
+            return false;
+        }
+        return true;
+    }
+
+    public boolean checkMulFloat() {
+        if (!(this.isAlu())) {
+            return false;
+        }
+        if (!this.getType().isFloatType()) {
+            return false;
+        }
+        if (!((Alu) this).isFMul()) {
+            return false;
+        }
+        if (!((Alu) this).hasOneConst()) {
+            return false;
+        }
+        return true;
+    }
+
     public void setArrayInit(boolean arrayInit) {
         this.arrayInit = arrayInit;
     }
@@ -300,6 +332,36 @@ public class Instr extends Value {
         while (use.getNext() != null) {
             Instr user = use.getUser();
             if (!user.checkFloat()) {
+                return false;
+            }
+            use = (Use) use.getNext();
+        }
+        return true;
+    }
+
+    public boolean canCombMul() {
+        if (!checkMul()) {
+            return false;
+        }
+        Use use = getBeginUse();
+        while (use.getNext() != null) {
+            Instr user = use.getUser();
+            if (!user.checkMul()) {
+                return false;
+            }
+            use = (Use) use.getNext();
+        }
+        return true;
+    }
+
+    public boolean canCombMulFloat() {
+        if (!checkMulFloat()) {
+            return false;
+        }
+        Use use = getBeginUse();
+        while (use.getNext() != null) {
+            Instr user = use.getUser();
+            if (!user.checkMulFloat()) {
                 return false;
             }
             use = (Use) use.getNext();
@@ -406,6 +468,14 @@ public class Instr extends Value {
 
         public boolean isFSub() {
             return op.equals(Op.FSUB);
+        }
+
+        public boolean isMul() {
+            return op.equals(Op.MUL);
+        }
+
+        public boolean isFMul() {
+            return op.equals(Op.FMUL);
         }
 
         public boolean hasOneConst() {

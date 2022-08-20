@@ -149,7 +149,7 @@ public class MidEndRunner {
         //outputLLVM();
 
         //outputLLVM();
-        LoopFuse();
+        // LoopFuse();
 
 
         ArrayLift();

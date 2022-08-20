@@ -3,7 +3,6 @@ package midend;
 import frontend.Visitor;
 import mir.*;
 import mir.type.Type;
-import util.CenterControl;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -28,10 +27,10 @@ public class LoopStrengthReduction {
 
     public void Run() {
         divToShift();
-        addConstToMul();
-        if (CenterControl._OPEN_FLOAT_LOOP_STRENGTH_REDUCTION) {
-            addConstFloatToMul();
-        }
+//        addConstToMul();
+//        if (CenterControl._OPEN_FLOAT_LOOP_STRENGTH_REDUCTION) {
+//            addConstFloatToMul();
+//        }
 //        addConstAndModToMulAndMod();
 //        addIdcAndModToMulAndMod();
     }

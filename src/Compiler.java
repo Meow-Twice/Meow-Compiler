@@ -140,7 +140,7 @@ public class Compiler {
                 MC.Program.PROGRAM.bssInit();
 
             if (O2) {
-                CenterControl._TAG = "O2_1";
+                CenterControl._TAG = "O2_2";
                 if (CenterControl._FUNC_PARALLEL) {
                     CenterControl._TAG = "O2_func";
                 }

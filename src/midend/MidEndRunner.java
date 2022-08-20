@@ -155,6 +155,7 @@ public class MidEndRunner {
         ArrayLift();
         removePhiUseSame();
         Rem2DivMulSub();
+        IfComb();
         //outputLLVM();
         MarkParallel();
         GepSplit();
@@ -166,6 +167,15 @@ public class MidEndRunner {
         //
         // RemovePhi removePhi = new RemovePhi(functions);
         // removePhi.Run();
+    }
+
+    private void IfComb() {
+        IfComb ifComb = new IfComb(functions);
+        ifComb.Run();
+
+        BrOptimize();
+
+        Pass();
     }
 
     private void AggressiveMarkParallel() {

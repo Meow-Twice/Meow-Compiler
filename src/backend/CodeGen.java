@@ -312,6 +312,7 @@ public class CodeGen {
                         // }else{
                         //     System.err.println(trueBlock.bb);
                     }
+                    if(trueBlock.bb.getLoopDep() < falseBlock.bb.getLoopDep()) exchanged = true;
                     boolean isIcmp = !condValue.isFcmp();
                     CMPAndArmCond t = cmpInst2MICmpMap.get(condValue);
                     if (t != null) {

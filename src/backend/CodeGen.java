@@ -24,6 +24,7 @@ import static lir.Arm.Regs.FPRs.s0;
 import static lir.Arm.Regs.GPRs.r0;
 import static lir.Arm.Regs.GPRs.sp;
 import static lir.BJ.*;
+import static lir.MC.Operand.I_ZERO;
 import static lir.MachineInst.Tag.*;
 import static midend.MidEndRunner.O2;
 import static mir.type.DataType.F32;
@@ -876,14 +877,38 @@ public class CodeGen {
                 if (lhs.isConstantInt()) {
                     int vlhs = (int) ((Constant.ConstantInt) lhs).getConstVal();
                     new I.Mov(dVR, new Operand(I32, vlhs % imm), curMB);
+                } else if (abs == 1) {
+                    new I.Mov(dVR, new Operand(I32, 0), curMB);
                 } else {
-
-
-
-                }
-                // 模结果的正负只和被除数有关
-                if (imm < 0) {
-                    new I.Binary(Rsb, dVR, dVR, new Operand(I32, 0), curMB);
+                    // 模结果的正负只和被除数有关
+                    // 被除数为正: x % abs => x & (abs - 1)
+                    // 被除数为负: 先做与运算，然后高位全 1 (取出符号位，左移，或上)
+                    /*
+                     * sign = x >>> 31
+                     * mask = sign << sh
+                     * mod = x & (abs - 1)
+                     * if (mod != 0)
+                     *     mod |= mask
+                     */
+                    int sh = Integer.numberOfTrailingZeros(abs);
+                    MC.Operand lVR = getVR_may_imm(lhs);
+                    MC.Operand sign = newVR();
+                    new I.Mov(sign, lVR, new Arm.Shift(Arm.ShiftType.Asr, 31), curMB);
+                    MC.Operand mask = newVR();
+                    new I.Mov(mask, sign, new Arm.Shift(Arm.ShiftType.Lsl, sh), curMB);
+                    // MC.Operand mod = newVR();
+                    MC.Operand immOp = new Operand(I32, abs - 1), immVR;
+                    if (immCanCode(abs - 1)) {
+                        immVR = immOp;
+                    } else {
+                        immVR = newVR();
+                        new I.Mov(immVR, immOp, curMB);
+                    }
+                    new I.Binary(And, dVR, lVR, immVR, curMB);
+                    // 条件执行
+                    new I.Cmp(Ne, dVR, I_ZERO, curMB);
+                    I.Binary or = new I.Binary(Or, dVR, dVR, mask, curMB);
+                    or.setCond(Ne);
                 }
             } else {
                 MC.Operand lVR = getVR_may_imm(lhs);

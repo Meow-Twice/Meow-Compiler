@@ -621,16 +621,38 @@ public class CodeGen {
                     // if(cnt++ > 38){
                     //     int b = 0;
                     // }
-                    Operand source = getOp_may_imm(((Instr.Move) instr).getSrc());
-                    // if(source.getValue() == 18) {
-                    //     int a = 0;
-                    // }
-                    Operand target = getVR_no_imm(((Instr.Move) instr).getDst());
-                    if (source.isF32() || target.isF32()) {
-                        assert needFPU;
-                        new V.Mov(target, source, curMB);
+                    Value src = ((Instr.Move) instr).getSrc();
+                    Value dst = ((Instr.Move) instr).getDst();
+                    if (src.isConstantFloat()) {
+                        Constant.ConstantFloat constF = (Constant.ConstantFloat) src;
+                        float imm = (float) constF.getConstVal();
+                        if (floatCanCode(imm)) {
+                            Operand source = new Operand(F32, imm);
+                            Operand target = getVR_no_imm(dst);
+                            new V.Mov(target, source, curMB);
+                        } else {
+                            String name = constF.getAsmName();
+                            Operand addr = name2constFOpd.get(name);
+                            if (addr == null) {
+                                addr = new Operand(F32, constF);
+                                name2constFOpd.put(name, addr);
+                            }
+                            Arm.Glob glob = new Arm.Glob(name);
+                            // globList.add(glob);
+                            Operand labelAddr = newVR();
+                            new I.Mov(labelAddr, glob, curMB);
+                            Operand target = getVR_no_imm(dst);
+                            new V.Ldr(target, labelAddr, curMB);
+                        }
                     } else {
-                        new I.Mov(target, source, curMB);
+                        Operand source = getOp_may_imm(src);
+                        Operand target = getVR_no_imm(dst);
+                        if (source.isF32() || target.isF32()) {
+                            assert needFPU;
+                            new V.Mov(target, source, curMB);
+                        } else {
+                            new I.Mov(target, source, curMB);
+                        }
                     }
                 }
             }
@@ -641,6 +663,7 @@ public class CodeGen {
         //     genBB(mb.bb);
         // }
     }
+
     int cnt = 0;
 
     private void singleTotalOff(Instr.GetElementPtr gep, Operand curAddrVR, int totalOff) {
@@ -1033,8 +1056,23 @@ public class CodeGen {
                 new I.Mov(dVR, q, curMB); // store result
                 // new I.Binary(tag, dVR, lVR, getImmVR(imm), curMB);
             }
+        } else if (isFBino(instr.getOp())) {
+            if (tag == FMod) {
+                System.exit(199);
+                throw new AssertionError("has FMod:" + instr);
+                // assert needFPU;
+                // Operand dst1 = newSVR();
+                // new V.Binary(MachineInst.Tag.FDiv, dst1, lVR, rVR, curMB);
+                // Operand dst2 = newSVR();
+                // new V.Binary(MachineInst.Tag.FMul, dst2, dst1, rVR, curMB);
+                // new V.Binary(MachineInst.Tag.FSub, dVR, lVR, dst2, curMB);
+            }
+            MC.Operand lVR = getVR_may_imm(lhs);
+            MC.Operand rVR = getVR_may_imm(rhs);
+            assert needFPU;
+            new V.Binary(tag, dVR, lVR, rVR, curMB);
         } else {
-            if (lhs.isConstant()) {
+            if (lhs.isConstantInt()) {
                 switch (tag) {
                     case Add -> {
                         Value tmp = lhs;
@@ -1052,22 +1090,7 @@ public class CodeGen {
             MC.Operand lVR = getVR_may_imm(lhs);
             // TODO 如果加法右侧和mov右侧确实不同则此处需要修改
             MC.Operand rVR = getOp_may_imm(rhs);
-            if (tag == FMod) {
-                assert needFPU;
-                Operand dst1 = newSVR();
-                new V.Binary(MachineInst.Tag.FDiv, dst1, lVR, rVR, curMB);
-                Operand dst2 = newSVR();
-                new V.Binary(MachineInst.Tag.FMul, dst2, dst1, rVR, curMB);
-                new V.Binary(MachineInst.Tag.FSub, dVR, lVR, dst2, curMB);
-            } else {
-
-                if (isFBino(instr.getOp())) {
-                    assert needFPU;
-                    new V.Binary(tag, dVR, lVR, rVR, curMB);
-                } else {
-                    new I.Binary(tag, dVR, lVR, rVR, curMB);
-                }
-            }
+            new I.Binary(tag, dVR, lVR, rVR, curMB);
         }
     }
 
@@ -1189,6 +1212,7 @@ public class CodeGen {
 
     /**
      * 浮点立即数编码
+     *
      * @return
      */
     public static boolean floatCanCode(float imm) {
@@ -1273,10 +1297,11 @@ public class CodeGen {
     public Operand getFConstVR(Constant.ConstantFloat constF) {
         assert needFPU;
         float imm = (float) constF.getConstVal();
+        Operand dst = newSVR();
         if (floatCanCode(imm)) {
-            return new Operand(F32, imm);
+            Operand fopd = new Operand(F32, imm);
+            new V.Mov(dst, fopd, curMB);
         } else {
-            Operand dst = newSVR();
             String name = constF.getAsmName();
             Operand addr = name2constFOpd.get(name);
             if (addr == null) {
@@ -1288,8 +1313,8 @@ public class CodeGen {
             Operand labelAddr = newVR();
             new I.Mov(labelAddr, glob, curMB);
             new V.Ldr(dst, labelAddr, curMB);
-            return dst;
         }
+        return dst;
     }
 
     /**
@@ -1299,8 +1324,9 @@ public class CodeGen {
         if (value instanceof Constant.ConstantInt || value instanceof Constant.ConstantBool) {
             int imm = (int) ((Constant) value).getConstVal();
             if (immCanCode(imm))
-                return new Operand(I32, (int) ((Constant) value).getConstVal());
+                return new Operand(I32, imm);
         }
+        assert !value.isConstantFloat();
         return getVR_may_imm(value);
     }
 

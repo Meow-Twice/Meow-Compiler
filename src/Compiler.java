@@ -140,12 +140,13 @@ public class Compiler {
                 MC.Program.PROGRAM.bssInit();
 
             if (O2) {
+                CenterControl._TAG = "O2_1";
                 PeepHole peepHole = new PeepHole(p);
                 peepHole.run();
                 Manager.MANAGER.outputMI();
                 MergeBlock mergeBlock = new MergeBlock();
                 int i = 0;
-                while (i++ < 5) {
+                while (i++ < 2) {
                     mergeBlock.run(true);
                 }
                 Manager.MANAGER.outputMI();

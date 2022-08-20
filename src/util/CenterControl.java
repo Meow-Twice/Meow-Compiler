@@ -18,7 +18,7 @@ public class CenterControl {
     public static final boolean _GLOBAL_BSS = true;
     public static boolean AlreadyBackend = false;
 
-    public static final String _TAG = "1";
+    public static String _TAG = "1";
     public static final boolean _initAll = false;
 
 

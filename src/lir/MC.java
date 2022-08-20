@@ -119,9 +119,9 @@ public class MC {
 
         public StringBuilder getSTB() {
             StringBuilder stb = new StringBuilder();
-            if (CenterControl._BACKEND_COMMENT_OUTPUT) {
-                stb.append("@ ").append(CenterControl._TAG).append("\n");
-            }
+            // if (CenterControl._BACKEND_COMMENT_OUTPUT) {
+            stb.append("@ ").append(CenterControl._TAG).append("\n");
+            // }
             stb.append(".arch armv7ve\n.arm\n");
             if (needFPU) {
                 stb.append(".fpu vfpv3-d16\n");
@@ -784,6 +784,7 @@ public class MC {
          */
         public float fConst = 0;
         public boolean isFConst = false;
+
         public Operand(DataType dataType, float imm) {
             assert dataType == F32;
             type = FConst;

@@ -156,6 +156,7 @@ public class MidEndRunner {
         removePhiUseSame();
         Rem2DivMulSub();
         IfComb();
+        SimpleCalc();
         //outputLLVM();
         MarkParallel();
         GepSplit();
@@ -174,6 +175,16 @@ public class MidEndRunner {
         ifComb.Run();
 
         BrOptimize();
+
+        Pass();
+    }
+
+    private void SimpleCalc() {
+        SimpleCalc simpleCalc = new SimpleCalc(functions);
+        simpleCalc.Run();
+
+        BrOptimize();
+        removePhiUseSame();
 
         Pass();
     }

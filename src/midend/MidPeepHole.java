@@ -27,7 +27,11 @@ public class MidPeepHole {
         // B = A / const_A, sge B const_B
         peepHoleD();
         // DFS 判断是否单前驱
+        // if_comb
+        // math
     }
+
+
 
     private void peepHoleA() {
         for (Function function: functions) {

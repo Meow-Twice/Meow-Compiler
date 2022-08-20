@@ -9,6 +9,7 @@ import java.util.HashSet;
 public class MidPeepHole {
 
     private ArrayList<Function> functions;
+    private static int max_base = (int) (Math.sqrt(Integer.MAX_VALUE) - 1);
 
     public MidPeepHole(ArrayList<Function> functions) {
         this.functions = functions;
@@ -23,6 +24,9 @@ public class MidPeepHole {
         peepHoleB();
         //
         peepHoleC();
+        // B = A / const_A, sge B const_B
+        peepHoleD();
+        // DFS 判断是否单前驱
     }
 
     private void peepHoleA() {
@@ -146,6 +150,9 @@ public class MidPeepHole {
     }
 
     private void checkC(BasicBlock A) {
+        if (A.getLabel().equals("b30")) {
+            int a = 1;
+        }
         if (A.getSuccBBs().size() != 2) {
             return;
         }
@@ -246,4 +253,26 @@ public class MidPeepHole {
         return true;
     }
 
+
+    private void peepHoleD() {
+        for (Function function: functions) {
+            for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
+                for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+                    if (instr instanceof Instr.Alu && ((Instr.Alu) instr).getOp().equals(Instr.Alu.Op.DIV) &&
+                            instr.onlyOneUser() && instr.getBeginUse().getUser() instanceof Instr.Icmp) {
+                        Instr.Alu div = (Instr.Alu) instr;
+                        Instr.Icmp cmp = (Instr.Icmp) instr.getBeginUse().getUser();
+                        if (div.getRVal2() instanceof Constant.ConstantInt && cmp.getRVal2() instanceof Constant.ConstantInt) {
+                            int val1 = (int) ((Constant.ConstantInt) div.getRVal2()).getConstVal();
+                            int val2 = (int) ((Constant.ConstantInt) cmp.getRVal2()).getConstVal();
+                            if (val1 < max_base && val2 < max_base) {
+                                cmp.modifyUse(div.getRVal1(), 0);
+                                cmp.modifyUse(new Constant.ConstantInt(val1 * val2), 1);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }

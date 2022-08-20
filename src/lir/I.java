@@ -467,6 +467,7 @@ public class I extends MachineInst {
     }
 
     public static class Binary extends I implements ActualDefMI {
+        public boolean setCSPR = false;
         // Add, Sub, Rsb, Mul, Div, Mod, Lt, Le, Ge, Gt, Eq, Ne, And, Or
         // Smmul (for divide optimize)
 
@@ -575,7 +576,7 @@ public class I extends MachineInst {
                 case LongMul -> "smmul";
                 case Bic -> "bic";
                 default -> throw new AssertionError("Wrong Int Binary");
-            };
+            } + (setCSPR ? "s" : "");
         }
 
         @Override
@@ -718,9 +719,9 @@ public class I extends MachineInst {
 
         @Override
         public void calCost() {
-            if(getDst().isVirtual(I32)){
+            if (getDst().isVirtual(I32)) {
                 int cost = 0;
-                for(Operand use: useOpds){
+                for (Operand use : useOpds) {
                     cost += use.cost;
                 }
                 getDst().setDefCost(this, cost);

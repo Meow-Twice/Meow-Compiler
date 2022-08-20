@@ -79,7 +79,7 @@ public class MidEndRunner {
         ArrayGVN();
         FuncGVN();
         FuncGCM();
-        AggressiveMarkParallel();
+        // AggressiveMarkParallel();
         FuncInline();
         Mem2Reg();
         MathOpt();

@@ -140,7 +140,7 @@ public class PeepHole {
      * @param prevInst
      * @return
      */
-    private boolean oneStageLdr(MachineInst.Tag tag, MachineInst mi, MachineInst prevInst) {
+    private boolean oneStageLdr(Tag tag, MachineInst mi, MachineInst prevInst) {
 
         MachineMemInst ldr = (MachineMemInst) mi;
         if (prevInst.isOf(tag)) {
@@ -488,7 +488,7 @@ public class PeepHole {
                                 //
                                 // }
                             }
-                        } else if (mi instanceof MachineInst.ActualDefMI) {
+                        } else if (mi instanceof ActualDefMI) {
                             if (mi.lastUserIsNext()) {
                                 // MachineInst nextMI = (MachineInst) mi.getNext();
                                 if (isSimpleIMov(nextMI)) {
@@ -496,7 +496,7 @@ public class PeepHole {
                                     // move b a (to be remove)
                                     // =>
                                     // anything (replace dst)
-                                    Operand def = ((MachineInst.ActualDefMI) mi).getDef();
+                                    Operand def = ((ActualDefMI) mi).getDef();
                                     I.Mov iMov = (I.Mov) nextMI;
                                     if (def.equals(iMov.getSrc())) {
                                         mi.setDef(iMov.getDst());

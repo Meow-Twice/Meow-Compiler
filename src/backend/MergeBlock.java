@@ -56,7 +56,7 @@ public class MergeBlock {
                                 GDJump bj = (GDJump) predMb.getEndMI();
                                 ArrayList<MachineInst> list = new ArrayList<>();
                                 for (MachineInst mi : curMB.miList) {
-                                    if (!mi.isOf(MachineInst.Tag.Comment, MachineInst.Tag.Jump, MachineInst.Tag.Branch))
+                                    if (!mi.isOf(Tag.Comment, Tag.Jump, Tag.Branch))
                                         list.add(mi);
                                 }
                                 for (MachineInst mi : list) {
@@ -97,7 +97,7 @@ public class MergeBlock {
                                     GDBranch bj = (GDBranch) node;
                                     ArrayList<MachineInst> list = new ArrayList<>();
                                     for (MachineInst mi : curMB.miList) {
-                                        if (!mi.isOf(MachineInst.Tag.Comment, MachineInst.Tag.Jump, MachineInst.Tag.Branch))
+                                        if (!mi.isOf(Tag.Comment, Tag.Jump, Tag.Branch))
                                             list.add(mi);
                                     }
                                     for (MachineInst mi : list) {

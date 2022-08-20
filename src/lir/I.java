@@ -493,7 +493,7 @@ public class I extends MachineInst {
             useOpds.add(rOpd);
         }
 
-        public Binary(Tag tag, MC.Operand dOpd, MC.Operand lOpd, MC.Operand rOpd, Arm.Shift shift, MC.Block insertAtEnd) {
+        public Binary(Tag tag, Operand dOpd, Operand lOpd, Operand rOpd, Arm.Shift shift, MC.Block insertAtEnd) {
             super(tag, insertAtEnd);
             defOpds.add(dOpd);
             useOpds.add(lOpd);
@@ -502,7 +502,7 @@ public class I extends MachineInst {
             if (!shift.shiftIsReg()) useOpds.add(shift.shiftOpd);
         }
 
-        public Binary(Tag tag, MC.Operand dOpd, MC.Operand lOpd, MC.Operand rOpd, Arm.Shift shift, MachineInst firstUse) {
+        public Binary(Tag tag, Operand dOpd, Operand lOpd, Operand rOpd, Arm.Shift shift, MachineInst firstUse) {
             super(tag, firstUse);
             defOpds.add(dOpd);
             useOpds.add(lOpd);

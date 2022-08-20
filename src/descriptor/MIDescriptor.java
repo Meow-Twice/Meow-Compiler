@@ -251,10 +251,10 @@ public class MIDescriptor implements Descriptor {
         // Arrays.fill(MemSimulator.HEAP, null);
         RegSimulator.GPRS = new ArrayList<>();
         RegSimulator.FPRS = new ArrayList<>();
-        for (int i = 0; i < Arm.Regs.GPRs.values().length; i++) {
+        for (int i = 0; i < GPRs.values().length; i++) {
             RegSimulator.GPRS.add(RANDOM_MODE ? random.nextInt() : 0);
         }
-        for (int i = 0; i < Arm.Regs.FPRs.values().length; i++) {
+        for (int i = 0; i < FPRs.values().length; i++) {
             RegSimulator.FPRS.add(RANDOM_MODE ? random.nextFloat() : (float) 0.0);
         }
         globName2HeapOff = new HashMap<>();
@@ -327,7 +327,7 @@ public class MIDescriptor implements Descriptor {
 
         if (runningState == RunningState.AFTER_MODE) {
             // push
-            List<Arm.Regs.GPRs> usedRegList = curMF.getUsedRegList();
+            List<GPRs> usedRegList = curMF.getUsedRegList();
             Collections.reverse(usedRegList);
             int firstSp = (int) getFromReg(GPRs.sp);
             for (GPRs gpr : usedRegList) {
@@ -833,23 +833,23 @@ public class MIDescriptor implements Descriptor {
     }
 
     private Object getFromReg(Arm.Regs regEnum) {
-        if (regEnum instanceof Arm.Regs.GPRs) {
-            return getGPRVal(((Arm.Regs.GPRs) regEnum).ordinal());
+        if (regEnum instanceof GPRs) {
+            return getGPRVal(((GPRs) regEnum).ordinal());
         } else {
-            assert regEnum instanceof Arm.Regs.FPRs;
-            return getFPRVal(((Arm.Regs.FPRs) regEnum).ordinal());
+            assert regEnum instanceof FPRs;
+            return getFPRVal(((FPRs) regEnum).ordinal());
         }
     }
 
 
     private void setToReg(Object obj, Arm.Regs regEnum) {
-        if (regEnum instanceof Arm.Regs.GPRs) {
+        if (regEnum instanceof GPRs) {
             assert obj instanceof Integer;
-            setGPRVal(((Arm.Regs.GPRs) regEnum).ordinal(), (int) obj);
+            setGPRVal(((GPRs) regEnum).ordinal(), (int) obj);
         } else {
-            assert regEnum instanceof Arm.Regs.FPRs;
+            assert regEnum instanceof FPRs;
             assert obj instanceof Float;
-            setFPRVal(((Arm.Regs.FPRs) regEnum).ordinal(), (float) obj);
+            setFPRVal(((FPRs) regEnum).ordinal(), (float) obj);
         }
     }
 }

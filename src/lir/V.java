@@ -43,7 +43,7 @@ public class V extends MachineInst {
          * addr可能是常数立即数的地址
          * 参数的load, 正常的Load
          */
-        public Ldr(MC.Operand data, MC.Operand addr, MC.Block insertAtEnd) {
+        public Ldr(Operand data, Operand addr, MC.Block insertAtEnd) {
             super(VLdr, insertAtEnd);
             defOpds.add(data);
             useOpds.add(addr);
@@ -57,7 +57,7 @@ public class V extends MachineInst {
          * @param offset
          * @param insertBefore
          */
-        public Ldr(MC.Operand data, MC.Operand addr, MC.Operand offset, MachineInst insertBefore) {
+        public Ldr(Operand data, Operand addr, Operand offset, MachineInst insertBefore) {
             super(VLdr, insertBefore);
             defOpds.add(data);
             useOpds.add(addr);
@@ -77,15 +77,15 @@ public class V extends MachineInst {
             useOpds.add(dstAddr);
         }
 
-        public MC.Operand getData() {
+        public Operand getData() {
             return defOpds.get(0);
         }
 
-        public MC.Operand getAddr() {
+        public Operand getAddr() {
             return useOpds.get(0);
         }
 
-        public MC.Operand getOffset() {
+        public Operand getOffset() {
             if (useOpds.size() < 2) return new Operand(I32, 0);
             return useOpds.get(1);
         }
@@ -115,14 +115,14 @@ public class V extends MachineInst {
 
     public static class Str extends V implements MachineMemInst {
 
-        public Str(MC.Operand data, MC.Operand addr, MC.Operand offset, MC.Block insertAtEnd) {
+        public Str(Operand data, Operand addr, Operand offset, MC.Block insertAtEnd) {
             super(VStr, insertAtEnd);
             useOpds.add(data);
             useOpds.add(addr);
             useOpds.add(offset);
         }
 
-        public Str(MC.Operand data, MC.Operand addr, MC.Block insertAtEnd) {
+        public Str(Operand data, Operand addr, MC.Block insertAtEnd) {
             super(VStr, insertAtEnd);
             useOpds.add(data);
             useOpds.add(addr);
@@ -135,7 +135,7 @@ public class V extends MachineInst {
          * @param data
          * @param addr
          */
-        public Str(MachineInst insertAfter, MC.Operand data, MC.Operand addr, MC.Operand offset) {
+        public Str(MachineInst insertAfter, Operand data, Operand addr, Operand offset) {
             super(insertAfter, VStr);
             useOpds.add(data);
             useOpds.add(addr);
@@ -155,15 +155,15 @@ public class V extends MachineInst {
             useOpds.add(addr);
         }
 
-        public MC.Operand getData() {
+        public Operand getData() {
             return useOpds.get(0);
         }
 
-        public MC.Operand getAddr() {
+        public Operand getAddr() {
             return useOpds.get(1);
         }
 
-        public MC.Operand getOffset() {
+        public Operand getOffset() {
             if (useOpds.size() < 3) return null;
             return useOpds.get(2);
         }
@@ -183,7 +183,7 @@ public class V extends MachineInst {
         public void output(PrintStream os, MC.McFunction f) {
             if (getOffset() == null) {
                 os.println("\tvstr" + cond + ".32\t" + getData() + ",\t[" + getAddr() + "]");
-            } else if (getOffset().type == MC.Operand.Type.Immediate) {
+            } else if (getOffset().type == Operand.Type.Immediate) {
                 int shift = (this.shift.shiftType == Arm.ShiftType.None) ? 0 : this.shift.shiftOpd.getValue();
                 int offset = this.getOffset().value << shift;
                 if (offset != 0) {
@@ -205,7 +205,7 @@ public class V extends MachineInst {
             StringBuilder stb = new StringBuilder();
             if (getOffset() == null) {
                 stb.append("vstr").append(cond).append(".32\t").append(getData()).append(",\t[").append(getAddr()).append("]");
-            } else if (getOffset().type == MC.Operand.Type.Immediate) {
+            } else if (getOffset().type == Operand.Type.Immediate) {
                 int shift = (this.shift.shiftType == Arm.ShiftType.None) ? 0 : this.shift.shiftOpd.getValue();
                 int offset = this.getOffset().value << shift;
                 if (offset != 0) {
@@ -238,20 +238,20 @@ public class V extends MachineInst {
             useOpds.add(src);
         }
 
-        public MC.Operand getDst() {
+        public Operand getDst() {
             return defOpds.get(0);
         }
 
-        public MC.Operand getSrc() {
+        public Operand getSrc() {
             return useOpds.get(0);
         }
 
-        public void setSrc(MC.Operand offset_opd) {
+        public void setSrc(Operand offset_opd) {
             assert offset_opd != null;
             useOpds.set(0, offset_opd);
         }
 
-        public void setDst(MC.Operand dst) {
+        public void setDst(Operand dst) {
             assert dst != null;
             defOpds.set(0, dst);
         }
@@ -294,11 +294,11 @@ public class V extends MachineInst {
             useOpds.add(src);
         }
 
-        public MC.Operand getDst() {
+        public Operand getDst() {
             return defOpds.get(0);
         }
 
-        public MC.Operand getSrc() {
+        public Operand getSrc() {
             return useOpds.get(0);
         }
 
@@ -332,22 +332,22 @@ public class V extends MachineInst {
     }
 
     public static class Binary extends V {
-        public Binary(Tag tag, MC.Operand dOpd, MC.Operand lOpd, MC.Operand rOpd, MC.Block insertAtEnd) {
+        public Binary(Tag tag, Operand dOpd, Operand lOpd, Operand rOpd, MC.Block insertAtEnd) {
             super(tag, insertAtEnd);
             defOpds.add(dOpd);
             useOpds.add(lOpd);
             useOpds.add(rOpd);
         }
 
-        public MC.Operand getDst() {
+        public Operand getDst() {
             return defOpds.get(0);
         }
 
-        public MC.Operand getLOpd() {
+        public Operand getLOpd() {
             return useOpds.get(0);
         }
 
-        public MC.Operand getROpd() {
+        public Operand getROpd() {
             return useOpds.get(1);
         }
 
@@ -388,17 +388,17 @@ public class V extends MachineInst {
 
     public static class Neg extends V {
 
-        public Neg(MC.Operand dst, MC.Operand src, MC.Block insertAtEnd) {
+        public Neg(Operand dst, Operand src, MC.Block insertAtEnd) {
             super(Tag.VNeg, insertAtEnd);
             defOpds.add(dst);
             useOpds.add(src);
         }
 
-        public MC.Operand getDst() {
+        public Operand getDst() {
             return defOpds.get(0);
         }
 
-        public MC.Operand getSrc() {
+        public Operand getSrc() {
             return useOpds.get(0);
         }
 
@@ -413,8 +413,8 @@ public class V extends MachineInst {
         }
     }
 
-    public static class Cmp extends V implements MachineInst.Compare {
-        public Cmp(Arm.Cond cond, MC.Operand lOpd, MC.Operand rOpd, MC.Block insertAtEnd) {
+    public static class Cmp extends V implements Compare {
+        public Cmp(Arm.Cond cond, Operand lOpd, Operand rOpd, MC.Block insertAtEnd) {
             super(VCmp, insertAtEnd);
             this.cond = cond;
             useOpds.add(lOpd);
@@ -422,11 +422,11 @@ public class V extends MachineInst {
         }
 
 
-        public MC.Operand getLOpd() {
+        public Operand getLOpd() {
             return useOpds.get(0);
         }
 
-        public MC.Operand getROpd() {
+        public Operand getROpd() {
             return useOpds.get(1);
         }
 

@@ -77,7 +77,7 @@ public class MC {
             for (Arm.Glob glob : globBss) {
                 // 对每个变量初始化
                 // 用 movw 和 movt 指令获取基地址
-                MC.Operand rBase = getRSReg(r3), rOffset = getRSReg(r2), rData = getRSReg(r1);
+                Operand rBase = getRSReg(r3), rOffset = getRSReg(r2), rData = getRSReg(r1);
                 specialMI = new I.Mov(specialMI, rBase, glob); // 获取基地址
                 Initial.Flatten flatten = glob.init.flatten();
                 int offset = 0;
@@ -708,7 +708,7 @@ public class MC {
         }
 
         public boolean isConst() {
-            return type == Immediate || type == Operand.Type.FConst;
+            return type == Immediate || type == Type.FConst;
         }
 
         boolean isGlobAddr = false;

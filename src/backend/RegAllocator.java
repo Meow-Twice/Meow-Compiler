@@ -163,7 +163,7 @@ public class RegAllocator {
             if (mi instanceof I.Binary) {
                 // sp add or sub
                 I.Binary binary = (I.Binary) mi;
-                MC.Operand off;
+                Operand off;
                 int newOff = switch (binary.getFixType()) {
                     case VAR_STACK -> mf.getVarStack();
                     case ONLY_PARAM -> binary.getCallee().getParamStack();
@@ -177,17 +177,17 @@ public class RegAllocator {
                     binary.remove();
                 } else {
                     if (CodeGen.immCanCode(newOff)) {
-                        off = new MC.Operand(I32, newOff);
+                        off = new Operand(I32, newOff);
                     } else {
                         off = Arm.Reg.getR(r4);
-                        new I.Mov(off, new MC.Operand(I32, newOff), binary);
+                        new I.Mov(off, new Operand(I32, newOff), binary);
                     }
                     binary.setROpd(off);
                 }
                 binary.clearNeedFix();
             } else if (mi.isIMov()) {
                 I.Mov mv = (I.Mov) mi;
-                MC.Operand off = mv.getSrc();
+                Operand off = mv.getSrc();
                 assert off.is_I_Imm();
                 int newOff = mf.getTotalStackSize() + off.get_I_Imm();
                 // mov a, #off
@@ -197,7 +197,7 @@ public class RegAllocator {
                     if (CenterControl._FixStackWithPeepHole && CodeGen.vLdrStrImmEncode(newOff) && mv.getNext() instanceof I.Ldr) {
                         V.Ldr vldr = (V.Ldr) mv.getNext().getNext();
                         vldr.setUse(0, Arm.Reg.getRSReg(sp));
-                        vldr.setOffSet(new MC.Operand(I32, newOff));
+                        vldr.setOffSet(new Operand(I32, newOff));
                         assert mv.getNext() instanceof I.Binary;
                         mv.getNext().remove();
                         mv.clearNeedFix();
@@ -207,9 +207,9 @@ public class RegAllocator {
                         I.Binary binary = (I.Binary) mv.getNext();
                         mv.clearNeedFix();
                         mv.remove();
-                        binary.setROpd(new MC.Operand(I32, newOff));
+                        binary.setROpd(new Operand(I32, newOff));
                     } else {
-                        mv.setSrc(new MC.Operand(I32, newOff));
+                        mv.setSrc(new Operand(I32, newOff));
                         mv.clearNeedFix();
                     }
                 } else if (mv.getFixType() == CodeGen.STACK_FIX.INT_TOTAL_STACK) {
@@ -217,11 +217,11 @@ public class RegAllocator {
                     // ldr opd, [sp, dst]
                     if (CenterControl._FixStackWithPeepHole && CodeGen.LdrStrImmEncode(newOff) && mv.getNext() instanceof I.Ldr) {
                         I.Ldr ldr = (I.Ldr) mv.getNext();
-                        ldr.setOffSet(new MC.Operand(I32, newOff));
+                        ldr.setOffSet(new Operand(I32, newOff));
                         mv.clearNeedFix();
                         mv.remove();
                     } else {
-                        mv.setSrc(new MC.Operand(I32, newOff));
+                        mv.setSrc(new Operand(I32, newOff));
                         mv.clearNeedFix();
                     }
                 } else {
@@ -432,7 +432,7 @@ public class RegAllocator {
                 // TODO : 此时考虑了Call
                 logOut(mi + "\tlive begin:\t" + live);
                 if (mi.isMovOfDataType(dataType)) {
-                    MachineInst.MachineMove mv = (MachineInst.MachineMove) mi;
+                    MachineMove mv = (MachineMove) mi;
                     if (mv.directColor()) {
                         // 没有cond, 没有shift, src和dst都是虚拟寄存器的mov指令
                         // move 的 dst 和 src 不应是直接冲突的关系, 而是潜在的可合并的关系

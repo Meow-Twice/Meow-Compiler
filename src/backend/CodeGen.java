@@ -926,10 +926,14 @@ public class CodeGen {
                         immVR = newVR();
                         new I.Mov(immVR, immOp, curMB);
                     }
-                    I.Binary tmp = new I.Binary(And, dVR, lVR, immVR, curMB);
-                    tmp.setCSPR = true;
-                    // 条件执行
-                    // new I.Cmp(Ne, dVR, I_ZERO, curMB);
+                    if (needFPU) {
+                        // 条件执行
+                        new I.Binary(And, dVR, lVR, immVR, curMB);
+                        new I.Cmp(Ne, dVR, I_ZERO, curMB);
+                    } else {
+                        I.Binary tmp = new I.Binary(And, dVR, lVR, immVR, curMB);
+                        tmp.setCSPR = true;
+                    }
                     I.Binary or = new I.Binary(Or, dVR, dVR, sign, new Arm.Shift(Arm.ShiftType.Lsl, sh), curMB);
                     or.setCond(Ne);
                 }

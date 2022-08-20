@@ -23,8 +23,8 @@ public class IfComb {
 
     public void Run() {
         PatternA();
-        PatternB();
-        PatternC();
+//        PatternB();
+//        PatternC();
     }
 
 

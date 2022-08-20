@@ -172,6 +172,9 @@ public class Value extends ILinkNode {
         return this instanceof Constant.ConstantInt;
     }
 
+    public boolean isConstantFloat() {
+        return this instanceof Constant.ConstantFloat;
+    }
 
     @Override
     public boolean equals(Object o) {

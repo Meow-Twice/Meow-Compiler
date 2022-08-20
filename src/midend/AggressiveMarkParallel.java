@@ -3,6 +3,7 @@ package midend;
 import manage.Manager;
 import mir.*;
 import mir.type.Type;
+import util.CenterControl;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -190,6 +191,7 @@ public class AggressiveMarkParallel {
         }
 
         loop.setCanAggressiveParallel(true);
+        CenterControl._FUNC_PARALLEL = true;
     }
 
 

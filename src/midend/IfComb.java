@@ -5,6 +5,7 @@ import mir.*;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.regex.Pattern;
 
 public class IfComb {
 
@@ -21,6 +22,15 @@ public class IfComb {
 
 
     public void Run() {
+        PatternA();
+//        PatternB();
+//        PatternC();
+    }
+
+
+
+
+    private void PatternA() {
         for (Function function: functions) {
             know.clear();
             for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
@@ -196,5 +206,76 @@ public class IfComb {
         right.putAll(tempRight);
         leftEq.putAll(tempLeftEq);
         rightEq.putAll(tempRightEq);
+    }
+
+    private HashSet<Value> trueValue = new HashSet<>(), falseValue = new HashSet<>();
+
+    private void PatternB() {
+        for (Function function: functions) {
+            know.clear();
+            for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
+                if (!know.contains(bb)) {
+                    DFS_B(bb);
+                }
+            }
+        }
+    }
+
+
+    private void DFS_B(BasicBlock bb) {
+        if (know.contains(bb)) {
+            return;
+        }
+        know.add(bb);
+        if (bb.getEndInstr() instanceof Instr.Jump) {
+            DFS_B(bb.getSuccBBs().get(0));
+        } else if (bb.getEndInstr() instanceof Instr.Branch &&
+                ((Instr.Branch) bb.getEndInstr()).getCond() instanceof Instr.Icmp) {
+            Instr.Branch br = (Instr.Branch) bb.getEndInstr();
+            Value cond = br.getCond();
+            BasicBlock trueBB = br.getThenTarget();
+            BasicBlock falseBB = br.getElseTarget();
+            if (trueValue.contains(cond)) {
+                DFS_B(trueBB);
+            } else if (falseValue.contains(cond)) {
+                DFS_B(falseBB);
+            } else {
+                if (trueBB.getPrecBBs().size() == 1) {
+                    trueValue.add(cond);
+                    DFS_B(trueBB);
+                    trueValue.remove(cond);
+                }
+                if (falseBB.getPrecBBs().size() == 1) {
+                    falseValue.add(cond);
+                    DFS_B(falseBB);
+                    falseValue.remove(cond);
+                }
+            }
+
+
+        }
+    }
+
+    int cnt = 0;
+
+    private void PatternC() {
+        for (Function function: functions) {
+            know.clear();
+            for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
+                if (bb.getEndInstr() instanceof Instr.Branch) {
+                    Instr.Branch br = (Instr.Branch) bb.getEndInstr();
+                    Value cond = br.getCond();
+                    BasicBlock trueBB = br.getThenTarget();
+                    BasicBlock falseBB = br.getElseTarget();
+                    if (trueBB.getSuccBBs().size() == 1 && trueBB.getSuccBBs().get(0).equals(falseBB) &&
+                            falseBB.getEndInstr() instanceof Instr.Branch && ((Instr.Branch) falseBB.getEndInstr()).getCond().equals(cond)) {
+                        cnt++;
+                    }
+                }
+            }
+        }
+        if (cnt > 10) {
+            System.exit(55);
+        }
     }
 }

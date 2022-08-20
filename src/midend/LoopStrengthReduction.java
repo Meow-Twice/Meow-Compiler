@@ -28,12 +28,12 @@ public class LoopStrengthReduction {
 
     public void Run() {
         divToShift();
-       // addConstToMul();
-       // if (CenterControl._OPEN_FLOAT_LOOP_STRENGTH_REDUCTION) {
-       //     addConstFloatToMul();
-       // }
-       // addConstAndModToMulAndMod();
-       // addIdcAndModToMulAndMod();
+        addConstToMul();
+        if (CenterControl._OPEN_FLOAT_LOOP_STRENGTH_REDUCTION) {
+            addConstFloatToMul();
+        }
+        addConstAndModToMulAndMod();
+        addIdcAndModToMulAndMod();
     }
 
     private void addConstToMul() {

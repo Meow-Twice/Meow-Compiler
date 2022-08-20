@@ -16,6 +16,13 @@ public class AggressiveFuncGCM {
     private BasicBlock root;
     private HashMap<Function, HashSet<Instr>> pinnedInstrMap = new HashMap<>();
 
+
+    private HashMap<Function, HashSet<Integer>> use = new HashMap<>();
+    private HashMap<Function, HashSet<Integer>> def = new HashMap<>();
+
+    private HashMap<Function, HashSet<Value>> useGlobals = new HashMap<>();
+    private HashMap<Function, HashSet<Value>> defGlobals = new HashMap<>();
+
     public AggressiveFuncGCM(ArrayList<Function> functions) {
         this.functions = functions;
     }
@@ -26,6 +33,70 @@ public class AggressiveFuncGCM {
     }
 
     private void init() {
+        for (Function function: functions) {
+            def.put(function, new HashSet<>());
+            defGlobals.put(function, new HashSet<>());
+            use.put(function, new HashSet<>());
+            useGlobals.put(function, new HashSet<>());
+        }
+
+        for (Function function: functions) {
+            for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
+                for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+                    if (instr instanceof Instr.Store) {
+                        Value val = ((Instr.Store) instr).getPointer();
+                        while (val instanceof Instr.GetElementPtr) {
+                            val = ((Instr.GetElementPtr) val).getPtr();
+                        }
+                        if (val instanceof Function.Param) {
+                            def.get(function).add(function.getParams().indexOf(val));
+                        } else if (val instanceof GlobalVal.GlobalValue) {
+                            defGlobals.get(function).add(val);
+                        }
+                    } else if (instr instanceof Instr.Load) {
+                        Value val = ((Instr.Load) instr).getPointer();
+                        while (val instanceof Instr.GetElementPtr) {
+                            val = ((Instr.GetElementPtr) val).getPtr();
+                        }
+                        if (val instanceof Function.Param) {
+                            use.get(function).add(function.getParams().indexOf(val));
+                        } if (val instanceof GlobalVal.GlobalValue) {
+                            useGlobals.get(function).add(val);
+                        }
+                    }
+                }
+            }
+        }
+
+
+        for (Function function: functions) {
+            for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
+                for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
+                    if (instr instanceof Instr.Call) {
+                        Function callFunc = ((Instr.Call) instr).getFunc();
+                        for (Value val: ((Instr.Call) instr).getParamList()) {
+                            if (val instanceof Function.Param) {
+                                int thisFuncIndex = function.getParams().indexOf(val);
+                                int callFuncIndex = ((Instr.Call) instr).getParamList().indexOf(val);
+                                if (callFunc.isExternal) {
+                                    use.get(function).add(thisFuncIndex);
+                                } else {
+                                    if (use.get(callFunc).contains(callFuncIndex)) {
+                                        use.get(function).add(thisFuncIndex);
+                                    }
+                                    if (def.get(callFunc).contains(callFuncIndex)) {
+                                        def.get(function).add(thisFuncIndex);
+                                    }
+                                    useGlobals.get(function).addAll(useGlobals.get(callFunc));
+                                    defGlobals.get(function).addAll(defGlobals.get(callFunc));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         boolean change = true;
         while (change) {
             change = false;
@@ -40,8 +111,11 @@ public class AggressiveFuncGCM {
     }
 
     private boolean check(Function function) {
+        if (defGlobals.get(function).size() > 0) {
+            return false;
+        }
         for (Function.Param param: function.getParams()) {
-            if (param.getType().isPointerType()) {
+            if (param.getType().isPointerType() && def.get(function).contains(function.getParams().indexOf(param))) {
                 return false;
             }
         }
@@ -52,11 +126,11 @@ public class AggressiveFuncGCM {
                         return false;
                     }
                 }
-                for (Value value: instr.getUseValueList()) {
-                    if (value instanceof GlobalVal.GlobalValue) {
-                        return false;
-                    }
-                }
+//                for (Value value: instr.getUseValueList()) {
+//                    if (value instanceof GlobalVal.GlobalValue) {
+//                        return false;
+//                    }
+//                }
             }
         }
         return true;

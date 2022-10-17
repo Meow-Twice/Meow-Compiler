@@ -1,6 +1,5 @@
 package midend;
 
-import lir.V;
 import mir.*;
 
 import java.util.ArrayList;

@@ -1,6 +1,5 @@
 package mir;
 
-import lir.V;
 import midend.CloneInfoMap;
 
 import java.util.ArrayList;

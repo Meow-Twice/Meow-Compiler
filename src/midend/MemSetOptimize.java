@@ -1,7 +1,6 @@
 package midend;
 
 import frontend.semantic.Initial;
-import lir.V;
 import manage.Manager;
 import mir.*;
 import mir.type.Type;
@@ -9,8 +8,6 @@ import mir.type.Type;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-
-import static manage.Manager.MANAGER;
 
 public class MemSetOptimize {
 

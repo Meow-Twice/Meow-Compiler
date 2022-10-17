@@ -1,9 +1,7 @@
 package manage;
 
-import lir.MC;
 import frontend.semantic.Initial;
 import frontend.semantic.symbol.Variable;
-import lir.*;
 import mir.Function;
 import mir.GlobalVal;
 import mir.type.Type;
@@ -134,66 +132,6 @@ public class Manager {
         FileDealer.outputStringList(out);
     }
 
-    static int outputMIcnt = 0;
-
-    public void outputMI(){
-        try {
-            outputMI("lirOutput-" + outputMIcnt++);
-        } catch (FileNotFoundException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    public static void outputMI(boolean flag) {
-        MC.Program p = MC.Program.PROGRAM;
-        for (MC.McFunction mcFunc : p.funcList) {
-            System.err.println("\n");
-            System.err.println(mcFunc.mFunc.getName());
-            for (MC.Block mb : mcFunc.mbList) {
-                System.err.println("\n");
-                System.err.println(mb.getLabel());
-                for (MachineInst mi : mb.miList) {
-                    // if(mi.isCall())continue;
-                    // if(mi.isBranch())continue;
-                    // if(mi instanceof MIBinary)continue;
-                    // if(mi instanceof MILoad)continue;
-                    // if(mi instanceof MIStore)continue;
-                    // if(mi.isMove())continue;
-                    String str = mi instanceof MIComment ? "" : "\t";
-                    System.err.println(str + mi);
-                }
-            }
-        }
-    }
-
-    public void outputMI(String miFilename) throws FileNotFoundException {
-        outputMI(new FileOutputStream(miFilename + ".txt"));
-    }
-
-    public static void outputMI(OutputStream out) {
-        FileDealer.outputClear();
-        MC.Program p = MC.Program.PROGRAM;
-        for (MC.McFunction mcFunc : p.funcList) {
-            FileDealer.addOutputString("\n");
-            FileDealer.addOutputString(mcFunc.mFunc.getName()+":");
-            for (MC.Block mb : mcFunc.mbList) {
-                FileDealer.addOutputString("\n");
-                FileDealer.addOutputString(mb.getLabel()+":");
-                FileDealer.addOutputString("@ pred:\t"+mb.predMBs.toString());
-                FileDealer.addOutputString("@ succ:\t"+mb.succMBs.toString());
-                for (MachineInst mi : mb.miList) {
-                    if(!(mi.getNext() instanceof MachineInst ) && mi.getNext()!=mb.miList.tail){
-                        int a = 0;
-                    }
-                    String str = mi instanceof MIComment ? "" : "\t";
-                    FileDealer.addOutputString(str + mi);
-                }
-            }
-        }
-
-        FileDealer.outputStringList(out);
-    }
-
     public HashMap<GlobalVal.GlobalValue, Initial> getGlobals() {
         return this.globals;
     }
@@ -207,7 +145,6 @@ public class Manager {
             }
         }
         return ret;
-//        return this.functions;
     }
 
 }

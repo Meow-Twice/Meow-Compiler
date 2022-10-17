@@ -1,7 +1,6 @@
 package mir;
 
 import frontend.Visitor;
-import lir.MC;
 import midend.CloneInfoMap;
 import midend.OutParam;
 import mir.type.Type;
@@ -427,16 +426,6 @@ public class BasicBlock extends Value {
         return ret;
     }
 
-    private MC.Block mb = null;
-
-    public void setMB(MC.Block mb) {
-        this.mb = mb;
-    }
-
-    public MC.Block getMb() {
-        return mb;
-    }
-
     public Loop getLoop() {
         return loop;
     }
@@ -447,7 +436,7 @@ public class BasicBlock extends Value {
 
     //把当前BB复制到指定函数
     //br外提的时候使用
-    public BasicBlock cloneToFunc(Function function) {
+    public void cloneToFunc(Function function) {
         // 是循环内的BB, 复制的时候,
         // 先创建新的循环, 然后把BB塞到新的loop里面
 //        if (label.equals("b174")) {
@@ -489,11 +478,10 @@ public class BasicBlock extends Value {
 //            retInstr.fix();
 //            retInstr = (Instr) retInstr.getNext();
 //        }
-        return ret;
     }
 
     //函数内联的时候,维护循环信息,方便GCM
-    public BasicBlock cloneToFunc(Function function, Loop loop) {
+    public void cloneToFunc(Function function, Loop loop) {
         // 是循环内的BB, 复制的时候,
         // 先创建新的循环, 然后把BB塞到新的loop里面
         Loop srcLoop = null;
@@ -554,11 +542,10 @@ public class BasicBlock extends Value {
 //            retInstr.fix();
 //            retInstr = (Instr) retInstr.getNext();
 //        }
-        return ret;
     }
 
     //循环展开的时候,复制bb
-    public BasicBlock cloneToFunc_LUR(Function function, Loop loop) {
+    public void cloneToFunc_LUR(Function function, Loop loop) {
         Loop tagLoop = null, srcLoop = null;
         if (getLoop().equals(loop)) {
            tagLoop = getLoop();
@@ -593,7 +580,6 @@ public class BasicBlock extends Value {
 
             instr = (Instr) instr.getNext();
         }
-        return ret;
     }
 
     public void fixPreSuc(BasicBlock oldBB) {

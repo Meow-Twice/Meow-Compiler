@@ -53,7 +53,7 @@ public class Arg {
         for (int i = 0; i < args.length; i++) {
             // detect "-Ox"
             if (args[i].startsWith("-O")) {
-                if (optLevel != 1) {
+                if (optLevel != 0) {
                     throw new RuntimeException("Optimize level should only have one.");
                 }
                 optLevel = Integer.parseInt(args[i].substring(2));

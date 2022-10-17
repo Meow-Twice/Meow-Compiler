@@ -316,23 +316,40 @@ public class Ast {
     // Init -> Exp | InitArray 
     // Exp -> BinaryExp | UnaryExp 
     public interface Exp extends Init, PrimaryExp {
+        default void printSyntaxTree() {}
     }
 
     // BinaryExp: Arithmetic, Relation, Logical 
     // BinaryExp -> Exp { Op Exp }, calc from left to right 
     public static class BinaryExp implements Exp {
 
-        public Exp first;
-        public ArrayList<Token> operators;
-        public ArrayList<Exp> follows;
+        public String name; // 二元表达式的种类 (AddExp, MulExp 等)
+        public Exp first; // 第一个运算数
+        public ArrayList<Token> operators; // 当前优先级的运算符
+        public ArrayList<Exp> follows; // 运算符后的运算数
 
-        public BinaryExp(Exp first, ArrayList<Token> operators, ArrayList<Exp> follows) {
+        public BinaryExp(String name, Exp first, ArrayList<Token> operators, ArrayList<Exp> follows) {
             assert first != null;
             assert operators != null;
             assert follows != null;
+            assert operators.size() == follows.size();
+            this.name = name;
             this.first = first;
             this.operators = operators;
             this.follows = follows;
+        }
+
+        @Override
+        public void printSyntaxTree() {
+            // e.g. this -> AddExp, first/follows -> MulExp
+            first.printSyntaxTree();    // already printed "<MulExp>"
+            System.out.println("<" + name + ">"); // print "<AddExp>"
+            int n = operators.size();
+            for (int i = 0; i < n; i++) {
+                System.out.println(operators.get(i));   // print token
+                follows.get(i).printSyntaxTree();       // printed "<MulExp>"
+                System.out.println("<" + name + ">");   // print "<AddExp>"
+            }
         }
 
         public Exp getFirst() {

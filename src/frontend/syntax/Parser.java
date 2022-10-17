@@ -6,6 +6,7 @@ import frontend.lexer.TokenList;
 import frontend.lexer.TokenType;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -264,20 +265,22 @@ public class Parser {
         return new Ast.Call(ident, params);
     }
 
-    // 二元表达式的种类 
-    private enum BinaryExpType {
-        LOR(TokenType.LOR),
-        LAND(TokenType.LAND),
-        EQ(TokenType.EQ, TokenType.NE),
-        REL(TokenType.GT, TokenType.LT, TokenType.GE, TokenType.LE),
-        ADD(TokenType.ADD, TokenType.SUB),
-        MUL(TokenType.MUL, TokenType.DIV, TokenType.MOD),
+    // 将二元运算符按优先级分类
+    private enum BinaryOpPri {
+        LOR("LOrExp", TokenType.LOR),
+        LAND("LAndExp", TokenType.LAND),
+        EQ("EqExp", TokenType.EQ, TokenType.NE),
+        REL("RelExp", TokenType.GT, TokenType.LT, TokenType.GE, TokenType.LE),
+        ADD("AddExp", TokenType.ADD, TokenType.SUB),
+        MUL("MulExp", TokenType.MUL, TokenType.DIV, TokenType.MOD),
         ;
 
-        private final List<TokenType> types;
+        public final String name;
+        public final List<TokenType> types; // 当前优先级一共包含哪些运算符
 
-        BinaryExpType(TokenType... types) {
-            this.types = List.of(types);
+        BinaryOpPri(String name, TokenType... types) {
+            this.name = name;
+            this.types = Arrays.asList(types);
         }
 
         public boolean contains(TokenType type) {
@@ -285,29 +288,37 @@ public class Parser {
         }
     }
 
-    // 解析二元表达式的下一层表达式 
-    private Ast.Exp parseSubBinaryExp(BinaryExpType expType) throws SyntaxException {
-        return switch (expType) {
-            case LOR -> parseBinaryExp(BinaryExpType.LAND);
-            case LAND -> parseBinaryExp(BinaryExpType.EQ);
-            case EQ -> parseBinaryExp(BinaryExpType.REL);
-            case REL -> parseBinaryExp(BinaryExpType.ADD);
-            case ADD -> parseBinaryExp(BinaryExpType.MUL);
-            case MUL -> parseUnaryExp();
-        };
+    // 解析更内一层的二元表达式 (定义优先级从低到高顺序)
+    private Ast.Exp parseSubBinaryExp(BinaryOpPri pri) throws SyntaxException {
+        switch (pri) {
+            case LOR:
+                return parseBinaryExp(BinaryOpPri.LAND);
+            case LAND:
+                return parseBinaryExp(BinaryOpPri.EQ);
+            case EQ:
+                return parseBinaryExp(BinaryOpPri.REL);
+            case REL:
+                return parseBinaryExp(BinaryOpPri.ADD);
+            case ADD:
+                return parseBinaryExp(BinaryOpPri.MUL);
+            case MUL:
+                return parseUnaryExp(); // 最内层就是一元表达式了
+            default:
+                throw new AssertionError();
+        }
     }
 
     // 解析二元表达式 
-    private Ast.BinaryExp parseBinaryExp(BinaryExpType expType) throws SyntaxException {
-        Ast.Exp first = parseSubBinaryExp(expType);
+    private Ast.BinaryExp parseBinaryExp(BinaryOpPri pri) throws SyntaxException {
+        Ast.Exp first = parseSubBinaryExp(pri);
         ArrayList<Token> operators = new ArrayList<>();
         ArrayList<Ast.Exp> follows = new ArrayList<>();
-        while (tokenList.hasNext() && expType.contains(tokenList.get().getType())) {
+        while (tokenList.hasNext() && pri.contains(tokenList.get().getType())) {
             Token op = tokenList.consume(); // 取得当前层次的运算符 
             operators.add(op);
-            follows.add(parseSubBinaryExp(expType));
+            follows.add(parseSubBinaryExp(pri));
         }
-        return new Ast.BinaryExp(first, operators, follows);
+        return new Ast.BinaryExp(pri.name, first, operators, follows);
     }
 
     private Ast.UnaryExp parseUnaryExp() throws SyntaxException {
@@ -320,11 +331,11 @@ public class Parser {
     }
 
     private Ast.BinaryExp parseAddExp() throws SyntaxException {
-        return parseBinaryExp(BinaryExpType.ADD);
+        return parseBinaryExp(BinaryOpPri.ADD);
     }
 
     private Ast.BinaryExp parseCond() throws SyntaxException {
-        return parseBinaryExp(BinaryExpType.LOR);
+        return parseBinaryExp(BinaryOpPri.LOR);
     }
 
     // 从 Exp 中提取一个 LVal (如果不是仅有一个 LVal) 则返回 null 

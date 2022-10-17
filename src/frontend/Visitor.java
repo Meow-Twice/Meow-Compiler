@@ -6,7 +6,7 @@ import frontend.lexer.TokenType;
 import frontend.semantic.Evaluate;
 import frontend.semantic.Initial;
 import frontend.semantic.symbol.SymTable;
-import frontend.semantic.symbol.Symbol;
+import frontend.semantic.symbol.Variable;
 import frontend.syntax.Ast;
 import frontend.syntax.Ast.*;
 import manage.Manager;
@@ -312,14 +312,14 @@ public class Visitor {
     private Value visitLVal(LVal lVal, boolean needPointer) throws SemanticException {
         // 去符号表拿出指向这个左值的指针
         String ident = lVal.getIdent().getContent();
-        Symbol symbol = currentSymTable.get(ident, true);
-        if (symbol.isConstant() && lVal.getIndexes().isEmpty()) {
+        Variable var = currentSymTable.get(ident, true);
+        if (var.isConstant() && lVal.getIndexes().isEmpty()) {
             // return symbol.getInitial();
             // assert !needPointer;
-            assert symbol.getInitial() instanceof Initial.ValueInit;
-            return ((Initial.ValueInit) symbol.getInitial()).getValue();
+            assert var.getInitial() instanceof Initial.ValueInit;
+            return ((Initial.ValueInit) var.getInitial()).getValue();
         }
-        Value pointer = symbol.getValue();
+        Value pointer = var.getValue();
         // assert pointer instanceof Alloc;
         assert pointer.getType() instanceof PointerType;
         ArrayList<Value> idxList = new ArrayList<>();
@@ -829,10 +829,10 @@ public class Visitor {
             pointer = new GlobalVal.GlobalValue(pointeeType, def, init);
         }
         // 构建符号表项并插入符号表
-        Symbol symbol = new Symbol(ident, pointeeType, init, constant, pointer);
-        currentSymTable.add(symbol);
+        Variable var = new Variable(ident, pointeeType, init, constant, pointer);
+        currentSymTable.add(var);
         if (isGlobal) {
-            manager.addGlobal(symbol);
+            manager.addGlobal(var);
         }
     }
 
@@ -954,7 +954,7 @@ public class Visitor {
             params.add(param); // 形参变量
             Value paramPointer = new Alloc(paramType, curBB);
             new Store(param, paramPointer, curBB);
-            currentSymTable.add(new Symbol(fParam.ident.getContent(), paramType, null, false, paramPointer));
+            currentSymTable.add(new Variable(fParam.ident.getContent(), paramType, null, false, paramPointer));
         }
         Function function = new Function(ident, params, retType);
         curLoop.setFunc(function);

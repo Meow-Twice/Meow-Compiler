@@ -2,7 +2,7 @@ package manage;
 
 import lir.MC;
 import frontend.semantic.Initial;
-import frontend.semantic.symbol.Symbol;
+import frontend.semantic.symbol.Variable;
 import lir.*;
 import mir.Function;
 import mir.GlobalVal;
@@ -85,10 +85,10 @@ public class Manager {
         external = false;
     }
 
-    public void addGlobal(Symbol symbol) {
-        assert symbol.getInitial() != null;
-        assert symbol.getValue() instanceof GlobalVal.GlobalValue;
-        globals.putIfAbsent((GlobalVal.GlobalValue) symbol.getValue(), symbol.getInitial());
+    public void addGlobal(Variable var) {
+        assert var.getInitial() != null;
+        assert var.getValue() instanceof GlobalVal.GlobalValue;
+        globals.putIfAbsent((GlobalVal.GlobalValue) var.getValue(), var.getInitial());
     }
 
     public void addFunction(Function function) {

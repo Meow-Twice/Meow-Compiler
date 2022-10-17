@@ -4,7 +4,7 @@ import exception.SemanticException;
 import frontend.Visitor;
 import frontend.lexer.Token;
 import frontend.semantic.symbol.SymTable;
-import frontend.semantic.symbol.Symbol;
+import frontend.semantic.symbol.Variable;
 import frontend.syntax.Ast;
 import mir.Constant;
 import mir.Value;
@@ -160,16 +160,16 @@ public class Evaluate {
     public static Object evalLVal(Ast.LVal lVal) throws SemanticException {
         String ident = lVal.getIdent().getContent();
         // 查找符号表
-        Symbol symbol = Visitor.currentSymTable.get(ident, true);
+        Variable var = Visitor.currentSymTable.get(ident, true);
         // if (requireConst && !symbol.isConstant()) {
         //     throw new SemanticException("Expected Const but got not Const.");
         // }
         // 必须初始化过，才可以编译期求值
-        if (symbol.getInitial() == null) {
+        if (var.getInitial() == null) {
             throw new SemanticException("Symbol not initialized");
         }
         // 如果是数组, 逐层找偏移量
-        Initial init = symbol.getInitial();
+        Initial init = var.getInitial();
         ArrayList<Integer> indexes = new ArrayList<>(); // eval indexes
         for (Ast.Exp index : lVal.getIndexes()) {
             indexes.add((int) evalConstExp(index));

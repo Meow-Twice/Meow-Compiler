@@ -1,7 +1,7 @@
 package util;
 
 /**
- * 自定义的链表节点
+ * "LinkedList,猫猫都不用" by No-SF-Work (author of ayame)
  */
 public class ILinkNode {
     private ILinkNode prev;
@@ -38,7 +38,7 @@ public class ILinkNode {
     }
 
     // insert another node before this
-    // -> node -> this->
+    // -> node -> this ->
     public void insertBefore(ILinkNode node) {
         node.setNext(this);
         node.setPrev(getPrev());
@@ -55,7 +55,7 @@ public class ILinkNode {
         return this.prev;
     }
 
-    public void setPrev(final ILinkNode prev) {
+    public void setPrev(ILinkNode prev) {
         this.prev = prev;
     }
 
@@ -63,13 +63,7 @@ public class ILinkNode {
         return this.next;
     }
 
-    public void setNext(final ILinkNode next) {
+    public void setNext(ILinkNode next) {
         this.next = next;
     }
-
-    public static class EmptyNode extends ILinkNode {
-
-    }
-
-    
 }

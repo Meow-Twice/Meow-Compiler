@@ -32,7 +32,6 @@ public class Compiler {
             // System.err.println(source); // output source code via stderr;
             TokenList tokenList = new TokenList();
             Lexer.getInstance().lex(source, tokenList);
-            // OUTPUT_LEX = true;
             if (OUTPUT_LEX) {
                 while (tokenList.hasNext()) {
                     Token token = tokenList.consume();

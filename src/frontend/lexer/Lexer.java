@@ -117,6 +117,10 @@ public class Lexer {
                 tk = new Token(WHILE, str);
                 tokenList.append(tk);
                 break;
+            case "printf":
+                tk = new Token(PRINTF, str);
+                tokenList.append(tk);
+                break;
 
             // case "getint": {
             //     Token tk = new Token(, str);

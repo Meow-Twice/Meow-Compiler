@@ -193,6 +193,20 @@ public class Parser {
                 }
                 tokenList.consumeExpected(TokenType.SEMI);
                 return new Ast.Return(value);
+            case PRINTF: {
+                tokenList.consumeExpected(TokenType.PRINTF);
+                tokenList.consumeExpected(TokenType.LPARENT);
+                Token strTk = tokenList.consumeExpected(TokenType.STR_CON);
+                List<Ast.Exp> args = new ArrayList<>();
+                while (tokenList.hasNext() && tokenList.get().isOf(TokenType.COMMA)) {
+                    tokenList.consumeExpected(TokenType.COMMA);
+                    Ast.Exp exp = parseAddExp();
+                    args.add(exp);
+                }
+                tokenList.consumeExpected(TokenType.RPARENT);
+                tokenList.consumeExpected(TokenType.SEMI);
+                return new Ast.PrintfStmt(strTk.getContent(), args);
+            }
             case IDENT:
                 // 先读出一整个 Exp 再判断是否只有一个 LVal (因为 LVal 可能是数组) 
                 Ast.Exp temp2 = parseAddExp();

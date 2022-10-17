@@ -4,6 +4,8 @@ import frontend.lexer.Token;
 import frontend.lexer.TokenType;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * 所有的语法树节点
@@ -195,8 +197,29 @@ public class Ast {
     public interface BlockItem {
     }
 
-    // Stmt -> Assign | ExpStmt | Block | IfStmt | WhileStmt | Break | Continue | Return 
+    // Stmt -> Assign | ExpStmt | Block | IfStmt | WhileStmt | Break | Continue | Return | PrintfStmt
     public interface Stmt extends BlockItem {
+    }
+
+    // PrintfStmt -> 'printf' '(' STR_CON { ',' Exp } ')'
+    public static class PrintfStmt implements Stmt {
+        public String formatStr;
+        public List<Exp> args;
+
+        public PrintfStmt(String formatStr, List<Exp> args) {
+            this.formatStr = formatStr;
+            this.args = args;
+        }
+
+        public PrintfStmt(String formatStr) {
+            this.formatStr = formatStr;
+            this.args = Collections.emptyList();
+        }
+
+        public String getFormat() {
+            assert formatStr.startsWith("\"") && formatStr.endsWith("\"");
+            return formatStr.substring(1, formatStr.length() - 1);
+        }
     }
 
     // Assign 

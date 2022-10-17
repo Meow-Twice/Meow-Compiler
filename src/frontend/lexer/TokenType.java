@@ -2,7 +2,6 @@ package frontend.lexer;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.regex.Pattern;
 
 public enum TokenType {
@@ -17,6 +16,7 @@ public enum TokenType {
     VOID("void", true),
     WHILE("while", true),
     RETURN("return", true),
+    PRINTF("printf", true),
     // ident
     IDENT("[A-Za-z_][A-Za-z0-9_]*"),
     // float const

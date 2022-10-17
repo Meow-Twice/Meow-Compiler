@@ -630,6 +630,30 @@ public class Visitor {
         }
     }
 
+    private void visitPrintf(Ast.PrintfStmt stmt) throws SemanticException {
+        String format = stmt.getFormat();
+        format = format.replace("\\n", "\n");
+        String[] parts = format.split("%d", -1);
+        // System.err.println(Arrays.stream(parts).map(s -> "\"" + s + "\"").reduce((s, s2) -> s + ", " + s2).orElse("[]"));
+        assert parts.length == stmt.args.size() + 1;
+        for (int i = 0; i < parts.length; i++) {
+            if (!parts[i].isEmpty()) {
+                // print_string parts[i]
+                for (char ch : parts[i].toCharArray()) {
+                    ArrayList<Value> funcParams = new ArrayList<>();
+                    funcParams.add(new Constant.ConstantInt(ch));
+                    new Instr.Call(Manager.ExternFunction.PUT_CH, funcParams, curBB);
+                }
+            }
+            if (i < stmt.args.size()) {
+                Value expValue = visitExp(stmt.args.get(i));
+                ArrayList<Value> funcParams = new ArrayList<>();
+                funcParams.add(expValue);
+                new Instr.Call(Manager.ExternFunction.PUT_INT, funcParams, curBB);
+            }
+        }
+    }
+
     private void visitStmt(Stmt stmt) throws SemanticException {
         if (stmt instanceof Assign) {
             visitAssign((Assign) stmt);
@@ -647,6 +671,8 @@ public class Visitor {
             visitReturn((Ast.Return) stmt);
         } else if (stmt instanceof Block) {
             visitBlock((Block) stmt, true);
+        } else if (stmt instanceof PrintfStmt) {
+            visitPrintf((PrintfStmt) stmt);
         } else {
             throw new AssertionError("Bad Stmt");
         }

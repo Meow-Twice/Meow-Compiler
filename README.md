@@ -11,3 +11,7 @@
 ```shell
 java -jar compiler.jar -emit-llvm -o <llvm_ir_filename> <sysy_filename>
 ```
+
+## 功能限制
+
+源程序中不要自定义名称与编译大赛链接库名称相同的函数，如 `getint`, `putint`, `getarray`, `putarray`, `getch`, `putch` 等。

@@ -7,7 +7,6 @@ import frontend.syntax.Ast;
 import frontend.syntax.Parser;
 import manage.Manager;
 import midend.MidEndRunner;
-import util.CenterControl;
 
 import java.io.BufferedInputStream;
 
@@ -22,11 +21,10 @@ public class Compiler {
     public static void main(String[] args) {
         Arg arg;
         if (args.length == 0) {
-            arg = Arg.parse(new String[]{"-emit-llvm", "-o", "llvm_ir.txt", "testfile.txt"});
+            arg = Arg.parse(new String[]{"-emit-llvm", "-o", "llvm_ir.txt", "testfile.txt", "-O0"});
         } else {
             arg = Arg.parse(args);
         }
-        CenterControl._HEURISTIC_BASE = arg.heuristicBase;
         try {
             BufferedInputStream source = new BufferedInputStream(arg.srcStream);
             // System.err.println(source); // output source code via stderr;

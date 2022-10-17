@@ -33,7 +33,4 @@ public class CenterControl {
 
     public static final boolean _STRONG_FUNC_INLINE = true;
     public static final boolean _STRONG_FUNC_GCM = true;
-
-    public static double _HEURISTIC_BASE = 1.45;
-
 }

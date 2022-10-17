@@ -4,7 +4,7 @@ import java.io.*;
 
 public class Arg {
     public final String srcFilename; // 源代码文件名 e.g. "testcase.sy"
-    public final int optLevel; // 优化等级，缺省值为 1
+    public final int optLevel; // 优化等级，缺省值为 0
 
     public final String asmFilename; // 目标汇编代码文件名 e.g. "testcase.s"
     public final String llvmFilename; // LLVM IR 文件名 e.g. "testcase.ll"
@@ -45,7 +45,7 @@ public class Arg {
 
     public static Arg parse(String[] args) {
         String src = "", asm = "", llvm = "";
-        int optLevel = 1;
+        int optLevel = 0;
         boolean interpret = false;
         String interpretIn = "", interpretOut = "";
         // options

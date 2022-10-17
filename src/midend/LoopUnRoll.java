@@ -31,7 +31,7 @@ public class LoopUnRoll {
     }
 
     private void init() {
-        for (Function function: functions) {
+        for (Function function : functions) {
             HashSet<Loop> loops = new HashSet<>();
             for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
                 loops.add(bb.getLoop());
@@ -39,14 +39,14 @@ public class LoopUnRoll {
             loopsByFunc.put(function, loops);
             loopOrdered.put(function, new ArrayList<>());
         }
-        for (Function function: functions) {
+        for (Function function : functions) {
             Loop pos = function.getBeginBB().getLoop();
             DFSForLoopOrder(function, pos);
         }
     }
 
     private void DFSForLoopOrder(Function function, Loop loop) {
-        for (Loop next: loop.getChildrenLoops()) {
+        for (Loop next : loop.getChildrenLoops()) {
             DFSForLoopOrder(function, next);
         }
         loopOrdered.get(function).add(loop);
@@ -59,13 +59,13 @@ public class LoopUnRoll {
 
     //idc init/step/end 均为常数
     private void constLoopUnRoll() {
-        for (Function function: functions) {
+        for (Function function : functions) {
             constLoopUnRollForFunc(function);
         }
     }
 
     private void constLoopUnRollForFunc(Function function) {
-        for (Loop loop: loopOrdered.get(function)) {
+        for (Loop loop : loopOrdered.get(function)) {
             if (loop.isSimpleLoop() && loop.isIdcSet()) {
                 constLoopUnRollForLoop(loop);
             }
@@ -101,31 +101,67 @@ public class LoopUnRoll {
         int times = 0;
         int max_time = (int) 1e9;
         switch (idcAlu.getOp()) {
-            case ADD -> {
+            case ADD: {
                 switch (idcCmp.getOp()) {
-                    case EQ -> times = (init == end)? 1:0;
-                    case NE -> times = ((end - init) % step == 0)? (end - init) / step : -1;
-                    case SGE, SLE -> times = (end - init) / step + 1;
-                    case SGT, SLT -> times = ((end - init) % step == 0)? (end - init) / step : (end - init) / step + 1;
+                    case EQ:
+                        times = (init == end) ? 1 : 0;
+                        break;
+                    case NE:
+                        times = ((end - init) % step == 0) ? (end - init) / step : -1;
+                        break;
+                    case SGE:
+                    case SLE:
+                        times = (end - init) / step + 1;
+                        break;
+                    case SGT:
+                    case SLT:
+                        times = ((end - init) % step == 0) ? (end - init) / step : (end - init) / step + 1;
+                        break;
                 }
-            } case SUB -> {
+            }
+            break;
+            case SUB: {
                 switch (idcCmp.getOp()) {
-                    case EQ -> times = (init == end)? 1:0;
-                    case NE -> times = ((init - end) % step == 0)? (init - end) / step : -1;
-                    case SGE, SLE -> times = (init - end) / step + 1;
-                    case SGT, SLT -> times = ((init - end) % step == 0)? (init - end) / step : (init - end) / step + 1;
+                    case EQ:
+                        times = (init == end) ? 1 : 0;
+                        break;
+                    case NE:
+                        times = ((init - end) % step == 0) ? (init - end) / step : -1;
+                        break;
+                    case SGE:
+                    case SLE:
+                        times = (init - end) / step + 1;
+                        break;
+                    case SGT:
+                    case SLT:
+                        times = ((init - end) % step == 0) ? (init - end) / step : (init - end) / step + 1;
+                        break;
                 }
-            } case MUL -> {
+            }
+            break;
+            case MUL: {
                 //TODO:把乘法除法也纳入考虑
-                double val = Math.log(end / init) / Math.log(step);
+                double val = Math.log((float) (end / init)) / Math.log(step);
                 boolean tag = init * Math.pow(step, val) == end;
                 switch (idcCmp.getOp()) {
-                    case EQ -> times = (init == end)? 1:0;
-                    case NE -> times = tag ? (int) val : -1;
-                    case SGE, SLE -> times = (int) val + 1;
-                    case SGT, SLT -> times = tag ? (int) val : (int) val + 1;
+                    case EQ:
+                        times = (init == end) ? 1 : 0;
+                        break;
+                    case NE:
+                        times = tag ? (int) val : -1;
+                        break;
+                    case SGE:
+                    case SLE:
+                        times = (int) val + 1;
+                        break;
+                    case SGT:
+                    case SLT:
+                        times = tag ? (int) val : (int) val + 1;
+                        break;
                 }
-            } case DIV -> {
+            }
+            break;
+            case DIV: {
                 return;
             }
         }
@@ -141,7 +177,7 @@ public class LoopUnRoll {
     private void checkDFS(Loop loop, HashSet<BasicBlock> allBB, HashSet<BasicBlock> exits) {
         allBB.addAll(loop.getNowLevelBB());
         exits.addAll(loop.getExits());
-        for (Loop loop1: loop.getChildrenLoops()) {
+        for (Loop loop1 : loop.getChildrenLoops()) {
             checkDFS(loop1, allBB, exits);
         }
     }
@@ -155,11 +191,11 @@ public class LoopUnRoll {
         HashSet<BasicBlock> allBB = new HashSet<>();
         HashSet<BasicBlock> exits = new HashSet<>();
         allBB.addAll(loop.getNowLevelBB());
-        for (Loop loop1: loop.getChildrenLoops()) {
+        for (Loop loop1 : loop.getChildrenLoops()) {
             checkDFS(loop1, allBB, exits);
         }
 
-        for (BasicBlock bb: exits) {
+        for (BasicBlock bb : exits) {
             if (!allBB.contains(bb)) {
                 return;
             }
@@ -180,17 +216,17 @@ public class LoopUnRoll {
 
         BasicBlock head = loop.getHeader();
         BasicBlock exit = null, entering = null, latch = null, headNext = null;
-        for (BasicBlock bb: head.getPrecBBs()) {
+        for (BasicBlock bb : head.getPrecBBs()) {
             if (bb.isLoopLatch()) {
                 latch = bb;
             } else {
                 entering = bb;
             }
         }
-        for (BasicBlock bb: loop.getExits()) {
+        for (BasicBlock bb : loop.getExits()) {
             exit = bb;
         }
-        for (BasicBlock bb: head.getSuccBBs()) {
+        for (BasicBlock bb : head.getSuccBBs()) {
             if (!bb.equals(exit)) {
                 headNext = bb;
             }
@@ -294,13 +330,12 @@ public class LoopUnRoll {
         exit.modifyPre(head, latchNext);
 
 
-
         //维护bbInWhile这些块的Loop信息
         //维护块中指令的isInWhileCond信息
         HashSet<BasicBlock> bbInWhile = new HashSet<>();
         getAllBBInLoop(loop, bbInWhile);
         if (loop.getLoopDepth() == 1) {
-            for (BasicBlock bb: loop.getNowLevelBB()) {
+            for (BasicBlock bb : loop.getNowLevelBB()) {
                 for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
                     if (instr.isInLoopCond()) {
                         instr.setNotInLoopCond();
@@ -311,11 +346,11 @@ public class LoopUnRoll {
 
         Loop parentLoop = loop.getParentLoop();
         parentLoop.getChildrenLoops().remove(loop);
-        for (BasicBlock bb: loop.getNowLevelBB()) {
+        for (BasicBlock bb : loop.getNowLevelBB()) {
             bb.modifyLoop(parentLoop);
         }
 
-        for (Loop child: loop.getChildrenLoops()) {
+        for (Loop child : loop.getChildrenLoops()) {
             child.setParentLoop(parentLoop);
         }
 
@@ -330,10 +365,10 @@ public class LoopUnRoll {
         //times = 0;
         for (int i = 0; i < times - 1; i++) {
             CloneInfoMap.clear();
-            for (BasicBlock bb: bbInWhile) {
+            for (BasicBlock bb : bbInWhile) {
                 bb.cloneToFunc_LUR(function, parentLoop);
             }
-            for (BasicBlock bb: bbInWhile) {
+            for (BasicBlock bb : bbInWhile) {
                 BasicBlock newBB = (BasicBlock) CloneInfoMap.getReflectedValue(bb);
                 newBB.fixPreSuc(bb);
                 newBB.fix();
@@ -350,11 +385,11 @@ public class LoopUnRoll {
 
 
             HashSet<Value> keys = new HashSet<>();
-            for (Value value: reachDefAfterLatch.keySet()) {
+            for (Value value : reachDefAfterLatch.keySet()) {
                 keys.add(value);
             }
 
-            for (Value A: keys) {
+            for (Value A : keys) {
                 reachDefAfterLatch.put(CloneInfoMap.getReflectedValue(A), reachDefAfterLatch.get(A));
                 if (CloneInfoMap.valueMap.containsKey(A)) {
                     reachDefAfterLatch.remove(A);
@@ -363,7 +398,7 @@ public class LoopUnRoll {
 
             //修改引用,更新reach_def_after_latch
             //fixme:考虑const的情况
-            for (BasicBlock temp: bbInWhile) {
+            for (BasicBlock temp : bbInWhile) {
                 BasicBlock bb = (BasicBlock) CloneInfoMap.getReflectedValue(temp);
                 for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
                     ArrayList<Value> values = instr.getUseValueList();
@@ -403,11 +438,11 @@ public class LoopUnRoll {
 //            }
 
             keys = new HashSet<>();
-            for (Value value: reachDefAfterLatch.keySet()) {
+            for (Value value : reachDefAfterLatch.keySet()) {
                 keys.add(value);
             }
 
-            for (Value AA: keys) {
+            for (Value AA : keys) {
                 Value D = reachDefAfterLatch.get(AA);
                 Value DD = CloneInfoMap.getReflectedValue(reachDefAfterLatch.get(AA));
                 reachDefAfterLatch.put(D, DD);
@@ -415,11 +450,11 @@ public class LoopUnRoll {
             }
 
             keys = new HashSet<>();
-            for (Value value: beginToEnd.keySet()) {
+            for (Value value : beginToEnd.keySet()) {
                 keys.add(value);
             }
 
-            for (Value A: keys) {
+            for (Value A : keys) {
                 Value DD = CloneInfoMap.getReflectedValue(beginToEnd.get(A));
                 beginToEnd.put(A, DD);
             }
@@ -428,7 +463,7 @@ public class LoopUnRoll {
             oldBegin = newBegin;
             oldLatchNext = newLatchNext;
             HashSet<BasicBlock> newBBInWhile = new HashSet<>();
-            for (BasicBlock bb: bbInWhile) {
+            for (BasicBlock bb : bbInWhile) {
                 newBBInWhile.add((BasicBlock) CloneInfoMap.getReflectedValue(bb));
             }
             bbInWhile = newBBInWhile;
@@ -449,7 +484,7 @@ public class LoopUnRoll {
 //                //Value B = ((Instr.Phi) value).getUseValueList().get(index);
 //                instr.modifyUse(beginToEnd.get(value), 0);
 //            }
-            for (Value value: instr.getUseValueList()) {
+            for (Value value : instr.getUseValueList()) {
                 assert value instanceof Instr;
                 if (((Instr) value).parentBB().equals(head)) {
                     instr.modifyUse(beginToEnd.get(value), instr.getUseValueList().indexOf(value));
@@ -468,22 +503,22 @@ public class LoopUnRoll {
     }
 
     private void getAllBBInLoop(Loop loop, HashSet<BasicBlock> bbs) {
-        for (BasicBlock bb: loop.getNowLevelBB()) {
+        for (BasicBlock bb : loop.getNowLevelBB()) {
             bbs.add(bb);
         }
-        for (Loop next: loop.getChildrenLoops()) {
+        for (Loop next : loop.getChildrenLoops()) {
             getAllBBInLoop(next, bbs);
         }
     }
 
     private int cntDFS(Loop loop) {
         int cnt = 0;
-        for (BasicBlock bb: loop.getNowLevelBB()) {
+        for (BasicBlock bb : loop.getNowLevelBB()) {
             for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
                 cnt++;
             }
         }
-        for (Loop next: loop.getChildrenLoops()) {
+        for (Loop next : loop.getChildrenLoops()) {
             cnt += cntDFS(next);
         }
         return cnt;
@@ -494,17 +529,17 @@ public class LoopUnRoll {
         int times = getUnrollTime(loop.getIdcTimes(), codeCnt);
         BasicBlock head = loop.getHeader();
         BasicBlock exit = null, entering = null, latch = null, headNext = null;
-        for (BasicBlock bb: head.getPrecBBs()) {
+        for (BasicBlock bb : head.getPrecBBs()) {
             if (bb.isLoopLatch()) {
                 latch = bb;
             } else {
                 entering = bb;
             }
         }
-        for (BasicBlock bb: loop.getExits()) {
+        for (BasicBlock bb : loop.getExits()) {
             exit = bb;
         }
-        for (BasicBlock bb: head.getSuccBBs()) {
+        for (BasicBlock bb : head.getSuccBBs()) {
             if (!bb.equals(exit)) {
                 headNext = bb;
             }
@@ -561,10 +596,10 @@ public class LoopUnRoll {
         BasicBlock oldLatchNext = latchNext;
         for (int i = 0; i < times - 1; i++) {
             CloneInfoMap.clear();
-            for (BasicBlock bb: bbInWhile) {
+            for (BasicBlock bb : bbInWhile) {
                 bb.cloneToFunc_LUR(function, loop);
             }
-            for (BasicBlock bb: bbInWhile) {
+            for (BasicBlock bb : bbInWhile) {
                 BasicBlock newBB = (BasicBlock) CloneInfoMap.getReflectedValue(bb);
                 newBB.fixPreSuc(bb);
                 newBB.fix();
@@ -581,11 +616,11 @@ public class LoopUnRoll {
 
 
             HashSet<Value> keys = new HashSet<>();
-            for (Value value: reachDefAfterLatch.keySet()) {
+            for (Value value : reachDefAfterLatch.keySet()) {
                 keys.add(value);
             }
 
-            for (Value A: keys) {
+            for (Value A : keys) {
                 reachDefAfterLatch.put(CloneInfoMap.getReflectedValue(A), reachDefAfterLatch.get(A));
                 if (CloneInfoMap.valueMap.containsKey(A)) {
                     reachDefAfterLatch.remove(A);
@@ -594,7 +629,7 @@ public class LoopUnRoll {
 
             //修改引用,更新reach_def_after_latch
             //fixme:考虑const的情况
-            for (BasicBlock temp: bbInWhile) {
+            for (BasicBlock temp : bbInWhile) {
                 BasicBlock bb = (BasicBlock) CloneInfoMap.getReflectedValue(temp);
                 for (Instr instr = bb.getBeginInstr(); instr.getNext() != null; instr = (Instr) instr.getNext()) {
                     ArrayList<Value> values = instr.getUseValueList();
@@ -610,11 +645,11 @@ public class LoopUnRoll {
 
 
             keys = new HashSet<>();
-            for (Value value: reachDefAfterLatch.keySet()) {
+            for (Value value : reachDefAfterLatch.keySet()) {
                 keys.add(value);
             }
 
-            for (Value AA: keys) {
+            for (Value AA : keys) {
                 Value D = reachDefAfterLatch.get(AA);
                 Value DD = CloneInfoMap.getReflectedValue(reachDefAfterLatch.get(AA));
                 reachDefAfterLatch.put(D, DD);
@@ -622,11 +657,11 @@ public class LoopUnRoll {
             }
 
             keys = new HashSet<>();
-            for (Value value: beginToEnd.keySet()) {
+            for (Value value : beginToEnd.keySet()) {
                 keys.add(value);
             }
 
-            for (Value A: keys) {
+            for (Value A : keys) {
                 Value DD = CloneInfoMap.getReflectedValue(beginToEnd.get(A));
                 beginToEnd.put(A, DD);
             }
@@ -635,7 +670,7 @@ public class LoopUnRoll {
             oldBegin = newBegin;
             oldLatchNext = newLatchNext;
             HashSet<BasicBlock> newBBInWhile = new HashSet<>();
-            for (BasicBlock bb: bbInWhile) {
+            for (BasicBlock bb : bbInWhile) {
                 newBBInWhile.add((BasicBlock) CloneInfoMap.getReflectedValue(bb));
             }
             bbInWhile = newBBInWhile;

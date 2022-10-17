@@ -1,6 +1,7 @@
 package frontend.lexer;
 
-import java.io.*;
+import java.io.BufferedInputStream;
+import java.io.IOException;
 import java.util.regex.Matcher;
 
 import static frontend.lexer.TokenType.*;
@@ -75,45 +76,47 @@ public class Lexer {
     }
 
     private void keywordTokenDeal(String str) {
+        Token tk;
         switch (str) {
             // case "main": {
             //     Token tk = new Token(TokenType., str);
             //     tokenList.append(tk);
             //     break;
             // }
-            case "const" -> {
-                Token tk = new Token(CONST, str);
+            case "const":
+                tk = new Token(CONST, str);
                 tokenList.append(tk);
-            }
-            case "int" -> {
-                Token tk = new Token(INT, str);
+                break;
+            case "int":
+                tk = new Token(INT, str);
                 tokenList.append(tk);
-            }
-            case "float" -> {
+                break;
+
+            case "float":
                 detectFloat = true;
-                Token tk = new Token(FLOAT, str);
+                tk = new Token(FLOAT, str);
                 tokenList.append(tk);
-            }
-            case "break" -> {
-                Token tk = new Token(BREAK, str);
+                break;
+            case "break":
+                tk = new Token(BREAK, str);
                 tokenList.append(tk);
-            }
-            case "continue" -> {
-                Token tk = new Token(CONTINUE, str);
+                break;
+            case "continue":
+                tk = new Token(CONTINUE, str);
                 tokenList.append(tk);
-            }
-            case "if" -> {
-                Token tk = new Token(IF, str);
+                break;
+            case "if":
+                tk = new Token(IF, str);
                 tokenList.append(tk);
-            }
-            case "else" -> {
-                Token tk = new Token(ELSE, str);
+                break;
+            case "else":
+                tk = new Token(ELSE, str);
                 tokenList.append(tk);
-            }
-            case "while" -> {
-                Token tk = new Token(WHILE, str);
+                break;
+            case "while":
+                tk = new Token(WHILE, str);
                 tokenList.append(tk);
-            }
+                break;
 
             // case "getint": {
             //     Token tk = new Token(, str);
@@ -125,18 +128,18 @@ public class Lexer {
             //     tokenList.append(tk);
             //     break;
             // }
-            case "return" -> {
-                Token tk = new Token(RETURN, str);
+            case "return":
+                tk = new Token(RETURN, str);
                 tokenList.append(tk);
-            }
-            case "void" -> {
-                Token tk = new Token(VOID, str);
+                break;
+            case "void":
+                tk = new Token(VOID, str);
                 tokenList.append(tk);
-            }
-            default -> {
-                Token tk = new Token(IDENT, str);
+                break;
+            default:
+                tk = new Token(IDENT, str);
                 tokenList.append(tk);
-            }
+                break;
         }
     }
 
@@ -241,7 +244,7 @@ public class Lexer {
                 for (TokenType type : NUM_CON_LIST) {
                     Matcher matcher = type.getPattern().matcher(numStr);
                     if (matcher.matches()) {
-                        if(type == HEX_FLOAT || type == DEC_FLOAT){
+                        if (type == HEX_FLOAT || type == DEC_FLOAT) {
                             detectFloat = true;
                         }
                         // String token = matcher.group(0);
@@ -405,69 +408,70 @@ public class Lexer {
                     }
                 }
             } else {
+                Token tk;
                 switch (lastChar) {
-                    case '+' -> {
-                        Token tk = new Token(ADD, "+");
+                    case '+':
+                        tk = new Token(ADD, "+");
                         tokenList.append(tk);
                         c = myGetc(bis);
-                    }
-                    case '-' -> {
-                        Token tk = new Token(SUB, "-");
+                        break;
+                    case '-':
+                        tk = new Token(SUB, "-");
                         tokenList.append(tk);
                         c = myGetc(bis);
-                    }
-                    case '*' -> {
-                        Token tk = new Token(MUL, "*");
+                        break;
+                    case '*':
+                        tk = new Token(MUL, "*");
                         tokenList.append(tk);
                         c = myGetc(bis);
-                    }
-                    case '%' -> {
-                        Token tk = new Token(MOD, "%");
+                        break;
+                    case '%':
+                        tk = new Token(MOD, "%");
                         tokenList.append(tk);
                         c = myGetc(bis);
-                    }
-                    case ';' -> {
-                        Token tk = new Token(SEMI, ";");
+                        break;
+                    case ';':
+                        tk = new Token(SEMI, ";");
                         tokenList.append(tk);
                         c = myGetc(bis);
-                    }
-                    case ',' -> {
-                        Token tk = new Token(COMMA, ",");
+                        break;
+                    case ',':
+                        tk = new Token(COMMA, ",");
                         tokenList.append(tk);
                         c = myGetc(bis);
-                    }
-                    case '(' -> {
-                        Token tk = new Token(LPARENT, "(");
+                        break;
+                    case '(':
+                        tk = new Token(LPARENT, "(");
                         tokenList.append(tk);
                         c = myGetc(bis);
-                    }
-                    case ')' -> {
-                        Token tk = new Token(RPARENT, ")");
+                        break;
+                    case ')':
+                        tk = new Token(RPARENT, ")");
                         tokenList.append(tk);
                         c = myGetc(bis);
-                    }
-                    case '[' -> {
-                        Token tk = new Token(LBRACK, "[");
+                        break;
+                    case '[':
+                        tk = new Token(LBRACK, "[");
                         tokenList.append(tk);
                         c = myGetc(bis);
-                    }
-                    case ']' -> {
-                        Token tk = new Token(RBRACK, "]");
+                        break;
+                    case ']':
+                        tk = new Token(RBRACK, "]");
                         tokenList.append(tk);
                         c = myGetc(bis);
-                    }
-                    case '{' -> {
-                        Token tk = new Token(LBRACE, "{");
+                        break;
+                    case '{':
+                        tk = new Token(LBRACE, "{");
                         tokenList.append(tk);
                         c = myGetc(bis);
-                    }
-                    case '}' -> {
-                        Token tk = new Token(RBRACE, "}");
+                        break;
+                    case '}':
+                        tk = new Token(RBRACE, "}");
                         tokenList.append(tk);
                         c = myGetc(bis);
-                    }
-                    default -> {
-                    }
+                        break;
+                    default:
+                        break;
                 }
                 if (c == -1) {
                     break;

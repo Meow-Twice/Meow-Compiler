@@ -5,7 +5,6 @@ import mir.*;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.regex.Pattern;
 
 public class IfComb {
 
@@ -28,10 +27,8 @@ public class IfComb {
     }
 
 
-
-
     private void PatternA() {
-        for (Function function: functions) {
+        for (Function function : functions) {
             know.clear();
             for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
                 if (!know.contains(bb)) {
@@ -70,7 +67,7 @@ public class IfComb {
                 Value value = icmp.getRVal1();
                 int num = (int) ((Constant) icmp.getRVal2()).getConstVal();
                 switch (icmp.getOp()) {
-                    case SLT -> {
+                    case SLT: {
                         if (right.containsKey(value) && right.get(value) <= num) {
                             br.modifyUse(new Constant.ConstantInt(1), 0);
                         } else if (rightEq.containsKey(value) && rightEq.get(value) < num) {
@@ -87,7 +84,8 @@ public class IfComb {
                             right.put(value, num);
                         }
                     }
-                    case SLE -> {
+                    break;
+                    case SLE: {
                         if (right.containsKey(value) && right.get(value) <= num + 1) {
                             br.modifyUse(new Constant.ConstantInt(1), 0);
                         } else if (rightEq.containsKey(value) && rightEq.get(value) <= num) {
@@ -104,7 +102,8 @@ public class IfComb {
                             rightEq.put(value, num);
                         }
                     }
-                    case SGT -> {
+                    break;
+                    case SGT: {
                         if (right.containsKey(value) && right.get(value) <= num + 1) {
                             br.modifyUse(new Constant.ConstantInt(0), 0);
                         } else if (rightEq.containsKey(value) && rightEq.get(value) <= num) {
@@ -121,7 +120,8 @@ public class IfComb {
                             left.put(value, num);
                         }
                     }
-                    case SGE -> {
+                    break;
+                    case SGE: {
                         if (right.containsKey(value) && right.get(value) <= num) {
                             br.modifyUse(new Constant.ConstantInt(0), 0);
                         } else if (rightEq.containsKey(value) && rightEq.get(value) <= num - 1) {
@@ -138,6 +138,7 @@ public class IfComb {
                             leftEq.put(value, num);
                         }
                     }
+                    break;
                 }
             }
             if (trueBB.getPrecBBs().size() == 1 && !know.contains(trueBB)) {
@@ -158,7 +159,7 @@ public class IfComb {
                     Value value = icmp.getRVal1();
                     int num = (int) ((Constant) icmp.getRVal2()).getConstVal();
                     switch (icmp.getOp()) {
-                        case SLT -> {
+                        case SLT: {
                             if (!leftEq.containsKey(value)) {
                                 leftEq.put(value, num);
                             }
@@ -166,7 +167,8 @@ public class IfComb {
                                 leftEq.put(value, num);
                             }
                         }
-                        case SLE -> {
+                        break;
+                        case SLE: {
                             if (!left.containsKey(value)) {
                                 left.put(value, num);
                             }
@@ -174,7 +176,8 @@ public class IfComb {
                                 left.put(value, num);
                             }
                         }
-                        case SGT -> {
+                        break;
+                        case SGT: {
                             if (!rightEq.containsKey(value)) {
                                 rightEq.put(value, num);
                             }
@@ -182,7 +185,8 @@ public class IfComb {
                                 rightEq.put(value, num);
                             }
                         }
-                        case SGE -> {
+                        break;
+                        case SGE: {
                             if (!right.containsKey(value)) {
                                 right.put(value, num);
                             }
@@ -190,6 +194,7 @@ public class IfComb {
                                 right.put(value, num);
                             }
                         }
+                        break;
                     }
                 }
 
@@ -211,7 +216,7 @@ public class IfComb {
     private HashSet<Value> trueValue = new HashSet<>(), falseValue = new HashSet<>();
 
     private void PatternB() {
-        for (Function function: functions) {
+        for (Function function : functions) {
             know.clear();
             for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
                 if (!know.contains(bb)) {
@@ -259,7 +264,7 @@ public class IfComb {
     int cnt = 0;
 
     private void PatternC() {
-        for (Function function: functions) {
+        for (Function function : functions) {
             know.clear();
             for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
                 if (bb.getEndInstr() instanceof Instr.Branch) {

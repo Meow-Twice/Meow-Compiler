@@ -60,26 +60,38 @@ public class Evaluate {
         if (src1 instanceof Float || src2 instanceof Float) {
             float f1 = src1 instanceof Integer ? (float) ((int) src1) : (float) src1;
             float f2 = src2 instanceof Integer ? (float) ((int) src2) : (float) src2;
-            return switch (op.getType()) {
-                case ADD -> f1 + f2;
-                case SUB -> f1 - f2;
-                case MUL -> f1 * f2;
-                case DIV -> f1 / f2;
-                case MOD -> f1 % f2;
-                default -> throw new AssertionError("Bad Binary Operator");
-            };
+            switch (op.getType()) {
+                case ADD:
+                    return f1 + f2;
+                case SUB:
+                    return f1 - f2;
+                case MUL:
+                    return f1 * f2;
+                case DIV:
+                    return f1 / f2;
+                case MOD:
+                    return f1 % f2;
+                default:
+                    throw new AssertionError("Bad Binary Operator");
+            }
         } else {
             assert src1 instanceof Integer && src2 instanceof Integer;
             int i1 = (int) src1;
             int i2 = (int) src2;
-            return switch (op.getType()) {
-                case ADD -> i1 + i2;
-                case SUB -> i1 - i2;
-                case MUL -> i1 * i2;
-                case DIV -> i1 / i2;
-                case MOD -> i1 % i2;
-                default -> throw new AssertionError("Bad Binary Operator");
-            };
+            switch (op.getType()) {
+                case ADD:
+                    return i1 + i2;
+                case SUB:
+                    return i1 - i2;
+                case MUL:
+                    return i1 * i2;
+                case DIV:
+                    return i1 / i2;
+                case MOD:
+                    return i1 % i2;
+                default:
+                    throw new AssertionError("Bad Binary Operator");
+            }
         }
     }
 
@@ -87,20 +99,28 @@ public class Evaluate {
     private static Object unaryCalcHelper(Token op, Object src) {
         if (src instanceof Integer) {
             int intConst = (int) src;
-            return switch (op.getType()) {
-                case ADD -> intConst;
-                case SUB -> -intConst;
-                case NOT -> intConst == 0 ? 1 : 0;
-                default -> throw new AssertionError("Bad Unary Operator");
-            };
+            switch (op.getType()) {
+                case ADD:
+                    return intConst;
+                case SUB:
+                    return -intConst;
+                case NOT:
+                    return intConst == 0 ? 1 : 0;
+                default:
+                    throw new AssertionError("Bad Unary Operator");
+            }
         } else if (src instanceof Float) {
             float floatConst = (float) src;
-            return switch (op.getType()) {
-                case ADD -> floatConst;
-                case SUB -> -floatConst;
-                case NOT -> floatConst == 0.0 ? 1.0 : 0.0;
-                default -> throw new AssertionError("Bad Unary Operator");
-            };
+            switch (op.getType()) {
+                case ADD:
+                    return floatConst;
+                case SUB:
+                    return -floatConst;
+                case NOT:
+                    return floatConst == 0.0 ? 1.0 : 0.0;
+                default:
+                    throw new AssertionError("Bad Unary Operator");
+            }
         } else {
             throw new AssertionError("Bad src: " + src);
         }
@@ -148,13 +168,19 @@ public class Evaluate {
     public static Object evalNumber(Ast.Number number) {
         Token num = number.getNumber();
         String content = num.getContent();
-        return switch (num.getType()) {
-            case HEX_INT -> Integer.parseInt(content.substring(2), 16);
-            case OCT_INT -> Integer.parseInt(content.substring(1), 8);
-            case DEC_INT -> Integer.parseInt(content);
-            case HEX_FLOAT, DEC_FLOAT -> Float.parseFloat(content);
-            default -> throw new AssertionError("Bad Number: " + number);
-        };
+        switch (num.getType()) {
+            case HEX_INT:
+                return Integer.parseInt(content.substring(2), 16);
+            case OCT_INT:
+                return Integer.parseInt(content.substring(1), 8);
+            case DEC_INT:
+                return Integer.parseInt(content);
+            case HEX_FLOAT:
+            case DEC_FLOAT:
+                return Float.parseFloat(content);
+            default:
+                throw new AssertionError("Bad Number: " + number);
+        }
     }
 
     public static Object evalLVal(Ast.LVal lVal) throws SemanticException {

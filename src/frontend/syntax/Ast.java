@@ -316,7 +316,8 @@ public class Ast {
     // Init -> Exp | InitArray 
     // Exp -> BinaryExp | UnaryExp 
     public interface Exp extends Init, PrimaryExp {
-        default void printSyntaxTree() {}
+        default void printSyntaxTree() {
+        }
     }
 
     // BinaryExp: Arithmetic, Relation, Logical 
@@ -428,12 +429,19 @@ public class Ast {
 
             if (number.isIntConst()) {
                 isIntConst = true;
-                intConstVal = switch (number.getType()) {
-                    case HEX_INT -> Integer.parseInt(number.getContent().substring(2), 16);
-                    case OCT_INT -> Integer.parseInt(number.getContent().substring(1), 8);
-                    case DEC_INT -> Integer.parseInt(number.getContent());
-                    default -> throw new AssertionError("Bad Number!");
-                };
+                switch (number.getType()) {
+                    case HEX_INT:
+                        intConstVal = Integer.parseInt(number.getContent().substring(2), 16);
+                        break;
+                    case OCT_INT:
+                        intConstVal = Integer.parseInt(number.getContent().substring(1), 8);
+                        break;
+                    case DEC_INT:
+                        intConstVal = Integer.parseInt(number.getContent());
+                        break;
+                    default:
+                        throw new AssertionError("Bad Number!");
+                }
                 floatConstVal = (float) intConstVal;
             } else if (number.isFloatConst()) {
                 isFloatConst = true;

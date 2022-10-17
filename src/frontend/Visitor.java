@@ -77,24 +77,44 @@ public class Visitor {
         //     System.err.printf("Try to trim %s to %s\n", value, targetType);
         //     // return value;
         // }
-        return switch (((BasicType) value.getType()).dataType) {
-            case I1 -> switch (targetType.dataType) {
-                case I32 -> new Zext(value, curBB);
-                case F32 -> new SItofp(new Zext(value, curBB), curBB);
-                case I1 -> value;
-            };
-            case I32 -> switch (targetType.dataType) {
-                // TODO: 关于ConstVal是新建一个实例还是复用同一个常数，有待考察，此处使用唯一常量
-                case I1 -> new Icmp(Icmp.Op.NE, value, CONST_0, curBB);
-                case F32 -> new SItofp(value, curBB);
-                case I32 -> value;
-            };
-            case F32 -> switch (targetType.dataType) {
-                case I1 -> new Fcmp(Fcmp.Op.ONE, value, CONST_0F, curBB);
-                case I32 -> new FPtosi(value, curBB);
-                case F32 -> value;
-            };
-        };
+        switch (((BasicType) value.getType()).dataType) {
+            case I1:
+                switch (targetType.dataType) {
+                    case I32:
+                        return new Zext(value, curBB);
+                    case F32:
+                        return new SItofp(new Zext(value, curBB), curBB);
+                    case I1:
+                        return value;
+                    default:
+                        throw new InternalError();
+                }
+            case I32:
+                switch (targetType.dataType) {
+                    // TODO: 关于ConstVal是新建一个实例还是复用同一个常数，有待考察，此处使用唯一常量
+                    case I1:
+                        return new Icmp(Icmp.Op.NE, value, CONST_0, curBB);
+                    case F32:
+                        return new SItofp(value, curBB);
+                    case I32:
+                        return value;
+                    default:
+                        throw new InternalError();
+                }
+            case F32:
+                switch (targetType.dataType) {
+                    case I1:
+                        return new Fcmp(Fcmp.Op.ONE, value, CONST_0F, curBB);
+                    case I32:
+                        return new FPtosi(value, curBB);
+                    case F32:
+                        return value;
+                    default:
+                        throw new InternalError();
+                }
+            default:
+                throw new InternalError();
+        }
     }
 
     private boolean isAlu(Token token) {
@@ -110,49 +130,75 @@ public class Visitor {
     }
 
     private Alu.Op aluOpHelper(Token token) {
-        return switch (token.getType()) {
-            case ADD -> Alu.Op.ADD;
-            case SUB -> Alu.Op.SUB;
-            case MUL -> Alu.Op.MUL;
-            case DIV -> Alu.Op.DIV;
-            case MOD -> Alu.Op.REM;
-            default -> throw new AssertionError("Bad Alu Op");
-        };
+        switch (token.getType()) {
+            case ADD:
+                return Alu.Op.ADD;
+            case SUB:
+                return Alu.Op.SUB;
+            case MUL:
+                return Alu.Op.MUL;
+            case DIV:
+                return Alu.Op.DIV;
+            case MOD:
+                return Alu.Op.REM;
+            default:
+                throw new AssertionError("Bad Alu Op");
+        }
     }
 
     private Alu.Op aluOpHelper(Token token, boolean needFloat) {
-        return switch (token.getType()) {
-            case ADD -> Alu.Op.FADD;
-            case SUB -> Alu.Op.FSUB;
-            case MUL -> Alu.Op.FMUL;
-            case DIV -> Alu.Op.FDIV;
-            case MOD -> Alu.Op.FREM;
-            default -> throw new AssertionError(String.format("Bad Alu Op %s", token));
-        };
+        switch (token.getType()) {
+            case ADD:
+                return Alu.Op.FADD;
+            case SUB:
+                return Alu.Op.FSUB;
+            case MUL:
+                return Alu.Op.FMUL;
+            case DIV:
+                return Alu.Op.FDIV;
+            case MOD:
+                return Alu.Op.FREM;
+            default:
+                throw new AssertionError(String.format("Bad Alu Op %s", token));
+        }
     }
 
     private Icmp.Op icmpOpHelper(Token token) {
-        return switch (token.getType()) {
-            case GE -> Icmp.Op.SGE;
-            case GT -> Icmp.Op.SGT;
-            case LE -> Icmp.Op.SLE;
-            case LT -> Icmp.Op.SLT;
-            case EQ -> Icmp.Op.EQ;
-            case NE -> Icmp.Op.NE;
-            default -> throw new AssertionError(String.format("Bad icmp Op %s", token));
-        };
+        switch (token.getType()) {
+            case GE:
+                return Icmp.Op.SGE;
+            case GT:
+                return Icmp.Op.SGT;
+            case LE:
+                return Icmp.Op.SLE;
+            case LT:
+                return Icmp.Op.SLT;
+            case EQ:
+                return Icmp.Op.EQ;
+            case NE:
+                return Icmp.Op.NE;
+            default:
+                throw new AssertionError(String.format("Bad icmp Op %s", token));
+        }
     }
 
     private Fcmp.Op fcmpOpHelper(Token token) {
-        return switch (token.getType()) {
-            case GE -> Fcmp.Op.OGE;
-            case GT -> Fcmp.Op.OGT;
-            case LE -> Fcmp.Op.OLE;
-            case LT -> Fcmp.Op.OLT;
-            case EQ -> Fcmp.Op.OEQ;
-            case NE -> Fcmp.Op.ONE;
-            default -> throw new AssertionError(String.format("Bad fcmp Op %s", token));
-        };
+        switch (token.getType()) {
+            case GE:
+                return Fcmp.Op.OGE;
+            case GT:
+                return Fcmp.Op.OGT;
+            case LE:
+                return Fcmp.Op.OLE;
+            case LT:
+                return Fcmp.Op.OLT;
+            case EQ:
+                return Fcmp.Op.OEQ;
+            case NE:
+                return Fcmp.Op.ONE;
+            default:
+                throw new AssertionError(String.format("Bad fcmp Op %s", token));
+        }
     }
 
     public void visitAst(Ast ast) throws SemanticException {
@@ -706,11 +752,18 @@ public class Visitor {
         if (currentSymTable.contains(ident, false)) {
             throw new SemanticException("Duplicated variable definition");
         }
-        Type pointeeType = switch (def.bType) {
-            case INT -> I32_TYPE;
-            case FLOAT -> F32_TYPE;
-            default -> throw new SemanticException(String.format("Wrong bType: %s", def.bType));
-        };
+        Type pointeeType;
+        switch (def.bType) {
+            case INT:
+                pointeeType = I32_TYPE;
+                break;
+            case FLOAT:
+                pointeeType = F32_TYPE;
+                break;
+            default:
+                throw new SemanticException(String.format("Wrong bType: %s", def.bType));
+        }
+        ;
         // 编译期计算数组每一维的长度，然后从右向左"组装"成数组类型
         ArrayList<Integer> lengths = new ArrayList<>();
         for (Exp len : def.getIndexes()) {
@@ -897,24 +950,22 @@ public class Visitor {
         Object eval = Evaluate.evalConstExp(exp);
         if (eval instanceof Integer) {
             switch (basicType.dataType) {
-                case I32 -> {
+                case I32:
                     return new Initial.ValueInit(new Constant.ConstantInt((int) eval), I32_TYPE);
-                }
-                case F32 -> {
+                case F32:
                     return new Initial.ValueInit(new Constant.ConstantFloat((float) ((int) eval)), F32_TYPE);
-                }
-                default -> throw new SemanticException("Wrong init type: " + basicType);
+                default:
+                    throw new SemanticException("Wrong init type: " + basicType);
             }
         } else {
             assert eval instanceof Float;
             switch (basicType.dataType) {
-                case I32 -> {
+                case I32:
                     return new Initial.ValueInit(new Constant.ConstantInt((int) ((float) eval)), I32_TYPE);
-                }
-                case F32 -> {
+                case F32:
                     return new Initial.ValueInit(new Constant.ConstantFloat((float) eval), F32_TYPE);
-                }
-                default -> throw new SemanticException("Wrong init type: " + basicType);
+                default:
+                    throw new SemanticException("Wrong init type: " + basicType);
             }
         }
     }
@@ -928,12 +979,21 @@ public class Visitor {
     private void visitFuncDef(FuncDef def) throws SemanticException {
         curLoop = new Loop(Loop.emptyLoop);
         TokenType funcTypeTk = def.getType().getType();
-        Type retType = switch (funcTypeTk) {
-            case VOID -> VoidType.getVoidType();
-            case INT -> I32_TYPE;
-            case FLOAT -> F32_TYPE;
-            default -> throw new SemanticException("Wrong func ret type: " + funcTypeTk);
-        };
+        Type retType;
+        switch (funcTypeTk) {
+            case VOID:
+                retType = VoidType.getVoidType();
+                break;
+            case INT:
+                retType = I32_TYPE;
+                break;
+            case FLOAT:
+                retType = F32_TYPE;
+                break;
+            default:
+                throw new SemanticException("Wrong func ret type: " + funcTypeTk);
+        }
+        ;
         String ident = def.getIdent().getContent();
         if (manager.getFunctions().containsKey(ident)) {
             throw new SemanticException("Duplicated function defined");
@@ -966,10 +1026,17 @@ public class Visitor {
         if (!curBB.isTerminated()) {
             // 如果没有 return 补上一条
             switch (funcTypeTk) {
-                case VOID -> new Instr.Return(curBB);
-                case INT -> new Instr.Return(CONST_0, curBB);
-                case FLOAT -> new Instr.Return(CONST_0F, curBB);
-                default -> throw new SemanticException("Wrong func ret type: " + funcTypeTk);
+                case VOID:
+                    new Instr.Return(curBB);
+                    break;
+                case INT:
+                    new Instr.Return(CONST_0, curBB);
+                    break;
+                case FLOAT:
+                    new Instr.Return(CONST_0F, curBB);
+                    break;
+                default:
+                    throw new SemanticException("Wrong func ret type: " + funcTypeTk);
             }
         }
         currentSymTable = currentSymTable.getParent();
@@ -998,11 +1065,14 @@ public class Visitor {
     }
 
     private Type getBasicType(FuncFParam funcFParam) throws SemanticException {
-        return switch (funcFParam.bType.getType()) {
-            case INT -> I32_TYPE;
-            case FLOAT -> F32_TYPE;
-            default -> throw new SemanticException("Wrong param type: " + funcFParam.ident.getContent());
-        };
+        switch (funcFParam.bType.getType()) {
+            case INT:
+                return I32_TYPE;
+            case FLOAT:
+                return F32_TYPE;
+            default:
+                throw new SemanticException("Wrong param type: " + funcFParam.ident.getContent());
+        }
     }
 
     private void visitCompUnit(CompUnit unit) throws SemanticException {

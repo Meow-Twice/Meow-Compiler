@@ -27,7 +27,7 @@ public class ConstFold {
     }
 
     private void condConstFold() {
-        for (Function function: functions) {
+        for (Function function : functions) {
             condConstFoldForFunc(function);
         }
     }
@@ -43,14 +43,26 @@ public class ConstFold {
                         int lInt = (int) ((Constant) lValue).getConstVal();
                         int rInt = (int) ((Constant) rValue).getConstVal();
                         switch (((Instr.Icmp) instr).getOp()) {
-                            case SLT -> tag = lInt < rInt;
-                            case SLE -> tag = lInt <= rInt;
-                            case SGT -> tag = lInt > rInt;
-                            case SGE -> tag = lInt >= rInt;
-                            case NE -> tag = lInt != rInt;
-                            case EQ -> tag = lInt == rInt;
+                            case SLT:
+                                tag = lInt < rInt;
+                                break;
+                            case SLE:
+                                tag = lInt <= rInt;
+                                break;
+                            case SGT:
+                                tag = lInt > rInt;
+                                break;
+                            case SGE:
+                                tag = lInt >= rInt;
+                                break;
+                            case NE:
+                                tag = lInt != rInt;
+                                break;
+                            case EQ:
+                                tag = lInt == rInt;
+                                break;
                         }
-                        int val = tag? 1:0;
+                        int val = tag ? 1 : 0;
                         Constant.ConstantBool bool = new Constant.ConstantBool(val);
                         instr.modifyAllUseThisToUseA(bool);
                     }
@@ -62,14 +74,26 @@ public class ConstFold {
                         float lFloat = (float) ((Constant) lValue).getConstVal();
                         float rFloat = (float) ((Constant) rValue).getConstVal();
                         switch (((Instr.Fcmp) instr).getOp()) {
-                            case OLT -> tag = lFloat < rFloat;
-                            case OLE -> tag = lFloat <= rFloat;
-                            case OGT -> tag = lFloat > rFloat;
-                            case OGE -> tag = lFloat >= rFloat;
-                            case ONE -> tag = lFloat != rFloat;
-                            case OEQ -> tag = lFloat == rFloat;
+                            case OLT:
+                                tag = lFloat < rFloat;
+                                break;
+                            case OLE:
+                                tag = lFloat <= rFloat;
+                                break;
+                            case OGT:
+                                tag = lFloat > rFloat;
+                                break;
+                            case OGE:
+                                tag = lFloat >= rFloat;
+                                break;
+                            case ONE:
+                                tag = lFloat != rFloat;
+                                break;
+                            case OEQ:
+                                tag = lFloat == rFloat;
+                                break;
                         }
-                        int val = tag? 1:0;
+                        int val = tag ? 1 : 0;
                         Constant.ConstantBool bool = new Constant.ConstantBool(val);
                         instr.modifyAllUseThisToUseA(bool);
                     }
@@ -100,7 +124,7 @@ public class ConstFold {
 //                }
 //            }
 //        }
-        for (Value value: globalValues.keySet()) {
+        for (Value value : globalValues.keySet()) {
             if (value.getType().isPointerType() && globalArrayIsConst(value)) {
                 constGlobalPtrs.add(value);
             }
@@ -143,7 +167,7 @@ public class ConstFold {
     //fixme:目前只处理全局数组,因为局部数组没有init,考虑上述问题,可以优化
     private void arrayConstFold() {
         globalConstPtrInit();
-        for (Function function: functions) {
+        for (Function function : functions) {
             arrayConstFoldForFunc(function);
         }
     }
@@ -156,7 +180,7 @@ public class ConstFold {
                     if (constGlobalPtrs.contains(ptr)) {
                         ArrayList<Value> indexs = ((Instr.GetElementPtr) instr).getIdxList();
                         Boolean indexAllConstTag = true;
-                        for (Value value: indexs) {
+                        for (Value value : indexs) {
                             if (!(value instanceof Constant)) {
                                 indexAllConstTag = false;
                             }
@@ -213,7 +237,7 @@ public class ConstFold {
                 return new Constant.ConstantFloat(0);
             }
         }
-        for (Value tmp: indexs) {
+        for (Value tmp : indexs) {
             assert tmp instanceof Constant.ConstantInt;
             assert init instanceof Initial.ArrayInit;
             int index = (int) ((Constant) tmp).getConstVal();
@@ -239,7 +263,7 @@ public class ConstFold {
     }
 
     private void singleBBMemoryFold() {
-        for (Function function: functions) {
+        for (Function function : functions) {
             for (BasicBlock bb = function.getBeginBB(); bb.getNext() != null; bb = (BasicBlock) bb.getNext()) {
                 singleBBMemoryFoldForBB(bb);
             }

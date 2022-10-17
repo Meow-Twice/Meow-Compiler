@@ -273,7 +273,7 @@ public class Lexer {
                 lastChar = (char) c;
                 if (lastChar == '\"') {
                     // lexerErrorAdd(lexer'a');
-                    Token tk = new Token(STR_CON, "");
+                    Token tk = new Token(STR_CON, "\"\"");
                     tokenList.append(tk);
                     c = myGetc(bis);
                     if (c == -1) {

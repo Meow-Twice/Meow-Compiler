@@ -1,6 +1,6 @@
-# Compiler 2022
+# Meow-Once
 
-编译技术 2022 年 LLVM IR 代码生成例程，基于 2022 编译大赛作品 Meow-Compiler 修改，裁剪掉了整个后端，并支持了编译课程的 `printf` 语法。
+编译实验 2022 年 LLVM IR 代码生成适配编译器，基于 2022 编译大赛作品 [Meow-Compiler](https://github.com/Meow-Twice/Meow-Compiler) 修改，裁剪掉了整个后端，并支持了课内的 `printf` 函数。
 
 ## 使用方法
 
